@@ -5,6 +5,10 @@ import os
 # debe ir ANTES de importar main/auth.
 os.environ["ADMIN_USERNAME"] = "esthiven"
 os.environ["ADMIN_PASSWORD"] = "changeme"
+# Los tests SIEMPRE usan el disco local para archivos, nunca el Supabase
+# Storage real (mismo principio que la BD en memoria).
+os.environ["SUPABASE_URL"] = ""
+os.environ["SUPABASE_SERVICE_KEY"] = ""
 
 import pytest
 from fastapi.testclient import TestClient

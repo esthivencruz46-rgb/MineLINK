@@ -1,11 +1,12 @@
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 import models
 import schemas
+import storage
 from auth import create_minero_token, get_current_lead_id, verify_password
 from database import get_db
 from scoring import estado_seguimiento
@@ -13,7 +14,6 @@ from security import contenido_coincide_con_tipo, limitar_intentos_login
 from uploads_config import (
     CATEGORIAS_DOCUMENTO,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
-    DOCUMENTOS_MINERO_DIR,
 )
 
 router = APIRouter(prefix="/mineros", tags=["mineros"])
@@ -159,7 +159,9 @@ async def subir_documento(
 
     extension = (archivo.filename or "").rsplit(".", 1)[-1].lower() if "." in (archivo.filename or "") else "bin"
     nombre_archivo = f"{uuid.uuid4()}.{extension}"
-    (DOCUMENTOS_MINERO_DIR / nombre_archivo).write_bytes(contenido)
+    storage.guardar(
+        "documentos_mineros", nombre_archivo, contenido, archivo.content_type or ""
+    )
 
     documento = models.DocumentoOperacion(
         operacion_id=operacion.id,
@@ -192,9 +194,7 @@ def eliminar_documento(
     if documento is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    ruta = DOCUMENTOS_MINERO_DIR / documento.filename
-    if ruta.exists():
-        ruta.unlink()
+    storage.eliminar("documentos_mineros", documento.filename)
     db.delete(documento)
     db.commit()
 
@@ -217,10 +217,16 @@ def ver_documento(
     if documento is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    ruta = DOCUMENTOS_MINERO_DIR / documento.filename
-    if not ruta.exists():
+    contenido = storage.leer("documentos_mineros", documento.filename)
+    if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
-    return FileResponse(
-        ruta, media_type=documento.content_type, filename=documento.nombre_original
+    return Response(
+        content=contenido,
+        media_type=documento.content_type,
+        headers={
+            "Content-Disposition": storage.content_disposition(
+                "inline", documento.nombre_original
+            )
+        },
     )

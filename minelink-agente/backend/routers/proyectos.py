@@ -1,15 +1,16 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 import models
 import schemas
+import storage
 from auth import hash_password
 from database import get_db
 from scoring import estado_seguimiento
-from uploads_config import CATEGORIAS_DOCUMENTO, DOCUMENTOS_MINERO_DIR
+from uploads_config import CATEGORIAS_DOCUMENTO
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
@@ -236,8 +237,8 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
     if documento is None:
         raise HTTPException(status_code=404, detail="Foto no encontrada")
 
-    ruta = DOCUMENTOS_MINERO_DIR / documento.filename
-    if not ruta.exists():
+    contenido = storage.leer("documentos_mineros", documento.filename)
+    if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
-    return FileResponse(ruta, media_type=documento.content_type)
+    return Response(content=contenido, media_type=documento.content_type)

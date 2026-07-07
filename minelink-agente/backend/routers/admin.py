@@ -3,7 +3,7 @@ from datetime import date, datetime, time, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 import models
@@ -12,7 +12,7 @@ from auth import authenticate_admin, create_access_token, get_current_admin
 from database import get_db
 from security import limitar_intentos_login
 from scoring import estado_seguimiento
-from uploads_config import DOCUMENTOS_MINERO_DIR, UPLOADS_DIR
+import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -117,9 +117,7 @@ def eliminar_lead(
                 .all()
             )
             for documento in documentos:
-                ruta = DOCUMENTOS_MINERO_DIR / documento.filename
-                if ruta.exists():
-                    ruta.unlink()
+                storage.eliminar("documentos_mineros", documento.filename)
                 db.delete(documento)
             intereses = (
                 db.query(models.InteresInversion)
@@ -251,12 +249,18 @@ def descargar_cv(
     if empresa is None or not empresa.cv_filename:
         raise HTTPException(status_code=404, detail="Esta empresa no tiene CV registrado")
 
-    ruta = UPLOADS_DIR / empresa.cv_filename
-    if not ruta.exists():
+    contenido = storage.leer("cvs", empresa.cv_filename)
+    if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo del CV no se encuentra")
 
-    return FileResponse(
-        ruta, media_type="application/pdf", filename=f"CV_{empresa.nombre}.pdf"
+    return Response(
+        content=contenido,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": storage.content_disposition(
+                "attachment", f"CV_{empresa.nombre}.pdf"
+            )
+        },
     )
 
 
@@ -297,12 +301,18 @@ def descargar_documento_operacion(
     if documento is None:
         raise HTTPException(status_code=404, detail="Documento no encontrado")
 
-    ruta = DOCUMENTOS_MINERO_DIR / documento.filename
-    if not ruta.exists():
+    contenido = storage.leer("documentos_mineros", documento.filename)
+    if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
-    return FileResponse(
-        ruta, media_type=documento.content_type, filename=documento.nombre_original
+    return Response(
+        content=contenido,
+        media_type=documento.content_type,
+        headers={
+            "Content-Disposition": storage.content_disposition(
+                "inline", documento.nombre_original
+            )
+        },
     )
 
 
@@ -405,9 +415,7 @@ def eliminar_empresa(
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
     if empresa.cv_filename:
-        ruta = UPLOADS_DIR / empresa.cv_filename
-        if ruta.exists():
-            ruta.unlink()
+        storage.eliminar("cvs", empresa.cv_filename)
 
     db.delete(empresa)
     db.commit()

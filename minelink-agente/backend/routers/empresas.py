@@ -8,9 +8,10 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
+import storage
 from database import get_db
 from security import contenido_coincide_con_tipo
-from uploads_config import CV_TAMANO_MAXIMO_BYTES, UPLOADS_DIR
+from uploads_config import CV_TAMANO_MAXIMO_BYTES
 
 router = APIRouter(tags=["empresas"])
 
@@ -135,7 +136,7 @@ async def postular_consultor(
         raise HTTPException(422, "El archivo no es un PDF real")
 
     nombre_archivo = f"{uuid.uuid4()}.pdf"
-    (UPLOADS_DIR / nombre_archivo).write_bytes(contenido)
+    storage.guardar("cvs", nombre_archivo, contenido, "application/pdf")
 
     consultor = models.Empresa(
         tipo="consultor",
