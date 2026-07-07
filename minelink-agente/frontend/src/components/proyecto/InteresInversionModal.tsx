@@ -54,8 +54,8 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-0 md:items-center md:p-4">
-      <div className="my-4 w-full max-w-md rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:my-8 md:rounded-lg">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4">
+      <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:max-h-[90vh] md:rounded-lg">
         {enviado ? (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-2xl text-emerald-500">
