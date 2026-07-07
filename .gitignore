@@ -1,0 +1,5 @@
+# Configuración local de Claude Code (permisos de esta máquina)
+.claude/settings.local.json
+
+# Logs sueltos
+*.log

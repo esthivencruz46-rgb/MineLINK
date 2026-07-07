@@ -1,0 +1,164 @@
+import type { DiagnosticoRequest, DiagnosticoResponse } from "../types/diagnostico";
+import type { Empresa } from "../types/empresa";
+import type { LeadRequest, LeadResponse } from "../types/lead";
+import type {
+  InteresInversionRequest,
+  ProyectoDetalle,
+  ProyectoPublico,
+} from "../types/proyecto";
+import { BASE_URL } from "../config/apiUrl";
+
+export { BASE_URL };
+
+// DEMO: empresas de ejemplo si el backend no responde, marcadas
+// visualmente en EmpresaCard para no hacerlas pasar por reales.
+const EMPRESAS_DEMO: Empresa[] = [
+  {
+    id: -1,
+    tipo: "empresa",
+    nombre: "Consultora Andina de Formalización (DEMO)",
+    ruc: "20100000001",
+    colegiatura: null,
+    anios_servicio: 8,
+    regiones_json: ["arequipa", "puno", "ayacucho", "la libertad", "madre de dios"],
+    estudios_json: [
+      "tramite_reinfo",
+      "levantamiento_georreferenciado",
+      "igafom_correctivo",
+      "informe_geologico",
+    ],
+    whatsapp: "+51900000001",
+    email: null,
+    activa: true,
+    created_at: new Date().toISOString(),
+  },
+  {
+    id: -2,
+    tipo: "consultor",
+    nombre: "Ing. Ejemplo Demo (DEMO)",
+    ruc: null,
+    colegiatura: "CIP 000000",
+    anios_servicio: 5,
+    regiones_json: ["arequipa", "puno"],
+    estudios_json: ["plan_seguridad", "evaluacion_geomecanica", "sctr"],
+    whatsapp: "+51900000002",
+    email: null,
+    activa: true,
+    created_at: new Date().toISOString(),
+  },
+];
+
+async function postJSON<T>(path: string, body: unknown): Promise<T> {
+  const resp = await fetch(`${BASE_URL}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    const detalle = await resp.text();
+    throw new Error(`${resp.status}: ${detalle}`);
+  }
+  return resp.json() as Promise<T>;
+}
+
+export async function enviarDiagnostico(
+  payload: DiagnosticoRequest
+): Promise<DiagnosticoResponse> {
+  return postJSON<DiagnosticoResponse>("/diagnostico", payload);
+}
+
+export async function obtenerEmpresas(
+  estudios: string[],
+  region: string
+): Promise<{ empresas: Empresa[]; demo: boolean }> {
+  const params = new URLSearchParams();
+  if (estudios.length > 0) params.set("estudios", estudios.join(","));
+  if (region) params.set("region", region);
+
+  try {
+    const resp = await fetch(`${BASE_URL}/empresas?${params.toString()}`);
+    if (!resp.ok) throw new Error(`${resp.status}`);
+    const empresas = (await resp.json()) as Empresa[];
+    return { empresas, demo: false };
+  } catch {
+    // DEMO: backend caído, se muestran empresas de ejemplo
+    return { empresas: EMPRESAS_DEMO, demo: true };
+  }
+}
+
+export async function enviarLead(payload: LeadRequest): Promise<LeadResponse> {
+  return postJSON<LeadResponse>("/leads", payload);
+}
+
+export async function obtenerProyectos(
+  mineral: string,
+  region: string
+): Promise<ProyectoPublico[]> {
+  const params = new URLSearchParams();
+  if (mineral) params.set("mineral", mineral);
+  if (region) params.set("region", region);
+
+  const resp = await fetch(`${BASE_URL}/proyectos?${params.toString()}`);
+  if (!resp.ok) throw new Error(`${resp.status}`);
+  return resp.json() as Promise<ProyectoPublico[]>;
+}
+
+export async function obtenerMineralesDisponibles(): Promise<string[]> {
+  const resp = await fetch(`${BASE_URL}/proyectos/minerales`);
+  if (!resp.ok) throw new Error(`${resp.status}`);
+  return resp.json() as Promise<string[]>;
+}
+
+export async function obtenerProyecto(operacionId: string): Promise<ProyectoDetalle> {
+  const resp = await fetch(`${BASE_URL}/proyectos/${operacionId}`);
+  if (!resp.ok) throw new Error(`${resp.status}`);
+  return resp.json() as Promise<ProyectoDetalle>;
+}
+
+export async function registrarInteresInversion(
+  operacionId: string,
+  payload: InteresInversionRequest
+): Promise<void> {
+  const resp = await fetch(`${BASE_URL}/proyectos/${operacionId}/interes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!resp.ok) {
+    const detalle = await resp.text();
+    throw new Error(`${resp.status}: ${detalle}`);
+  }
+}
+
+export interface PostulacionConsultor {
+  nombre: string;
+  colegiatura: string;
+  anios_servicio: number;
+  regiones_json: string[];
+  estudios_json: string[];
+  whatsapp: string;
+  email?: string;
+  cv: File;
+}
+
+export async function postularConsultor(payload: PostulacionConsultor): Promise<Empresa> {
+  const form = new FormData();
+  form.set("nombre", payload.nombre);
+  form.set("colegiatura", payload.colegiatura);
+  form.set("anios_servicio", String(payload.anios_servicio));
+  form.set("whatsapp", payload.whatsapp);
+  if (payload.email) form.set("email", payload.email);
+  form.set("regiones_json", JSON.stringify(payload.regiones_json));
+  form.set("estudios_json", JSON.stringify(payload.estudios_json));
+  form.set("cv", payload.cv);
+
+  const resp = await fetch(`${BASE_URL}/consultores/postular`, {
+    method: "POST",
+    body: form,
+  });
+  if (!resp.ok) {
+    const detalle = await resp.text();
+    throw new Error(`${resp.status}: ${detalle}`);
+  }
+  return resp.json() as Promise<Empresa>;
+}

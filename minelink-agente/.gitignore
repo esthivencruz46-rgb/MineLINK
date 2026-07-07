@@ -1,0 +1,21 @@
+# Secretos — NUNCA subir
+backend/.env
+frontend/.env
+
+# Datos reales
+backend/minelink.db
+backend/minelink.db-wal
+backend/minelink.db-shm
+backend/uploads/
+backend/backups/
+
+# Dependencias y builds
+backend/__pycache__/
+**/__pycache__/
+.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+frontend/android/app/build/
+frontend/android/.gradle/
+frontend/android/build/
+frontend/android/local.properties

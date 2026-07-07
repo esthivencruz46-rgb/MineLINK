@@ -1,0 +1,242 @@
+import { useState } from "react";
+import { DEPARTAMENTOS } from "../data/departamentos";
+import { INFO_BRECHA } from "../data/brechas";
+import { NOMBRES_DIMENSION } from "../data/preguntas";
+import { ESTUDIOS_POR_DIMENSION, ORDEN_DIMENSIONES } from "../data/estudiosPorDimension";
+import { postularConsultor } from "../services/api";
+
+interface Formulario {
+  nombre: string;
+  colegiatura: string;
+  anios_servicio: string;
+  whatsapp: string;
+  email: string;
+  regiones_json: string[];
+  estudios_json: string[];
+}
+
+const VACIO: Formulario = {
+  nombre: "",
+  colegiatura: "",
+  anios_servicio: "",
+  whatsapp: "+51",
+  email: "",
+  regiones_json: [],
+  estudios_json: [],
+};
+
+const CV_TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024; // 5 MB, igual que el backend
+
+function validar(f: Formulario, cv: File | null): Record<string, string> {
+  const errores: Record<string, string> = {};
+  if (!f.nombre.trim()) errores.nombre = "Tu nombre es obligatorio";
+  if (!f.colegiatura.trim()) errores.colegiatura = "La colegiatura es obligatoria";
+  if (!f.anios_servicio || Number(f.anios_servicio) < 3)
+    errores.anios_servicio = "Se requiere un mínimo de 3 años de experiencia";
+  if (!/^\+51\d{9}$/.test(f.whatsapp))
+    errores.whatsapp = "El WhatsApp debe tener formato +51987654321";
+  if (f.regiones_json.length === 0)
+    errores.regiones_json = "Marca al menos 1 departamento";
+  if (f.estudios_json.length === 0)
+    errores.estudios_json = "Marca al menos 1 estudio en el que ayudas";
+  if (!cv) errores.cv = "Debes adjuntar tu CV en PDF";
+  else if (cv.type !== "application/pdf") errores.cv = "El CV debe ser un archivo PDF";
+  else if (cv.size > CV_TAMANO_MAXIMO_BYTES) errores.cv = "El CV no debe superar 5MB";
+  return errores;
+}
+
+export function Postular() {
+  const [form, setForm] = useState<Formulario>(VACIO);
+  const [cv, setCv] = useState<File | null>(null);
+  const [errores, setErrores] = useState<Record<string, string>>({});
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+
+  function alternarLista(campo: "regiones_json" | "estudios_json", valor: string) {
+    setForm((f) => ({
+      ...f,
+      [campo]: f[campo].includes(valor)
+        ? f[campo].filter((v) => v !== valor)
+        : [...f[campo], valor],
+    }));
+  }
+
+  async function enviar() {
+    const erroresValidacion = validar(form, cv);
+    setErrores(erroresValidacion);
+    if (Object.keys(erroresValidacion).length > 0 || !cv) return;
+
+    setEnviando(true);
+    try {
+      await postularConsultor({
+        nombre: form.nombre.trim(),
+        colegiatura: form.colegiatura.trim(),
+        anios_servicio: Number(form.anios_servicio),
+        whatsapp: form.whatsapp,
+        email: form.email.trim() || undefined,
+        regiones_json: form.regiones_json,
+        estudios_json: form.estudios_json,
+        cv,
+      });
+      setEnviado(true);
+    } catch {
+      setErrores({ general: "No pudimos enviar tu postulación. Intenta de nuevo." });
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (enviado) {
+    return (
+      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+        <h1 className="text-2xl font-bold">¡Gracias por postular!</h1>
+        <p className="text-texto-suave dark:text-texto-suave-dark">
+          Esthiven revisará tus datos y credenciales. Si todo está en orden, tu perfil
+          se activará y los mineros podrán contactarte por WhatsApp.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex max-w-md flex-col gap-5 px-4 py-8">
+      <div>
+        <h1 className="text-2xl font-bold">Quiero ser consultor en MineLink</h1>
+        <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
+          Para postular necesitas colegiatura vigente y al menos 3 años de experiencia.
+          Tu perfil queda pendiente de revisión antes de aparecer públicamente.
+        </p>
+      </div>
+
+      <div>
+        <input
+          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          placeholder="Tu nombre completo"
+          value={form.nombre}
+          onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+        />
+        {errores.nombre && <p className="mt-1 text-xs text-red-500">{errores.nombre}</p>}
+      </div>
+
+      <div>
+        <input
+          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          placeholder="Colegiatura (ej. CIP 123456)"
+          value={form.colegiatura}
+          onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
+        />
+        {errores.colegiatura && (
+          <p className="mt-1 text-xs text-red-500">{errores.colegiatura}</p>
+        )}
+      </div>
+
+      <div>
+        <input
+          type="number"
+          min={0}
+          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          placeholder="Años de experiencia (mínimo 3)"
+          value={form.anios_servicio}
+          onChange={(e) => setForm({ ...form, anios_servicio: e.target.value })}
+        />
+        {errores.anios_servicio && (
+          <p className="mt-1 text-xs text-red-500">{errores.anios_servicio}</p>
+        )}
+      </div>
+
+      <div>
+        <input
+          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          placeholder="+51987654321"
+          value={form.whatsapp}
+          onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+        />
+        {errores.whatsapp && <p className="mt-1 text-xs text-red-500">{errores.whatsapp}</p>}
+      </div>
+
+      <input
+        className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+        placeholder="Email (opcional)"
+        value={form.email}
+        onChange={(e) => setForm({ ...form, email: e.target.value })}
+      />
+
+      <div>
+        <p className="mb-1 text-sm font-medium">Departamentos donde puedes atender</p>
+        <div className="flex flex-wrap gap-3">
+          {DEPARTAMENTOS.map((d) => (
+            <label key={d} className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                checked={form.regiones_json.includes(d.toLowerCase())}
+                onChange={() => alternarLista("regiones_json", d.toLowerCase())}
+              />
+              {d}
+            </label>
+          ))}
+        </div>
+        {errores.regiones_json && (
+          <p className="mt-1 text-xs text-red-500">{errores.regiones_json}</p>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-1 text-sm font-medium">¿En qué puedes ayudar?</p>
+        <div className="flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border border-black/10 p-3 dark:border-white/10">
+          {ORDEN_DIMENSIONES.map((dim) => (
+            <div key={dim}>
+              <p className="mb-1 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                {NOMBRES_DIMENSION[dim]}
+              </p>
+              <div className="flex flex-col gap-1">
+                {ESTUDIOS_POR_DIMENSION[dim].map((estudio) => (
+                  <label key={estudio} className="flex items-center gap-1.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.estudios_json.includes(estudio)}
+                      onChange={() => alternarLista("estudios_json", estudio)}
+                    />
+                    {INFO_BRECHA[estudio].texto}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        {errores.estudios_json && (
+          <p className="mt-1 text-xs text-red-500">{errores.estudios_json}</p>
+        )}
+      </div>
+
+      <div>
+        <p className="mb-1 text-sm font-medium">Tu CV (PDF, máx. 5MB)</p>
+        <label className="flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-dashed border-black/20 bg-tarjeta px-3 text-sm dark:border-white/20 dark:bg-tarjeta-dark">
+          <input
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => setCv(e.target.files?.[0] ?? null)}
+          />
+          <span className={cv ? "" : "text-texto-suave dark:text-texto-suave-dark"}>
+            {cv ? cv.name : "Elegir archivo PDF..."}
+          </span>
+        </label>
+        <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+          Esthiven revisa cada CV antes de aprobar tu perfil — es lo que le da confianza
+          al minero de que hablará con alguien calificado.
+        </p>
+        {errores.cv && <p className="mt-1 text-xs text-red-500">{errores.cv}</p>}
+      </div>
+
+      {errores.general && <p className="text-sm text-red-500">{errores.general}</p>}
+
+      <button
+        disabled={enviando}
+        onClick={enviar}
+        className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+      >
+        {enviando ? "Enviando..." : "Enviar postulación"}
+      </button>
+    </div>
+  );
+}

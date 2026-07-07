@@ -1,0 +1,140 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { DocumentosMinero } from "../components/DocumentosMinero";
+import { PerfilInversionForm } from "../components/PerfilInversionForm";
+import { INFO_BRECHA } from "../data/brechas";
+import { useMineroAuth } from "../context/MineroAuthContext";
+import { calcularSemaforo } from "../utils/semaforo";
+import type { MineroPerfil } from "../types/minero";
+
+export function MiCuenta() {
+  const { authFetch, logout } = useMineroAuth();
+  const navigate = useNavigate();
+  const [perfil, setPerfil] = useState<MineroPerfil | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    authFetch("/mineros/me")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((data) => {
+        setPerfil(data);
+        setError(null);
+      })
+      .catch(() => setError("No pudimos cargar tus datos."))
+      .finally(() => setCargando(false));
+  }, [authFetch]);
+
+  function cerrarSesion() {
+    logout();
+    navigate("/");
+  }
+
+  if (cargando) {
+    return <p className="p-8 text-center">Cargando tus datos...</p>;
+  }
+
+  if (error || !perfil) {
+    return (
+      <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-8 text-center">
+        <p className="text-red-500">{error ?? "No encontramos tus datos."}</p>
+        <button onClick={cerrarSesion} className="text-sm text-acento underline">
+          Volver a intentar
+        </button>
+      </div>
+    );
+  }
+
+  const semaforo = calcularSemaforo(perfil.score_actual, perfil.bloqueado_actual);
+  const hayCambios = perfil.score_actual !== perfil.score_total;
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Hola, {perfil.nombre}</h1>
+        <button
+          onClick={cerrarSesion}
+          className="min-h-[44px] rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
+        >
+          Cerrar sesión
+        </button>
+      </div>
+
+      {perfil.nombre_operacion && (
+        <p className="text-texto-suave dark:text-texto-suave-dark">
+          {perfil.nombre_operacion} · {perfil.region}
+        </p>
+      )}
+
+      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+        <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+          Tu puntaje
+        </p>
+        <p className={`font-mono text-3xl font-bold ${semaforo.claseTexto}`}>
+          {perfil.score_actual}
+          {hayCambios && (
+            <span className="ml-2 text-lg text-texto-suave line-through dark:text-texto-suave-dark">
+              {perfil.score_total}
+            </span>
+          )}
+        </p>
+        <p className={`text-sm font-semibold ${semaforo.claseTexto}`}>{semaforo.etiqueta}</p>
+      </div>
+
+      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+        <h2 className="font-semibold">Lo que te falta</h2>
+        {perfil.brechas_pendientes.length === 0 ? (
+          <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
+            No tienes brechas pendientes.
+          </p>
+        ) : (
+          <ul className="mt-2 flex flex-col gap-1 text-sm">
+            {perfil.brechas_pendientes.map((b) => (
+              <li key={b}>• {INFO_BRECHA[b]?.texto ?? b}</li>
+            ))}
+          </ul>
+        )}
+
+        {perfil.brechas_resueltas.length > 0 && (
+          <>
+            <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
+              Ya resuelto
+            </h3>
+            <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
+              {perfil.brechas_resueltas.map((b) => (
+                <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
+        <h2 className="font-semibold">Tus datos</h2>
+        <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
+          WhatsApp: {perfil.whatsapp}
+        </p>
+        {perfil.email && (
+          <p className="text-texto-suave dark:text-texto-suave-dark">
+            Email: {perfil.email}
+          </p>
+        )}
+        {perfil.codigo_reinfo && (
+          <p className="text-texto-suave dark:text-texto-suave-dark">
+            Código REINFO: {perfil.codigo_reinfo}
+          </p>
+        )}
+        <p className="text-texto-suave dark:text-texto-suave-dark">
+          Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
+        </p>
+      </div>
+
+      <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
+
+      <DocumentosMinero />
+    </div>
+  );
+}

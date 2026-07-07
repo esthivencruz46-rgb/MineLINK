@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MineLink</string>
+    <string name="title_activity_main">MineLink</string>
+    <string name="package_name">com.minelink.app</string>
+    <string name="custom_url_scheme">com.minelink.app</string>
+</resources>
