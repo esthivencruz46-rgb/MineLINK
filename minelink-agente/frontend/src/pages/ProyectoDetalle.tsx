@@ -319,7 +319,7 @@ export function ProyectoDetalle() {
                 <div className="mt-3 overflow-hidden rounded-lg">
                   <iframe
                     title="Ubicación del proyecto"
-                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=13&output=embed`}
+                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=14&t=h&output=embed`}
                     className="h-72 w-full border-0"
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
