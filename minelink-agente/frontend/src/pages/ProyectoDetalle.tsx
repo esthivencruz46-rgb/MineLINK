@@ -33,6 +33,27 @@ export function ProyectoDetalle() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);
+  const [enlaceCopiado, setEnlaceCopiado] = useState(false);
+
+  async function compartir() {
+    if (!proyecto) return;
+    const url = window.location.href;
+    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region}) — MineScore ${proyecto.score_actual}/100`;
+    // En celular abre el menú nativo de compartir (WhatsApp, etc.);
+    // en PC copia el enlace al portapapeles.
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: proyecto.nombre_proyecto, text: texto, url });
+        return;
+      } catch {
+        // usuario canceló el menú — no hacer nada
+        return;
+      }
+    }
+    await navigator.clipboard.writeText(`${texto}\n${url}`);
+    setEnlaceCopiado(true);
+    setTimeout(() => setEnlaceCopiado(false), 2500);
+  }
 
   useEffect(() => {
     if (!id) return;
@@ -131,6 +152,12 @@ export function ProyectoDetalle() {
             🗺 Ver ubicación en Google Maps
           </a>
         )}
+        <button
+          onClick={compartir}
+          className="inline-flex items-center gap-1 rounded-full bg-secundario/10 px-3 py-1 text-xs font-semibold text-secundario hover:bg-secundario/20"
+        >
+          {enlaceCopiado ? "✓ Enlace copiado" : "↗ Compartir"}
+        </button>
       </p>
 
       {/* GALERÍA */}

@@ -63,10 +63,28 @@ def listar_leads(
             capital_buscado=lead.capital_buscado,
             uso_fondos=lead.uso_fondos,
             ubicacion_maps=lead.ubicacion_maps,
+            estado_contacto=lead.estado_contacto or "buscando",
             **estado_seguimiento(operacion),
         )
         for lead, operacion in filas
     ]
+
+
+@router.put("/leads/{lead_id}/estado-contacto", status_code=200)
+def actualizar_estado_contacto(
+    lead_id: int,
+    payload: schemas.ActualizarEstadoContactoRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Marca si ya se contactó al minero por WhatsApp ("contactado") o si
+    sigue en cola ("buscando"). El minero lo ve en /mi-cuenta."""
+    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    lead.estado_contacto = payload.estado_contacto
+    db.commit()
+    return {"id": lead.id, "estado_contacto": lead.estado_contacto}
 
 
 @router.delete("/leads/{lead_id}", status_code=204)
@@ -196,6 +214,12 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         for lead in ultimos
     ]
 
+    diagnosticos_iniciados = (
+        db.query(models.Evento)
+        .filter(models.Evento.tipo == "diagnostico_iniciado")
+        .count()
+    )
+
     return schemas.DashboardOut(
         diagnosticos_hoy=diagnosticos_hoy,
         diagnosticos_total=diagnosticos_total,
@@ -204,6 +228,7 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         score_promedio=score_promedio,
         top_brechas=top_brechas,
         ultimos_leads=ultimos_leads,
+        diagnosticos_iniciados=diagnosticos_iniciados,
     )
 
 

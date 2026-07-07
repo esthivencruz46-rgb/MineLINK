@@ -21,6 +21,8 @@ export interface LeadConDiagnostico {
   capacidad_produccion?: string | null;
   capital_buscado?: string | null;
   uso_fondos?: string | null;
+  ubicacion_maps?: string | null;
+  estado_contacto: string;
 }
 
 export interface TopBrecha {
@@ -43,4 +45,5 @@ export interface DashboardOut {
   score_promedio: number;
   top_brechas: TopBrecha[];
   ultimos_leads: UltimoLead[];
+  diagnosticos_iniciados: number;
 }

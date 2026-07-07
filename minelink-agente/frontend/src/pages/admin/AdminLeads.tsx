@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "../../components/AdminLayout";
+import { enlaceWhatsApp } from "../../config/whatsapp";
 import { useAuth } from "../../context/AuthContext";
 import { DEPARTAMENTOS } from "../../data/departamentos";
 import { INFO_BRECHA } from "../../data/brechas";
@@ -162,6 +163,18 @@ export function AdminLeads() {
       return;
     }
     setLeads((actuales) => actuales.filter((l) => l.id !== lead.id));
+  }
+
+  async function cambiarEstadoContacto(lead: LeadConDiagnostico, estado: string) {
+    const resp = await authFetch(`/admin/leads/${lead.id}/estado-contacto`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado_contacto: estado }),
+    });
+    if (!resp.ok) return;
+    setLeads((actuales) =>
+      actuales.map((l) => (l.id === lead.id ? { ...l, estado_contacto: estado } : l))
+    );
   }
 
   function verDocumentos(lead: LeadConDiagnostico) {
@@ -381,6 +394,43 @@ export function AdminLeads() {
                       )}
                     </td>
                     <td className="flex gap-2 p-3">
+                      <a
+                        href={enlaceWhatsApp(
+                          lead.whatsapp,
+                          [
+                            `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de MineLink.`,
+                            `Tu diagnóstico de formalización salió con ${lead.score_actual}/100.`,
+                            lead.brechas_pendientes.length > 0
+                              ? `Te falta: ${lead.brechas_pendientes
+                                  .map((b) => INFO_BRECHA[b]?.texto ?? b)
+                                  .join(", ")}.`
+                              : "¡No tienes brechas pendientes!",
+                            "Tenemos profesionales de confianza que hacen exactamente esos estudios y pueden ayudarte. ¿Te interesa que te los presentemos?",
+                          ].join(" ")
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => cambiarEstadoContacto(lead, "contactado")}
+                        className="flex min-h-[32px] items-center rounded bg-[#25D366] px-2 text-xs font-semibold text-white"
+                      >
+                        Enviar resultado
+                      </a>
+                      <button
+                        onClick={() =>
+                          cambiarEstadoContacto(
+                            lead,
+                            lead.estado_contacto === "contactado" ? "buscando" : "contactado"
+                          )
+                        }
+                        title="Clic para cambiar el estado"
+                        className={`min-h-[32px] rounded px-2 text-xs font-semibold ${
+                          lead.estado_contacto === "contactado"
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {lead.estado_contacto === "contactado" ? "✓ Contactado" : "En cola"}
+                      </button>
                       <button
                         onClick={() => verDocumentos(lead)}
                         className="min-h-[32px] rounded border border-acento/30 px-2 text-xs font-semibold text-acento"

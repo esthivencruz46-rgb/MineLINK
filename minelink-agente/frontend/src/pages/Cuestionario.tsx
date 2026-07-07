@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { AutocompleteDepartamento } from "../components/AutocompleteDepartamento";
 import { ProgressBar } from "../components/ProgressBar";
 import { PREGUNTAS_INFORMATIVAS_OPERATIVO, preguntasAplicables } from "../data/preguntas";
-import { enviarDiagnostico } from "../services/api";
+import { enviarDiagnostico, registrarEvento } from "../services/api";
 import { guardarDiagnostico } from "../services/storage";
 import type { Respuestas, TipoMina } from "../types/diagnostico";
 
@@ -136,7 +136,10 @@ export function Cuestionario() {
         </div>
         <button
           disabled={!region || !tipoMina}
-          onClick={() => setPaso(1)}
+          onClick={() => {
+            registrarEvento("diagnostico_iniciado");
+            setPaso(1);
+          }}
           className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
         >
           Empezar el diagnóstico
@@ -162,12 +165,21 @@ export function Cuestionario() {
       <ProgressBar actual={paso} total={TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS} />
 
       {preguntaActual && (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3">
           <h2 className="text-xl font-semibold">{preguntaActual.texto}</h2>
           {preguntaActual.nota && (
             <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
               {preguntaActual.nota}
             </p>
+          )}
+          {preguntaActual.ayuda && (
+            <div className="flex items-start gap-2 rounded-lg bg-acento/5 p-3 text-sm text-texto-suave dark:bg-acento/10 dark:text-texto-suave-dark">
+              <span aria-hidden>💡</span>
+              <p>
+                <span className="font-semibold">¿Qué es esto? </span>
+                {preguntaActual.ayuda}
+              </p>
+            </div>
           )}
         </div>
       )}

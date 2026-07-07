@@ -87,6 +87,10 @@ class Lead(Base):
     # Enlace de Google Maps con la ubicación de la operación — se muestra
     # públicamente en la ficha del proyecto (/proyectos/{id}).
     ubicacion_maps = Column(String, nullable=True)
+    # Estado del acompañamiento: "buscando" (default) → "contactado"
+    # (el admin ya le escribió por WhatsApp). Visible para el minero
+    # en /mi-cuenta para cerrar el ciclo de su registro.
+    estado_contacto = Column(String, nullable=False, default="buscando", server_default="buscando")
     created_at = Column(DateTime, default=_now)
 
     operacion = relationship("Operacion", back_populates="leads")
@@ -134,4 +138,16 @@ class InteresInversion(Base):
     mensaje = Column(String, nullable=True)
     username = Column(String, nullable=True, unique=True)
     password_hash = Column(String, nullable=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class Evento(Base):
+    """Eventos simples de uso para métricas del embudo (cuántos empiezan
+    el diagnóstico vs. cuántos lo terminan vs. cuántos se registran).
+    Sin datos personales: solo el tipo de evento y cuándo ocurrió."""
+
+    __tablename__ = "eventos"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    tipo = Column(String, nullable=False, index=True)
     created_at = Column(DateTime, default=_now)

@@ -54,6 +54,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         capital_buscado=lead.capital_buscado,
         uso_fondos=lead.uso_fondos,
         ubicacion_maps=lead.ubicacion_maps,
+        estado_contacto=lead.estado_contacto or "buscando",
         **estado_seguimiento(operacion),
     )
 

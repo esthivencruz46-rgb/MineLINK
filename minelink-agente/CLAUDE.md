@@ -132,6 +132,10 @@ El backend soporta ambos motores sin cambiar código (`database.py`):
   diga lo contrario). Incluyen migraciones de esquema SQLite (ADD COLUMN o rebuild de tabla cuando
   SQLite no soporta ALTER COLUMN), la migración de datos a Supabase, activar RLS, e índices/WAL.
   Antes de escribir una migración nueva, revisar si ya existe un script parecido para copiar el patrón.
+  **OJO**: los seeds antiguos usan `sqlite3` directo y solo tocan la SQLite local — para una
+  migración que deba correr contra la base real (Supabase), copiar el patrón de
+  `seeds/migrar_ubicacion_maps.py`, que usa el engine de `database.py` (respeta `DATABASE_URL`)
+  y funciona en ambos motores.
 - `backend/seeds/backup_db.py` respalda `minelink.db` + `uploads/` a `backend/backups/` (conserva
   los últimos 14). Uso seguro con el servidor corriendo (usa el backup API de sqlite3).
 

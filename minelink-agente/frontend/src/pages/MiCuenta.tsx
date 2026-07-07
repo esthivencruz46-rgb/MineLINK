@@ -94,6 +94,25 @@ export function MiCuenta() {
         </p>
       )}
 
+      {perfil.brechas_pendientes.length > 0 && (
+        <div
+          className={`flex items-start gap-3 rounded-lg p-4 text-sm ${
+            perfil.estado_contacto === "contactado"
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              : "bg-acento/10 text-acento"
+          }`}
+        >
+          <span className="text-lg" aria-hidden>
+            {perfil.estado_contacto === "contactado" ? "✅" : "🔍"}
+          </span>
+          <p>
+            {perfil.estado_contacto === "contactado"
+              ? "Ya te contactamos por WhatsApp para ayudarte con lo que te falta. Revisa tus mensajes."
+              : "Estamos buscando quién te ayude con lo que te falta. Te escribiremos por WhatsApp."}
+          </p>
+        </div>
+      )}
+
       <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
           Tu puntaje

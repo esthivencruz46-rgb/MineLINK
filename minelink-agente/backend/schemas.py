@@ -250,6 +250,8 @@ class MineroPerfilOut(BaseModel):
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
     ubicacion_maps: Optional[str] = None
+    # "buscando" → "contactado": estado del acompañamiento de MineLink
+    estado_contacto: str = "buscando"
 
 
 class ProyectoPublicoOut(BaseModel):
@@ -457,6 +459,18 @@ class LeadConDiagnostico(BaseModel):
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
     ubicacion_maps: Optional[str] = None
+    estado_contacto: str = "buscando"
+
+
+class ActualizarEstadoContactoRequest(BaseModel):
+    estado_contacto: str
+
+    @field_validator("estado_contacto")
+    @classmethod
+    def validar_estado(cls, v: str) -> str:
+        if v not in ("buscando", "contactado"):
+            raise ValueError("estado_contacto debe ser 'buscando' o 'contactado'")
+        return v
 
 
 class ActualizarBrechasResueltasRequest(BaseModel):
@@ -493,3 +507,19 @@ class DashboardOut(BaseModel):
     score_promedio: float
     top_brechas: list[TopBrecha]
     ultimos_leads: list[UltimoLead]
+    # Embudo: dónde se caen los usuarios (iniciado → completado → registrado)
+    diagnosticos_iniciados: int = 0
+
+
+TIPOS_EVENTO_VALIDOS = ("diagnostico_iniciado",)
+
+
+class EventoCreate(BaseModel):
+    tipo: str
+
+    @field_validator("tipo")
+    @classmethod
+    def validar_tipo(cls, v: str) -> str:
+        if v not in TIPOS_EVENTO_VALIDOS:
+            raise ValueError(f"tipo debe ser uno de: {TIPOS_EVENTO_VALIDOS}")
+        return v

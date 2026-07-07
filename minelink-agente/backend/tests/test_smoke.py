@@ -1293,3 +1293,51 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
     assert "USD 30,000" in generada
     assert "planta de beneficio" in generada
     assert "REINFO" in generada
+
+
+def test_evento_diagnostico_iniciado_y_metricas():
+    resp = client.post("/eventos", json={"tipo": "diagnostico_iniciado"})
+    assert resp.status_code == 201
+
+    # Tipo desconocido se rechaza
+    resp = client.post("/eventos", json={"tipo": "hackeo"})
+    assert resp.status_code == 422
+
+    token = _admin_token()
+    dashboard = client.get(
+        "/admin/dashboard", headers={"Authorization": f"Bearer {token}"}
+    ).json()
+    assert dashboard["diagnosticos_iniciados"] == 1
+
+
+def test_admin_cambia_estado_contacto_y_minero_lo_ve():
+    token_minero = _token_minero(username="mineroestado")
+    perfil = client.get(
+        "/mineros/me", headers={"Authorization": f"Bearer {token_minero}"}
+    ).json()
+    assert perfil["estado_contacto"] == "buscando"
+
+    token_admin = _admin_token()
+    headers_admin = {"Authorization": f"Bearer {token_admin}"}
+    leads = client.get("/admin/leads", headers=headers_admin).json()
+    lead_id = leads[0]["id"]
+
+    resp = client.put(
+        f"/admin/leads/{lead_id}/estado-contacto",
+        headers=headers_admin,
+        json={"estado_contacto": "contactado"},
+    )
+    assert resp.status_code == 200
+
+    # Estado inválido se rechaza
+    resp = client.put(
+        f"/admin/leads/{lead_id}/estado-contacto",
+        headers=headers_admin,
+        json={"estado_contacto": "cualquiercosa"},
+    )
+    assert resp.status_code == 422
+
+    perfil = client.get(
+        "/mineros/me", headers={"Authorization": f"Bearer {token_minero}"}
+    ).json()
+    assert perfil["estado_contacto"] == "contactado"

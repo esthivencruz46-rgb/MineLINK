@@ -20,6 +20,7 @@ export interface MineroPerfil {
   capital_buscado?: string | null;
   uso_fondos?: string | null;
   ubicacion_maps?: string | null;
+  estado_contacto: string;
 }
 
 export interface PerfilInversionRequest {

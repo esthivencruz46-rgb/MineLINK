@@ -53,6 +53,35 @@ export function AdminDashboard() {
           </div>
 
           <div>
+            <h2 className="mb-3 text-lg font-bold">Embudo: dónde se caen los usuarios</h2>
+            <div className="grid grid-cols-3 gap-3">
+              <Tarjeta titulo="Empezaron el diagnóstico" valor={datos.diagnosticos_iniciados} />
+              <Tarjeta
+                titulo={`Lo terminaron${
+                  datos.diagnosticos_iniciados > 0
+                    ? ` (${Math.round(
+                        (datos.diagnosticos_total / datos.diagnosticos_iniciados) * 100
+                      )}%)`
+                    : ""
+                }`}
+                valor={datos.diagnosticos_total}
+              />
+              <Tarjeta
+                titulo={`Se registraron${
+                  datos.diagnosticos_total > 0
+                    ? ` (${Math.round((datos.leads_total / datos.diagnosticos_total) * 100)}%)`
+                    : ""
+                }`}
+                valor={datos.leads_total}
+              />
+            </div>
+            <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+              El conteo de "empezaron" se mide desde hoy (los diagnósticos antiguos no
+              lo registraban), así que los porcentajes serán confiables de aquí en adelante.
+            </p>
+          </div>
+
+          <div>
             <h2 className="mb-3 text-lg font-bold">Top 5 brechas más comunes</h2>
             {datos.top_brechas.length === 0 ? (
               <p className="text-texto-suave dark:text-texto-suave-dark">

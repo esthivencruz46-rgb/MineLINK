@@ -3,6 +3,8 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { DimensionBars } from "../components/DimensionBars";
 import { ListaBrechas } from "../components/ListaBrechas";
 import { ScoreBadge } from "../components/ScoreBadge";
+import { WHATSAPP_ADMIN, enlaceWhatsApp } from "../config/whatsapp";
+import { INFO_BRECHA } from "../data/brechas";
 import { guardarDiagnostico, leerDiagnostico } from "../services/storage";
 
 export function Resultado() {
@@ -49,6 +51,31 @@ export function Resultado() {
           onBuscarAyuda={() => navigate("/empresas")}
         />
       </div>
+
+      <a
+        href={enlaceWhatsApp(
+          WHATSAPP_ADMIN,
+          [
+            "Hola MineLink 👋 Acabo de hacer mi diagnóstico de formalización.",
+            `Mi puntaje: ${respuesta.score_total}/100.`,
+            respuesta.brechas.length > 0
+              ? `Me falta: ${respuesta.brechas
+                  .map((b) => INFO_BRECHA[b]?.texto ?? b)
+                  .join(", ")}.`
+              : "No tengo brechas pendientes.",
+            "Quisiera saber quién me puede ayudar.",
+          ].join(" ")
+        )}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-h-[48px] items-center justify-center gap-2 rounded-lg bg-[#25D366] px-6 font-semibold text-white transition duration-200 hover:opacity-90"
+      >
+        💬 Recibir mi resultado por WhatsApp
+      </a>
+      <p className="-mt-3 text-center text-xs text-texto-suave dark:text-texto-suave-dark">
+        Se abre tu WhatsApp con el mensaje listo — el equipo de MineLink te
+        responde con quién puede ayudarte.
+      </p>
     </div>
   );
 }

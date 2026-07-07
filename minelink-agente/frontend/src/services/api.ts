@@ -162,3 +162,13 @@ export async function postularConsultor(payload: PostulacionConsultor): Promise<
   }
   return resp.json() as Promise<Empresa>;
 }
+
+/** Evento anónimo de uso para las métricas del embudo del admin.
+ * Fire-and-forget: si falla, no debe romper la experiencia del usuario. */
+export function registrarEvento(tipo: "diagnostico_iniciado"): void {
+  fetch(`${BASE_URL}/eventos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tipo }),
+  }).catch(() => {});
+}
