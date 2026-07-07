@@ -4,13 +4,10 @@ const config: CapacitorConfig = {
   appId: "com.minelink.app",
   appName: "MineLink",
   webDir: "dist",
-  // http en vez de https: el backend local (10.0.2.2:8000) solo habla HTTP
-  // en desarrollo, y una página https:// no puede pedir recursos http://
-  // (Mixed Content). Cuando el backend tenga dominio con HTTPS real,
-  // quitar esto para volver al valor por defecto (https).
-  server: {
-    androidScheme: "http",
-  },
+  // El backend de producción (Render) tiene HTTPS real, así que se usa el
+  // esquema https por defecto de Capacitor. Si algún día se prueba contra
+  // un backend HTTP local, volver a poner: server: { androidScheme: "http" }
+  // (y usesCleartextTraffic en AndroidManifest.xml) — ver errores_aprendidos.md.
 };
 
 export default config;

@@ -14,8 +14,10 @@ app = FastAPI(title="MineLink API")
 origenes = [
     "http://127.0.0.1:5173",
     # La app empaquetada con Capacitor sirve el HTML desde estos
-    # orígenes locales (Android usa http://localhost, no un puerto).
+    # orígenes locales (Android usa localhost sin puerto; https es el
+    # esquema por defecto de Capacitor, http era el de desarrollo local).
     "http://localhost",
+    "https://localhost",
     "capacitor://localhost",
 ]
 # Cuando el frontend tenga dominio/hosting real, definir FRONTEND_URL en
