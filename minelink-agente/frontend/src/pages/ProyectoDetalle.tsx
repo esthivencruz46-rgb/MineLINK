@@ -439,15 +439,9 @@ export function ProyectoDetalle() {
             <div className="mt-2 flex flex-col gap-2.5">
               <button
                 onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
-                className="min-h-[44px] rounded-lg bg-secundario font-semibold text-white transition duration-200 hover:opacity-90"
-              >
-                Contactar Empresa
-              </button>
-              <button
-                onClick={() => setModalMensaje("Quiero solicitar una reunión sobre este proyecto.")}
                 className="min-h-[44px] rounded-lg bg-acento font-semibold text-white transition duration-200 hover:opacity-90"
               >
-                Solicitar Reunión
+                Me interesa este proyecto
               </button>
               <button
                 onClick={() => window.print()}
