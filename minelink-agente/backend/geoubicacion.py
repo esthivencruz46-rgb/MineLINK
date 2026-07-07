@@ -16,10 +16,13 @@ import requests
 # Los tests lo desactivan para no hacer llamadas externas reales.
 _DESACTIVADO = os.environ.get("MINELINK_RESOLVER_MAPS") == "0"
 
+# ORDEN IMPORTANTE: !3d!4d es el PIN real que marcó la persona; @lat,lng es
+# solo el centro de la vista al momento de compartir (puede estar muy lejos
+# del pin si el mapa estaba alejado) — se usa únicamente como último recurso.
 _PATRONES = [
-    re.compile(r"@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)"),          # /maps/place/.../@-11.5,-76.2,15z
-    re.compile(r"!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)"),      # ...!3d-11.5!4d-76.2...
+    re.compile(r"!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)"),      # pin real: ...!3d-11.5!4d-76.2...
     re.compile(r"[?&]q(?:uery)?=(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)"),  # ?q=-11.5,-76.2
+    re.compile(r"@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)"),          # centro de vista (último recurso)
 ]
 
 

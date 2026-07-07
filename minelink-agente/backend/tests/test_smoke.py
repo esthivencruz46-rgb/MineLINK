@@ -1356,3 +1356,7 @@ def test_extraccion_de_coordenadas_de_enlaces_maps():
     assert _extraer("https://google.com/maps?q=-11.1,-75.2") == "-11.1,-75.2"
     assert _extraer("https://maps.google.com/algo!3d-12.5!4d-76.7!") == "-12.5,-76.7"
     assert _extraer("https://maps.app.goo.gl/corto") is None
+    # El pin real (!3d!4d) manda sobre el centro de la vista (@): si el mapa
+    # estaba alejado al compartir, @ puede quedar muy lejos del pin
+    url_con_ambos = "https://google.com/maps/place/Mina/@-12.52,-76.71,135803m/data=!3d-12.31!4d-75.70"
+    assert _extraer(url_con_ambos) == "-12.31,-75.70"
