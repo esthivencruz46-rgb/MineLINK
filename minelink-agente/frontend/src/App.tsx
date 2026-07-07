@@ -10,6 +10,7 @@ import { AdminDashboard } from "./pages/admin/AdminDashboard";
 import { AdminEmpresas } from "./pages/admin/AdminEmpresas";
 import { AdminLeads } from "./pages/admin/AdminLeads";
 import { AdminLogin } from "./pages/admin/AdminLogin";
+import { ComoFunciona } from "./pages/ComoFunciona";
 import { Cuestionario } from "./pages/Cuestionario";
 import { Empresas } from "./pages/Empresas";
 import { Gracias } from "./pages/Gracias";
@@ -48,6 +49,7 @@ export function App() {
         <main>
           <Routes>
             <Route path="/" element={<Inicio />} />
+            <Route path="/como-funciona" element={<ComoFunciona />} />
             <Route path="/diagnostico" element={<Cuestionario />} />
             <Route path="/resultado" element={<Resultado />} />
             <Route path="/empresas" element={<Empresas />} />

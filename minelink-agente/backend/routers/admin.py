@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
-from auth import authenticate_admin, create_access_token, get_current_admin
+from auth import authenticate_admin, create_access_token, get_current_admin, hash_password
 from database import get_db
 from security import limitar_intentos_login
 from scoring import estado_seguimiento
@@ -68,6 +68,35 @@ def listar_leads(
         )
         for lead, operacion in filas
     ]
+
+
+@router.post("/leads/{lead_id}/resetear-password", status_code=200)
+def resetear_password_minero(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Genera una contraseña temporal para el minero que olvidó la suya.
+    Se muestra UNA sola vez al admin, quien se la envía por WhatsApp; el
+    minero puede seguir usándola o pedir otro reseteo cuando quiera."""
+    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+    if not lead.username:
+        raise HTTPException(status_code=422, detail="Este lead no tiene cuenta creada")
+
+    # Legible para dictar por teléfono: sin caracteres confusos (0/O, 1/l)
+    import secrets as _secrets
+
+    alfabeto = "abcdefghjkmnpqrstuvwxyz23456789"
+    password_temporal = "".join(_secrets.choice(alfabeto) for _ in range(8))
+    lead.password_hash = hash_password(password_temporal)
+    db.commit()
+    return {
+        "username": lead.username,
+        "password_temporal": password_temporal,
+        "whatsapp": lead.whatsapp,
+    }
 
 
 @router.put("/leads/{lead_id}/estado-contacto", status_code=200)

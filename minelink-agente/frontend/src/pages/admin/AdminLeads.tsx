@@ -165,6 +165,33 @@ export function AdminLeads() {
     setLeads((actuales) => actuales.filter((l) => l.id !== lead.id));
   }
 
+  async function resetearPassword(lead: LeadConDiagnostico) {
+    if (
+      !window.confirm(
+        `¿Generar una contraseña nueva para "${lead.nombre}"? La anterior dejará de funcionar.`
+      )
+    ) {
+      return;
+    }
+    const resp = await authFetch(`/admin/leads/${lead.id}/resetear-password`, {
+      method: "POST",
+    });
+    if (!resp.ok) {
+      const detalle = await resp.json().catch(() => null);
+      setError(detalle?.detail ?? "No pudimos resetear la contraseña.");
+      return;
+    }
+    const datos = await resp.json();
+    const mensaje = `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de MineLink. Tu nueva contraseña es: ${datos.password_temporal} (tu usuario sigue siendo: ${datos.username}). Entra en https://mine-link-seven.vercel.app/ingresar`;
+    if (
+      window.confirm(
+        `Contraseña nueva de ${lead.nombre}: ${datos.password_temporal}\n\n(usuario: ${datos.username})\n\n¿Abrir WhatsApp para enviársela?`
+      )
+    ) {
+      window.open(enlaceWhatsApp(lead.whatsapp, mensaje), "_blank");
+    }
+  }
+
   async function cambiarEstadoContacto(lead: LeadConDiagnostico, estado: string) {
     const resp = await authFetch(`/admin/leads/${lead.id}/estado-contacto`, {
       method: "PUT",
@@ -442,6 +469,12 @@ export function AdminLeads() {
                         className="min-h-[32px] rounded border border-secundario/30 px-2 text-xs font-semibold text-secundario"
                       >
                         Inversionistas
+                      </button>
+                      <button
+                        onClick={() => resetearPassword(lead)}
+                        className="min-h-[32px] rounded border border-black/10 px-2 text-xs font-semibold dark:border-white/10"
+                      >
+                        Resetear clave
                       </button>
                       <button
                         onClick={() => eliminarLead(lead)}

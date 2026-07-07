@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { DEPARTAMENTOS } from "../data/departamentos";
-import { obtenerMineralesDisponibles, obtenerProyectos } from "../services/api";
+import { BASE_URL, obtenerMineralesDisponibles, obtenerProyectos } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import type { ProyectoPublico } from "../types/proyecto";
 
@@ -84,24 +84,38 @@ export function Proyectos() {
             <Link
               key={p.operacion_id}
               to={`/proyectos/${p.operacion_id}`}
-              className="rounded-lg bg-tarjeta p-5 transition hover:opacity-90 dark:bg-tarjeta-dark"
+              className="flex gap-4 rounded-lg bg-tarjeta p-5 transition hover:opacity-90 dark:bg-tarjeta-dark"
             >
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="font-semibold">{p.nombre_proyecto}</h2>
-                <span className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}>
-                  {p.score_actual}
-                </span>
-              </div>
-              <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">
-                {p.mineral} · {p.region} ·{" "}
-                {p.tipo_mina === "subterranea" ? "subterránea" : "tajo abierto"}
-              </p>
-
-              {p.descripcion_operacion && (
-                <p className="mt-2 line-clamp-2 text-sm">{p.descripcion_operacion}</p>
+              {p.foto_portada_url ? (
+                <img
+                  src={`${BASE_URL}${p.foto_portada_url}`}
+                  alt={`Foto de ${p.nombre_proyecto}`}
+                  loading="lazy"
+                  className="h-24 w-24 shrink-0 rounded-lg object-cover"
+                />
+              ) : (
+                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 text-3xl dark:bg-white/5">
+                  ⛏️
+                </div>
               )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <h2 className="font-semibold">{p.nombre_proyecto}</h2>
+                  <span className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}>
+                    {p.score_actual}
+                  </span>
+                </div>
+                <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">
+                  {p.mineral} · {p.region} ·{" "}
+                  {p.tipo_mina === "subterranea" ? "subterránea" : "tajo abierto"}
+                </p>
 
-              <p className="mt-3 text-sm font-semibold text-acento">Ver detalle →</p>
+                {p.descripcion_operacion && (
+                  <p className="mt-2 line-clamp-2 text-sm">{p.descripcion_operacion}</p>
+                )}
+
+                <p className="mt-3 text-sm font-semibold text-acento">Ver detalle →</p>
+              </div>
             </Link>
           );
         })}

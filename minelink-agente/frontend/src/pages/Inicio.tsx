@@ -53,6 +53,12 @@ export function Inicio() {
           Diagnóstico gratuito para mineros, proyectos verificados para
           inversionistas y clientes reales para consultores.
         </p>
+        <Link
+          to="/como-funciona"
+          className="mt-2 inline-block text-sm font-semibold text-acento underline"
+        >
+          ¿Cómo funciona MineLink?
+        </Link>
       </div>
 
       <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">

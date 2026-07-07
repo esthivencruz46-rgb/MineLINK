@@ -1360,3 +1360,44 @@ def test_extraccion_de_coordenadas_de_enlaces_maps():
     # estaba alejado al compartir, @ puede quedar muy lejos del pin
     url_con_ambos = "https://google.com/maps/place/Mina/@-12.52,-76.71,135803m/data=!3d-12.31!4d-75.70"
     assert _extraer(url_con_ambos) == "-12.31,-75.70"
+
+
+def test_admin_resetea_password_de_minero():
+    _token_minero(username="mineroolvidadizo", password="claveperdida1")
+
+    token_admin = _admin_token()
+    headers_admin = {"Authorization": f"Bearer {token_admin}"}
+    leads = client.get("/admin/leads", headers=headers_admin).json()
+
+    resp = client.post(
+        f"/admin/leads/{leads[0]['id']}/resetear-password", headers=headers_admin
+    )
+    assert resp.status_code == 200
+    nueva = resp.json()["password_temporal"]
+    assert len(nueva) == 8
+
+    # La clave vieja ya no sirve; la nueva sí
+    resp = client.post(
+        "/mineros/login",
+        json={"username": "mineroolvidadizo", "password": "claveperdida1"},
+    )
+    assert resp.status_code == 401
+    resp = client.post(
+        "/mineros/login", json={"username": "mineroolvidadizo", "password": nueva}
+    )
+    assert resp.status_code == 200
+
+
+def test_proyectos_lista_incluye_foto_portada():
+    token = _token_minero(username="minerofoto")
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/mineros/documentos",
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("mina.jpg", b"\xff\xd8\xfffoto portada", "image/jpeg")},
+        headers=headers,
+    )
+
+    proyectos = client.get("/proyectos").json()
+    assert proyectos[0]["foto_portada_url"] is not None
+    assert "/fotos/" in proyectos[0]["foto_portada_url"]

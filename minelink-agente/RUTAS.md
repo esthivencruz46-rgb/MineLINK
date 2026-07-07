@@ -6,6 +6,7 @@ Base local del frontend (con `npm run dev` corriendo): `http://127.0.0.1:5173`
 | Ruta | Descripción |
 |---|---|
 | `/` | Inicio |
+| `/como-funciona` | Explicación en 3 pasos para cada perfil |
 | `/diagnostico` | Cuestionario de formalización |
 | `/resultado` | Score y brechas |
 | `/empresas` | Empresas/consultores recomendados |

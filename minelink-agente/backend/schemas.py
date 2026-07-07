@@ -270,6 +270,8 @@ class ProyectoPublicoOut(BaseModel):
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
     created_at: datetime
+    # Primera foto de la mina (miniatura para la tarjeta en /proyectos)
+    foto_portada_url: Optional[str] = None
 
 
 class FotoPublicaOut(BaseModel):

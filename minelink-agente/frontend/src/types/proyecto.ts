@@ -10,6 +10,7 @@ export interface ProyectoPublico {
   capital_buscado?: string | null;
   uso_fondos?: string | null;
   created_at: string;
+  foto_portada_url?: string | null;
 }
 
 export interface FotoPublica {

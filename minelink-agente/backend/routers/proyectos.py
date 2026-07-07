@@ -35,7 +35,11 @@ def _proyectos_visibles(db: Session):
     return filas
 
 
-def _proyecto_publico_out(lead: models.Lead, operacion: models.Operacion) -> schemas.ProyectoPublicoOut:
+def _proyecto_publico_out(
+    lead: models.Lead,
+    operacion: models.Operacion,
+    foto_portada_url: Optional[str] = None,
+) -> schemas.ProyectoPublicoOut:
     seguimiento = estado_seguimiento(operacion)
     return schemas.ProyectoPublicoOut(
         operacion_id=operacion.id,
@@ -49,7 +53,29 @@ def _proyecto_publico_out(lead: models.Lead, operacion: models.Operacion) -> sch
         capital_buscado=lead.capital_buscado,
         uso_fondos=lead.uso_fondos,
         created_at=lead.created_at,
+        foto_portada_url=foto_portada_url,
     )
+
+
+def _fotos_portada(db: Session, operacion_ids: list[str]) -> dict[str, str]:
+    """Primera foto de mina de cada operación (una sola consulta), como URL
+    pública servida por el backend."""
+    if not operacion_ids:
+        return {}
+    fotos = (
+        db.query(models.DocumentoOperacion)
+        .filter(
+            models.DocumentoOperacion.operacion_id.in_(operacion_ids),
+            models.DocumentoOperacion.categoria == "fotos_mina",
+        )
+        .order_by(models.DocumentoOperacion.created_at.asc())
+        .all()
+    )
+    portada: dict[str, str] = {}
+    for f in fotos:
+        if f.operacion_id not in portada:
+            portada[f.operacion_id] = f"/proyectos/{f.operacion_id}/fotos/{f.id}"
+    return portada
 
 
 @router.get("", response_model=list[schemas.ProyectoPublicoOut])
@@ -60,14 +86,19 @@ def listar_proyectos(
 ):
     filas = _proyectos_visibles(db)
 
-    resultado = []
+    visibles = []
     for lead, operacion in filas:
         if mineral and mineral.strip().lower() not in operacion.mineral.lower():
             continue
         if region and operacion.region.lower() != region.strip().lower():
             continue
-        resultado.append(_proyecto_publico_out(lead, operacion))
-    return resultado
+        visibles.append((lead, operacion))
+
+    portadas = _fotos_portada(db, [o.id for _l, o in visibles])
+    return [
+        _proyecto_publico_out(lead, operacion, portadas.get(operacion.id))
+        for lead, operacion in visibles
+    ]
 
 
 @router.get("/minerales", response_model=list[str])
