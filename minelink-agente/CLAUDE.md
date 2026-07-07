@@ -159,6 +159,7 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 ├── errores_aprendidos.md      ← LEER SIEMPRE antes de tocar código
 ├── RUTAS.md                   ← rutas principales del frontend (público/inversionista/admin)
 ├── DESPLIEGUE.md              ← checklist para el día que haya hosting/dominio real
+├── LIMPIEZA.md                ← cómo borrar datos de simulación de forma segura
 ├── context/
 │   ├── criterios_score.md     ← 22 preguntas, pesos, brecha→estudio
 │   └── perfil_usuario.md      ← quién es el minero, tono de UI
