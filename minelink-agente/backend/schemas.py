@@ -288,6 +288,9 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None
+    # Coordenadas "lat,lng" para el mapa incrustado (None si no se pudieron
+    # resolver del enlace)
+    ubicacion_coords: Optional[str] = None
     # Descripción redactada automáticamente a partir de los datos REALES
     # del diagnóstico y el perfil — nunca inventa cifras
     descripcion_generada: Optional[str] = None

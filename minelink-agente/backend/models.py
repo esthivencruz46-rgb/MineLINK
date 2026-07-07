@@ -87,6 +87,9 @@ class Lead(Base):
     # Enlace de Google Maps con la ubicación de la operación — se muestra
     # públicamente en la ficha del proyecto (/proyectos/{id}).
     ubicacion_maps = Column(String, nullable=True)
+    # Coordenadas "lat,lng" resueltas del enlace (para el mapa incrustado);
+    # se calculan al guardar el perfil (geoubicacion.py), no en cada visita.
+    ubicacion_coords = Column(String, nullable=True)
     # Estado del acompañamiento: "buscando" (default) → "contactado"
     # (el admin ya le escribió por WhatsApp). Visible para el minero
     # en /mi-cuenta para cerrar el ciclo de su registro.

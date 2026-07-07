@@ -175,6 +175,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_resueltas=seguimiento["brechas_resueltas"],
         dimensiones=seguimiento["dimensiones"],
         ubicacion_maps=lead.ubicacion_maps,
+        ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
             lead, operacion, seguimiento, len(fotos), n_docs_legales
         ),

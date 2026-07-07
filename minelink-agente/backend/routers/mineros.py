@@ -9,6 +9,7 @@ import schemas
 import storage
 from auth import create_minero_token, get_current_lead_id, verify_password
 from database import get_db
+from geoubicacion import resolver_coordenadas
 from scoring import estado_seguimiento
 from security import contenido_coincide_con_tipo, limitar_intentos_login
 from uploads_config import (
@@ -100,7 +101,11 @@ def actualizar_perfil_inversion(
     lead.capacidad_produccion = payload.capacidad_produccion
     lead.capital_buscado = payload.capital_buscado
     lead.uso_fondos = payload.uso_fondos
-    lead.ubicacion_maps = payload.ubicacion_maps
+    if payload.ubicacion_maps != lead.ubicacion_maps:
+        lead.ubicacion_maps = payload.ubicacion_maps
+        # Coordenadas para el mapa incrustado de la ficha pública;
+        # best-effort: si no se resuelven, solo se muestra el botón de Maps.
+        lead.ubicacion_coords = resolver_coordenadas(payload.ubicacion_maps)
     db.commit()
     db.refresh(lead)
 

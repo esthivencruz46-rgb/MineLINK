@@ -29,6 +29,7 @@ export interface ProyectoDetalle extends ProyectoPublico {
   brechas_resueltas: string[];
   dimensiones: Record<string, DimensionScore> | null;
   ubicacion_maps?: string | null;
+  ubicacion_coords?: string | null;
   descripcion_generada?: string | null;
 }
 

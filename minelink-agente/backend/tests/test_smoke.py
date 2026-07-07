@@ -9,6 +9,8 @@ os.environ["ADMIN_PASSWORD"] = "changeme"
 # Storage real (mismo principio que la BD en memoria).
 os.environ["SUPABASE_URL"] = ""
 os.environ["SUPABASE_SERVICE_KEY"] = ""
+# Y nunca resuelven enlaces de Maps contra internet real
+os.environ["MINELINK_RESOLVER_MAPS"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -1345,3 +1347,12 @@ def test_admin_cambia_estado_contacto_y_minero_lo_ve():
         "/mineros/me", headers={"Authorization": f"Bearer {token_minero}"}
     ).json()
     assert perfil["estado_contacto"] == "contactado"
+
+
+def test_extraccion_de_coordenadas_de_enlaces_maps():
+    from geoubicacion import _extraer
+
+    assert _extraer("https://www.google.com/maps/place/Mina/@-12.52,-76.71,15z") == "-12.52,-76.71"
+    assert _extraer("https://google.com/maps?q=-11.1,-75.2") == "-11.1,-75.2"
+    assert _extraer("https://maps.google.com/algo!3d-12.5!4d-76.7!") == "-12.5,-76.7"
+    assert _extraer("https://maps.app.goo.gl/corto") is None
