@@ -16,6 +16,7 @@ from security import contenido_coincide_con_tipo, limitar_intentos_login
 from uploads_config import (
     CATEGORIAS_DOCUMENTO,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
+    FOTOS_MINA_MAXIMO,
 )
 
 router = APIRouter(prefix="/mineros", tags=["mineros"])
@@ -152,6 +153,22 @@ async def subir_documento(
         raise HTTPException(
             422, f"Para '{categoria}' el archivo debe ser: {', '.join(tipos_aceptados)}"
         )
+
+    if categoria == "fotos_mina":
+        fotos_actuales = (
+            db.query(models.DocumentoOperacion)
+            .filter(
+                models.DocumentoOperacion.operacion_id == operacion.id,
+                models.DocumentoOperacion.categoria == "fotos_mina",
+            )
+            .count()
+        )
+        if fotos_actuales >= FOTOS_MINA_MAXIMO:
+            raise HTTPException(
+                422,
+                f"Ya tienes {FOTOS_MINA_MAXIMO} fotos (el máximo). "
+                "Elimina alguna para subir una nueva.",
+            )
 
     contenido = await archivo.read()
     if len(contenido) > DOCUMENTO_TAMANO_MAXIMO_BYTES:

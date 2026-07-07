@@ -1401,3 +1401,36 @@ def test_proyectos_lista_incluye_foto_portada():
     proyectos = client.get("/proyectos").json()
     assert proyectos[0]["foto_portada_url"] is not None
     assert "/fotos/" in proyectos[0]["foto_portada_url"]
+
+
+def test_maximo_10_fotos_de_mina():
+    token = _token_minero(username="minerodiezfotos")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for i in range(10):
+        resp = client.post(
+            "/mineros/documentos",
+            data={"categoria": "fotos_mina"},
+            files={"archivo": (f"f{i}.jpg", b"\xff\xd8\xfffoto", "image/jpeg")},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+
+    # La foto 11 se rechaza
+    resp = client.post(
+        "/mineros/documentos",
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("f11.jpg", b"\xff\xd8\xfffoto", "image/jpeg")},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "máximo" in resp.json()["detail"].lower()
+
+    # Pero otros documentos (PDF) sí se pueden seguir subiendo
+    resp = client.post(
+        "/mineros/documentos",
+        data={"categoria": "ruc"},
+        files={"archivo": ("ruc.pdf", b"%PDF-ruc", "application/pdf")},
+        headers=headers,
+    )
+    assert resp.status_code == 201

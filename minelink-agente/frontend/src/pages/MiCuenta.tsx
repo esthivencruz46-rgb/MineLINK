@@ -58,7 +58,7 @@ export function MiCuenta() {
   const fotos = documentos.filter((d) => d.categoria === "fotos_mina");
   const requisitos: { texto: string; cumplido: boolean }[] = [
     {
-      texto: `Mínimo ${FOTOS_MINIMAS} fotos de tu mina (tienes ${fotos.length})`,
+      texto: `Mínimo ${FOTOS_MINIMAS} fotos de tu mina, máximo 10 (tienes ${fotos.length})`,
       cumplido: fotos.length >= FOTOS_MINIMAS,
     },
     {

@@ -13,6 +13,10 @@ DOCUMENTOS_MINERO_DIR.mkdir(parents=True, exist_ok=True)
 
 DOCUMENTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# Fotos de la mina: mínimo 3 para que el proyecto se vea completo ante
+# inversionistas (checklist de /mi-cuenta), máximo 10 por operación.
+FOTOS_MINA_MAXIMO = 10
+
 # categoría → (tipos de contenido aceptados, etiqueta legible)
 CATEGORIAS_DOCUMENTO = {
     "fotos_mina": (("image/jpeg", "image/png", "image/webp"), "Fotos de la mina"),
