@@ -141,11 +141,16 @@ El backend soporta ambos motores sin cambiar código (`database.py`):
 
 ## Archivos subidos (fotos, PDFs)
 
-Viven en disco local bajo `backend/uploads/` (`cvs/` para CV de consultores, `documentos_mineros/`
-para fotos/documentos legales del minero) — la base de datos solo guarda el nombre de archivo, no
-el contenido. Esto es independiente de si la BD es SQLite o Supabase: migrar la BD a Supabase NO
-mueve estos archivos. **Nunca borrar archivos de estas carpetas con comandos amplios tipo
-`rm -f uploads/*/*`** — ver `errores_aprendidos.md`, ya causó pérdida de datos reales dos veces.
+Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no el contenido):
+- **Con `SUPABASE_URL` + `SUPABASE_SERVICE_KEY` en el entorno** → Supabase Storage, bucket privado
+  `archivos-minelink` (carpetas `documentos_mineros/` y `cvs/`). Es el modo de producción (Render
+  tiene disco efímero: lo escrito ahí se borra en cada deploy). Los archivos se sirven SIEMPRE a
+  través del backend, nunca por URL directa del bucket.
+- **Sin esas variables** → disco local `backend/uploads/` (dev y tests, como siempre).
+- `seeds/migrar_archivos_a_storage.py` COPIA lo local al bucket (verificación byte a byte, no
+  borra nada). Los archivos locales quedan como respaldo permanente.
+- **Nunca borrar archivos de `backend/uploads/` con comandos amplios tipo `rm -f uploads/*/*`**
+  — ver `errores_aprendidos.md`, ya causó pérdida de datos reales dos veces.
 
 ## Estructura del proyecto
 ```
