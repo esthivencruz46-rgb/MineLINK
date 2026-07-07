@@ -75,6 +75,24 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 - Tests: pytest (backend) · sin tests frontend en MVP
 - Idioma: código en inglés, comentarios y respuestas en español
 
+## Producción (IMPORTANTE: el proyecto YA está desplegado)
+
+- **Web pública**: https://mine-link-seven.vercel.app (Vercel, carpeta `frontend/`)
+- **API pública**: https://minelink-api.onrender.com (Render, carpeta `backend/`, plan gratuito)
+- **Auto-deploy**: cada push a `main` en GitHub (repo `esthivencruz46-rgb/MineLINK`) redespliega
+  ambos automáticamente. El push lo hace Esthiven desde GitHub Desktop (la terminal del agente
+  no tiene sus credenciales) — tras un commit, pedirle "dale Push origin en GitHub Desktop".
+- **Variables de entorno de producción**: viven en los paneles de Render y Vercel (no en el repo).
+  Render necesita: DATABASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, SECRET_KEY, FRONTEND_URL,
+  PYTHON_VERSION=3.12.8 (¡crítico: sin ella el build falla con Python nuevo!), SUPABASE_URL,
+  SUPABASE_SERVICE_KEY. Vercel: VITE_API_URL_WEB y VITE_API_URL_NATIVE.
+- **UptimeRobot** visita /health cada 5 min: mantiene despierto el plan gratuito de Render y
+  alerta por correo si algo cae.
+- El APK de Android (`c:\Users\ESTHIVEN\Downloads\MineLink.apk`) apunta al backend público:
+  tras cambios de frontend hay que regenerarlo (sync + gradlew + copiar a Descargas).
+- CORS: orígenes locales + regex `https://mine-link-[a-z0-9-]+\.vercel\.app` + FRONTEND_URL
+  (ver `main.py`). Si la web pública no carga datos, revisar esto primero.
+
 ## Comandos comunes
 
 ### Backend (desde `backend/`)
@@ -158,8 +176,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 ├── CLAUDE.md                  ← este archivo (orquestador)
 ├── errores_aprendidos.md      ← LEER SIEMPRE antes de tocar código
 ├── RUTAS.md                   ← rutas principales del frontend (público/inversionista/admin)
-├── DESPLIEGUE.md              ← checklist para el día que haya hosting/dominio real
+├── DESPLIEGUE.md              ← checklist de despliegue (ya ejecutado; sirve para replicar/migrar)
 ├── LIMPIEZA.md                ← cómo borrar datos de simulación de forma segura
+├── INTERMEDIACION.md          ← filosofía de negocio del match minero-inversionista
 ├── context/
 │   ├── criterios_score.md     ← 22 preguntas, pesos, brecha→estudio
 │   └── perfil_usuario.md      ← quién es el minero, tono de UI
@@ -182,11 +201,15 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── auth.py                  ← JWT admin/minero/inversionista, hashing de passwords
 │   ├── security.py              ← límite de intentos de login por IP (429) y validación
 │   │                              de firma real (magic bytes) de archivos subidos
+│   ├── storage.py               ← archivos en Supabase Storage (prod) o disco local (dev/tests)
+│   ├── geoubicacion.py          ← enlace de Google Maps → coordenadas (prioriza el pin !3d!4d
+│   │                              sobre el centro de vista @) para el mapa incrustado
 │   ├── uploads_config.py        ← rutas y categorías de archivos subidos
 │   ├── requirements.txt
 │   ├── .env.example              ← plantilla; .env real nunca se comparte
 │   ├── routers/
 │   │   ├── diagnostico.py        ← POST /diagnostico
+│   │   ├── eventos.py            ← POST /eventos (métricas de embudo, anónimas)
 │   │   ├── empresas.py           ← GET /empresas, /empresas/mejor-opcion, POST /consultores/postular
 │   │   ├── leads.py              ← POST /leads (registro del minero + su cuenta)
 │   │   ├── mineros.py            ← /mineros/login, /me, /perfil-inversion, /documentos
