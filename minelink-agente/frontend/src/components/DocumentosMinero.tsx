@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CATEGORIAS_DOCUMENTO, type DocumentoOperacion } from "../types/documento";
 
-export function DocumentosMinero() {
+interface Props {
+  onDocumentosChange?: (documentos: DocumentoOperacion[]) => void;
+}
+
+export function DocumentosMinero({ onDocumentosChange }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [cargando, setCargando] = useState(true);
@@ -21,6 +25,7 @@ export function DocumentosMinero() {
       })
       .then((data) => {
         setDocumentos(data);
+        onDocumentosChange?.(data);
         setError(null);
       })
       .catch(() => setError("No pudimos cargar tus archivos."))
@@ -52,7 +57,11 @@ export function DocumentosMinero() {
   async function eliminar(doc: DocumentoOperacion) {
     if (!window.confirm(`¿Eliminar "${doc.nombre_original}"?`)) return;
     await authFetch(`/mineros/documentos/${doc.id}`, { method: "DELETE" });
-    setDocumentos((actuales) => actuales.filter((d) => d.id !== doc.id));
+    setDocumentos((actuales) => {
+      const restantes = actuales.filter((d) => d.id !== doc.id);
+      onDocumentosChange?.(restantes);
+      return restantes;
+    });
   }
 
   async function ver(doc: DocumentoOperacion) {

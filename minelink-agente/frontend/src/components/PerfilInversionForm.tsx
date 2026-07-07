@@ -7,44 +7,84 @@ interface Props {
   onGuardado: (perfil: MineroPerfil) => void;
 }
 
+type Campo =
+  | "descripcion_operacion"
+  | "capacidad_produccion"
+  | "capital_buscado"
+  | "uso_fondos"
+  | "ubicacion_maps";
+
 const CAMPOS: {
-  campo: "descripcion_operacion" | "capacidad_produccion" | "capital_buscado" | "uso_fondos";
+  campo: Campo;
   etiqueta: string;
   placeholder: string;
+  obligatorio: boolean;
+  unaLinea?: boolean;
 }[] = [
   {
-    campo: "descripcion_operacion",
-    etiqueta: "Cuéntanos sobre tu operación",
-    placeholder: "Ej: mina de oro a tajo abierto, 3 años operando, 8 trabajadores...",
+    campo: "ubicacion_maps",
+    etiqueta: "Ubicación de tu mina (enlace de Google Maps)",
+    placeholder: "Ej: https://maps.app.goo.gl/abc123",
+    obligatorio: true,
+    unaLinea: true,
   },
   {
-    campo: "capacidad_produccion",
-    etiqueta: "¿Cuánto produces y cuánto mineral te queda (reservas)?",
-    placeholder: "Ej: 50 toneladas/mes, reservas estimadas para 5 años",
+    campo: "uso_fondos",
+    etiqueta: "¿Para qué buscas el dinero? (motivo)",
+    placeholder: "Ej: comprar chancadora, planta de beneficio, capital de trabajo",
+    obligatorio: true,
   },
   {
     campo: "capital_buscado",
     etiqueta: "¿Cuánto capital buscas?",
     placeholder: "Ej: USD 80,000",
+    obligatorio: true,
+    unaLinea: true,
   },
   {
-    campo: "uso_fondos",
-    etiqueta: "¿En qué lo usarías?",
-    placeholder: "Ej: comprar chancadora, planta de beneficio, capital de trabajo",
+    campo: "descripcion_operacion",
+    etiqueta: "Cuéntanos sobre tu operación",
+    placeholder: "Ej: mina de oro a tajo abierto, 3 años operando, 8 trabajadores...",
+    obligatorio: false,
+  },
+  {
+    campo: "capacidad_produccion",
+    etiqueta: "¿Cuánto produces y cuánto mineral te queda (reservas)?",
+    placeholder: "Ej: 50 toneladas/mes, reservas estimadas para 5 años",
+    obligatorio: false,
   },
 ];
 
+function esEnlaceMaps(valor: string): boolean {
+  const v = valor.trim();
+  if (!v.startsWith("http://") && !v.startsWith("https://")) return false;
+  return (
+    v.includes("google.com/maps") ||
+    v.includes("maps.google.") ||
+    v.includes("maps.app.goo.gl") ||
+    v.includes("goo.gl/maps")
+  );
+}
+
 export function PerfilInversionForm({ perfil, onGuardado }: Props) {
   const { authFetch } = useMineroAuth();
-  const [valores, setValores] = useState({
+  const [valores, setValores] = useState<Record<Campo, string>>({
     descripcion_operacion: perfil.descripcion_operacion ?? "",
     capacidad_produccion: perfil.capacidad_produccion ?? "",
     capital_buscado: perfil.capital_buscado ?? "",
     uso_fondos: perfil.uso_fondos ?? "",
+    ubicacion_maps: perfil.ubicacion_maps ?? "",
   });
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardadoOk, setGuardadoOk] = useState(false);
+
+  const faltantes = CAMPOS.filter(
+    (c) => c.obligatorio && !valores[c.campo].trim()
+  );
+  const mapsInvalido =
+    valores.ubicacion_maps.trim().length > 0 && !esEnlaceMaps(valores.ubicacion_maps);
+  const valido = faltantes.length === 0 && !mapsInvalido;
 
   async function guardar() {
     setGuardando(true);
@@ -59,6 +99,7 @@ export function PerfilInversionForm({ perfil, onGuardado }: Props) {
           capacidad_produccion: valores.capacidad_produccion.trim() || undefined,
           capital_buscado: valores.capital_buscado.trim() || undefined,
           uso_fondos: valores.uso_fondos.trim() || undefined,
+          ubicacion_maps: valores.ubicacion_maps.trim() || undefined,
         }),
       });
       if (!resp.ok) throw new Error();
@@ -76,31 +117,60 @@ export function PerfilInversionForm({ perfil, onGuardado }: Props) {
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <h2 className="font-semibold">Perfil para inversionistas</h2>
       <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-        Responde esto cuando quieras — todas son opcionales. Junto con tus
-        fotos y documentos, es lo que se les mostrará más adelante a
-        inversionistas interesados en operaciones formalizadas.
+        Los campos con <span className="text-red-500">*</span> son obligatorios
+        para que tu proyecto se muestre completo a los inversionistas en la
+        sección Proyectos.
       </p>
 
       <div className="mt-4 flex flex-col gap-4">
-        {CAMPOS.map(({ campo, etiqueta, placeholder }) => (
+        {CAMPOS.map(({ campo, etiqueta, placeholder, obligatorio, unaLinea }) => (
           <div key={campo}>
-            <label className="mb-1 block text-sm font-medium">{etiqueta}</label>
-            <textarea
-              className="min-h-[70px] w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/10"
-              placeholder={placeholder}
-              value={valores[campo]}
-              onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
-            />
+            <label className="mb-1 block text-sm font-medium">
+              {etiqueta}
+              {obligatorio && <span className="ml-1 text-red-500">*</span>}
+            </label>
+            {unaLinea ? (
+              <input
+                className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
+                placeholder={placeholder}
+                value={valores[campo]}
+                onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
+              />
+            ) : (
+              <textarea
+                className="min-h-[70px] w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/10"
+                placeholder={placeholder}
+                value={valores[campo]}
+                onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
+              />
+            )}
+            {campo === "ubicacion_maps" && (
+              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                En la app de Google Maps: mantén presionado el punto de tu mina →
+                Compartir → Copiar enlace, y pégalo aquí.
+              </p>
+            )}
+            {campo === "ubicacion_maps" && mapsInvalido && (
+              <p className="mt-1 text-xs text-red-500">
+                Ese enlace no parece de Google Maps. Debe empezar con https:// y
+                venir de maps.google.com o maps.app.goo.gl.
+              </p>
+            )}
           </div>
         ))}
       </div>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {guardadoOk && <p className="mt-2 text-sm text-emerald-500">Guardado.</p>}
+      {!valido && faltantes.length > 0 && (
+        <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+          Te falta completar: {faltantes.map((c) => c.etiqueta.split(" (")[0]).join(", ")}.
+        </p>
+      )}
 
       <button
         onClick={guardar}
-        disabled={guardando}
+        disabled={guardando || !valido}
         className="mt-3 min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white disabled:opacity-50"
       >
         {guardando ? "Guardando..." : "Guardar"}

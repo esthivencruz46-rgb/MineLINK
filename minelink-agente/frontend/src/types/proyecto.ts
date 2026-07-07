@@ -28,6 +28,8 @@ export interface ProyectoDetalle extends ProyectoPublico {
   brechas_pendientes: string[];
   brechas_resueltas: string[];
   dimensiones: Record<string, DimensionScore> | null;
+  ubicacion_maps?: string | null;
+  descripcion_generada?: string | null;
 }
 
 export interface InteresInversionRequest {

@@ -249,6 +249,7 @@ class MineroPerfilOut(BaseModel):
     capacidad_produccion: Optional[str] = None
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
+    ubicacion_maps: Optional[str] = None
 
 
 class ProyectoPublicoOut(BaseModel):
@@ -282,6 +283,12 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
 
     fotos: list[FotoPublicaOut] = []
     documentos_presentados: dict[str, bool] = {}
+    # Enlace de Google Maps que dejó el minero (público a propósito:
+    # el inversionista necesita saber la zona; el contacto sigue privado)
+    ubicacion_maps: Optional[str] = None
+    # Descripción redactada automáticamente a partir de los datos REALES
+    # del diagnóstico y el perfil — nunca inventa cifras
+    descripcion_generada: Optional[str] = None
     # Igual que en /admin/leads: brechas = estudios que le faltan al
     # proyecto, por código (ej. "sctr", "iperc") — el frontend ya tiene
     # las etiquetas legibles y a qué dimensión pertenece cada una.
@@ -295,6 +302,28 @@ class PerfilInversionUpdate(BaseModel):
     capacidad_produccion: Optional[str] = None
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
+    ubicacion_maps: Optional[str] = None
+
+    @field_validator("ubicacion_maps")
+    @classmethod
+    def validar_enlace_maps(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return None
+        enlace = v.strip()
+        dominios_maps = (
+            "google.com/maps",
+            "maps.google.",
+            "maps.app.goo.gl",
+            "goo.gl/maps",
+        )
+        if not enlace.startswith(("http://", "https://")) or not any(
+            d in enlace for d in dominios_maps
+        ):
+            raise ValueError(
+                "La ubicación debe ser un enlace de Google Maps "
+                "(compártelo desde la app de Maps con el botón Compartir)"
+            )
+        return enlace
 
 
 class InteresInversionCreate(BaseModel):
@@ -427,6 +456,7 @@ class LeadConDiagnostico(BaseModel):
     capacidad_produccion: Optional[str] = None
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
+    ubicacion_maps: Optional[str] = None
 
 
 class ActualizarBrechasResueltasRequest(BaseModel):

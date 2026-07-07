@@ -84,6 +84,9 @@ class Lead(Base):
     capacidad_produccion = Column(String, nullable=True)
     capital_buscado = Column(String, nullable=True)
     uso_fondos = Column(String, nullable=True)
+    # Enlace de Google Maps con la ubicación de la operación — se muestra
+    # públicamente en la ficha del proyecto (/proyectos/{id}).
+    ubicacion_maps = Column(String, nullable=True)
     created_at = Column(DateTime, default=_now)
 
     operacion = relationship("Operacion", back_populates="leads")

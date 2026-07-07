@@ -53,6 +53,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         capacidad_produccion=lead.capacidad_produccion,
         capital_buscado=lead.capital_buscado,
         uso_fondos=lead.uso_fondos,
+        ubicacion_maps=lead.ubicacion_maps,
         **estado_seguimiento(operacion),
     )
 
@@ -98,6 +99,7 @@ def actualizar_perfil_inversion(
     lead.capacidad_produccion = payload.capacidad_produccion
     lead.capital_buscado = payload.capital_buscado
     lead.uso_fondos = payload.uso_fondos
+    lead.ubicacion_maps = payload.ubicacion_maps
     db.commit()
     db.refresh(lead)
 

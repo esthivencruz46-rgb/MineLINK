@@ -119,8 +119,18 @@ export function ProyectoDetalle() {
         </span>
       </h1>
 
-      <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
-        📍 {cap(proyecto.region)}, Perú
+      <p className="mt-2 flex flex-wrap items-center gap-3 text-texto-suave dark:text-texto-suave-dark">
+        <span>📍 {cap(proyecto.region)}, Perú</span>
+        {proyecto.ubicacion_maps && (
+          <a
+            href={proyecto.ubicacion_maps}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 rounded-full bg-acento/10 px-3 py-1 text-xs font-semibold text-acento hover:bg-acento/20"
+          >
+            🗺 Ver ubicación en Google Maps
+          </a>
+        )}
       </p>
 
       {/* GALERÍA */}
@@ -136,12 +146,17 @@ export function ProyectoDetalle() {
           <Card>
             <h2 className="text-lg font-semibold">Información General</h2>
             <p className="mt-2">
-              {proyecto.descripcion_operacion ?? (
+              {proyecto.descripcion_generada ?? proyecto.descripcion_operacion ?? (
                 <span className="text-texto-suave dark:text-texto-suave-dark">
                   Aún no se agregó una descripción.
                 </span>
               )}
             </p>
+            {proyecto.descripcion_generada && proyecto.descripcion_operacion && (
+              <p className="mt-3 border-l-2 border-acento/40 pl-3 text-sm italic text-texto-suave dark:text-texto-suave-dark">
+                "{proyecto.descripcion_operacion}" — descripción del minero
+              </p>
+            )}
 
             <div className="mt-5 grid grid-cols-2 gap-5 md:grid-cols-4">
               <Campo etiqueta="Mineral principal" valor={cap(proyecto.mineral)} />

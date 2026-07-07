@@ -19,6 +19,7 @@ export interface MineroPerfil {
   capacidad_produccion?: string | null;
   capital_buscado?: string | null;
   uso_fondos?: string | null;
+  ubicacion_maps?: string | null;
 }
 
 export interface PerfilInversionRequest {
@@ -26,4 +27,5 @@ export interface PerfilInversionRequest {
   capacidad_produccion?: string;
   capital_buscado?: string;
   uso_fondos?: string;
+  ubicacion_maps?: string;
 }

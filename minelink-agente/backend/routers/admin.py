@@ -62,6 +62,7 @@ def listar_leads(
             capacidad_produccion=lead.capacidad_produccion,
             capital_buscado=lead.capital_buscado,
             uso_fondos=lead.uso_fondos,
+            ubicacion_maps=lead.ubicacion_maps,
             **estado_seguimiento(operacion),
         )
         for lead, operacion in filas

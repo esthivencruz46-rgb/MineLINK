@@ -76,6 +76,63 @@ def listar_minerales(db: Session = Depends(get_db)):
     return minerales
 
 
+def _generar_descripcion(
+    lead: models.Lead,
+    operacion: models.Operacion,
+    seguimiento: dict,
+    n_fotos: int,
+    n_docs_legales: int,
+) -> str:
+    """Redacta la descripción pública del proyecto a partir de los datos
+    REALES del diagnóstico y del perfil del minero — nunca inventa cifras.
+    Si un dato no existe, simplemente no se menciona."""
+    tipo_legible = "subterránea" if operacion.tipo_mina == "subterranea" else "a tajo abierto"
+    partes = [
+        f"Operación minera de {operacion.mineral.lower()} {tipo_legible} "
+        f"ubicada en {operacion.region.title()}, registrada en REINFO."
+    ]
+
+    score = seguimiento["score_actual"]
+    pendientes = len(seguimiento["brechas_pendientes"])
+    if pendientes == 0:
+        partes.append(
+            f"Alcanzó un MineScore de {score}/100 y completó todos los "
+            "requisitos del diagnóstico de formalización."
+        )
+    else:
+        partes.append(
+            f"Tiene un MineScore de {score}/100, con {pendientes} "
+            f"requisito{'s' if pendientes != 1 else ''} de formalización en proceso."
+        )
+
+    if lead.capacidad_produccion:
+        partes.append(f"Producción y reservas declaradas: {lead.capacidad_produccion.strip()}.")
+
+    if lead.capital_buscado and lead.uso_fondos:
+        partes.append(
+            f"Busca {lead.capital_buscado.strip()} de inversión, "
+            f"destinados a: {lead.uso_fondos.strip()}."
+        )
+    elif lead.capital_buscado:
+        partes.append(f"Busca {lead.capital_buscado.strip()} de inversión.")
+    elif lead.uso_fondos:
+        partes.append(f"Busca inversión destinada a: {lead.uso_fondos.strip()}.")
+
+    respaldo = []
+    if n_fotos > 0:
+        respaldo.append(f"{n_fotos} foto{'s' if n_fotos != 1 else ''} de la operación")
+    if n_docs_legales > 0:
+        respaldo.append(
+            f"{n_docs_legales} documento{'s' if n_docs_legales != 1 else ''} legal"
+            f"{'es' if n_docs_legales != 1 else ''} presentado"
+            f"{'s' if n_docs_legales != 1 else ''}"
+        )
+    if respaldo:
+        partes.append(f"El proyecto respalda su información con {' y '.join(respaldo)}.")
+
+    return " ".join(partes)
+
+
 def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.Lead, models.Operacion]:
     fila = (
         db.query(models.Lead, models.Operacion)
@@ -107,6 +164,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     documentos_presentados = {c: c in categorias_presentadas for c in CATEGORIAS_LEGALES}
 
     seguimiento = estado_seguimiento(operacion)
+    n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
 
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),
@@ -115,6 +173,10 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         dimensiones=seguimiento["dimensiones"],
+        ubicacion_maps=lead.ubicacion_maps,
+        descripcion_generada=_generar_descripcion(
+            lead, operacion, seguimiento, len(fotos), n_docs_legales
+        ),
     )
 
 

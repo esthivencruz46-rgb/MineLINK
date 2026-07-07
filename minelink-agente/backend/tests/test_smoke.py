@@ -1242,3 +1242,54 @@ def test_documento_rechaza_contenido_que_no_coincide_con_tipo():
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
+
+
+def test_perfil_inversion_guarda_ubicacion_maps_valida():
+    token = _token_minero(username="minerodeubicacion")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={
+            "capital_buscado": "USD 50,000",
+            "uso_fondos": "comprar chancadora",
+            "ubicacion_maps": "https://maps.app.goo.gl/abc123XYZ",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["ubicacion_maps"] == "https://maps.app.goo.gl/abc123XYZ"
+
+    # Un enlace que no es de Google Maps se rechaza
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"ubicacion_maps": "https://miweb-falsa.com/mapa"},
+    )
+    assert resp.status_code == 422
+
+
+def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
+    token = _token_minero(username="minerogenerado")
+    headers = {"Authorization": f"Bearer {token}"}
+    client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={
+            "capital_buscado": "USD 30,000",
+            "uso_fondos": "planta de beneficio",
+            "ubicacion_maps": "https://maps.app.goo.gl/zona1",
+        },
+    )
+
+    proyectos = client.get("/proyectos").json()
+    assert len(proyectos) == 1
+    detalle = client.get(f"/proyectos/{proyectos[0]['operacion_id']}").json()
+
+    assert detalle["ubicacion_maps"] == "https://maps.app.goo.gl/zona1"
+    generada = detalle["descripcion_generada"]
+    assert "oro" in generada
+    assert "Arequipa" in generada
+    assert "USD 30,000" in generada
+    assert "planta de beneficio" in generada
+    assert "REINFO" in generada
