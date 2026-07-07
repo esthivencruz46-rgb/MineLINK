@@ -1403,11 +1403,13 @@ def test_proyectos_lista_incluye_foto_portada():
     assert "/fotos/" in proyectos[0]["foto_portada_url"]
 
 
-def test_maximo_10_fotos_de_mina():
+def test_maximo_fotos_de_mina():
+    from uploads_config import FOTOS_MINA_MAXIMO
+
     token = _token_minero(username="minerodiezfotos")
     headers = {"Authorization": f"Bearer {token}"}
 
-    for i in range(10):
+    for i in range(FOTOS_MINA_MAXIMO):
         resp = client.post(
             "/mineros/documentos",
             data={"categoria": "fotos_mina"},
@@ -1416,7 +1418,7 @@ def test_maximo_10_fotos_de_mina():
         )
         assert resp.status_code == 201
 
-    # La foto 11 se rechaza
+    # Una foto mas alla del maximo se rechaza
     resp = client.post(
         "/mineros/documentos",
         data={"categoria": "fotos_mina"},
