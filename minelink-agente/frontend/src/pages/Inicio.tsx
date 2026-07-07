@@ -1,3 +1,4 @@
+import { Capacitor } from "@capacitor/core";
 import { Link, useNavigate } from "react-router-dom";
 
 interface TarjetaPerfil {
@@ -101,6 +102,22 @@ export function Inicio() {
           </div>
         ))}
       </div>
+
+      {/* Dentro de la app instalada no tiene sentido ofrecer descargarla */}
+      {!Capacitor.isNativePlatform() && (
+      <a
+        href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
+        className="flex w-full max-w-md flex-col items-center rounded-xl border border-acento/30 bg-tarjeta p-4 text-center transition hover:opacity-90 dark:bg-tarjeta-dark"
+      >
+        <span className="font-semibold text-acento">
+          📲 Descargar la app para Android (APK)
+        </span>
+        <span className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+          Gratis, 4 MB. Al instalar, acepta "instalar de origen desconocido" —
+          es normal para apps fuera de Play Store.
+        </span>
+      </a>
+      )}
 
       <p className="text-center text-xs text-texto-suave dark:text-texto-suave-dark">
         100% gratis para mineros · Sin tramitadores · Tus datos de contacto

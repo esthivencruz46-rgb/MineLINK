@@ -88,8 +88,10 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
   SUPABASE_SERVICE_KEY. Vercel: VITE_API_URL_WEB y VITE_API_URL_NATIVE.
 - **UptimeRobot** visita /health cada 5 min: mantiene despierto el plan gratuito de Render y
   alerta por correo si algo cae.
-- El APK de Android (`c:\Users\ESTHIVEN\Downloads\MineLink.apk`) apunta al backend público:
-  tras cambios de frontend hay que regenerarlo (sync + gradlew + copiar a Descargas).
+- El APK de Android apunta al backend público. Tras cambios de frontend, el ciclo completo es:
+  `npm run android:sync` → `gradlew assembleDebug` → copiar a `Descargas\MineLink.apk` →
+  `python -m seeds.publicar_apk` (lo sube al bucket PÚBLICO `descargas` de Supabase, de donde
+  descarga el botón "Descargar la app" de la portada — URL fija).
 - CORS: orígenes locales + regex `https://mine-link-[a-z0-9-]+\.vercel\.app` + FRONTEND_URL
   (ver `main.py`). Si la web pública no carga datos, revisar esto primero.
 
@@ -202,6 +204,8 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── security.py              ← límite de intentos de login por IP (429) y validación
 │   │                              de firma real (magic bytes) de archivos subidos
 │   ├── storage.py               ← archivos en Supabase Storage (prod) o disco local (dev/tests)
+│   ├── imagenes.py              ← compresión automática de fotos subidas (máx 1600px, JPEG 80);
+│   │                              máx 5 fotos de mina por operación (uploads_config.py)
 │   ├── geoubicacion.py          ← enlace de Google Maps → coordenadas (prioriza el pin !3d!4d
 │   │                              sobre el centro de vista @) para el mapa incrustado
 │   ├── uploads_config.py        ← rutas y categorías de archivos subidos
