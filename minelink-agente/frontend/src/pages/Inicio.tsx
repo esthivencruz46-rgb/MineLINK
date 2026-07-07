@@ -23,10 +23,10 @@ const PERFILES: TarjetaPerfil[] = [
   },
   {
     emoji: "💼",
-    titulo: "Soy inversionista",
+    titulo: "Inversionistas y curiosos",
     descripcion:
-      "Explora operaciones mineras verificadas con REINFO, con fotos, puntaje de formalización y ubicación real.",
-    accion: "Ver proyectos para invertir",
+      "Explora operaciones mineras verificadas con REINFO, con fotos, puntaje de formalización y ubicación real. Mira libremente y, si algo te interesa, deja tu contacto.",
+    accion: "Ver proyectos mineros",
     ruta: "/proyectos",
     sesion: { texto: "Ya dejé mi interés antes", ruta: "/ingresar-inversionista" },
   },
@@ -37,14 +37,6 @@ const PERFILES: TarjetaPerfil[] = [
       "¿Eres ingeniero, geólogo o profesional colegiado? Te conectamos con mineros que necesitan exactamente tus servicios.",
     accion: "Postular mis servicios",
     ruta: "/postular",
-  },
-  {
-    emoji: "👀",
-    titulo: "Solo quiero mirar",
-    descripcion:
-      "Conoce los proyectos mineros artesanales del Perú que están en camino a la formalización.",
-    accion: "Ver proyectos mineros",
-    ruta: "/proyectos",
   },
 ];
 
@@ -69,7 +61,7 @@ export function Inicio() {
             key={p.titulo}
             className={`flex flex-col rounded-xl p-5 text-left ${
               p.destacada
-                ? "border-2 border-acento bg-acento/5"
+                ? "border-2 border-acento bg-acento/5 md:col-span-2"
                 : "bg-tarjeta dark:bg-tarjeta-dark"
             }`}
           >
