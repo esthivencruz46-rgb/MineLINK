@@ -199,38 +199,6 @@ export function ProyectoDetalle() {
             </div>
           </Card>
 
-          {/* UBICACIÓN (mapa interactivo si tenemos coordenadas) */}
-          {proyecto.ubicacion_coords && (
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Ubicación</h2>
-                {proyecto.ubicacion_maps && (
-                  <a
-                    href={proyecto.ubicacion_maps}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-semibold text-acento underline"
-                  >
-                    Abrir en Google Maps
-                  </a>
-                )}
-              </div>
-              <div className="mt-3 overflow-hidden rounded-lg">
-                <iframe
-                  title="Ubicación del proyecto"
-                  src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=13&output=embed`}
-                  className="h-72 w-full border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                  allowFullScreen
-                />
-              </div>
-              <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
-                Zona aproximada declarada por el titular del proyecto.
-              </p>
-            </Card>
-          )}
-
           {/* INFORMACIÓN FINANCIERA */}
           <Card>
             <h2 className="text-lg font-semibold">Información Financiera</h2>
@@ -333,10 +301,40 @@ export function ProyectoDetalle() {
 
           {/* MAPA */}
           <Card>
-            <h2 className="text-lg font-semibold">Ubicación</h2>
-            <div className="mt-3 flex h-56 items-center justify-center rounded-lg border border-dashed border-black/10 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-              Mapa interactivo disponible próximamente
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Ubicación</h2>
+              {proyecto.ubicacion_maps && (
+                <a
+                  href={proyecto.ubicacion_maps}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-acento underline"
+                >
+                  Abrir en Google Maps
+                </a>
+              )}
             </div>
+            {proyecto.ubicacion_coords ? (
+              <>
+                <div className="mt-3 overflow-hidden rounded-lg">
+                  <iframe
+                    title="Ubicación del proyecto"
+                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=13&output=embed`}
+                    className="h-72 w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
+                <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+                  Zona aproximada declarada por el titular del proyecto.
+                </p>
+              </>
+            ) : (
+              <div className="mt-3 flex h-56 items-center justify-center rounded-lg border border-dashed border-black/10 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
+                El titular aún no registró la ubicación de su operación
+              </div>
+            )}
           </Card>
 
           {/* CRONOLOGÍA */}
