@@ -10,6 +10,7 @@ import storage
 from auth import create_minero_token, get_current_lead_id, verify_password
 from database import get_db
 from geoubicacion import resolver_coordenadas
+from imagenes import comprimir_si_es_imagen
 from scoring import estado_seguimiento
 from security import contenido_coincide_con_tipo, limitar_intentos_login
 from uploads_config import (
@@ -162,18 +163,22 @@ async def subir_documento(
             422, "El contenido del archivo no coincide con su tipo declarado"
         )
 
-    extension = (archivo.filename or "").rsplit(".", 1)[-1].lower() if "." in (archivo.filename or "") else "bin"
-    nombre_archivo = f"{uuid.uuid4()}.{extension}"
-    storage.guardar(
-        "documentos_mineros", nombre_archivo, contenido, archivo.content_type or ""
+    # Las fotos se comprimen para cuidar el almacenamiento (1 GB gratis)
+    contenido, tipo_final, extension_forzada = comprimir_si_es_imagen(
+        contenido, archivo.content_type or ""
     )
+    extension = extension_forzada or (
+        (archivo.filename or "").rsplit(".", 1)[-1].lower() if "." in (archivo.filename or "") else "bin"
+    )
+    nombre_archivo = f"{uuid.uuid4()}.{extension}"
+    storage.guardar("documentos_mineros", nombre_archivo, contenido, tipo_final)
 
     documento = models.DocumentoOperacion(
         operacion_id=operacion.id,
         categoria=categoria,
         filename=nombre_archivo,
         nombre_original=archivo.filename or nombre_archivo,
-        content_type=archivo.content_type,
+        content_type=tipo_final,
     )
     db.add(documento)
     db.commit()
