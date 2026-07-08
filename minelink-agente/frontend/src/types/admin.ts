@@ -23,6 +23,24 @@ export interface LeadConDiagnostico {
   uso_fondos?: string | null;
   ubicacion_maps?: string | null;
   estado_contacto: string;
+  situacion: string;
+  // Perfil de la operación (Ruta 1) / concesión (Ruta 2) — informativo
+  estado_operacion?: string | null;
+  tipo_explotacion?: string | null;
+  material_comercializado?: string | null;
+  forma_comercializacion?: string | null;
+  tiempo_operacion?: string | null;
+  ley_promedio?: string | null;
+  ley_como_obtenida?: string | null;
+  tiene_resultados_laboratorio?: boolean | null;
+  concesion_vigente?: boolean | null;
+  tipo_deposito?: string | null;
+  etapa_proyecto?: string | null;
+  trabajos_exploracion_json?: string[] | null;
+  info_geologica_disponible?: boolean | null;
+  tiene_estimaciones_leyes?: boolean | null;
+  documento_autorizacion?: string | null;
+  tipo_apoyo_json?: string[] | null;
 }
 
 export interface TopBrecha {

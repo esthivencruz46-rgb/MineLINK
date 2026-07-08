@@ -22,13 +22,13 @@ def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
 
 
 def _proyectos_visibles(db: Session):
-    """Operaciones con cuenta registrada (Lead), con REINFO vigente
-    (nunca bloqueadas) — misma regla dura que el resto del proyecto:
-    sin REINFO, la operación no se lista ni recibe score público."""
+    """Todas las operaciones con cuenta registrada (Lead). REINFO/trámite de
+    formalización YA NO es requisito para aparecer en la vitrina pública —
+    `Operacion.bloqueado` sigue calculándose (se muestra al minero como
+    estado informativo) pero no filtra este listado."""
     filas = (
         db.query(models.Lead, models.Operacion)
         .join(models.Operacion, models.Lead.operacion_id == models.Operacion.id)
-        .filter(models.Operacion.bloqueado.is_(False))
         .order_by(models.Lead.created_at.desc())
         .all()
     )
@@ -118,11 +118,21 @@ def _generar_descripcion(
     """Redacta la descripción pública del proyecto a partir de los datos
     REALES del diagnóstico y del perfil del minero — nunca inventa cifras.
     Si un dato no existe, simplemente no se menciona."""
-    tipo_legible = "subterránea" if operacion.tipo_mina == "subterranea" else "a tajo abierto"
-    partes = [
-        f"Operación minera de {operacion.mineral.lower()} {tipo_legible} "
-        f"ubicada en {operacion.region.title()}, registrada en REINFO."
-    ]
+    if operacion.situacion == "concesionario":
+        partes = [
+            f"Proyecto minero de {operacion.mineral.lower()} en etapa de "
+            f"concesión, ubicado en {operacion.region.title()}."
+        ]
+    else:
+        tipo_legible = "subterránea" if operacion.tipo_mina == "subterranea" else "a tajo abierto"
+        partes = [
+            f"Operación minera de {operacion.mineral.lower()} {tipo_legible} "
+            f"ubicada en {operacion.region.title()}"
+            + (", registrada en REINFO." if not operacion.bloqueado else ".")
+        ]
+
+    if operacion.tiempo_operacion:
+        partes.append(f"Tiempo de operación: {operacion.tiempo_operacion}.")
 
     score = seguimiento["score_actual"]
     pendientes = len(seguimiento["brechas_pendientes"])
@@ -169,7 +179,7 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
     fila = (
         db.query(models.Lead, models.Operacion)
         .join(models.Operacion, models.Lead.operacion_id == models.Operacion.id)
-        .filter(models.Operacion.id == operacion_id, models.Operacion.bloqueado.is_(False))
+        .filter(models.Operacion.id == operacion_id)
         .first()
     )
     if fila is None:

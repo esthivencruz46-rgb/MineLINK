@@ -42,6 +42,30 @@ class Operacion(Base):
     produccion_mensual = Column(String, nullable=True)
     maquinaria = Column(String, nullable=True)
     num_trabajadores = Column(String, nullable=True)
+
+    # Perfil de la operación (Ruta 1 — minero_artesanal): informativo,
+    # nunca puntúa. Se recoge ANTES de las preguntas Sí/No de formalización.
+    estado_operacion = Column(String, nullable=True)  # activa | no_activa | temporal
+    tipo_explotacion = Column(String, nullable=True)  # subterranea|tajo_abierto|aluvial|mixta|otro (deriva tipo_mina)
+    material_comercializado = Column(String, nullable=True)
+    forma_comercializacion = Column(String, nullable=True)
+    tiempo_operacion = Column(String, nullable=True)
+    ley_promedio = Column(String, nullable=True)  # valor+unidad combinados, ej. "2.5 g/t"
+    ley_como_obtenida = Column(String, nullable=True)
+    tiene_resultados_laboratorio = Column(Boolean, nullable=True)
+
+    # Perfil de la concesión (Ruta 2 — concesionario): informativo, nunca puntúa.
+    concesion_vigente = Column(Boolean, nullable=True)  # también prellena L6
+    tipo_deposito = Column(String, nullable=True)
+    etapa_proyecto = Column(String, nullable=True)
+    trabajos_exploracion_json = Column(JSON, nullable=True)  # lista: muestreo/calicatas/etc.
+    info_geologica_disponible = Column(Boolean, nullable=True)
+    tiene_estimaciones_leyes = Column(Boolean, nullable=True)
+
+    # Compartidos por ambas rutas
+    documento_autorizacion = Column(String, nullable=True)  # cuando titular=No
+    tipo_apoyo_json = Column(JSON, nullable=True)  # lista: financiamiento/maquinaria/etc.
+
     created_at = Column(DateTime, default=_now)
 
     leads = relationship("Lead", back_populates="operacion")

@@ -42,7 +42,7 @@ export const BLOQUES: Bloque[] = [
       },
       {
         id: "L3",
-        texto: "¿Cuenta con contrato de explotación?",
+        texto: "¿Cuenta con contrato de explotación o autorización?",
         ayuda:
           "Es el acuerdo firmado con el dueño de la concesión que te autoriza a trabajar en su terreno. Si la concesión es tuya, este contrato no te hace falta.",
       },
@@ -58,6 +58,12 @@ export const BLOQUES: Bloque[] = [
         texto: "¿Cuenta con coordenadas georreferenciadas?",
         ayuda:
           "Son los puntos GPS exactos que marcan dónde está tu labor. Los toma un topógrafo con equipo especial y sirven para el sinceramiento de tu REINFO.",
+      },
+      {
+        id: "L6",
+        texto: "¿La concesión se encuentra vigente?",
+        ayuda:
+          "Una concesión hay que mantenerla pagando el derecho de vigencia cada año ante INGEMMET. Si dejas de pagarlo, se puede caducar y perder tus derechos sobre la zona.",
       },
     ],
   },
@@ -216,20 +222,20 @@ export const SITUACIONES: {
 }[] = [
   {
     valor: "minero_artesanal",
-    titulo: "Soy minero artesanal",
+    titulo: "Ya tengo una operación minera",
     descripcion: "Trabajo una labor minera pequeña, con o sin REINFO.",
   },
   {
     valor: "concesionario",
-    titulo: "Tengo una concesión minera y busco apoyo",
-    descripcion: "Soy titular de una concesión y quiero desarrollarla.",
+    titulo: "Tengo una concesión y recién estoy iniciando",
+    descripcion: "Soy titular de una concesión y todavía no opero.",
   },
 ];
 
 // Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados)
 const REGLA_POR_SITUACION: Record<Situacion, { excluir?: string[]; solo?: string[] }> = {
-  minero_artesanal: {},
-  concesionario: { excluir: ["L3"] },
+  minero_artesanal: { excluir: ["L6"] },
+  concesionario: { solo: ["L1", "L2", "L3", "L4", "L6", "T1", "T3", "T6"] },
 };
 
 export function preguntasAplicables(
@@ -244,10 +250,13 @@ export function preguntasAplicables(
     );
 }
 
-/** Las informativas de Operativo (producción, maquinaria, trabajadores)
- * aplican a las 2 situaciones vigentes (ambas tienen operación en marcha). */
-export function informativasAplicables(_situacion: Situacion): PreguntaInformativa[] {
-  return PREGUNTAS_INFORMATIVAS_OPERATIVO;
+/** Las informativas de Operativo (maquinaria, trabajadores, y producción
+ * solo si esa ruta no la preguntó ya en el perfil previo). Ruta 2
+ * (concesionario) no opera todavía, así que ninguna de las 3 aplica. */
+export function informativasAplicables(situacion: Situacion): PreguntaInformativa[] {
+  if (situacion === "concesionario") return [];
+  // minero_artesanal ya preguntó producción mensual en el perfil previo
+  return PREGUNTAS_INFORMATIVAS_OPERATIVO.filter((p) => p.campo !== "produccion_mensual");
 }
 
 export const NOMBRES_DIMENSION: Record<NombreDimension, string> = {

@@ -504,6 +504,57 @@ export function AdminLeads() {
               </button>
             </div>
 
+            <div className="mb-4 flex flex-col gap-2 rounded-lg border border-black/10 p-3 text-sm dark:border-white/10">
+              <p className="text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                Perfil del diagnóstico ({leadDetalle.situacion === "concesionario" ? "concesión que inicia" : "operación activa"})
+              </p>
+              {leadDetalle.estado_operacion && (
+                <p><span className="font-medium">Estado de la operación:</span> {leadDetalle.estado_operacion}</p>
+              )}
+              {leadDetalle.tipo_explotacion && (
+                <p><span className="font-medium">Tipo de explotación:</span> {leadDetalle.tipo_explotacion}</p>
+              )}
+              {leadDetalle.material_comercializado && (
+                <p><span className="font-medium">Material comercializado:</span> {leadDetalle.material_comercializado}</p>
+              )}
+              {leadDetalle.forma_comercializacion && (
+                <p><span className="font-medium">Forma de comercialización:</span> {leadDetalle.forma_comercializacion}</p>
+              )}
+              {leadDetalle.tiempo_operacion && (
+                <p><span className="font-medium">Tiempo operando:</span> {leadDetalle.tiempo_operacion}</p>
+              )}
+              {leadDetalle.ley_promedio && (
+                <p><span className="font-medium">Ley promedio:</span> {leadDetalle.ley_promedio} ({leadDetalle.ley_como_obtenida ?? "sin especificar cómo se obtuvo"})</p>
+              )}
+              {leadDetalle.tiene_resultados_laboratorio != null && (
+                <p><span className="font-medium">Resultados de laboratorio:</span> {leadDetalle.tiene_resultados_laboratorio ? "Sí" : "No"}</p>
+              )}
+              {leadDetalle.concesion_vigente != null && (
+                <p><span className="font-medium">Concesión vigente:</span> {leadDetalle.concesion_vigente ? "Sí" : "No"}</p>
+              )}
+              {leadDetalle.tipo_deposito && (
+                <p><span className="font-medium">Tipo de depósito:</span> {leadDetalle.tipo_deposito}</p>
+              )}
+              {leadDetalle.etapa_proyecto && (
+                <p><span className="font-medium">Etapa del proyecto:</span> {leadDetalle.etapa_proyecto}</p>
+              )}
+              {leadDetalle.trabajos_exploracion_json && leadDetalle.trabajos_exploracion_json.length > 0 && (
+                <p><span className="font-medium">Trabajos de exploración:</span> {leadDetalle.trabajos_exploracion_json.join(", ")}</p>
+              )}
+              {leadDetalle.info_geologica_disponible != null && (
+                <p><span className="font-medium">Información geológica disponible:</span> {leadDetalle.info_geologica_disponible ? "Sí" : "No"}</p>
+              )}
+              {leadDetalle.tiene_estimaciones_leyes != null && (
+                <p><span className="font-medium">Estimaciones de leyes:</span> {leadDetalle.tiene_estimaciones_leyes ? "Sí" : "No"}</p>
+              )}
+              {leadDetalle.documento_autorizacion && (
+                <p><span className="font-medium">Documento de autorización:</span> {leadDetalle.documento_autorizacion}</p>
+              )}
+              {leadDetalle.tipo_apoyo_json && leadDetalle.tipo_apoyo_json.length > 0 && (
+                <p><span className="font-medium">Apoyo que busca:</span> {leadDetalle.tipo_apoyo_json.join(", ")}</p>
+              )}
+            </div>
+
             {(leadDetalle.descripcion_operacion ||
               leadDetalle.capacidad_produccion ||
               leadDetalle.capital_buscado ||

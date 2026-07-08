@@ -2,13 +2,21 @@
 
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:
-1. Elige su situación (2 opciones: minero artesanal o concesionario que
-   busca apoyo) y responde un cuestionario (5 bloques de formalización;
-   el total de preguntas varía según situación, ver context/criterios_score.md).
-   Departamento, mineral y tipo de mina YA NO se preguntan en este
-   formulario — se recogerán en otro lugar (pendiente de definir); por
-   ahora el diagnóstico usa tipo_mina=subterranea fijo y valores
-   genéricos ("no especificado") para región/mineral
+1. Elige su situación — **2 rutas completamente distintas, no una
+   variación de la misma** (ver context/criterios_score.md):
+   - Ruta 1 `minero_artesanal` (ya opera): perfil informativo de
+     Operación/Producción (tipo de explotación, material, comercialización,
+     producción, ley) + el cuestionario Sí/No completo de formalización
+     (L1-L5, A1-A3, O1, T1-T6, S1-S5). `tipo_mina` se DERIVA del tipo de
+     explotación que declara (ya no se pregunta aparte)
+   - Ruta 2 `concesionario` (recién inicia, no opera): perfil informativo
+     de Concesión/Exploración (vigencia, tipo de depósito, trabajos de
+     exploración, tipo de apoyo que busca) + un set Sí/No mucho más chico
+     (L1,L2,L3,L4,L6,T1,T3,T6) que mide incertidumbre legal gradual, no
+     todo-o-nada
+   Departamento sigue sin preguntarse (pendiente de definir dónde
+   recogerlo); mineral se deriva del "elemento económico principal" que
+   el usuario declara en el perfil de cada ruta
 2. Recibe su score (0-100) y su lista de brechas
 3. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
    le faltan, o postula él mismo como consultor si es profesional
@@ -22,8 +30,9 @@ Plataforma web donde un minero artesanal peruano:
    de leyes, catastro, RUC, contrato de explotación, título de concesión)
    y llenar un perfil de inversión opcional (descripción, producción/
    reservas, capital buscado, uso de fondos)
-7. Todas las operaciones registradas (con Lead) y con REINFO vigente
-   aparecen automáticamente en `/proyectos` (enlazado desde Inicio como
+7. Todas las operaciones registradas (con Lead) aparecen automáticamente
+   en `/proyectos` — REINFO/formalización iniciada YA NO es requisito para
+   listarse (enlazado desde Inicio como
    "Ver proyectos mineros"), una vitrina pública buscable por mineral y
    departamento — SIN nombre real, WhatsApp ni email (`GET /proyectos`,
    `GET /proyectos/minerales`). Al hacer clic en un proyecto se abre su
@@ -282,7 +291,10 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 3. Avisa: qué falló, qué intentaste, qué necesitas
 
 ## Reglas duras del negocio (NUNCA violar)
-- Sin REINFO vigente → la operación NUNCA se lista ni recibe score público
+- REINFO/proceso de formalización iniciado YA NO es requisito para aparecer
+  en la vitrina pública (cambio de política, julio 2026) — `bloqueado` sigue
+  calculándose y se muestra al minero como estado informativo, pero no
+  filtra `/proyectos`. Ver `context/criterios_score.md`
 - El minero NUNCA ve datos de otros mineros
 - Los datos de contacto del minero (leads) solo son visibles en el panel admin
 - No inventes empresas: solo se muestran las que Esthiven cargó

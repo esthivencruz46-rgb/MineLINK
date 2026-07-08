@@ -3,7 +3,8 @@
 # minería subterránea; en tajo abierto sus 25 pts se reparten entre
 # las otras 4 preguntas (6/6/6/7) para que la dimensión siga sumando 25.
 PUNTOS_BASE = {
-    "L1": 5, "L2": 5, "L3": 5, "L4": 5, "L5": 5,            # Legal 25
+    "L1": 5, "L2": 5, "L3": 5, "L4": 5, "L5": 5,            # Legal 25 (Ruta 1)
+    "L6": 5,                                                  # Vigencia de concesión (solo Ruta 2)
     "A1": 5, "A2": 5, "A3": 5,                                # Ambiental 15
     "O1": 5,                                                  # Operativo 5
     "T1": 5, "T2": 5, "T3": 5, "T4": 5, "T5": 5, "T6": 5,    # Técnico 30
@@ -22,17 +23,20 @@ TIPOS_MINA = ("subterranea", "tajo_abierto")
 #   - "excluir" = todas menos esas
 #   - "solo"    = únicamente esas
 SITUACIONES = {
-    # Minero artesanal en actividad (con o sin REINFO): el caso original,
-    # todas las preguntas. El minero "informal" es este mismo caso — su
-    # diferencia es el estado, no lo que se evalúa, así que no es una opción.
-    "minero_artesanal": None,
-    # Titular de concesión que busca apoyo: el contrato de explotación
-    # (L3) no aplica — ese contrato es para quien trabaja en concesión ajena
-    "concesionario": {"excluir": {"L3"}},
+    # Ruta 1 — minero con operación activa: el cuestionario original
+    # completo. L6 (vigencia de concesión) es solo de Ruta 2.
+    "minero_artesanal": {"excluir": {"L6"}},
+    # Ruta 2 — titular de concesión que recién inicia: no opera todavía,
+    # así que no aplican Ambiental/Operativo/Seguridad ni la mayoría de lo
+    # Técnico. Solo situación legal básica (REINFO/trámite, titularidad,
+    # contrato o autorización si no es titular, RUC, vigencia de la
+    # concesión) + 3 preguntas técnicas equivalentes a exploración
+    # (información geológica, ensayes de laboratorio, estimación de leyes).
+    "concesionario": {"solo": {"L1", "L2", "L3", "L4", "L6", "T1", "T3", "T6"}},
 }
 
 DIMENSIONES_BASE = {
-    "legal": ["L1", "L2", "L3", "L4", "L5"],
+    "legal": ["L1", "L2", "L3", "L4", "L5", "L6"],
     "ambiental": ["A1", "A2", "A3"],
     "operativo": ["O1"],
     "tecnico": ["T1", "T2", "T3", "T4", "T5", "T6"],
@@ -45,6 +49,7 @@ ESTUDIO_POR_PREGUNTA = {
     "L3": "contrato_explotacion",
     "L4": "tramite_sunat",
     "L5": "levantamiento_georreferenciado",
+    "L6": "vigencia_concesion",
     "A1": "igafom_correctivo",
     "A2": "igafom_preventivo",
     "A3": "aprobacion_instrumento_ambiental",
@@ -184,9 +189,9 @@ def calcular_diagnostico(
         # que el score de los casos originales no cambia)
         "score_total": round(100 * obtenido_total / maximo_total),
         "dimensiones": por_dimension,
-        # Regla dura intacta: sin REINFO respondido con SÍ, bloqueado. Si
-        # L1 ni siquiera aplica (yacimiento), también queda bloqueado y
-        # por lo tanto fuera de la vitrina pública.
+        # "bloqueado" = no inició REINFO/trámite de formalización (L1=NO).
+        # Es solo informativo: NO filtra la vitrina pública (ver
+        # proyectos.py) — un proyecto puede listarse igual sin REINFO.
         "bloqueado": not respuestas.get("L1", False),
         "brechas": brechas,
     }

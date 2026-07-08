@@ -6,8 +6,8 @@ export interface InfoBrecha {
 // Mapeo etiqueta → texto simple, copiado de skills/score-display/SKILL.md
 export const INFO_BRECHA: Record<string, InfoBrecha> = {
   tramite_reinfo: {
-    texto: "Poner al día tu REINFO",
-    resuelve: "Es la base para que tu operación pueda formalizarse.",
+    texto: "Iniciar/poner al día tu REINFO",
+    resuelve: "Es la base para que tu proyecto pueda formalizarse.",
   },
   titularidad_concesion: {
     texto: "Ser titular de tu concesión",
@@ -24,6 +24,10 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
   levantamiento_georreferenciado: {
     texto: "Medir tu labor con GPS (sinceramiento)",
     resuelve: "Reporta la ubicación real de tu labor ante el Estado.",
+  },
+  vigencia_concesion: {
+    texto: "Renovar la vigencia de tu concesión",
+    resuelve: "Una concesión vencida no te da derechos legales sobre la zona.",
   },
   igafom_correctivo: {
     texto: "Tu plan ambiental (IGAFOM correctivo)",

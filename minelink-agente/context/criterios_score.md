@@ -4,31 +4,65 @@
 > Basado en: Ley 32537 (dic. 2025), D.Leg. 1293/1336, D.S. 038-2017-EM,
 > D.S. 024-2016-EM, R.M. 473-2017-MEM. Revisado y reestructurado julio 2026.
 
-## Regla de exclusión absoluta
-Sin REINFO vigente (pregunta L1 = NO) → score bloqueado: la operación no
-recibe puntaje público. El diagnóstico igual se completa y se muestran las
-brechas, porque ese minero es el que MÁS necesita orientación.
+## Regla de exclusión absoluta (ACTUALIZADA — ya no bloquea el listado)
+`bloqueado` (= no ha iniciado REINFO/proceso de formalización, pregunta L1
+= NO) sigue calculándose y se muestra al minero como estado informativo en
+su propio resultado ("Necesitas tu REINFO primero"). **YA NO filtra la
+vitrina pública**: un proyecto sin REINFO/trámite iniciado aparece igual en
+`/proyectos` — el objetivo no es castigar al usuario por no tenerlo, sino
+medir su nivel de incertidumbre legal (ver Ruta 2 más abajo). El diagnóstico
+siempre se completa y se muestran las brechas, porque ese usuario es el que
+MÁS necesita orientación.
 
-## Dato previo 1: situación del usuario (formulario dinámico)
+## Dato previo 1: situación del usuario → DOS RUTAS distintas
 Filosofía: *"No todos los proyectos mineros son iguales; el sistema primero
 identifica la situación del usuario y luego construye un formulario
 personalizado con únicamente la información que corresponde a su caso."*
 
-Antes de todo se pregunta `situacion`, que decide qué preguntas aplican.
-Quedan SOLO 2 opciones (se descartó "no soy minero, pero poseo un
-yacimiento" — el producto es únicamente para quien ya tiene una operación
-o una concesión):
+`situacion` decide no solo qué preguntas Sí/No de formalización aplican,
+sino también qué **perfil informativo** (no puntúa) se recoge antes. Son 2
+rutas completamente distintas, no una variación de la misma:
 
-| situacion | Etiqueta | Preguntas que aplican |
-|---|---|---|
-| minero_artesanal | Soy minero artesanal (con o sin REINFO) | TODAS (comportamiento original). El minero "informal" es este mismo caso: su diferencia es el estado, no lo que se evalúa, por eso NO es una opción aparte |
-| concesionario | Tengo una concesión minera y busco apoyo | Todas MENOS L3 (el contrato de explotación es para quien trabaja en concesión ajena) |
+### Ruta 1 — `minero_artesanal` (ya tiene una operación)
+Perfil informativo (Operación/Producción, se guarda en `Operacion`, NUNCA
+puntúa): estado de la operación (activa/no activa/temporal), tipo de
+explotación (subterránea/tajo abierto/aluvial/mixta/otro — de aquí se
+deriva `tipo_mina`, ya no se pregunta aparte), material comercializado,
+elemento económico principal (→ `mineral`), forma de comercialización,
+tiempo de operación, producción mensual + unidad, ley promedio + unidad,
+cómo se obtuvo la ley, si cuenta con resultados de laboratorio.
 
-Reglas derivadas:
-- El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable
-  (para el set completo el máximo ya es 100, así que nada cambia en los
-  casos originales).
+Formalización: el cuestionario Sí/No de siempre, **TODAS las preguntas**
+(L1-L5, A1-A3, O1, T1-T6, S1-S5) — sin cambios respecto a antes. `L6`
+(vigencia de concesión) NO aplica a esta ruta.
+
+### Ruta 2 — `concesionario` (recién inicia, todavía no opera)
+Perfil informativo (Concesión/Exploración, nunca puntúa): vigencia de la
+concesión (también prellena `L6`), tipo de depósito (si lo conoce), etapa
+del proyecto, trabajos de exploración realizados (muestreo/calicatas/
+trincheras/perforación/cartografía/otro — multi), tipo de apoyo que busca.
+NO se pregunta nada de producción/comercialización/ventas — todavía no
+opera.
+
+Formalización: set MUCHO más chico, mide incertidumbre gradual en vez de
+todo-o-nada: `L1` (¿inició su proceso de formalización/REINFO?), `L2`
+(titularidad), `L3` (contrato/autorización, solo si no es titular), `L4`
+(RUC), `L6` (vigencia de la concesión, NUEVO). De lo Técnico solo `T1`
+(información geológica disponible), `T3` (ensayes de laboratorio), `T6`
+(estimaciones de leyes). Las dimensiones Ambiental/Operativo/Seguridad
+quedan vacías y se ocultan (no aplican — sin operación no hay nada que
+evaluar ahí).
+
+| situacion | ids de formalización que aplican |
+|---|---|
+| minero_artesanal | L1,L2,L3,L4,L5,A1,A2,A3,O1,T1-T6,S1-S5 (todas, sin L6) |
+| concesionario | L1,L2,L3,L4,L6,T1,T3,T6 (8 en total) |
+
+Reglas derivadas (sin cambios):
+- El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable a esa ruta.
 - Solo se muestran las dimensiones con preguntas aplicables.
+- Preguntas ya respondidas en el perfil informativo NO se repiten en el
+  Sí/No (se copian silenciosamente a `respuestas` antes de calcular).
 - La definición ejecutable vive en `backend/scoring.py` → `SITUACIONES`
   (y su espejo en `frontend/src/data/preguntas.ts`); este archivo manda.
 
@@ -66,14 +100,15 @@ brecha si la respuesta es NO. Las preguntas marcadas "informativa" NO
 puntúan: se guardan como dato de contexto (útil para Esthiven y para las
 empresas), y el minero puede responder "Prefiero no decirlo".
 
-### Bloque 1 — LEGAL (25 pts, 5 preguntas x 5 pts)
-| id | Pregunta | Pts | Brecha → estudio requerido |
-|---|---|---|---|
-| L1 | ¿Está inscrito en REINFO? | 5 | tramite_reinfo |
-| L2 | ¿Es titular de la concesión? | 5 | titularidad_concesion |
-| L3 | ¿Cuenta con contrato de explotación? | 5 | contrato_explotacion |
-| L4 | ¿Tiene RUC activo? | 5 | tramite_sunat |
-| L5 | ¿Cuenta con coordenadas georreferenciadas? | 5 | levantamiento_georreferenciado |
+### Bloque 1 — LEGAL (25 pts en Ruta 1 / L1,L2,L3,L4,L5; 25 pts en Ruta 2 / L1,L2,L3,L4,L6)
+| id | Pregunta | Pts | Ruta | Brecha → estudio requerido |
+|---|---|---|---|---|
+| L1 | ¿Inscrito en REINFO? / ¿Iniciaste tu proceso de formalización? | 5 | ambas | tramite_reinfo |
+| L2 | ¿Es titular de la concesión? | 5 | ambas | titularidad_concesion |
+| L3 | ¿Cuenta con contrato de explotación / autorización? (solo si no es titular) | 5 | ambas | contrato_explotacion |
+| L4 | ¿Tiene RUC activo? | 5 | ambas | tramite_sunat |
+| L5 | ¿Cuenta con coordenadas georreferenciadas? | 5 | solo Ruta 1 | levantamiento_georreferenciado |
+| L6 | ¿La concesión se encuentra vigente? | 5 | solo Ruta 2 | vigencia_concesion |
 
 ### Bloque 2 — AMBIENTAL (15 pts, 3 preguntas x 5 pts)
 | id | Pregunta | Pts | Brecha → estudio |
@@ -112,11 +147,11 @@ empresas), y el minero puede responder "Prefiero no decirlo".
 ## Catálogo de tipos de estudio (etiquetas exactas para la BD)
 ```
 tramite_reinfo, titularidad_concesion, contrato_explotacion, tramite_sunat,
-levantamiento_georreferenciado, igafom_correctivo, igafom_preventivo,
-aprobacion_instrumento_ambiental, puesta_en_produccion, informe_geologico,
-muestreo_geoquimico, analisis_laboratorio, planos_geologicos,
-levantamiento_topografico, estimacion_recursos, iperc, sctr, plan_seguridad,
-evaluacion_geomecanica, estudio_ventilacion
+levantamiento_georreferenciado, vigencia_concesion, igafom_correctivo,
+igafom_preventivo, aprobacion_instrumento_ambiental, puesta_en_produccion,
+informe_geologico, muestreo_geoquimico, analisis_laboratorio,
+planos_geologicos, levantamiento_topografico, estimacion_recursos, iperc,
+sctr, plan_seguridad, evaluacion_geomecanica, estudio_ventilacion
 ```
 Cada empresa o consultor tiene un array `estudios[]` con estas etiquetas
 exactas. El recomendador cruza las brechas del minero contra ese array.
@@ -134,7 +169,7 @@ exactas. El recomendador cruza las brechas del minero contra ese array.
 ## Semáforo
 | Rango | Color | Etiqueta para el minero |
 |---|---|---|
-| bloqueado | rojo oscuro | "Necesitas tu REINFO primero" |
+| bloqueado | rojo oscuro | "Necesitas tu REINFO primero" (informativo, ya no oculta el proyecto de la vitrina) |
 | 1–49 | rojo | "En desarrollo" |
 | 50–79 | ámbar | "En progreso" |
 | 80–100 | verde | "Casi formal" |

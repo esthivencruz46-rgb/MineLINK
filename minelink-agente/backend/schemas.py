@@ -54,6 +54,28 @@ class DiagnosticoRequest(BaseModel):
     maquinaria: Optional[str] = None
     num_trabajadores: Optional[str] = None
 
+    # Perfil de la operación (Ruta 1) — informativo, nunca puntúa
+    estado_operacion: Optional[str] = None
+    tipo_explotacion: Optional[str] = None
+    material_comercializado: Optional[str] = None
+    forma_comercializacion: Optional[str] = None
+    tiempo_operacion: Optional[str] = None
+    ley_promedio: Optional[str] = None
+    ley_como_obtenida: Optional[str] = None
+    tiene_resultados_laboratorio: Optional[bool] = None
+
+    # Perfil de la concesión (Ruta 2) — informativo, nunca puntúa
+    concesion_vigente: Optional[bool] = None
+    tipo_deposito: Optional[str] = None
+    etapa_proyecto: Optional[str] = None
+    trabajos_exploracion_json: Optional[list[str]] = None
+    info_geologica_disponible: Optional[bool] = None
+    tiene_estimaciones_leyes: Optional[bool] = None
+
+    # Compartidos por ambas rutas
+    documento_autorizacion: Optional[str] = None
+    tipo_apoyo_json: Optional[list[str]] = None
+
     @model_validator(mode="after")
     def validar_ids_segun_tipo_mina(self) -> "DiagnosticoRequest":
         esperados = ids_esperados_para(self.tipo_mina, self.situacion)
@@ -560,6 +582,24 @@ class LeadConDiagnostico(BaseModel):
     uso_fondos: Optional[str] = None
     ubicacion_maps: Optional[str] = None
     estado_contacto: str = "buscando"
+    situacion: str = "minero_artesanal"
+    # Perfil de la operación (Ruta 1) / concesión (Ruta 2) — informativo
+    estado_operacion: Optional[str] = None
+    tipo_explotacion: Optional[str] = None
+    material_comercializado: Optional[str] = None
+    forma_comercializacion: Optional[str] = None
+    tiempo_operacion: Optional[str] = None
+    ley_promedio: Optional[str] = None
+    ley_como_obtenida: Optional[str] = None
+    tiene_resultados_laboratorio: Optional[bool] = None
+    concesion_vigente: Optional[bool] = None
+    tipo_deposito: Optional[str] = None
+    etapa_proyecto: Optional[str] = None
+    trabajos_exploracion_json: Optional[list[str]] = None
+    info_geologica_disponible: Optional[bool] = None
+    tiene_estimaciones_leyes: Optional[bool] = None
+    documento_autorizacion: Optional[str] = None
+    tipo_apoyo_json: Optional[list[str]] = None
 
 
 class ActualizarEstadoContactoRequest(BaseModel):

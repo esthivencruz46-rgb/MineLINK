@@ -9,6 +9,7 @@ export const DIMENSION_POR_ESTUDIO: Record<string, NombreDimension> = {
   contrato_explotacion: "legal",
   tramite_sunat: "legal",
   levantamiento_georreferenciado: "legal",
+  vigencia_concesion: "legal",
   igafom_correctivo: "ambiental",
   igafom_preventivo: "ambiental",
   aprobacion_instrumento_ambiental: "ambiental",

@@ -565,7 +565,9 @@ def test_proyectos_sin_nombre_operacion_usa_generico():
     assert resp.json()[0]["nombre_proyecto"] == "Proyecto minero en Arequipa"
 
 
-def test_proyectos_excluye_operaciones_bloqueadas():
+def test_proyectos_incluye_operaciones_bloqueadas():
+    # REINFO/trámite de formalización ya NO es requisito para la vitrina
+    # pública — bloqueado es solo informativo, no filtra el listado.
     respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
     respuestas_bloqueadas["L1"] = False
     diag = client.post(
@@ -577,10 +579,11 @@ def test_proyectos_excluye_operaciones_bloqueadas():
             "tipo_mina": "subterranea",
         },
     ).json()
+    assert diag["bloqueado"] is True
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado1"))
 
     resp = client.get("/proyectos")
-    assert resp.json() == []
+    assert len(resp.json()) == 1
 
 
 def test_proyectos_filtra_por_mineral_y_region():
@@ -666,7 +669,9 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
     assert resp.status_code == 404
 
 
-def test_proyectos_detalle_operacion_bloqueada_da_404():
+def test_proyectos_detalle_operacion_bloqueada_ya_no_da_404():
+    # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
+    # informativo y el detalle del proyecto sigue siendo visible.
     respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
     respuestas_bloqueadas["L1"] = False
     diag = client.post(
@@ -681,7 +686,7 @@ def test_proyectos_detalle_operacion_bloqueada_da_404():
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado2"))
 
     resp = client.get(f"/proyectos/{diag['id']}")
-    assert resp.status_code == 404
+    assert resp.status_code == 200
 
 
 def test_proyectos_detalle_inexistente_da_404():
@@ -783,7 +788,9 @@ def test_proyectos_registra_interes_username_duplicado():
     assert resp.status_code == 409
 
 
-def test_proyectos_registra_interes_operacion_bloqueada_da_404():
+def test_proyectos_registra_interes_operacion_bloqueada_ya_no_da_404():
+    # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
+    # informativo y el proyecto acepta interés igual.
     respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
     respuestas_bloqueadas["L1"] = False
     diag = client.post(
@@ -801,7 +808,7 @@ def test_proyectos_registra_interes_operacion_bloqueada_da_404():
         f"/proyectos/{diag['id']}/interes",
         json=_interes_payload(username="bloqueadoInteres"),
     )
-    assert resp.status_code == 404
+    assert resp.status_code == 201
 
 
 def test_inversionistas_login_y_perfil():
@@ -1672,12 +1679,17 @@ def test_rating_fuera_de_rango_rechazado():
     assert resp.status_code == 422
 
 
-def test_diagnostico_concesionario_sin_l3():
-    respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items() if k != "L3"}
+RESPUESTAS_CONCESIONARIO = {
+    "L1": True, "L2": True, "L3": True, "L4": True, "L6": True,
+    "T1": True, "T3": True, "T6": True,
+}
+
+
+def test_diagnostico_concesionario_set_reducido():
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas,
+            "respuestas": RESPUESTAS_CONCESIONARIO,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
@@ -1686,12 +1698,13 @@ def test_diagnostico_concesionario_sin_l3():
     )
     assert resp.status_code == 200
     body = resp.json()
-    # Todo SÍ menos S5 (falso en RESPUESTAS_COMPLETAS): 90/95 aplicables → 95
-    assert body["score_total"] == 95
-    assert body["dimensiones"]["legal"]["maximo"] == 20  # sin L3
-    assert "contrato_explotacion" not in body["brechas"]
+    assert body["score_total"] == 100
+    assert set(body["dimensiones"].keys()) == {"legal", "tecnico"}
+    assert body["dimensiones"]["legal"]["maximo"] == 25  # L1,L2,L3,L4,L6 (sin L5)
+    assert body["dimensiones"]["tecnico"]["maximo"] == 15  # T1,T3,T6
+    assert body["brechas"] == []
 
-    # Mandar L3 igual debe rechazarse (formulario dinámico estricto)
+    # El set completo de artesanal (con L5, sin L6) debe rechazarse para concesionario
     resp = client.post(
         "/diagnostico",
         json={
@@ -1703,6 +1716,71 @@ def test_diagnostico_concesionario_sin_l3():
         },
     )
     assert resp.status_code == 422
+
+
+def test_diagnostico_l6_solo_aplica_a_concesionario():
+    # L6 no existe para minero_artesanal: mandarlo (junto con el resto) rechaza
+    respuestas = {**RESPUESTAS_COMPLETAS, "L6": True}
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+        },
+    )
+    assert resp.status_code == 422
+
+    # Y falta L6 para concesionario también rechaza
+    respuestas_sin_l6 = {k: v for k, v in RESPUESTAS_CONCESIONARIO.items() if k != "L6"}
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_sin_l6,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_diagnostico_guarda_perfil_ruta1():
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "estado_operacion": "activa",
+            "tipo_explotacion": "subterranea",
+            "tiene_resultados_laboratorio": True,
+            "tipo_apoyo_json": ["financiamiento", "asesoria_tecnica"],
+        },
+    )
+    assert resp.status_code == 200
+
+
+def test_diagnostico_guarda_perfil_ruta2():
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_CONCESIONARIO,
+            "region": "puno",
+            "mineral": "cobre",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+            "concesion_vigente": True,
+            "etapa_proyecto": "exploracion inicial",
+            "trabajos_exploracion_json": ["muestreo", "calicatas"],
+        },
+    )
+    assert resp.status_code == 200
 
 
 def test_diagnostico_situacion_yacimiento_ya_no_existe():

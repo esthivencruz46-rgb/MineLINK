@@ -1,5 +1,5 @@
 export type IdPregunta =
-  | "L1" | "L2" | "L3" | "L4" | "L5"
+  | "L1" | "L2" | "L3" | "L4" | "L5" | "L6"
   | "A1" | "A2" | "A3"
   | "O1"
   | "T1" | "T2" | "T3" | "T4" | "T5" | "T6"
@@ -26,6 +26,28 @@ export interface DiagnosticoRequest {
   produccion_mensual?: string;
   maquinaria?: string;
   num_trabajadores?: string;
+
+  // Perfil de la operación (Ruta 1) — informativo, nunca puntúa
+  estado_operacion?: string;
+  tipo_explotacion?: string;
+  material_comercializado?: string;
+  forma_comercializacion?: string;
+  tiempo_operacion?: string;
+  ley_promedio?: string;
+  ley_como_obtenida?: string;
+  tiene_resultados_laboratorio?: boolean;
+
+  // Perfil de la concesión (Ruta 2) — informativo, nunca puntúa
+  concesion_vigente?: boolean;
+  tipo_deposito?: string;
+  etapa_proyecto?: string;
+  trabajos_exploracion_json?: string[];
+  info_geologica_disponible?: boolean;
+  tiene_estimaciones_leyes?: boolean;
+
+  // Compartidos por ambas rutas
+  documento_autorizacion?: string;
+  tipo_apoyo_json?: string[];
 }
 
 export interface Dimension {

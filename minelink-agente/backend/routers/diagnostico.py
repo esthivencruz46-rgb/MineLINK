@@ -31,6 +31,22 @@ def crear_diagnostico(
         produccion_mensual=payload.produccion_mensual,
         maquinaria=payload.maquinaria,
         num_trabajadores=payload.num_trabajadores,
+        estado_operacion=payload.estado_operacion,
+        tipo_explotacion=payload.tipo_explotacion,
+        material_comercializado=payload.material_comercializado,
+        forma_comercializacion=payload.forma_comercializacion,
+        tiempo_operacion=payload.tiempo_operacion,
+        ley_promedio=payload.ley_promedio,
+        ley_como_obtenida=payload.ley_como_obtenida,
+        tiene_resultados_laboratorio=payload.tiene_resultados_laboratorio,
+        concesion_vigente=payload.concesion_vigente,
+        tipo_deposito=payload.tipo_deposito,
+        etapa_proyecto=payload.etapa_proyecto,
+        trabajos_exploracion_json=payload.trabajos_exploracion_json,
+        info_geologica_disponible=payload.info_geologica_disponible,
+        tiene_estimaciones_leyes=payload.tiene_estimaciones_leyes,
+        documento_autorizacion=payload.documento_autorizacion,
+        tipo_apoyo_json=payload.tipo_apoyo_json,
     )
     db.add(operacion)
     db.commit()

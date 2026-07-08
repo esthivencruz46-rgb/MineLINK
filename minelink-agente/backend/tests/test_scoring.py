@@ -33,7 +33,7 @@ def test_todo_no_subterranea_score_0_bloqueado_todas_las_brechas():
 
     assert resultado["score_total"] == 0
     assert resultado["bloqueado"] is True
-    assert resultado["brechas"] == sorted(set(ESTUDIO_POR_PREGUNTA.values()))
+    assert resultado["brechas"] == sorted(ESTUDIO_POR_PREGUNTA[i] for i in IDS_SUBTERRANEA)
 
 
 def test_l1_no_resto_si_subterranea_score_95_bloqueado():
