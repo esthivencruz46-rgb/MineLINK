@@ -98,6 +98,7 @@ class DiagnosticoResponse(BaseModel):
     dimensiones: dict[str, DimensionOut]
     bloqueado: bool
     brechas: list[str]
+    situacion: str
 
 
 # ---------- Empresa / Consultor ----------
@@ -366,7 +367,11 @@ class ProyectoPublicoOut(BaseModel):
     region: str
     mineral: str
     tipo_mina: str
+    situacion: str
     score_actual: int
+    # Informativo, ya no filtra el listado (ver context/criterios_score.md):
+    # true = todavía no inició REINFO/proceso de formalización.
+    bloqueado_actual: bool = False
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
     capital_buscado: Optional[str] = None

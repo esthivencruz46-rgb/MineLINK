@@ -77,49 +77,68 @@ export function Proyectos() {
         </p>
       )}
 
-      <div className="flex flex-col gap-4">
-        {proyectos.map((p) => {
-          const semaforo = calcularSemaforo(p.score_actual, false);
+      {!cargando &&
+        (["minero_artesanal", "concesionario"] as const).map((sit) => {
+          const grupo = proyectos.filter((p) => p.situacion === sit);
+          if (grupo.length === 0) return null;
           return (
-            <Link
-              key={p.operacion_id}
-              to={`/proyectos/${p.operacion_id}`}
-              className="flex gap-4 rounded-lg bg-tarjeta p-5 transition hover:opacity-90 dark:bg-tarjeta-dark"
-            >
-              {p.foto_portada_url ? (
-                <img
-                  src={`${BASE_URL}${p.foto_portada_url}`}
-                  alt={`Foto de ${p.nombre_proyecto}`}
-                  loading="lazy"
-                  className="h-24 w-24 shrink-0 rounded-lg object-cover"
-                />
-              ) : (
-                <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 text-3xl dark:bg-white/5">
-                  ⛏️
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-start justify-between gap-3">
-                  <h2 className="font-semibold">{p.nombre_proyecto}</h2>
-                  <span className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}>
-                    {p.score_actual}
-                  </span>
-                </div>
-                <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">
-                  {p.mineral} · {p.region} ·{" "}
-                  {p.tipo_mina === "subterranea" ? "subterránea" : "tajo abierto"}
-                </p>
-
-                {p.descripcion_operacion && (
-                  <p className="mt-2 line-clamp-2 text-sm">{p.descripcion_operacion}</p>
-                )}
-
-                <p className="mt-3 text-sm font-semibold text-acento">Ver detalle →</p>
+            <div key={sit} className="flex flex-col gap-4">
+              <h2 className="text-lg font-bold">
+                {sit === "minero_artesanal" ? "⛏️ Operaciones activas" : "📍 Concesiones en preparación"}
+                <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                  ({grupo.length})
+                </span>
+              </h2>
+              <div className="flex flex-col gap-4">
+                {grupo.map((p) => (
+                  <ProyectoCard key={p.operacion_id} proyecto={p} />
+                ))}
               </div>
-            </Link>
+            </div>
           );
         })}
-      </div>
     </div>
+  );
+}
+
+function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
+  const semaforo = calcularSemaforo(p.score_actual, false);
+  return (
+    <Link
+      to={`/proyectos/${p.operacion_id}`}
+      className="flex gap-4 rounded-lg bg-tarjeta p-5 transition hover:opacity-90 dark:bg-tarjeta-dark"
+    >
+      {p.foto_portada_url ? (
+        <img
+          src={`${BASE_URL}${p.foto_portada_url}`}
+          alt={`Foto de ${p.nombre_proyecto}`}
+          loading="lazy"
+          className="h-24 w-24 shrink-0 rounded-lg object-cover"
+        />
+      ) : (
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 text-3xl dark:bg-white/5">
+          ⛏️
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="font-semibold">{p.nombre_proyecto}</h2>
+          <span className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}>
+            {p.score_actual}
+          </span>
+        </div>
+        <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">
+          {p.mineral} · {p.region}
+          {p.situacion === "minero_artesanal" &&
+            ` · ${p.tipo_mina === "subterranea" ? "subterránea" : "tajo abierto"}`}
+        </p>
+
+        {p.descripcion_operacion && (
+          <p className="mt-2 line-clamp-2 text-sm">{p.descripcion_operacion}</p>
+        )}
+
+        <p className="mt-3 text-sm font-semibold text-acento">Ver detalle →</p>
+      </div>
+    </Link>
   );
 }

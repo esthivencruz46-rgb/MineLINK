@@ -354,15 +354,19 @@ export function ProyectoDetalle() {
             <Card>
               <h2 className="text-lg font-semibold">Factores de Riesgo</h2>
               <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                <FactorRiesgo etiqueta="Riesgo legal" dimension={dims.legal} />
-                <FactorRiesgo etiqueta="Riesgo ambiental" dimension={dims.ambiental} />
-                <FactorRiesgo
-                  etiqueta="Riesgo operacional"
-                  dimension={{
-                    puntaje: dims.operativo.puntaje + dims.tecnico.puntaje,
-                    maximo: dims.operativo.maximo + dims.tecnico.maximo,
-                  }}
-                />
+                {dims.legal && <FactorRiesgo etiqueta="Riesgo legal" dimension={dims.legal} />}
+                {dims.ambiental && (
+                  <FactorRiesgo etiqueta="Riesgo ambiental" dimension={dims.ambiental} />
+                )}
+                {(dims.operativo || dims.tecnico) && (
+                  <FactorRiesgo
+                    etiqueta="Riesgo operacional"
+                    dimension={{
+                      puntaje: (dims.operativo?.puntaje ?? 0) + (dims.tecnico?.puntaje ?? 0),
+                      maximo: (dims.operativo?.maximo ?? 0) + (dims.tecnico?.maximo ?? 0),
+                    }}
+                  />
+                )}
                 <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
                   <p className="text-sm font-medium">Riesgo financiero</p>
                   <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
@@ -377,11 +381,13 @@ export function ProyectoDetalle() {
           <Card>
             <h2 className="text-lg font-semibold">Oportunidades</h2>
             <ul className="mt-3 flex flex-col gap-2 text-sm">
-              <li>✓ REINFO vigente — habilitado para operar formalmente.</li>
-              {dims && dims.legal.puntaje / dims.legal.maximo >= 0.8 && (
+              {!proyecto.bloqueado_actual && (
+                <li>✓ REINFO vigente — habilitado para operar formalmente.</li>
+              )}
+              {dims?.legal && dims.legal.puntaje / dims.legal.maximo >= 0.8 && (
                 <li>✓ Alto avance en formalización legal.</li>
               )}
-              {dims && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8 && (
+              {dims?.ambiental && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8 && (
                 <li>✓ Buen desempeño en gestión ambiental.</li>
               )}
               {proyecto.brechas_resueltas.length > 0 && (

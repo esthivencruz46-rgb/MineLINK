@@ -4,7 +4,10 @@ import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 
 interface Props {
   brechas: string[];
-  dimensiones: Record<NombreDimension, Dimension>;
+  // Partial: una brecha solo aparece si su dimensión fue evaluada, así que
+  // dimensiones[dim] siempre existe para las brechas recibidas — pero el
+  // tipo se declara flexible porque Ruta 2 no trae las 5 dimensiones.
+  dimensiones: Partial<Record<NombreDimension, Dimension>>;
   onBuscarAyuda: () => void;
 }
 
@@ -19,8 +22,8 @@ export function ListaBrechas({ brechas, dimensiones, onBuscarAyuda }: Props) {
 
   const porcentajeDimension = (etiqueta: string) => {
     const dim = DIMENSION_POR_ESTUDIO[etiqueta];
-    const { puntaje, maximo } = dimensiones[dim];
-    return puntaje / maximo;
+    const info = dimensiones[dim];
+    return info ? info.puntaje / info.maximo : 0;
   };
 
   const ordenadas = [...brechas].sort(

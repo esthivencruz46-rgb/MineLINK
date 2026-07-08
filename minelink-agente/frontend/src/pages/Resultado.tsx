@@ -6,6 +6,16 @@ import { ScoreBadge } from "../components/ScoreBadge";
 import { WHATSAPP_ADMIN, enlaceWhatsApp } from "../config/whatsapp";
 import { INFO_BRECHA } from "../data/brechas";
 import { guardarDiagnostico, leerDiagnostico } from "../services/storage";
+import type { NombreDimension } from "../types/diagnostico";
+
+// Ruta 2 (concesionario) reutiliza los mismos ids "legal"/"tecnico" del
+// motor de score, pero ahí significan algo distinto (no hay operación
+// todavía) — se etiquetan y encabezan aparte para no confundir con el
+// MineScore de una mina en producción.
+const ETIQUETAS_CONCESIONARIO: Partial<Record<NombreDimension, string>> = {
+  legal: "Situación legal y de la concesión",
+  tecnico: "Información técnica y geológica",
+};
 
 export function Resultado() {
   const navigate = useNavigate();
@@ -24,12 +34,29 @@ export function Resultado() {
   }
 
   const { respuesta } = guardado;
+  const esConcesionario = respuesta.situacion === "concesionario";
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-8">
+      <h1 className="text-center text-lg font-bold">
+        {esConcesionario
+          ? "Score de preparación de tu concesión"
+          : "Tu MineScore de formalización"}
+      </h1>
+      {esConcesionario && (
+        <p className="-mt-4 text-center text-sm text-texto-suave dark:text-texto-suave-dark">
+          Mide qué tan lista está tu concesión para empezar a operar y
+          formalizarse — es distinto del MineScore de una mina que ya
+          produce, que además evalúa producción y seguridad.
+        </p>
+      )}
+
       <ScoreBadge scoreTotal={respuesta.score_total} bloqueado={respuesta.bloqueado} />
 
-      <DimensionBars dimensiones={respuesta.dimensiones} />
+      <DimensionBars
+        dimensiones={respuesta.dimensiones}
+        etiquetas={esConcesionario ? ETIQUETAS_CONCESIONARIO : undefined}
+      />
 
       <div>
         <label className="mb-1 block text-sm font-medium">

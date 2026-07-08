@@ -3,7 +3,12 @@ import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { calcularSemaforo } from "../utils/semaforo";
 
 interface Props {
-  dimensiones: Record<NombreDimension, Dimension>;
+  // Partial: Ruta 2 (concesionario) solo trae "legal" y "tecnico" — nunca
+  // asumir las 5 dimensiones presentes.
+  dimensiones: Partial<Record<NombreDimension, Dimension>>;
+  /** Etiquetas alternativas por dimensión (ej. para Ruta 2, donde "Legal"
+   * y "Técnico" significan algo distinto que en una operación activa). */
+  etiquetas?: Partial<Record<NombreDimension, string>>;
 }
 
 const ORDEN: NombreDimension[] = [
@@ -14,18 +19,20 @@ const ORDEN: NombreDimension[] = [
   "seguridad",
 ];
 
-export function DimensionBars({ dimensiones }: Props) {
+export function DimensionBars({ dimensiones, etiquetas }: Props) {
+  const presentes = ORDEN.filter((dim) => dimensiones[dim] != null);
+
   return (
     <div className="flex flex-col gap-4">
-      {ORDEN.map((dim) => {
-        const { puntaje, maximo } = dimensiones[dim];
+      {presentes.map((dim) => {
+        const { puntaje, maximo } = dimensiones[dim]!;
         const porcentaje = Math.round((puntaje / maximo) * 100);
         const semaforo = calcularSemaforo(porcentaje, false);
 
         return (
           <div key={dim}>
             <div className="mb-1 flex justify-between text-sm">
-              <span className="font-medium">{NOMBRES_DIMENSION[dim]}</span>
+              <span className="font-medium">{etiquetas?.[dim] ?? NOMBRES_DIMENSION[dim]}</span>
               <span className="font-mono text-texto-suave dark:text-texto-suave-dark">
                 {puntaje}/{maximo}
               </span>

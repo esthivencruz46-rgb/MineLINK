@@ -65,7 +65,10 @@ export type NombreDimension =
 export interface DiagnosticoResponse {
   id: string;
   score_total: number;
-  dimensiones: Record<NombreDimension, Dimension>;
+  // Partial: concesionario (Ruta 2) solo trae "legal" y "tecnico", nunca
+  // las 5 dimensiones — ver DimensionBars.tsx (filtra por las presentes).
+  dimensiones: Partial<Record<NombreDimension, Dimension>>;
   bloqueado: boolean;
   brechas: string[];
+  situacion: Situacion;
 }

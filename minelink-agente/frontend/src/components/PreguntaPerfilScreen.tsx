@@ -120,19 +120,27 @@ export function PreguntaPerfilScreen({ pregunta, valorActual, onResponder, onVol
       {pregunta.tipo === "opciones_multi" && (
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-2">
-            {pregunta.opciones?.map((o) => (
-              <label
-                key={o.valor}
-                className="flex min-h-[44px] items-center gap-2 rounded-lg border border-black/10 px-4 py-2 dark:border-white/10"
-              >
-                <input
-                  type="checkbox"
-                  checked={seleccion.includes(o.valor)}
-                  onChange={() => alternarMulti(o.valor)}
-                />
-                {o.etiqueta}
-              </label>
-            ))}
+            {pregunta.opciones?.map((o) => {
+              const marcado = seleccion.includes(o.valor);
+              return (
+                <label
+                  key={o.valor}
+                  className={`flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border px-4 py-2 text-texto dark:text-texto-dark ${
+                    marcado
+                      ? "border-acento bg-acento/15"
+                      : "border-black/10 bg-tarjeta dark:border-white/10 dark:bg-tarjeta-dark"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="accent-acento"
+                    checked={marcado}
+                    onChange={() => alternarMulti(o.valor)}
+                  />
+                  {o.etiqueta}
+                </label>
+              );
+            })}
           </div>
           <button
             disabled={seleccion.length === 0}
@@ -157,7 +165,7 @@ export function PreguntaPerfilScreen({ pregunta, valorActual, onResponder, onVol
           />
           {!mostrarOtraUnidad ? (
             <select
-              className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+              className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
               value={unidad}
               onChange={(e) => {
                 if (e.target.value === VALOR_OTRO) {
@@ -168,11 +176,15 @@ export function PreguntaPerfilScreen({ pregunta, valorActual, onResponder, onVol
               }}
             >
               {pregunta.opciones?.map((o) => (
-                <option key={o.valor} value={o.valor}>
+                <option key={o.valor} value={o.valor} className="bg-white text-black">
                   {o.etiqueta}
                 </option>
               ))}
-              {pregunta.permiteOtro && <option value={VALOR_OTRO}>Otra unidad</option>}
+              {pregunta.permiteOtro && (
+                <option value={VALOR_OTRO} className="bg-white text-black">
+                  Otra unidad
+                </option>
+              )}
             </select>
           ) : (
             <input

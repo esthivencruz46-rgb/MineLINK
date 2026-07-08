@@ -58,4 +58,5 @@ def crear_diagnostico(
         dimensiones=resultado["dimensiones"],
         bloqueado=resultado["bloqueado"],
         brechas=resultado["brechas"],
+        situacion=payload.situacion,
     )

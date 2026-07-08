@@ -4,7 +4,9 @@ export interface ProyectoPublico {
   region: string;
   mineral: string;
   tipo_mina: string;
+  situacion: string;
   score_actual: number;
+  bloqueado_actual: boolean;
   descripcion_operacion?: string | null;
   capacidad_produccion?: string | null;
   capital_buscado?: string | null;
