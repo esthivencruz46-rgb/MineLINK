@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CampoPassword } from "../CampoPassword";
 import { CampoTelefono } from "../CampoTelefono";
+import { CampoMonto } from "../CampoMonto";
 import { registrarInteresInversion } from "../../services/api";
 
 interface Props {
@@ -108,12 +109,12 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
                 value={motivoInversion}
                 onChange={(e) => setMotivoInversion(e.target.value)}
               />
-              <input
-                className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-                placeholder="¿Cuánto capital tienes en mente? (ej. USD 20,000)"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-              />
+              <div>
+                <label className="mb-1 block text-xs text-texto-suave dark:text-texto-suave-dark">
+                  ¿Cuánto capital tienes en mente?
+                </label>
+                <CampoMonto value={monto} onChange={setMonto} />
+              </div>
               <textarea
                 className="min-h-[70px] rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/10"
                 placeholder="¿Qué información necesitas del proyecto?"

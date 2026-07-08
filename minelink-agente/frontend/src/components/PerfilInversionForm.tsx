@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMineroAuth } from "../context/MineroAuthContext";
+import { CampoMonto } from "./CampoMonto";
 import type { MineroPerfil } from "../types/minero";
 
 interface Props {
@@ -37,7 +38,7 @@ const CAMPOS: {
   {
     campo: "capital_buscado",
     etiqueta: "¿Cuánto capital buscas?",
-    placeholder: "Ej: USD 80,000",
+    placeholder: "",
     obligatorio: true,
     unaLinea: true,
   },
@@ -129,7 +130,12 @@ export function PerfilInversionForm({ perfil, onGuardado }: Props) {
               {etiqueta}
               {obligatorio && <span className="ml-1 text-red-500">*</span>}
             </label>
-            {unaLinea ? (
+            {campo === "capital_buscado" ? (
+              <CampoMonto
+                value={valores[campo]}
+                onChange={(v) => setValores({ ...valores, [campo]: v })}
+              />
+            ) : unaLinea ? (
               <input
                 className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
                 placeholder={placeholder}
