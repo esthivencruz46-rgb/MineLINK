@@ -15,6 +15,11 @@ class DiagnosticoRequest(BaseModel):
     region: str
     mineral: str
     tipo_mina: Literal["subterranea", "tajo_abierto"]
+    # Formulario dinámico: la situación decide qué preguntas aplican
+    # (default = comportamiento original)
+    situacion: Literal[
+        "minero_artesanal", "minero_informal", "concesionario", "yacimiento"
+    ] = "minero_artesanal"
     nombre_minero: Optional[str] = None
     codigo_reinfo: Optional[str] = None
     # Informativas de Operativo — nunca puntúan, texto libre o ausentes
@@ -25,11 +30,11 @@ class DiagnosticoRequest(BaseModel):
 
     @model_validator(mode="after")
     def validar_ids_segun_tipo_mina(self) -> "DiagnosticoRequest":
-        esperados = ids_esperados_para(self.tipo_mina)
+        esperados = ids_esperados_para(self.tipo_mina, self.situacion)
         if set(self.respuestas.keys()) != esperados:
             raise ValueError(
-                f"Para tipo_mina={self.tipo_mina} deben venir exactamente estos ids: "
-                f"{sorted(esperados)}"
+                f"Para tipo_mina={self.tipo_mina} y situacion={self.situacion} "
+                f"deben venir exactamente estos ids: {sorted(esperados)}"
             )
         return self
 

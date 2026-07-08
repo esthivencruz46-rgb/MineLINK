@@ -13,7 +13,9 @@ router = APIRouter(tags=["diagnostico"])
 def crear_diagnostico(
     payload: schemas.DiagnosticoRequest, db: Session = Depends(get_db)
 ):
-    resultado = calcular_diagnostico(payload.respuestas, payload.tipo_mina)
+    resultado = calcular_diagnostico(
+        payload.respuestas, payload.tipo_mina, payload.situacion
+    )
 
     operacion = models.Operacion(
         nombre_minero=payload.nombre_minero,
@@ -21,6 +23,7 @@ def crear_diagnostico(
         region=payload.region,
         mineral=payload.mineral,
         tipo_mina=payload.tipo_mina,
+        situacion=payload.situacion,
         score_total=resultado["score_total"],
         bloqueado=resultado["bloqueado"],
         respuestas_json=payload.respuestas,

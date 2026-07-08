@@ -1,4 +1,4 @@
-import type { IdPregunta, NombreDimension } from "../types/diagnostico";
+import type { IdPregunta, NombreDimension, Situacion } from "../types/diagnostico";
 
 export interface Pregunta {
   id: IdPregunta;
@@ -207,10 +207,59 @@ export const PREGUNTAS_INFORMATIVAS_OPERATIVO: PreguntaInformativa[] = [
   },
 ];
 
-export function preguntasAplicables(tipoMina: "subterranea" | "tajo_abierto"): Pregunta[] {
-  return BLOQUES.flatMap((b) => b.preguntas).filter(
-    (p) => !p.soloSiTipoMina || p.soloSiTipoMina === tipoMina
-  );
+/** Opciones de la primera pregunta del formulario dinámico: "no todos los
+ * proyectos mineros son iguales; primero se identifica la situación". */
+export const SITUACIONES: {
+  valor: Situacion;
+  titulo: string;
+  descripcion: string;
+}[] = [
+  {
+    valor: "minero_artesanal",
+    titulo: "Soy minero artesanal",
+    descripcion: "Trabajo una labor minera pequeña, en actividad.",
+  },
+  {
+    valor: "minero_informal",
+    titulo: "Soy minero informal",
+    descripcion: "Opero sin REINFO, o con el trámite todavía en proceso.",
+  },
+  {
+    valor: "concesionario",
+    titulo: "Tengo una concesión minera y busco apoyo",
+    descripcion: "Soy titular de una concesión y quiero desarrollarla.",
+  },
+  {
+    valor: "yacimiento",
+    titulo: "No soy minero, pero poseo un yacimiento o mineral",
+    descripcion: "Tengo un terreno o recurso mineral, sin operación en marcha.",
+  },
+];
+
+// Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados)
+const REGLA_POR_SITUACION: Record<Situacion, { excluir?: string[]; solo?: string[] }> = {
+  minero_artesanal: {},
+  minero_informal: {},
+  concesionario: { excluir: ["L3"] },
+  yacimiento: { solo: ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"] },
+};
+
+export function preguntasAplicables(
+  tipoMina: "subterranea" | "tajo_abierto",
+  situacion: Situacion = "minero_artesanal"
+): Pregunta[] {
+  const regla = REGLA_POR_SITUACION[situacion];
+  return BLOQUES.flatMap((b) => b.preguntas)
+    .filter((p) => !p.soloSiTipoMina || p.soloSiTipoMina === tipoMina)
+    .filter((p) =>
+      regla.solo ? regla.solo.includes(p.id) : !(regla.excluir ?? []).includes(p.id)
+    );
+}
+
+/** Las informativas de Operativo (producción, maquinaria, trabajadores)
+ * no aplican si no hay operación en marcha. */
+export function informativasAplicables(situacion: Situacion): PreguntaInformativa[] {
+  return situacion === "yacimiento" ? [] : PREGUNTAS_INFORMATIVAS_OPERATIVO;
 }
 
 export const NOMBRES_DIMENSION: Record<NombreDimension, string> = {

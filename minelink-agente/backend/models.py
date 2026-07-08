@@ -24,6 +24,11 @@ class Operacion(Base):
     region = Column(String, nullable=False, index=True)
     mineral = Column(String, nullable=False, index=True)
     tipo_mina = Column(String, nullable=False, default="subterranea")  # "subterranea" | "tajo_abierto"
+    # Situación del usuario (formulario dinámico, ver scoring.SITUACIONES):
+    # minero_artesanal | minero_informal | concesionario | yacimiento
+    situacion = Column(
+        String, nullable=False, default="minero_artesanal", server_default="minero_artesanal"
+    )
     score_total = Column(Integer, nullable=False)
     bloqueado = Column(Boolean, nullable=False, default=False, index=True)
     respuestas_json = Column(JSON, nullable=False)

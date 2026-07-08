@@ -2,10 +2,10 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AutocompleteDepartamento } from "../components/AutocompleteDepartamento";
 import { ProgressBar } from "../components/ProgressBar";
-import { PREGUNTAS_INFORMATIVAS_OPERATIVO, preguntasAplicables } from "../data/preguntas";
+import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../data/preguntas";
 import { enviarDiagnostico, registrarEvento } from "../services/api";
 import { guardarDiagnostico } from "../services/storage";
-import type { Respuestas, TipoMina } from "../types/diagnostico";
+import type { Respuestas, Situacion, TipoMina } from "../types/diagnostico";
 
 type DatosInformativos = {
   produccion_mensual?: string;
@@ -19,24 +19,27 @@ export function Cuestionario() {
   const [region, setRegion] = useState("");
   const [mineral, setMineral] = useState("");
   const [tipoMina, setTipoMina] = useState<TipoMina | "">("");
+  const [situacion, setSituacion] = useState<Situacion | "">("");
   const [respuestas, setRespuestas] = useState<Respuestas>({});
   const [informativas, setInformativas] = useState<DatosInformativos>({});
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const preguntas = tipoMina ? preguntasAplicables(tipoMina) : [];
+  const preguntas =
+    tipoMina && situacion ? preguntasAplicables(tipoMina, situacion) : [];
+  const informativasDelCaso = situacion ? informativasAplicables(situacion) : [];
   const TOTAL_PREGUNTAS = preguntas.length;
-  const TOTAL_INFORMATIVAS = PREGUNTAS_INFORMATIVAS_OPERATIVO.length;
+  const TOTAL_INFORMATIVAS = informativasDelCaso.length;
 
   const preguntaActual =
     paso >= 1 && paso <= TOTAL_PREGUNTAS ? preguntas[paso - 1] : undefined;
   const informativaActual =
     paso > TOTAL_PREGUNTAS && paso <= TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS
-      ? PREGUNTAS_INFORMATIVAS_OPERATIVO[paso - TOTAL_PREGUNTAS - 1]
+      ? informativasDelCaso[paso - TOTAL_PREGUNTAS - 1]
       : undefined;
 
   async function terminar(respuestasFinales: Respuestas, datosFinales: DatosInformativos) {
-    if (!tipoMina) return;
+    if (!tipoMina || !situacion) return;
     setEnviando(true);
     setError(null);
     try {
@@ -45,6 +48,7 @@ export function Cuestionario() {
         region,
         mineral: mineral.trim() || "no especificado",
         tipo_mina: tipoMina,
+        situacion,
         produccion_mensual: datosFinales.produccion_mensual,
         maquinaria: datosFinales.maquinaria,
         num_trabajadores: datosFinales.num_trabajadores,
@@ -81,11 +85,39 @@ export function Cuestionario() {
 
   if (paso === 0) {
     return (
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-5 px-4">
+      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-5 px-4 py-8">
         <h1 className="text-2xl font-bold">Antes de empezar</h1>
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-          Esto nos ayuda a mostrarte empresas cerca de ti.
+          No todos los proyectos mineros son iguales: cuéntanos tu situación y
+          armamos un cuestionario solo con lo que corresponde a tu caso.
         </p>
+
+        <div>
+          <label className="mb-2 block text-sm font-medium">
+            ¿Cuál describe mejor tu situación?
+          </label>
+          <div className="flex flex-col gap-2">
+            {SITUACIONES.map((s) => (
+              <button
+                key={s.valor}
+                onClick={() => setSituacion(s.valor)}
+                className={`rounded-lg border px-4 py-3 text-left ${
+                  situacion === s.valor
+                    ? "border-acento bg-acento/15"
+                    : "border-black/10 dark:border-white/10"
+                }`}
+              >
+                <span className={`block font-medium ${situacion === s.valor ? "text-acento" : ""}`}>
+                  {s.titulo}
+                </span>
+                <span className="block text-xs text-texto-suave dark:text-texto-suave-dark">
+                  {s.descripcion}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div>
           <label className="mb-1 block text-sm font-medium">
             ¿En qué departamento trabajas?
@@ -135,14 +167,14 @@ export function Cuestionario() {
           </div>
         </div>
         <button
-          disabled={!region || !tipoMina}
+          disabled={!region || !tipoMina || !situacion}
           onClick={() => {
             registrarEvento("diagnostico_iniciado");
             setPaso(1);
           }}
           className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
         >
-          Empezar el diagnóstico
+          Empezar el diagnóstico ({TOTAL_PREGUNTAS || "..."} preguntas)
         </button>
       </div>
     );

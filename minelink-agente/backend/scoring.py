@@ -14,6 +14,31 @@ PUNTOS_SEGURIDAD_TAJO_ABIERTO = {"S1": 6, "S2": 6, "S3": 6, "S4": 7}
 
 TIPOS_MINA = ("subterranea", "tajo_abierto")
 
+# Situaciones del usuario (formulario dinámico): "no todos los proyectos
+# mineros son iguales; primero se identifica la situación y luego se
+# construye un cuestionario con solo las preguntas que corresponden".
+# Misma filosofía que tipo_mina/S5, generalizada.
+#   - None      = aplican todas las preguntas
+#   - "excluir" = todas menos esas
+#   - "solo"    = únicamente esas
+SITUACIONES = {
+    # Minero artesanal en actividad: el caso original, todas las preguntas
+    "minero_artesanal": None,
+    # Minero informal (sin REINFO o en trámite): mismas preguntas — su
+    # diferencia es el estado, no lo que hay que evaluar
+    "minero_informal": None,
+    # Titular de concesión que busca apoyo: el contrato de explotación
+    # (L3) no aplica — ese contrato es para quien trabaja en concesión ajena
+    "concesionario": {"excluir": {"L3"}},
+    # No es minero pero posee un yacimiento/mineral: no opera, así que no
+    # aplican REINFO (L1), contrato (L3), ambiental (una operación que no
+    # existe no tiene IGAFOM), producción (O1) ni seguridad (sin labores ni
+    # trabajadores). Se evalúa titularidad, formalidad básica y lo técnico
+    # del recurso. OJO: sin L1 el proyecto queda bloqueado=True, así que
+    # NUNCA se lista públicamente (regla dura: sin REINFO no hay vitrina).
+    "yacimiento": {"solo": {"L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"}},
+}
+
 DIMENSIONES_BASE = {
     "legal": ["L1", "L2", "L3", "L4", "L5"],
     "ambiental": ["A1", "A2", "A3"],
@@ -55,8 +80,14 @@ def puntos_para(tipo_mina: str) -> dict[str, int]:
     return {**PUNTOS_BASE, **puntos_seguridad}
 
 
-def ids_esperados_para(tipo_mina: str) -> set[str]:
-    return set(puntos_para(tipo_mina).keys())
+def ids_esperados_para(tipo_mina: str, situacion: str = "minero_artesanal") -> set[str]:
+    ids = set(puntos_para(tipo_mina).keys())
+    regla = SITUACIONES.get(situacion)
+    if regla is None:
+        return ids
+    if "excluir" in regla:
+        return ids - regla["excluir"]
+    return ids & regla["solo"]
 
 
 PREGUNTA_POR_ESTUDIO = {estudio: pregunta for pregunta, estudio in ESTUDIO_POR_PREGUNTA.items()}
@@ -69,7 +100,10 @@ def estado_seguimiento(operacion) -> dict:
     pendientes = sorted(set(operacion.brechas_json) - set(operacion.brechas_resueltas_json))
     try:
         resultado = aplicar_brechas_resueltas(
-            operacion.respuestas_json, operacion.tipo_mina, operacion.brechas_resueltas_json
+            operacion.respuestas_json,
+            operacion.tipo_mina,
+            operacion.brechas_resueltas_json,
+            getattr(operacion, "situacion", None) or "minero_artesanal",
         )
         score_actual = resultado["score_total"]
         bloqueado_actual = resultado["bloqueado"]
@@ -92,7 +126,10 @@ def estado_seguimiento(operacion) -> dict:
 
 
 def aplicar_brechas_resueltas(
-    respuestas: dict[str, bool], tipo_mina: str, brechas_resueltas: list[str]
+    respuestas: dict[str, bool],
+    tipo_mina: str,
+    brechas_resueltas: list[str],
+    situacion: str = "minero_artesanal",
 ) -> dict:
     """Recalcula el diagnóstico marcando como SÍ las preguntas cuyas brechas
     ya fueron resueltas (seguimiento del admin), SIN modificar `respuestas`
@@ -103,14 +140,20 @@ def aplicar_brechas_resueltas(
         pregunta_id = PREGUNTA_POR_ESTUDIO.get(estudio)
         if pregunta_id in respuestas_actualizadas:
             respuestas_actualizadas[pregunta_id] = True
-    return calcular_diagnostico(respuestas_actualizadas, tipo_mina)
+    return calcular_diagnostico(respuestas_actualizadas, tipo_mina, situacion)
 
 
-def calcular_diagnostico(respuestas: dict[str, bool], tipo_mina: str) -> dict:
-    """respuestas: ids booleanos aplicables según tipo_mina ('subterranea'
-    incluye S5, 'tajo_abierto' NO debe incluir S5). Lógica pura, sin BD."""
+def calcular_diagnostico(
+    respuestas: dict[str, bool], tipo_mina: str, situacion: str = "minero_artesanal"
+) -> dict:
+    """respuestas: exactamente los ids aplicables según tipo_mina Y situacion
+    (formulario dinámico). El score siempre se normaliza a 0-100 sobre el
+    máximo aplicable, así situaciones con menos preguntas puntúan justo.
+    Lógica pura, sin BD."""
     if tipo_mina not in TIPOS_MINA:
         raise ValueError(f"tipo_mina debe ser uno de {TIPOS_MINA}")
+    if situacion not in SITUACIONES:
+        raise ValueError(f"situacion debe ser una de {sorted(SITUACIONES)}")
 
     puntos = puntos_para(tipo_mina)
     puntos_seguridad = (
@@ -120,16 +163,20 @@ def calcular_diagnostico(respuestas: dict[str, bool], tipo_mina: str) -> dict:
     )
     dimensiones_ids = {**DIMENSIONES_BASE, "seguridad": list(puntos_seguridad.keys())}
 
-    ids_esperados = set(puntos.keys())
+    ids_esperados = ids_esperados_para(tipo_mina, situacion)
     if set(respuestas.keys()) != ids_esperados:
         raise ValueError(
-            "Deben venir exactamente los ids de pregunta aplicables a tipo_mina"
+            "Deben venir exactamente los ids de pregunta aplicables a tipo_mina y situacion"
         )
 
+    # Solo se puntúan/muestran las dimensiones con preguntas aplicables
     por_dimension = {}
     for dim, ids in dimensiones_ids.items():
-        obtenido = sum(puntos[i] for i in ids if respuestas[i])
-        maximo = sum(puntos[i] for i in ids)
+        aplicables = [i for i in ids if i in ids_esperados]
+        if not aplicables:
+            continue
+        obtenido = sum(puntos[i] for i in aplicables if respuestas[i])
+        maximo = sum(puntos[i] for i in aplicables)
         por_dimension[dim] = {"puntaje": obtenido, "maximo": maximo}
 
     brechas = sorted({
@@ -137,9 +184,17 @@ def calcular_diagnostico(respuestas: dict[str, bool], tipo_mina: str) -> dict:
         for i, ok in respuestas.items() if not ok
     })
 
+    obtenido_total = sum(d["puntaje"] for d in por_dimension.values())
+    maximo_total = sum(d["maximo"] for d in por_dimension.values())
+
     return {
-        "score_total": sum(d["puntaje"] for d in por_dimension.values()),
+        # Normalizado a 0-100 (para el set completo maximo_total=100, así
+        # que el score de los casos originales no cambia)
+        "score_total": round(100 * obtenido_total / maximo_total),
         "dimensiones": por_dimension,
-        "bloqueado": not respuestas["L1"],
+        # Regla dura intacta: sin REINFO respondido con SÍ, bloqueado. Si
+        # L1 ni siquiera aplica (yacimiento), también queda bloqueado y
+        # por lo tanto fuera de la vitrina pública.
+        "bloqueado": not respuestas.get("L1", False),
         "brechas": brechas,
     }

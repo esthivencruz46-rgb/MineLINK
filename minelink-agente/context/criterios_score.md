@@ -9,7 +9,32 @@ Sin REINFO vigente (pregunta L1 = NO) → score bloqueado: la operación no
 recibe puntaje público. El diagnóstico igual se completa y se muestran las
 brechas, porque ese minero es el que MÁS necesita orientación.
 
-## Dato previo: tipo de mina
+## Dato previo 1: situación del usuario (formulario dinámico)
+Filosofía: *"No todos los proyectos mineros son iguales; el sistema primero
+identifica la situación del usuario y luego construye un formulario
+personalizado con únicamente la información que corresponde a su caso."*
+
+Antes de todo se pregunta `situacion`, que decide qué preguntas aplican:
+
+| situacion | Etiqueta | Preguntas que aplican |
+|---|---|---|
+| minero_artesanal | Soy minero artesanal | TODAS (comportamiento original) |
+| minero_informal | Soy minero informal (sin REINFO o en trámite) | TODAS — su diferencia es el estado, no lo que se evalúa |
+| concesionario | Tengo una concesión minera y busco apoyo | Todas MENOS L3 (el contrato de explotación es para quien trabaja en concesión ajena) |
+| yacimiento | No soy minero, pero poseo un yacimiento o mineral | SOLO L2, L4, L5 y T1–T6 (sin operación no aplican REINFO, ambiental, producción ni seguridad; también se omiten las informativas O2–O4) |
+
+Reglas derivadas:
+- El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable
+  (para el set completo el máximo ya es 100, así que nada cambia en los
+  casos originales).
+- Solo se muestran las dimensiones con preguntas aplicables.
+- La regla de exclusión REINFO se mantiene intacta: si L1 no se pregunta
+  (yacimiento), el proyecto queda `bloqueado = true` y por lo tanto NUNCA
+  aparece en la vitrina pública — sin REINFO no hay listado, sin excepciones.
+- La definición ejecutable vive en `backend/scoring.py` → `SITUACIONES`
+  (y su espejo en `frontend/src/data/preguntas.ts`); este archivo manda.
+
+## Dato previo 2: tipo de mina
 Antes del cuestionario se pregunta `tipo_mina`: **subterránea** o **tajo
 abierto (superficie)**. Este dato determina si la pregunta S5 (ventilación)
 aplica — solo tiene sentido en minería subterránea.

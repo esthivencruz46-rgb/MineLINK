@@ -11,11 +11,20 @@ export type Respuestas = Record<string, boolean>;
 
 export type TipoMina = "subterranea" | "tajo_abierto";
 
+// Formulario dinámico: "primero se identifica la situación del usuario y
+// luego se construye un formulario con solo lo que corresponde a su caso"
+export type Situacion =
+  | "minero_artesanal"
+  | "minero_informal"
+  | "concesionario"
+  | "yacimiento";
+
 export interface DiagnosticoRequest {
   respuestas: Respuestas;
   region: string;
   mineral: string;
   tipo_mina: TipoMina;
+  situacion: Situacion;
   nombre_minero?: string;
   codigo_reinfo?: string;
   produccion_mensual?: string;
