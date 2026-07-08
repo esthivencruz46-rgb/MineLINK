@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CampoPassword } from "./CampoPassword";
+import { CampoPreguntaSeguridad } from "./CampoPreguntaSeguridad";
 import { CampoTelefono } from "./CampoTelefono";
 
 interface Props {
@@ -15,6 +16,8 @@ interface Props {
     codigoReinfo: string;
     username: string;
     password: string;
+    preguntaSeguridad: string;
+    respuestaSeguridad: string;
   }) => void;
 }
 
@@ -33,6 +36,8 @@ export function RegistroMineroModal({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmarPassword, setConfirmarPassword] = useState("");
+  const [preguntaSeguridad, setPreguntaSeguridad] = useState("");
+  const [respuestaSeguridad, setRespuestaSeguridad] = useState("");
 
   const usernameValido = username.trim().length >= 3;
   const passwordValida = password.length >= 6;
@@ -43,7 +48,9 @@ export function RegistroMineroModal({
     /^\d{9}$/.test(whatsapp) &&
     usernameValido &&
     passwordValida &&
-    passwordsCoinciden;
+    passwordsCoinciden &&
+    preguntaSeguridad.trim().length > 0 &&
+    respuestaSeguridad.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4">
@@ -107,6 +114,13 @@ export function RegistroMineroModal({
           {password.length > 0 && !passwordsCoinciden && (
             <p className="text-sm text-red-500">Las contraseñas no coinciden</p>
           )}
+
+          <CampoPreguntaSeguridad
+            pregunta={preguntaSeguridad}
+            onPreguntaChange={setPreguntaSeguridad}
+            respuesta={respuestaSeguridad}
+            onRespuestaChange={setRespuestaSeguridad}
+          />
         </div>
 
         {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -129,6 +143,8 @@ export function RegistroMineroModal({
                 codigoReinfo: codigoReinfo.trim(),
                 username: username.trim(),
                 password,
+                preguntaSeguridad: preguntaSeguridad.trim(),
+                respuestaSeguridad: respuestaSeguridad.trim(),
               })
             }
             className="min-h-[44px] flex-1 rounded-lg bg-acento font-semibold text-white disabled:opacity-50"

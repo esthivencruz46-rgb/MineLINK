@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { CampoPassword } from "../components/CampoPassword";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
 
@@ -52,6 +52,12 @@ export function LoginInversionista() {
           {enviando ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
+      <Link
+        to="/recuperar-password-inversionista"
+        className="text-center text-sm text-texto-suave underline dark:text-texto-suave-dark"
+      >
+        ¿Olvidaste tu contraseña? Recupérala aquí
+      </Link>
     </div>
   );
 }

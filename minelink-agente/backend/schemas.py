@@ -19,6 +19,15 @@ def normalizar_whatsapp(v: str) -> str:
     return v
 
 
+def normalizar_respuesta_seguridad(v: str) -> str:
+    """La respuesta de la pregunta de seguridad se compara sin importar
+    mayúsculas ni espacios extra (igual que un humano la recordaría)."""
+    v = v.strip().lower()
+    if not v:
+        raise ValueError("La respuesta de seguridad es obligatoria")
+    return v
+
+
 def normalizar_colegiatura(v: str) -> str:
     """Solo el número de colegiatura: se descarta 'CIP', espacios, etc."""
     numero = "".join(c for c in v if c.isdigit())
@@ -219,6 +228,8 @@ class LeadCreate(BaseModel):
     operacion_id: str
     username: str
     password: str
+    pregunta_seguridad: str
+    respuesta_seguridad: str
     email: Optional[str] = None
     nombre_operacion: Optional[str] = None
     codigo_reinfo: Optional[str] = None
@@ -245,10 +256,45 @@ class LeadCreate(BaseModel):
             raise ValueError("La contraseña debe tener al menos 6 caracteres")
         return v
 
+    @field_validator("pregunta_seguridad")
+    @classmethod
+    def validar_pregunta_seguridad(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("La pregunta de seguridad es obligatoria")
+        return v
+
+    @field_validator("respuesta_seguridad")
+    @classmethod
+    def validar_respuesta_seguridad(cls, v: str) -> str:
+        return normalizar_respuesta_seguridad(v)
+
 
 class MineroLogin(BaseModel):
     username: str
     password: str
+
+
+class PreguntaSeguridadOut(BaseModel):
+    pregunta: str
+
+
+class RecuperarPasswordRequest(BaseModel):
+    username: str
+    respuesta_seguridad: str
+    nueva_password: str
+
+    @field_validator("respuesta_seguridad")
+    @classmethod
+    def validar_respuesta_seguridad(cls, v: str) -> str:
+        return normalizar_respuesta_seguridad(v)
+
+    @field_validator("nueva_password")
+    @classmethod
+    def validar_nueva_password(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("La contraseña debe tener al menos 6 caracteres")
+        return v
 
 
 class DocumentoOperacionOut(BaseModel):
@@ -373,12 +419,27 @@ class InteresInversionCreate(BaseModel):
     nombre: str
     username: str
     password: str
+    pregunta_seguridad: str
+    respuesta_seguridad: str
     telefono: Optional[str] = None
     email: Optional[str] = None
     motivo_inversion: Optional[str] = None
     monto: Optional[str] = None
     informacion_requerida: Optional[str] = None
     mensaje: Optional[str] = None
+
+    @field_validator("pregunta_seguridad")
+    @classmethod
+    def validar_pregunta_seguridad(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("La pregunta de seguridad es obligatoria")
+        return v
+
+    @field_validator("respuesta_seguridad")
+    @classmethod
+    def validar_respuesta_seguridad(cls, v: str) -> str:
+        return normalizar_respuesta_seguridad(v)
 
     @field_validator("nombre")
     @classmethod

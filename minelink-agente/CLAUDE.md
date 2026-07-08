@@ -49,7 +49,13 @@ Esthiven es el único administrador: carga empresas (una por una o en lote
 vía CSV con `POST /admin/empresas/importar` — su base externa de
 profesionales con rating 0-5 y nº de reseñas), revisa leads, resetea
 contraseñas de mineros y puede marcar brechas puntuales como resueltas
-por seguimiento manual (ver agents/admin.md). Las empresas NO tienen
+por seguimiento manual (ver agents/admin.md). Mineros e inversionistas
+también pueden recuperar su propia contraseña sin el admin: al
+registrarse eligen una pregunta y respuesta de seguridad (texto libre,
+la respuesta se guarda hasheada); `GET /{mineros|inversionistas}/
+pregunta-seguridad/{username}` + `POST .../recuperar-password` (4
+intentos por cuenta, ver `security.py`). Cuentas viejas sin pregunta
+configurada (nullable) siguen dependiendo del reseteo manual del admin. Las empresas NO tienen
 acceso; Esthiven las carga manualmente, o las aprueba si un consultor
 independiente se postuló solo. El rating de empresas/consultores solo se
 ve en el admin; en la página pública /empresas ordena internamente los

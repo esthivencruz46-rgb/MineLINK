@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { CampoPassword } from "../components/CampoPassword";
-import { WHATSAPP_ADMIN, enlaceWhatsApp } from "../config/whatsapp";
 import { useMineroAuth } from "../context/MineroAuthContext";
 
 export function LoginMinero() {
@@ -57,17 +56,12 @@ export function LoginMinero() {
           {enviando ? "Ingresando..." : "Ingresar"}
         </button>
       </form>
-      <a
-        href={enlaceWhatsApp(
-          WHATSAPP_ADMIN,
-          "Hola MineLink 👋 Olvidé la contraseña de mi cuenta de minero. Mi usuario es: "
-        )}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        to="/recuperar-password"
         className="text-center text-sm text-texto-suave underline dark:text-texto-suave-dark"
       >
-        ¿Olvidaste tu contraseña? Escríbenos por WhatsApp
-      </a>
+        ¿Olvidaste tu contraseña? Recupérala aquí
+      </Link>
     </div>
   );
 }

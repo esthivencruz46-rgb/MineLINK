@@ -21,6 +21,7 @@ from sqlalchemy.pool import StaticPool
 import models
 from database import Base, get_db
 from main import app
+import security
 from security import limitar_intentos_login
 
 engine = create_engine(
@@ -48,6 +49,11 @@ app.dependency_overrides[limitar_intentos_login] = lambda: None
 @pytest.fixture(autouse=True)
 def _reset_db():
     Base.metadata.create_all(bind=engine)
+    # Los ids autoincrement se reinician con la BD, pero los contadores de
+    # intentos de recuperación viven en memoria del proceso (security.py):
+    # sin este reset, un lead "id=1" de un test heredaría los intentos
+    # gastados por el "id=1" de un test anterior.
+    security._intentos_recuperacion.clear()
     yield
     Base.metadata.drop_all(bind=engine)
 
@@ -137,6 +143,8 @@ def _lead_payload(operacion_id, **overrides):
         "operacion_id": operacion_id,
         "username": "juanq",
         "password": "clave123",
+        "pregunta_seguridad": "¿Nombre de tu primera mascota?",
+        "respuesta_seguridad": "Rocky",
     }
     payload.update(overrides)
     return payload
@@ -217,6 +225,112 @@ def test_post_leads_codigo_reinfo_duplicado_rechazado():
         ),
     )
     assert resp.status_code == 409
+
+
+def test_mineros_recuperar_password_flujo_completo():
+    diag = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="recupera1", password="claveorig"),
+    )
+
+    resp = client.get("/mineros/pregunta-seguridad/recupera1")
+    assert resp.status_code == 200
+    assert resp.json()["pregunta"] == "¿Nombre de tu primera mascota?"
+
+    # La respuesta no distingue mayúsculas ni espacios extra
+    resp = client.post(
+        "/mineros/recuperar-password",
+        json={
+            "username": "recupera1",
+            "respuesta_seguridad": "  ROCKY  ",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 200
+    token = resp.json()["access_token"]
+
+    # La contraseña vieja ya no sirve, la nueva sí
+    assert client.post(
+        "/mineros/login", json={"username": "recupera1", "password": "claveorig"}
+    ).status_code == 401
+    assert client.post(
+        "/mineros/login",
+        json={"username": "recupera1", "password": "clavenueva123"},
+    ).status_code == 200
+    assert client.get(
+        "/mineros/me", headers={"Authorization": f"Bearer {token}"}
+    ).status_code == 200
+
+
+def test_mineros_recuperar_password_agota_los_4_intentos():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="recupera2"))
+
+    # 3 fallos consumen intentos (quedan 2, 1, 0) sin bloquear todavía
+    for _ in range(3):
+        resp = client.post(
+            "/mineros/recuperar-password",
+            json={
+                "username": "recupera2",
+                "respuesta_seguridad": "respuesta incorrecta",
+                "nueva_password": "clavenueva123",
+            },
+        )
+        assert resp.status_code == 400
+
+    # El 4to fallo agota el límite (400, pero ya en 0 intentos restantes)
+    resp = client.post(
+        "/mineros/recuperar-password",
+        json={
+            "username": "recupera2",
+            "respuesta_seguridad": "respuesta incorrecta",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 429
+
+    # Ya no se permite ni con la respuesta correcta
+    resp = client.post(
+        "/mineros/recuperar-password",
+        json={
+            "username": "recupera2",
+            "respuesta_seguridad": "Rocky",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 429
+
+
+def test_mineros_recuperar_password_lead_sin_pregunta_configurada():
+    # Simula un lead creado ANTES de que existiera esta función (nullable
+    # en la BD): sin pregunta, la recuperación autoservicio no está
+    # disponible y el minero debe usar el reseteo manual del admin.
+    diag = _crear_diagnostico().json()
+    db = TestingSessionLocal()
+    lead = models.Lead(
+        operacion_id=diag["id"],
+        nombre="Lead Viejo",
+        whatsapp="+51900000999",
+        region="arequipa",
+        username="viejo1",
+        password_hash="hash-lo-que-sea",
+    )
+    db.add(lead)
+    db.commit()
+    db.close()
+
+    assert client.get("/mineros/pregunta-seguridad/viejo1").status_code == 404
+    assert client.get("/mineros/pregunta-seguridad/usuario_inexistente").status_code == 404
+    resp = client.post(
+        "/mineros/recuperar-password",
+        json={
+            "username": "viejo1",
+            "respuesta_seguridad": "lo que sea",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 404
 
 
 def test_mineros_login_y_perfil():
@@ -594,6 +708,8 @@ def _interes_payload(**overrides):
         "nombre": "Inversionista Prueba",
         "username": "inversionista1",
         "password": "clave123",
+        "pregunta_seguridad": "¿Ciudad donde naciste?",
+        "respuesta_seguridad": "Lima",
         "telefono": "+51900000123",
         "email": "inversionista@example.com",
         "motivo_inversion": "Diversificar cartera en minería formal",
@@ -711,6 +827,74 @@ def test_inversionistas_login_y_perfil():
     assert body["nombre"] == "Inversionista Prueba"
     assert body["monto"] == "USD 20,000"
     assert body["operacion_id"] == diag["id"]
+
+
+def test_inversionistas_recuperar_password_flujo_completo():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paralead4"))
+    client.post(
+        f"/proyectos/{diag['id']}/interes",
+        json=_interes_payload(username="inversionistarecupera", password="claveorig"),
+    )
+
+    resp = client.get("/inversionistas/pregunta-seguridad/inversionistarecupera")
+    assert resp.status_code == 200
+    assert resp.json()["pregunta"] == "¿Ciudad donde naciste?"
+
+    resp = client.post(
+        "/inversionistas/recuperar-password",
+        json={
+            "username": "inversionistarecupera",
+            "respuesta_seguridad": "lima",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 200
+
+    assert client.post(
+        "/inversionistas/login",
+        json={"username": "inversionistarecupera", "password": "clavenueva123"},
+    ).status_code == 200
+
+
+def test_inversionistas_recuperar_password_agota_los_4_intentos():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paralead5"))
+    client.post(
+        f"/proyectos/{diag['id']}/interes",
+        json=_interes_payload(username="inversionistaagota"),
+    )
+
+    for _ in range(3):
+        resp = client.post(
+            "/inversionistas/recuperar-password",
+            json={
+                "username": "inversionistaagota",
+                "respuesta_seguridad": "respuesta incorrecta",
+                "nueva_password": "clavenueva123",
+            },
+        )
+        assert resp.status_code == 400
+
+    resp = client.post(
+        "/inversionistas/recuperar-password",
+        json={
+            "username": "inversionistaagota",
+            "respuesta_seguridad": "respuesta incorrecta",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 429
+
+    resp = client.post(
+        "/inversionistas/recuperar-password",
+        json={
+            "username": "inversionistaagota",
+            "respuesta_seguridad": "Lima",
+            "nueva_password": "clavenueva123",
+        },
+    )
+    assert resp.status_code == 429
 
 
 def test_inversionistas_login_credenciales_invalidas():

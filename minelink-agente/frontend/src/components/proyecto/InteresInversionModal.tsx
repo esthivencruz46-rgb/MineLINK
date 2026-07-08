@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CampoPassword } from "../CampoPassword";
+import { CampoPreguntaSeguridad } from "../CampoPreguntaSeguridad";
 import { CampoTelefono } from "../CampoTelefono";
 import { CampoMonto } from "../CampoMonto";
 import { registrarInteresInversion } from "../../services/api";
@@ -20,12 +21,18 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
   const [mensaje, setMensaje] = useState(mensajeInicial);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [preguntaSeguridad, setPreguntaSeguridad] = useState("");
+  const [respuestaSeguridad, setRespuestaSeguridad] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
 
   const valido =
-    nombre.trim().length > 0 && username.trim().length >= 3 && password.length >= 6;
+    nombre.trim().length > 0 &&
+    username.trim().length >= 3 &&
+    password.length >= 6 &&
+    preguntaSeguridad.trim().length > 0 &&
+    respuestaSeguridad.trim().length > 0;
 
   async function enviar() {
     setEnviando(true);
@@ -35,6 +42,8 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
         nombre: nombre.trim(),
         username: username.trim(),
         password,
+        pregunta_seguridad: preguntaSeguridad.trim(),
+        respuesta_seguridad: respuestaSeguridad.trim(),
         telefono: telefono.trim() ? `+51${telefono.trim()}` : undefined,
         email: email.trim() || undefined,
         motivo_inversion: motivoInversion.trim() || undefined,
@@ -142,6 +151,13 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
                 placeholder="Elige una contraseña (mín. 6 caracteres)"
                 value={password}
                 onChange={setPassword}
+              />
+
+              <CampoPreguntaSeguridad
+                pregunta={preguntaSeguridad}
+                onPreguntaChange={setPreguntaSeguridad}
+                respuesta={respuestaSeguridad}
+                onRespuestaChange={setRespuestaSeguridad}
               />
             </div>
 

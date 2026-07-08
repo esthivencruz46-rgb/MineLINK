@@ -4,6 +4,9 @@ import { BASE_URL } from "../config/apiUrl";
 interface MineroAuthContextValue {
   token: string | null;
   login: (username: string, password: string) => Promise<void>;
+  /** Usado tras recuperar la contraseña: el backend ya entrega un token
+   * válido junto con la confirmación, sin pedir login de nuevo. */
+  establecerToken: (token: string) => void;
   logout: () => void;
   authFetch: (path: string, options?: RequestInit) => Promise<Response>;
 }
@@ -47,7 +50,9 @@ export function MineroAuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <MineroAuthContext.Provider value={{ token, login, logout, authFetch }}>
+    <MineroAuthContext.Provider
+      value={{ token, login, establecerToken: setToken, logout, authFetch }}
+    >
       {children}
     </MineroAuthContext.Provider>
   );

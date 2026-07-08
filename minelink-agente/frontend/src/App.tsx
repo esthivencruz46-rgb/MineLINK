@@ -22,6 +22,8 @@ import { MiCuentaInversionista } from "./pages/MiCuentaInversionista";
 import { Postular } from "./pages/Postular";
 import { Proyectos } from "./pages/Proyectos";
 import { ProyectoDetalle } from "./pages/ProyectoDetalle";
+import { RecuperarPasswordMinero } from "./pages/RecuperarPasswordMinero";
+import { RecuperarPasswordInversionista } from "./pages/RecuperarPasswordInversionista";
 import { Resultado } from "./pages/Resultado";
 
 function PublicHeader() {
@@ -58,6 +60,7 @@ export function App() {
             <Route path="/proyectos" element={<Proyectos />} />
             <Route path="/proyectos/:id" element={<ProyectoDetalle />} />
             <Route path="/ingresar" element={<LoginMinero />} />
+            <Route path="/recuperar-password" element={<RecuperarPasswordMinero />} />
             <Route
               path="/mi-cuenta"
               element={
@@ -67,6 +70,10 @@ export function App() {
               }
             />
             <Route path="/ingresar-inversionista" element={<LoginInversionista />} />
+            <Route
+              path="/recuperar-password-inversionista"
+              element={<RecuperarPasswordInversionista />}
+            />
             <Route
               path="/mi-cuenta-inversionista"
               element={

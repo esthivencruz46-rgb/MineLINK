@@ -55,6 +55,8 @@ export function Empresas() {
     codigoReinfo: string;
     username: string;
     password: string;
+    preguntaSeguridad: string;
+    respuestaSeguridad: string;
   }) {
     if (!guardado) return;
     setEnviandoLead(true);
@@ -66,6 +68,8 @@ export function Empresas() {
         operacion_id: guardado.respuesta.id,
         username: datos.username,
         password: datos.password,
+        pregunta_seguridad: datos.preguntaSeguridad,
+        respuesta_seguridad: datos.respuestaSeguridad,
         email: datos.email || undefined,
         nombre_operacion: datos.nombreOperacion || undefined,
         codigo_reinfo: datos.codigoReinfo || undefined,

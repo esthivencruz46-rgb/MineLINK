@@ -244,6 +244,8 @@ def registrar_interes(
         mensaje=payload.mensaje,
         username=payload.username,
         password_hash=hash_password(payload.password),
+        pregunta_seguridad=payload.pregunta_seguridad,
+        respuesta_seguridad_hash=hash_password(payload.respuesta_seguridad),
     )
     db.add(interes)
     db.commit()

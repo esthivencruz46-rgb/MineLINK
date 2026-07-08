@@ -57,6 +57,8 @@ def crear_lead(payload: schemas.LeadCreate, db: Session = Depends(get_db)):
         codigo_reinfo=codigo_reinfo,
         username=payload.username,
         password_hash=hash_password(payload.password),
+        pregunta_seguridad=payload.pregunta_seguridad,
+        respuesta_seguridad_hash=hash_password(payload.respuesta_seguridad),
     )
     db.add(lead)
     db.commit()

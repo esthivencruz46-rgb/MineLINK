@@ -105,6 +105,13 @@ class Lead(Base):
     # (el admin ya le escribió por WhatsApp). Visible para el minero
     # en /mi-cuenta para cerrar el ciclo de su registro.
     estado_contacto = Column(String, nullable=False, default="buscando", server_default="buscando")
+    # Recuperación de contraseña autoservicio: el minero elige su propia
+    # pregunta (texto libre) al registrarse. La respuesta se guarda
+    # hasheada (igual que la contraseña), nunca en texto plano. Nullable
+    # porque los leads creados antes de esta función no la tienen — para
+    # esos, sigue existiendo el reseteo manual del admin como respaldo.
+    pregunta_seguridad = Column(String, nullable=True)
+    respuesta_seguridad_hash = Column(String, nullable=True)
     created_at = Column(DateTime, default=_now)
 
     operacion = relationship("Operacion", back_populates="leads")
@@ -152,6 +159,9 @@ class InteresInversion(Base):
     mensaje = Column(String, nullable=True)
     username = Column(String, nullable=True, unique=True)
     password_hash = Column(String, nullable=True)
+    # Recuperación de contraseña autoservicio (mismo patrón que Lead)
+    pregunta_seguridad = Column(String, nullable=True)
+    respuesta_seguridad_hash = Column(String, nullable=True)
     created_at = Column(DateTime, default=_now)
 
 

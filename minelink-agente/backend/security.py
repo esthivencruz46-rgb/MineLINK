@@ -31,6 +31,37 @@ def limitar_intentos_login(request: Request) -> None:
     cola.append(ahora)
 
 
+# --- Intentos de la pregunta de seguridad (recuperación de contraseña) ---
+# A diferencia del límite de login (por IP), este es por CUENTA: 4
+# intentos y se acabó, sin importar desde qué IP se pruebe. En memoria por
+# proceso, igual que el límite de login (mismo comentario de escalado).
+MAX_INTENTOS_RECUPERACION = 4
+_intentos_recuperacion: dict[str, int] = defaultdict(int)
+
+
+def intentos_recuperacion_restantes(clave: str) -> int:
+    return max(0, MAX_INTENTOS_RECUPERACION - _intentos_recuperacion[clave])
+
+
+def limitar_intentos_recuperacion(clave: str) -> None:
+    if _intentos_recuperacion[clave] >= MAX_INTENTOS_RECUPERACION:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                "Superaste los 4 intentos permitidos. Escríbenos por "
+                "WhatsApp para restablecer tu contraseña."
+            ),
+        )
+
+
+def registrar_intento_fallido_recuperacion(clave: str) -> None:
+    _intentos_recuperacion[clave] += 1
+
+
+def resetear_intentos_recuperacion(clave: str) -> None:
+    _intentos_recuperacion.pop(clave, None)
+
+
 # --- Verificación de firma real del archivo (magic bytes) ---
 def contenido_coincide_con_tipo(contenido: bytes, content_type: str) -> bool:
     if content_type == "application/pdf":

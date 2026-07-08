@@ -38,6 +38,8 @@ export interface InteresInversionRequest {
   nombre: string;
   username: string;
   password: string;
+  pregunta_seguridad: string;
+  respuesta_seguridad: string;
   telefono?: string;
   email?: string;
   motivo_inversion?: string;

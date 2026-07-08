@@ -4,6 +4,8 @@ export interface LeadRequest {
   operacion_id: string;
   username: string;
   password: string;
+  pregunta_seguridad: string;
+  respuesta_seguridad: string;
   email?: string;
   nombre_operacion?: string;
   codigo_reinfo?: string;
