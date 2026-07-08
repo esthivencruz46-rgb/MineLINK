@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { INFO_BRECHA } from "../data/brechas";
@@ -50,6 +50,11 @@ export function MiCuenta() {
         </button>
       </div>
     );
+  }
+
+  // Ruta 2 (concesionario) tiene su propia ventana, distinta de esta
+  if (perfil.situacion === "concesionario") {
+    return <Navigate to="/mi-concesion" replace />;
   }
 
   const semaforo = calcularSemaforo(perfil.score_actual, perfil.bloqueado_actual);

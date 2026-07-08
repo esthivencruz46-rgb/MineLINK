@@ -4,6 +4,7 @@ import { CampoPreguntaSeguridad } from "./CampoPreguntaSeguridad";
 import { CampoTelefono } from "./CampoTelefono";
 
 interface Props {
+  situacion?: string;
   codigoReinfoInicial?: string;
   enviando: boolean;
   error?: string;
@@ -22,12 +23,14 @@ interface Props {
 }
 
 export function RegistroMineroModal({
+  situacion,
   codigoReinfoInicial,
   enviando,
   error,
   onCerrar,
   onEnviar,
 }: Props) {
+  const esConcesionario = situacion === "concesionario";
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
@@ -55,7 +58,11 @@ export function RegistroMineroModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4">
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:max-h-[90vh] md:rounded-2xl">
-        <h2 className="text-lg font-bold">Regístrate para que te ayudemos</h2>
+        <h2 className="text-lg font-bold">
+          {esConcesionario
+            ? "Regístrate para que te ayudemos con tu concesión"
+            : "Regístrate para que te ayudemos"}
+        </h2>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           No compartimos tus datos con nadie más. Crea un usuario y contraseña
           para volver a ver tus datos cuando quieras.
@@ -75,7 +82,11 @@ export function RegistroMineroModal({
           />
           <input
             className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-            placeholder="Nombre de tu operación o labor (opcional)"
+            placeholder={
+              esConcesionario
+                ? "Nombre de tu proyecto o concesión (opcional)"
+                : "Nombre de tu operación o labor (opcional)"
+            }
             value={nombreOperacion}
             onChange={(e) => setNombreOperacion(e.target.value)}
           />

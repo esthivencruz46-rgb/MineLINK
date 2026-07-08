@@ -18,6 +18,7 @@ import { Inicio } from "./pages/Inicio";
 import { LoginMinero } from "./pages/LoginMinero";
 import { LoginInversionista } from "./pages/LoginInversionista";
 import { MiCuenta } from "./pages/MiCuenta";
+import { MiConcesion } from "./pages/MiConcesion";
 import { MiCuentaInversionista } from "./pages/MiCuentaInversionista";
 import { Postular } from "./pages/Postular";
 import { Proyectos } from "./pages/Proyectos";
@@ -66,6 +67,14 @@ export function App() {
               element={
                 <ProtectedRouteMinero>
                   <MiCuenta />
+                </ProtectedRouteMinero>
+              }
+            />
+            <Route
+              path="/mi-concesion"
+              element={
+                <ProtectedRouteMinero>
+                  <MiConcesion />
                 </ProtectedRouteMinero>
               }
             />

@@ -6,6 +6,9 @@ import type { MineroPerfil } from "../types/minero";
 interface Props {
   perfil: MineroPerfil;
   onGuardado: (perfil: MineroPerfil) => void;
+  /** Ruta 2 (concesionario) no opera todavía: no tiene producción/reservas
+   * que declarar. */
+  ocultarCapacidadProduccion?: boolean;
 }
 
 type Campo =
@@ -67,7 +70,7 @@ function esEnlaceMaps(valor: string): boolean {
   );
 }
 
-export function PerfilInversionForm({ perfil, onGuardado }: Props) {
+export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduccion }: Props) {
   const { authFetch } = useMineroAuth();
   const [valores, setValores] = useState<Record<Campo, string>>({
     descripcion_operacion: perfil.descripcion_operacion ?? "",
@@ -80,7 +83,11 @@ export function PerfilInversionForm({ perfil, onGuardado }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [guardadoOk, setGuardadoOk] = useState(false);
 
-  const faltantes = CAMPOS.filter(
+  const campos = ocultarCapacidadProduccion
+    ? CAMPOS.filter((c) => c.campo !== "capacidad_produccion")
+    : CAMPOS;
+
+  const faltantes = campos.filter(
     (c) => c.obligatorio && !valores[c.campo].trim()
   );
   const mapsInvalido =
@@ -124,7 +131,7 @@ export function PerfilInversionForm({ perfil, onGuardado }: Props) {
       </p>
 
       <div className="mt-4 flex flex-col gap-4">
-        {CAMPOS.map(({ campo, etiqueta, placeholder, obligatorio, unaLinea }) => (
+        {campos.map(({ campo, etiqueta, placeholder, obligatorio, unaLinea }) => (
           <div key={campo}>
             <label className="mb-1 block text-sm font-medium">
               {etiqueta}

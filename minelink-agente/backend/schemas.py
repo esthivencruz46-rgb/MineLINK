@@ -338,6 +338,9 @@ class MineroPerfilOut(BaseModel):
     tipo_mina: str
     codigo_reinfo: Optional[str] = None
     created_at: datetime
+    # Ruta 1 (minero_artesanal) vs Ruta 2 (concesionario) — decide qué
+    # ventana ve el usuario: /mi-cuenta o /mi-concesion
+    situacion: str = "minero_artesanal"
     # Declaración original del diagnóstico
     score_total: int
     bloqueado: bool
@@ -355,6 +358,24 @@ class MineroPerfilOut(BaseModel):
     ubicacion_maps: Optional[str] = None
     # "buscando" → "contactado": estado del acompañamiento de MineLink
     estado_contacto: str = "buscando"
+    # Perfil capturado en el diagnóstico (ver context/criterios_score.md) —
+    # informativo, declaración original, no editable desde aquí
+    estado_operacion: Optional[str] = None
+    tipo_explotacion: Optional[str] = None
+    material_comercializado: Optional[str] = None
+    forma_comercializacion: Optional[str] = None
+    tiempo_operacion: Optional[str] = None
+    ley_promedio: Optional[str] = None
+    ley_como_obtenida: Optional[str] = None
+    tiene_resultados_laboratorio: Optional[bool] = None
+    concesion_vigente: Optional[bool] = None
+    tipo_deposito: Optional[str] = None
+    etapa_proyecto: Optional[str] = None
+    trabajos_exploracion_json: Optional[list[str]] = None
+    info_geologica_disponible: Optional[bool] = None
+    tiene_estimaciones_leyes: Optional[bool] = None
+    documento_autorizacion: Optional[str] = None
+    tipo_apoyo_json: Optional[list[str]] = None
 
 
 class ProyectoPublicoOut(BaseModel):
