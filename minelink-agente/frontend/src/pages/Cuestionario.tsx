@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AutocompleteDepartamento } from "../components/AutocompleteDepartamento";
 import { ProgressBar } from "../components/ProgressBar";
 import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../data/preguntas";
 import { enviarDiagnostico, registrarEvento } from "../services/api";
 import { guardarDiagnostico } from "../services/storage";
-import type { Respuestas, Situacion, TipoMina } from "../types/diagnostico";
+import type { Respuestas, Situacion } from "../types/diagnostico";
 
 type DatosInformativos = {
   produccion_mensual?: string;
@@ -13,20 +12,25 @@ type DatosInformativos = {
   num_trabajadores?: string;
 };
 
+// Departamento, mineral y tipo de mina ya no se preguntan aquí — se
+// recogerán en otro lugar (pendiente). Por ahora el diagnóstico se
+// calcula con un tipo de mina fijo (subterránea: incluye las 5
+// preguntas de Seguridad) y valores genéricos para región/mineral.
+const TIPO_MINA_POR_DEFECTO = "subterranea" as const;
+const SIN_ESPECIFICAR = "no especificado";
+
 export function Cuestionario() {
   const navigate = useNavigate();
   const [paso, setPaso] = useState(0);
-  const [region, setRegion] = useState("");
-  const [mineral, setMineral] = useState("");
-  const [tipoMina, setTipoMina] = useState<TipoMina | "">("");
   const [situacion, setSituacion] = useState<Situacion | "">("");
   const [respuestas, setRespuestas] = useState<Respuestas>({});
   const [informativas, setInformativas] = useState<DatosInformativos>({});
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const preguntas =
-    tipoMina && situacion ? preguntasAplicables(tipoMina, situacion) : [];
+  const preguntas = situacion
+    ? preguntasAplicables(TIPO_MINA_POR_DEFECTO, situacion)
+    : [];
   const informativasDelCaso = situacion ? informativasAplicables(situacion) : [];
   const TOTAL_PREGUNTAS = preguntas.length;
   const TOTAL_INFORMATIVAS = informativasDelCaso.length;
@@ -39,21 +43,21 @@ export function Cuestionario() {
       : undefined;
 
   async function terminar(respuestasFinales: Respuestas, datosFinales: DatosInformativos) {
-    if (!tipoMina || !situacion) return;
+    if (!situacion) return;
     setEnviando(true);
     setError(null);
     try {
       const respuesta = await enviarDiagnostico({
         respuestas: respuestasFinales,
-        region,
-        mineral: mineral.trim() || "no especificado",
-        tipo_mina: tipoMina,
+        region: SIN_ESPECIFICAR,
+        mineral: SIN_ESPECIFICAR,
+        tipo_mina: TIPO_MINA_POR_DEFECTO,
         situacion,
         produccion_mensual: datosFinales.produccion_mensual,
         maquinaria: datosFinales.maquinaria,
         num_trabajadores: datosFinales.num_trabajadores,
       });
-      guardarDiagnostico({ respuesta, region });
+      guardarDiagnostico({ respuesta, region: SIN_ESPECIFICAR });
       navigate("/resultado");
     } catch {
       setError(
@@ -118,56 +122,8 @@ export function Cuestionario() {
           </div>
         </div>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium">
-            ¿En qué departamento trabajas?
-          </label>
-          <AutocompleteDepartamento
-            value={region}
-            onChange={setRegion}
-            placeholder="Escribe tu departamento"
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">
-            ¿Qué mineral trabajas?
-          </label>
-          <input
-            className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-            placeholder="Ej. oro"
-            value={mineral}
-            onChange={(e) => setMineral(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">
-            ¿Tu mina es subterránea o de tajo abierto?
-          </label>
-          <div className="flex gap-3">
-            <button
-              onClick={() => setTipoMina("subterranea")}
-              className={`min-h-[44px] flex-1 rounded-lg border px-3 font-medium ${
-                tipoMina === "subterranea"
-                  ? "border-acento bg-acento/15 text-acento"
-                  : "border-black/10 dark:border-white/10"
-              }`}
-            >
-              Subterránea
-            </button>
-            <button
-              onClick={() => setTipoMina("tajo_abierto")}
-              className={`min-h-[44px] flex-1 rounded-lg border px-3 font-medium ${
-                tipoMina === "tajo_abierto"
-                  ? "border-acento bg-acento/15 text-acento"
-                  : "border-black/10 dark:border-white/10"
-              }`}
-            >
-              Tajo abierto
-            </button>
-          </div>
-        </div>
         <button
-          disabled={!region || !tipoMina || !situacion}
+          disabled={!situacion}
           onClick={() => {
             registrarEvento("diagnostico_iniciado");
             setPaso(1);

@@ -13,10 +13,7 @@ export type TipoMina = "subterranea" | "tajo_abierto";
 
 // Formulario dinámico: "primero se identifica la situación del usuario y
 // luego se construye un formulario con solo lo que corresponde a su caso"
-export type Situacion =
-  | "minero_artesanal"
-  | "concesionario"
-  | "yacimiento";
+export type Situacion = "minero_artesanal" | "concesionario";
 
 export interface DiagnosticoRequest {
   respuestas: Respuestas;

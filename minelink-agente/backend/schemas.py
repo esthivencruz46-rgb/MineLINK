@@ -45,9 +45,7 @@ class DiagnosticoRequest(BaseModel):
     tipo_mina: Literal["subterranea", "tajo_abierto"]
     # Formulario dinámico: la situación decide qué preguntas aplican
     # (default = comportamiento original)
-    situacion: Literal[
-        "minero_artesanal", "concesionario", "yacimiento"
-    ] = "minero_artesanal"
+    situacion: Literal["minero_artesanal", "concesionario"] = "minero_artesanal"
     nombre_minero: Optional[str] = None
     codigo_reinfo: Optional[str] = None
     # Informativas de Operativo — nunca puntúan, texto libre o ausentes

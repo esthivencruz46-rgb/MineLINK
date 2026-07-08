@@ -1705,21 +1705,17 @@ def test_diagnostico_concesionario_sin_l3():
     assert resp.status_code == 422
 
 
-def test_diagnostico_yacimiento_solo_titularidad_y_tecnico():
-    respuestas = {i: True for i in ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"]}
+def test_diagnostico_situacion_yacimiento_ya_no_existe():
+    # Se descartó esta opción: el producto es solo para quien ya tiene
+    # una operación o una concesión (quedan 2 situaciones, no 3)
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas,
+            "respuestas": {i: True for i in ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"]},
             "region": "puno",
             "mineral": "cobre",
             "tipo_mina": "tajo_abierto",
             "situacion": "yacimiento",
         },
     )
-    assert resp.status_code == 200
-    body = resp.json()
-    assert body["score_total"] == 100  # normalizado sobre su máximo aplicable
-    # Sin operación no hay REINFO → bloqueado → nunca en la vitrina pública
-    assert body["bloqueado"] is True
-    assert set(body["dimensiones"].keys()) == {"legal", "tecnico"}
+    assert resp.status_code == 422

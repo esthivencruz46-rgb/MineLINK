@@ -14,29 +14,34 @@ Filosofía: *"No todos los proyectos mineros son iguales; el sistema primero
 identifica la situación del usuario y luego construye un formulario
 personalizado con únicamente la información que corresponde a su caso."*
 
-Antes de todo se pregunta `situacion`, que decide qué preguntas aplican:
+Antes de todo se pregunta `situacion`, que decide qué preguntas aplican.
+Quedan SOLO 2 opciones (se descartó "no soy minero, pero poseo un
+yacimiento" — el producto es únicamente para quien ya tiene una operación
+o una concesión):
 
 | situacion | Etiqueta | Preguntas que aplican |
 |---|---|---|
 | minero_artesanal | Soy minero artesanal (con o sin REINFO) | TODAS (comportamiento original). El minero "informal" es este mismo caso: su diferencia es el estado, no lo que se evalúa, por eso NO es una opción aparte |
 | concesionario | Tengo una concesión minera y busco apoyo | Todas MENOS L3 (el contrato de explotación es para quien trabaja en concesión ajena) |
-| yacimiento | No soy minero, pero poseo un yacimiento o mineral | SOLO L2, L4, L5 y T1–T6 (sin operación no aplican REINFO, ambiental, producción ni seguridad; también se omiten las informativas O2–O4) |
 
 Reglas derivadas:
 - El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable
   (para el set completo el máximo ya es 100, así que nada cambia en los
   casos originales).
 - Solo se muestran las dimensiones con preguntas aplicables.
-- La regla de exclusión REINFO se mantiene intacta: si L1 no se pregunta
-  (yacimiento), el proyecto queda `bloqueado = true` y por lo tanto NUNCA
-  aparece en la vitrina pública — sin REINFO no hay listado, sin excepciones.
 - La definición ejecutable vive en `backend/scoring.py` → `SITUACIONES`
   (y su espejo en `frontend/src/data/preguntas.ts`); este archivo manda.
 
 ## Dato previo 2: tipo de mina
-Antes del cuestionario se pregunta `tipo_mina`: **subterránea** o **tajo
-abierto (superficie)**. Este dato determina si la pregunta S5 (ventilación)
-aplica — solo tiene sentido en minería subterránea.
+`tipo_mina` (**subterránea** o **tajo abierto**) determina si la pregunta
+S5 (ventilación) aplica — solo tiene sentido en minería subterránea.
+**Ya no se le pregunta al minero en el formulario inicial** (esa pregunta,
+junto con departamento y mineral, se recogerá en otro lugar — pendiente
+de definir): por ahora el diagnóstico usa siempre `tipo_mina=subterranea`
+(las 5 preguntas de Seguridad, incluida S5) y valores genéricos
+("no especificado") para región y mineral. Esto significa que, hasta que
+se implemente esa recolección, los proyectos nuevos en la vitrina pública
+no se pueden filtrar por mineral/departamento real.
 
 ## Las 5 dimensiones (total 100 puntos)
 

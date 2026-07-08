@@ -224,18 +224,12 @@ export const SITUACIONES: {
     titulo: "Tengo una concesión minera y busco apoyo",
     descripcion: "Soy titular de una concesión y quiero desarrollarla.",
   },
-  {
-    valor: "yacimiento",
-    titulo: "No soy minero, pero poseo un yacimiento o mineral",
-    descripcion: "Tengo un terreno o recurso mineral, sin operación en marcha.",
-  },
 ];
 
 // Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados)
 const REGLA_POR_SITUACION: Record<Situacion, { excluir?: string[]; solo?: string[] }> = {
   minero_artesanal: {},
   concesionario: { excluir: ["L3"] },
-  yacimiento: { solo: ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"] },
 };
 
 export function preguntasAplicables(
@@ -251,9 +245,9 @@ export function preguntasAplicables(
 }
 
 /** Las informativas de Operativo (producción, maquinaria, trabajadores)
- * no aplican si no hay operación en marcha. */
-export function informativasAplicables(situacion: Situacion): PreguntaInformativa[] {
-  return situacion === "yacimiento" ? [] : PREGUNTAS_INFORMATIVAS_OPERATIVO;
+ * aplican a las 2 situaciones vigentes (ambas tienen operación en marcha). */
+export function informativasAplicables(_situacion: Situacion): PreguntaInformativa[] {
+  return PREGUNTAS_INFORMATIVAS_OPERATIVO;
 }
 
 export const NOMBRES_DIMENSION: Record<NombreDimension, string> = {

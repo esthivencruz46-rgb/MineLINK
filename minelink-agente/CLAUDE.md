@@ -2,8 +2,13 @@
 
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:
-1. Responde un cuestionario (5 bloques de formalización; el total de
-   preguntas varía según tipo_mina, ver context/criterios_score.md)
+1. Elige su situación (2 opciones: minero artesanal o concesionario que
+   busca apoyo) y responde un cuestionario (5 bloques de formalización;
+   el total de preguntas varía según situación, ver context/criterios_score.md).
+   Departamento, mineral y tipo de mina YA NO se preguntan en este
+   formulario — se recogerán en otro lugar (pendiente de definir); por
+   ahora el diagnóstico usa tipo_mina=subterranea fijo y valores
+   genéricos ("no especificado") para región/mineral
 2. Recibe su score (0-100) y su lista de brechas
 3. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
    le faltan, o postula él mismo como consultor si es profesional

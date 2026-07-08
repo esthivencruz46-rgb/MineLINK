@@ -29,13 +29,6 @@ SITUACIONES = {
     # Titular de concesión que busca apoyo: el contrato de explotación
     # (L3) no aplica — ese contrato es para quien trabaja en concesión ajena
     "concesionario": {"excluir": {"L3"}},
-    # No es minero pero posee un yacimiento/mineral: no opera, así que no
-    # aplican REINFO (L1), contrato (L3), ambiental (una operación que no
-    # existe no tiene IGAFOM), producción (O1) ni seguridad (sin labores ni
-    # trabajadores). Se evalúa titularidad, formalidad básica y lo técnico
-    # del recurso. OJO: sin L1 el proyecto queda bloqueado=True, así que
-    # NUNCA se lista públicamente (regla dura: sin REINFO no hay vitrina).
-    "yacimiento": {"solo": {"L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"}},
 }
 
 DIMENSIONES_BASE = {
