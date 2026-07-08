@@ -78,6 +78,7 @@ export function AdminLeads() {
   const [desde, setDesde] = useState("");
   const [hasta, setHasta] = useState("");
   const [region, setRegion] = useState("");
+  const [situacion, setSituacion] = useState("");
   const [expandido, setExpandido] = useState<number | null>(null);
   const [actualizando, setActualizando] = useState<string | null>(null);
   const [leadDetalle, setLeadDetalle] = useState<LeadConDiagnostico | null>(null);
@@ -95,6 +96,7 @@ export function AdminLeads() {
     if (desde) params.set("desde", desde);
     if (hasta) params.set("hasta", hasta);
     if (region) params.set("region", region);
+    if (situacion) params.set("situacion", situacion);
 
     authFetch(`/admin/leads?${params.toString()}`)
       .then((r) => {
@@ -109,7 +111,7 @@ export function AdminLeads() {
       .finally(() => setCargando(false));
   }
 
-  useEffect(cargar, [desde, hasta, region]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(cargar, [desde, hasta, region, situacion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function alternarBrechaResuelta(lead: LeadConDiagnostico, estudio: string) {
     const yaResuelta = lead.brechas_resueltas.includes(estudio);
@@ -295,6 +297,21 @@ export function AdminLeads() {
             </option>
           ))}
         </select>
+        <select
+          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          value={situacion}
+          onChange={(e) => setSituacion(e.target.value)}
+        >
+          <option value="" className="bg-white text-black">
+            Mineros artesanales y concesionarios
+          </option>
+          <option value="minero_artesanal" className="bg-white text-black">
+            ⛏️ Solo mineros artesanales
+          </option>
+          <option value="concesionario" className="bg-white text-black">
+            📍 Solo concesionarios
+          </option>
+        </select>
       </div>
 
       {error && <p className="text-red-500">{error}</p>}
@@ -332,6 +349,9 @@ export function AdminLeads() {
                       {new Date(lead.created_at).toLocaleString("es-PE")}
                     </td>
                     <td className="p-3">
+                      <span title={lead.situacion === "concesionario" ? "Concesionario" : "Minero artesanal"}>
+                        {lead.situacion === "concesionario" ? "📍" : "⛏️"}
+                      </span>{" "}
                       {lead.nombre}
                       {lead.nombre_operacion && (
                         <p className="text-xs text-texto-suave dark:text-texto-suave-dark">

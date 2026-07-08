@@ -30,6 +30,7 @@ def listar_leads(
     desde: Optional[date] = None,
     hasta: Optional[date] = None,
     region: Optional[str] = None,
+    situacion: Optional[str] = None,
     db: Session = Depends(get_db),
     _admin: str = Depends(get_current_admin),
 ):
@@ -42,6 +43,8 @@ def listar_leads(
         query = query.filter(models.Lead.created_at <= datetime.combine(hasta, time.max))
     if region:
         query = query.filter(models.Lead.region == region)
+    if situacion:
+        query = query.filter(models.Operacion.situacion == situacion)
 
     filas = query.order_by(models.Lead.created_at.desc()).all()
 
