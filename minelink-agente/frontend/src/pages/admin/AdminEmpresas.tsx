@@ -22,6 +22,25 @@ type Formulario = {
   num_resenas: string;
 };
 
+/** Criterios de ordenamiento dentro de cada bloque (pedido de Esthiven:
+ * rating y nº de reseñas primero; sin rating van al final). */
+type Orden = "rating" | "resenas" | "anios" | "nombre";
+
+const ORDENES: { valor: Orden; etiqueta: string }[] = [
+  { valor: "rating", etiqueta: "Mejor rating" },
+  { valor: "resenas", etiqueta: "Más reseñas" },
+  { valor: "anios", etiqueta: "Más años de servicio" },
+  { valor: "nombre", etiqueta: "Nombre (A-Z)" },
+];
+
+function comparar(a: Empresa, b: Empresa, orden: Orden): number {
+  if (orden === "nombre") return a.nombre.localeCompare(b.nombre);
+  if (orden === "anios") return b.anios_servicio - a.anios_servicio;
+  if (orden === "resenas")
+    return (b.num_resenas ?? 0) - (a.num_resenas ?? 0) || (b.rating ?? -1) - (a.rating ?? -1);
+  return (b.rating ?? -1) - (a.rating ?? -1) || (b.num_resenas ?? 0) - (a.num_resenas ?? 0);
+}
+
 const FORMULARIO_VACIO: Formulario = {
   tipo: "empresa",
   nombre: "",
@@ -69,6 +88,8 @@ export function AdminEmpresas() {
   const [guardando, setGuardando] = useState(false);
   const [cvUrl, setCvUrl] = useState<string | null>(null);
   const [cvNombre, setCvNombre] = useState<string>("");
+  const [vista, setVista] = useState<"bloques" | "lista">("bloques");
+  const [orden, setOrden] = useState<Orden>("rating");
 
   function cargar() {
     setCargando(true);
@@ -250,6 +271,25 @@ export function AdminEmpresas() {
 
   const pendientes = empresas.filter((e) => e.tipo === "consultor" && !e.activa);
 
+  const ordenadas = [...empresas].sort((a, b) => comparar(a, b, orden));
+
+  // Vista por bloques: una empresa aparece en cada dimensión donde tenga
+  // al menos un estudio marcado (puede repetirse en varios bloques).
+  const bloques = ORDEN_DIMENSIONES.map((dim) => ({
+    dim,
+    titulo: NOMBRES_DIMENSION[dim],
+    lista: ordenadas.filter((e) =>
+      e.estudios_json.some((est) => ESTUDIOS_POR_DIMENSION[dim].includes(est))
+    ),
+  })).filter((b) => b.lista.length > 0);
+
+  const sinClasificar = ordenadas.filter(
+    (e) =>
+      !ORDEN_DIMENSIONES.some((dim) =>
+        e.estudios_json.some((est) => ESTUDIOS_POR_DIMENSION[dim].includes(est))
+      )
+  );
+
   return (
     <AdminLayout>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
@@ -293,8 +333,85 @@ export function AdminEmpresas() {
       {cargando && <p>Cargando...</p>}
 
       {!cargando && (
-        <div className="overflow-x-auto rounded-lg bg-tarjeta dark:bg-tarjeta-dark">
-          <table className="w-full text-left text-sm">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <div className="flex overflow-hidden rounded-lg border border-black/10 text-sm font-semibold dark:border-white/10">
+            <button
+              onClick={() => setVista("bloques")}
+              className={`min-h-[36px] px-3 ${
+                vista === "bloques" ? "bg-acento text-white" : ""
+              }`}
+            >
+              Por bloques
+            </button>
+            <button
+              onClick={() => setVista("lista")}
+              className={`min-h-[36px] px-3 ${
+                vista === "lista" ? "bg-acento text-white" : ""
+              }`}
+            >
+              Lista completa
+            </button>
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            Ordenar por:
+            <select
+              value={orden}
+              onChange={(e) => setOrden(e.target.value as Orden)}
+              className="min-h-[36px] rounded-lg border border-black/10 bg-tarjeta px-2 dark:border-white/10 dark:bg-tarjeta-dark"
+            >
+              {ORDENES.map((o) => (
+                <option key={o.valor} value={o.valor}>
+                  {o.etiqueta}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
+      {!cargando && vista === "lista" && renderTabla(ordenadas)}
+
+      {!cargando && vista === "bloques" && (
+        <div className="flex flex-col gap-6">
+          {bloques.map((b) => (
+            <div key={b.dim}>
+              <h2 className="mb-2 text-lg font-bold">
+                {b.titulo}{" "}
+                <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                  ({b.lista.length})
+                </span>
+              </h2>
+              {renderTabla(b.lista)}
+            </div>
+          ))}
+          {sinClasificar.length > 0 && (
+            <div>
+              <h2 className="mb-2 text-lg font-bold">
+                Sin estudios asignados{" "}
+                <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                  ({sinClasificar.length})
+                </span>
+              </h2>
+              {renderTabla(sinClasificar)}
+            </div>
+          )}
+          {bloques.length === 0 && sinClasificar.length === 0 && (
+            <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+              Todavía no hay empresas ni consultores registrados.
+            </p>
+          )}
+        </div>
+      )}
+
+      {renderModales()}
+    </AdminLayout>
+  );
+
+  // Tabla reutilizada por la vista de lista y por cada bloque de dimensión
+  function renderTabla(lista: Empresa[]) {
+    return (
+      <div className="overflow-x-auto rounded-lg bg-tarjeta dark:bg-tarjeta-dark">
+        <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-black/10 dark:border-white/10">
                 <th className="p-3">Tipo</th>
@@ -302,13 +419,14 @@ export function AdminEmpresas() {
                 <th className="p-3">RUC / Colegiatura</th>
                 <th className="p-3">Años</th>
                 <th className="p-3">Rating</th>
+                <th className="p-3">Reseñas</th>
                 <th className="p-3">Departamentos</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
             <tbody>
-              {empresas.map((e) => (
+              {lista.map((e) => (
                 <tr key={e.id} className="border-b border-black/5 dark:border-white/5">
                   <td className="p-3">
                     <span className="rounded-full bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
@@ -320,16 +438,12 @@ export function AdminEmpresas() {
                   <td className="p-3">{e.anios_servicio}</td>
                   <td className="p-3 whitespace-nowrap">
                     {e.rating != null ? (
-                      <>
-                        ⭐ {e.rating}
-                        <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                          {" "}({e.num_resenas ?? 0})
-                        </span>
-                      </>
+                      <>⭐ {e.rating}</>
                     ) : (
                       <span className="text-texto-suave dark:text-texto-suave-dark">—</span>
                     )}
                   </td>
+                  <td className="p-3">{e.num_resenas ?? 0}</td>
                   <td className="p-3 capitalize">{e.regiones_json.join(", ")}</td>
                   <td className="p-3">
                     <span
@@ -382,10 +496,15 @@ export function AdminEmpresas() {
                 </tr>
               ))}
             </tbody>
-          </table>
-        </div>
-      )}
+        </table>
+      </div>
+    );
+  }
 
+  // Modales (formulario de empresa y visor de CV)
+  function renderModales() {
+    return (
+      <>
       {mostrarForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
           <div className="my-8 w-full max-w-lg rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
@@ -602,6 +721,7 @@ export function AdminEmpresas() {
           />
         </div>
       )}
-    </AdminLayout>
-  );
+      </>
+    );
+  }
 }

@@ -53,7 +53,11 @@ por seguimiento manual (ver agents/admin.md). Las empresas NO tienen
 acceso; Esthiven las carga manualmente, o las aprueba si un consultor
 independiente se postuló solo. El rating de empresas/consultores solo se
 ve en el admin; en la página pública /empresas ordena internamente los
-bloques (Empresas / Consultores) de mejor a peor, sin mostrarse.
+bloques (Empresas / Consultores) de mejor a peor, sin mostrarse. En
+/admin/empresas la vista por defecto agrupa por bloques de dimensión
+(Legal, Ambiental, Operativo, Técnico, Seguridad — una empresa puede
+aparecer en varios), con columnas de rating y nº de reseñas y un selector
+de orden (rating / reseñas / años / nombre); hay un toggle a lista completa.
 
 ## Rol de este archivo
 Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:

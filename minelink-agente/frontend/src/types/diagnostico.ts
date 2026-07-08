@@ -15,7 +15,6 @@ export type TipoMina = "subterranea" | "tajo_abierto";
 // luego se construye un formulario con solo lo que corresponde a su caso"
 export type Situacion =
   | "minero_artesanal"
-  | "minero_informal"
   | "concesionario"
   | "yacimiento";
 

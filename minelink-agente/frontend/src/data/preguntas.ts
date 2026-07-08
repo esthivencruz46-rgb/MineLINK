@@ -217,12 +217,7 @@ export const SITUACIONES: {
   {
     valor: "minero_artesanal",
     titulo: "Soy minero artesanal",
-    descripcion: "Trabajo una labor minera pequeña, en actividad.",
-  },
-  {
-    valor: "minero_informal",
-    titulo: "Soy minero informal",
-    descripcion: "Opero sin REINFO, o con el trámite todavía en proceso.",
+    descripcion: "Trabajo una labor minera pequeña, con o sin REINFO.",
   },
   {
     valor: "concesionario",
@@ -239,7 +234,6 @@ export const SITUACIONES: {
 // Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados)
 const REGLA_POR_SITUACION: Record<Situacion, { excluir?: string[]; solo?: string[] }> = {
   minero_artesanal: {},
-  minero_informal: {},
   concesionario: { excluir: ["L3"] },
   yacimiento: { solo: ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"] },
 };

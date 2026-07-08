@@ -22,11 +22,10 @@ TIPOS_MINA = ("subterranea", "tajo_abierto")
 #   - "excluir" = todas menos esas
 #   - "solo"    = únicamente esas
 SITUACIONES = {
-    # Minero artesanal en actividad: el caso original, todas las preguntas
+    # Minero artesanal en actividad (con o sin REINFO): el caso original,
+    # todas las preguntas. El minero "informal" es este mismo caso — su
+    # diferencia es el estado, no lo que se evalúa, así que no es una opción.
     "minero_artesanal": None,
-    # Minero informal (sin REINFO o en trámite): mismas preguntas — su
-    # diferencia es el estado, no lo que hay que evaluar
-    "minero_informal": None,
     # Titular de concesión que busca apoyo: el contrato de explotación
     # (L3) no aplica — ese contrato es para quien trabaja en concesión ajena
     "concesionario": {"excluir": {"L3"}},

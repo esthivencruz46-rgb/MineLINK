@@ -18,8 +18,7 @@ Antes de todo se pregunta `situacion`, que decide qué preguntas aplican:
 
 | situacion | Etiqueta | Preguntas que aplican |
 |---|---|---|
-| minero_artesanal | Soy minero artesanal | TODAS (comportamiento original) |
-| minero_informal | Soy minero informal (sin REINFO o en trámite) | TODAS — su diferencia es el estado, no lo que se evalúa |
+| minero_artesanal | Soy minero artesanal (con o sin REINFO) | TODAS (comportamiento original). El minero "informal" es este mismo caso: su diferencia es el estado, no lo que se evalúa, por eso NO es una opción aparte |
 | concesionario | Tengo una concesión minera y busco apoyo | Todas MENOS L3 (el contrato de explotación es para quien trabaja en concesión ajena) |
 | yacimiento | No soy minero, pero poseo un yacimiento o mineral | SOLO L2, L4, L5 y T1–T6 (sin operación no aplican REINFO, ambiental, producción ni seguridad; también se omiten las informativas O2–O4) |
 

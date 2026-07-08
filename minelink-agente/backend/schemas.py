@@ -18,7 +18,7 @@ class DiagnosticoRequest(BaseModel):
     # Formulario dinámico: la situación decide qué preguntas aplican
     # (default = comportamiento original)
     situacion: Literal[
-        "minero_artesanal", "minero_informal", "concesionario", "yacimiento"
+        "minero_artesanal", "concesionario", "yacimiento"
     ] = "minero_artesanal"
     nombre_minero: Optional[str] = None
     codigo_reinfo: Optional[str] = None
