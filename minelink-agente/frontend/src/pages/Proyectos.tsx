@@ -29,7 +29,7 @@ export function Proyectos() {
   }, [mineral, region]);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
       <h1 className="text-2xl font-bold">Proyectos mineros</h1>
       <p className="text-texto-suave dark:text-texto-suave-dark">
         Operaciones formalizándose en Perú, en camino a REINFO. Búscalas por
@@ -77,26 +77,36 @@ export function Proyectos() {
         </p>
       )}
 
-      {!cargando &&
-        (["minero_artesanal", "concesionario"] as const).map((sit) => {
-          const grupo = proyectos.filter((p) => p.situacion === sit);
-          if (grupo.length === 0) return null;
-          return (
-            <div key={sit} className="flex flex-col gap-4">
-              <h2 className="text-lg font-bold">
-                {sit === "minero_artesanal" ? "⛏️ Operaciones activas" : "📍 Concesiones en preparación"}
-                <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
-                  ({grupo.length})
-                </span>
-              </h2>
-              <div className="flex flex-col gap-4">
-                {grupo.map((p) => (
-                  <ProyectoCard key={p.operacion_id} proyecto={p} />
-                ))}
+      {!cargando && proyectos.length > 0 && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {(["minero_artesanal", "concesionario"] as const).map((sit) => {
+            const grupo = proyectos
+              .filter((p) => p.situacion === sit)
+              .sort((a, b) => b.score_actual - a.score_actual);
+            return (
+              <div key={sit} className="flex flex-col gap-4">
+                <h2 className="text-lg font-bold">
+                  {sit === "minero_artesanal" ? "⛏️ Operaciones activas" : "📍 Concesiones en preparación"}
+                  <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                    ({grupo.length})
+                  </span>
+                </h2>
+                {grupo.length === 0 ? (
+                  <p className="rounded-lg bg-tarjeta p-4 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+                    Todavía no hay proyectos en este grupo.
+                  </p>
+                ) : (
+                  <div className="flex flex-col gap-4">
+                    {grupo.map((p) => (
+                      <ProyectoCard key={p.operacion_id} proyecto={p} />
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
