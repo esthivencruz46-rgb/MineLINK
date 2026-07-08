@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { PreguntaPerfilScreen } from "../components/PreguntaPerfilScreen";
 import { ProgressBar } from "../components/ProgressBar";
 import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../data/preguntas";
-import { PERFIL_ARTESANAL, PERFIL_CONCESIONARIO, type PreguntaPerfil } from "../data/preguntasPerfil";
+import {
+  OPCIONES_UNIDAD_LEY,
+  PERFIL_ARTESANAL,
+  PERFIL_CONCESIONARIO,
+  type PreguntaPerfil,
+} from "../data/preguntasPerfil";
 import { enviarDiagnostico, registrarEvento } from "../services/api";
 import { guardarDiagnostico } from "../services/storage";
 import type { DiagnosticoRequest, Respuestas, Situacion, TipoMina } from "../types/diagnostico";
@@ -17,8 +22,7 @@ type DatosInformativos = {
 type Perfil = Record<string, unknown>;
 
 // Departamento sigue sin preguntarse (pendiente de definir dónde
-// recogerlo). Mineral se deriva del "elemento económico principal" del
-// perfil de cada ruta.
+// recogerlo). Mineral se deriva de los elementos económicos del perfil.
 const SIN_ESPECIFICAR = "no especificado";
 
 function textoOpcional(v: unknown): string | undefined {
@@ -36,6 +40,35 @@ function listaOpcional(v: unknown): string[] | undefined {
 function tipoMinaDe(situacion: Situacion, perfil: Perfil): TipoMina {
   if (situacion !== "minero_artesanal") return "subterranea"; // fijo, irrelevante en Ruta 2
   return perfil.tipo_explotacion === "subterranea" ? "subterranea" : "tajo_abierto";
+}
+
+/** Construye el perfil visible insertando, dinámicamente, una pregunta de
+ * ley (valor+unidad en una sola pantalla) por CADA elemento económico que
+ * el minero marcó — justo después de "¿Conoces la ley...?". */
+function construirPerfilVisible(situacion: Situacion, perfil: Perfil): PreguntaPerfil[] {
+  const base = situacion === "concesionario" ? PERFIL_CONCESIONARIO : PERFIL_ARTESANAL;
+  const visibles = base.filter((p) => !p.mostrarSi || p.mostrarSi(perfil));
+
+  if (situacion !== "minero_artesanal" || perfil.conoce_ley !== true) return visibles;
+  const elementos = Array.isArray(perfil.elemento_valor) ? (perfil.elemento_valor as string[]) : [];
+  if (elementos.length === 0) return visibles;
+
+  const preguntasLey: PreguntaPerfil[] = elementos.map((elemento) => ({
+    campo: `ley__${elemento}`,
+    texto: `¿Cuál es la ley promedio de ${elemento}?`,
+    tipo: "numero_con_unidad",
+    placeholder: "Ej. 2.5",
+    opciones: OPCIONES_UNIDAD_LEY,
+    permiteOtro: true,
+  }));
+
+  const indiceConoceLey = visibles.findIndex((p) => p.campo === "conoce_ley");
+  if (indiceConoceLey === -1) return visibles;
+  return [
+    ...visibles.slice(0, indiceConoceLey + 1),
+    ...preguntasLey,
+    ...visibles.slice(indiceConoceLey + 1),
+  ];
 }
 
 /** Ruta 2 (concesionario): TODAS sus preguntas de formalización (L1-L4,L6,
@@ -57,6 +90,29 @@ function respuestasPrellenadasDe(situacion: Situacion, perfil: Perfil): Respuest
   };
 }
 
+/** "Oro: 2.5 g/t; Plata: 30 g/t" — una ley por cada elemento marcado. */
+function leyPromedioDe(perfilFinal: Perfil): string | undefined {
+  if (perfilFinal.conoce_ley !== true) return undefined;
+  const elementos = Array.isArray(perfilFinal.elemento_valor)
+    ? (perfilFinal.elemento_valor as string[])
+    : [];
+  const partes = elementos
+    .map((elemento) => {
+      const valor = textoOpcional(perfilFinal[`ley__${elemento}`]);
+      return valor ? `${elemento}: ${valor}` : null;
+    })
+    .filter((v): v is string => v !== null);
+  return partes.length > 0 ? partes.join("; ") : undefined;
+}
+
+function mineralDe(perfilFinal: Perfil): string {
+  const elementos = Array.isArray(perfilFinal.elemento_valor)
+    ? (perfilFinal.elemento_valor as string[])
+    : [];
+  if (elementos.length > 0) return elementos.join(", ");
+  return textoOpcional(perfilFinal.elemento_valor) ?? SIN_ESPECIFICAR;
+}
+
 export function Cuestionario() {
   const navigate = useNavigate();
   const [paso, setPaso] = useState(0);
@@ -67,9 +123,7 @@ export function Cuestionario() {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const perfilArray: PreguntaPerfil[] =
-    situacion === "concesionario" ? PERFIL_CONCESIONARIO : situacion === "minero_artesanal" ? PERFIL_ARTESANAL : [];
-  const perfilVisible = perfilArray.filter((p) => !p.mostrarSi || p.mostrarSi(perfil));
+  const perfilVisible = situacion ? construirPerfilVisible(situacion, perfil) : [];
   const TOTAL_PERFIL = perfilVisible.length;
 
   const respuestasPrellenadas = situacion ? respuestasPrellenadasDe(situacion, perfil) : {};
@@ -92,6 +146,10 @@ export function Cuestionario() {
       ? informativasDelCaso[paso - TOTAL_PERFIL - TOTAL_PREGUNTAS - 1]
       : undefined;
 
+  function volver() {
+    setPaso((p) => Math.max(0, p - 1));
+  }
+
   async function terminar(
     respuestasFinales: Respuestas,
     datosFinales: DatosInformativos,
@@ -101,24 +159,13 @@ export function Cuestionario() {
     setEnviando(true);
     setError(null);
     try {
-      const mineral = textoOpcional(perfilFinal.elemento_valor) ?? SIN_ESPECIFICAR;
-      const produccionValor = textoOpcional(perfilFinal.produccion_mensual_valor);
-      const produccionMensual = produccionValor
-        ? `${produccionValor} ${textoOpcional(perfilFinal.produccion_mensual_unidad) ?? ""}`.trim()
-        : undefined;
-      const leyValor =
-        perfilFinal.conoce_ley === true ? textoOpcional(perfilFinal.ley_valor) : undefined;
-      const leyPromedio = leyValor
-        ? `${leyValor} ${textoOpcional(perfilFinal.ley_unidad) ?? ""}`.trim()
-        : undefined;
-
       const payload: DiagnosticoRequest = {
         respuestas: { ...respuestasPrellenadasDe(situacion, perfilFinal), ...respuestasFinales },
         region: SIN_ESPECIFICAR,
-        mineral,
+        mineral: mineralDe(perfilFinal),
         tipo_mina: tipoMinaDe(situacion, perfilFinal),
         situacion,
-        produccion_mensual: produccionMensual,
+        produccion_mensual: textoOpcional(perfilFinal.produccion_mensual),
         maquinaria: datosFinales.maquinaria,
         num_trabajadores: datosFinales.num_trabajadores,
         estado_operacion: textoOpcional(perfilFinal.estado_operacion),
@@ -126,7 +173,7 @@ export function Cuestionario() {
         material_comercializado: textoOpcional(perfilFinal.material_comercializado),
         forma_comercializacion: textoOpcional(perfilFinal.forma_comercializacion),
         tiempo_operacion: textoOpcional(perfilFinal.tiempo_operacion),
-        ley_promedio: leyPromedio,
+        ley_promedio: leyPromedioDe(perfilFinal),
         ley_como_obtenida: textoOpcional(perfilFinal.ley_como_obtenida),
         tiene_resultados_laboratorio: boolOpcional(perfilFinal.tiene_resultados_laboratorio),
         concesion_vigente: boolOpcional(perfilFinal.concesion_vigente),
@@ -156,9 +203,7 @@ export function Cuestionario() {
     const nuevoPerfil = { ...perfil, [perfilActual.campo]: valor };
     setPerfil(nuevoPerfil);
 
-    const visibleTrasResponder = perfilArray.filter(
-      (p) => !p.mostrarSi || p.mostrarSi(nuevoPerfil)
-    );
+    const visibleTrasResponder = construirPerfilVisible(situacion, nuevoPerfil);
     const esUltimoPasoDelPerfil = paso >= visibleTrasResponder.length;
 
     if (esUltimoPasoDelPerfil && TOTAL_PREGUNTAS === 0 && TOTAL_INFORMATIVAS === 0) {
@@ -244,6 +289,7 @@ export function Cuestionario() {
         pregunta={perfilActual}
         valorActual={perfil[perfilActual.campo]}
         onResponder={responderPerfil}
+        onVolver={volver}
       />
     );
   }
@@ -256,12 +302,19 @@ export function Cuestionario() {
         valorActual={informativas[informativaActual.campo]}
         pasoActual={TOTAL_PERFIL + TOTAL_PREGUNTAS + (paso - TOTAL_PERFIL - TOTAL_PREGUNTAS)}
         onResponder={responderInformativa}
+        onVolver={volver}
       />
     );
   }
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
+      <button
+        onClick={volver}
+        className="self-start text-sm text-texto-suave underline dark:text-texto-suave-dark"
+      >
+        ← Volver
+      </button>
       <ProgressBar actual={paso} total={TOTAL_PERFIL + TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS} />
 
       {preguntaActual && (
@@ -318,16 +371,24 @@ function InformativaScreen({
   valorActual,
   pasoActual,
   onResponder,
+  onVolver,
 }: {
   pregunta: { campo: string; texto: string; placeholder: string };
   valorActual?: string;
   pasoActual: number;
   onResponder: (valor: string | undefined) => void;
+  onVolver: () => void;
 }) {
   const [texto, setTexto] = useState(valorActual ?? "");
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
+      <button
+        onClick={onVolver}
+        className="self-start text-sm text-texto-suave underline dark:text-texto-suave-dark"
+      >
+        ← Volver
+      </button>
       <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
         Pregunta {pasoActual} · esta no afecta tu puntaje
       </p>

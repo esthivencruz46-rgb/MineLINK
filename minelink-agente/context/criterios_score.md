@@ -28,9 +28,13 @@ Perfil informativo (Operación/Producción, se guarda en `Operacion`, NUNCA
 puntúa): estado de la operación (activa/no activa/temporal), tipo de
 explotación (subterránea/tajo abierto/aluvial/mixta/otro — de aquí se
 deriva `tipo_mina`, ya no se pregunta aparte), material comercializado,
-elemento económico principal (→ `mineral`), forma de comercialización,
-tiempo de operación, producción mensual + unidad, ley promedio + unidad,
-cómo se obtuvo la ley, si cuenta con resultados de laboratorio.
+**elementos económicos que extrae (selección múltiple, → `mineral` unidos
+por coma)**, forma de comercialización, tiempo de operación, producción
+mensual (valor+unidad en una sola pregunta). Si conoce la ley, se pregunta
+**una ley (valor+unidad, una sola pregunta) por CADA elemento marcado**
+(ej. si marcó oro y plata, dos preguntas de ley) — todas se combinan en
+`ley_promedio` como `"Oro: 2.5 g/t; Plata: 30 g/t"`. Luego cómo se obtuvo
+la ley, y si cuenta con resultados de laboratorio.
 
 Formalización: el cuestionario Sí/No de siempre, **TODAS las preguntas**
 (L1-L5, A1-A3, O1, T1-T6, S1-S5) — sin cambios respecto a antes. `L6`

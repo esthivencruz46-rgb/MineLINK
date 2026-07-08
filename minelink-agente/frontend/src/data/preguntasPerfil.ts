@@ -2,7 +2,13 @@
  * puntúa el MineScore. Dos arrays completamente distintos (Ruta 1: ya
  * opera / Ruta 2: recién inicia), ver context/criterios_score.md. */
 
-export type TipoPreguntaPerfil = "opciones" | "opciones_multi" | "texto" | "numero" | "booleano";
+export type TipoPreguntaPerfil =
+  | "opciones"
+  | "opciones_multi"
+  | "texto"
+  | "numero"
+  | "numero_con_unidad"
+  | "booleano";
 
 export interface OpcionPerfil {
   valor: string;
@@ -52,6 +58,21 @@ const OPCIONES_DOCUMENTO_AUTORIZACION: OpcionPerfil[] = [
   { valor: "autorización del titular", etiqueta: "Autorización del titular" },
 ];
 
+/** Reutilizado por Cuestionario.tsx para generar dinámicamente una pregunta
+ * de ley por cada elemento económico seleccionado. */
+export const OPCIONES_UNIDAD_LEY: OpcionPerfil[] = [
+  { valor: "g/t", etiqueta: "g/t" },
+  { valor: "%", etiqueta: "%" },
+  { valor: "ppm", etiqueta: "ppm" },
+];
+
+export const OPCIONES_UNIDAD_PRODUCCION: OpcionPerfil[] = [
+  { valor: "toneladas de mineral", etiqueta: "Toneladas de mineral" },
+  { valor: "toneladas de concentrado", etiqueta: "Toneladas de concentrado" },
+  { valor: "gramos de metal", etiqueta: "Gramos de metal" },
+  { valor: "kilogramos", etiqueta: "Kilogramos" },
+];
+
 // ---------- Ruta 1: minero_artesanal (ya opera) ----------
 
 export const PERFIL_ARTESANAL: PreguntaPerfil[] = [
@@ -93,10 +114,9 @@ export const PERFIL_ARTESANAL: PreguntaPerfil[] = [
   },
   {
     campo: "elemento_valor",
-    texto: "¿Cuál es el principal elemento económico contenido en ese material?",
-    tipo: "opciones",
+    texto: "¿Qué elementos económicos extraes? (puedes marcar varios)",
+    tipo: "opciones_multi",
     opciones: OPCIONES_ELEMENTO_VALOR,
-    permiteOtro: true,
   },
   {
     campo: "forma_comercializacion",
@@ -122,51 +142,24 @@ export const PERFIL_ARTESANAL: PreguntaPerfil[] = [
     ],
   },
   {
-    campo: "produccion_mensual_valor",
+    campo: "produccion_mensual",
     texto: "¿Cuál es tu producción mensual aproximada?",
-    tipo: "numero",
+    tipo: "numero_con_unidad",
     placeholder: "Ej. 30",
-  },
-  {
-    campo: "produccion_mensual_unidad",
-    texto: "¿En qué unidad registras tu producción?",
-    tipo: "opciones",
-    opciones: [
-      { valor: "toneladas de mineral", etiqueta: "Toneladas de mineral" },
-      { valor: "toneladas de concentrado", etiqueta: "Toneladas de concentrado" },
-      { valor: "gramos de metal", etiqueta: "Gramos de metal" },
-      { valor: "kilogramos", etiqueta: "Kilogramos" },
-    ],
+    opciones: OPCIONES_UNIDAD_PRODUCCION,
     permiteOtro: true,
-    mostrarSi: (p) => !!p.produccion_mensual_valor,
   },
   {
     campo: "conoce_ley",
-    texto: "¿Conoces la ley promedio del material?",
+    texto: "¿Conoces la ley promedio de los elementos que extraes?",
     tipo: "booleano",
   },
-  {
-    campo: "ley_valor",
-    texto: "¿Cuál es la ley promedio?",
-    tipo: "numero",
-    placeholder: "Ej. 2.5",
-    mostrarSi: (p) => p.conoce_ley === true,
-  },
-  {
-    campo: "ley_unidad",
-    texto: "¿En qué unidad está expresada?",
-    tipo: "opciones",
-    opciones: [
-      { valor: "g/t", etiqueta: "g/t" },
-      { valor: "%", etiqueta: "%" },
-      { valor: "ppm", etiqueta: "ppm" },
-    ],
-    permiteOtro: true,
-    mostrarSi: (p) => p.conoce_ley === true,
-  },
+  // Las preguntas de ley (una por cada elemento marcado arriba, valor+unidad
+  // en una sola pantalla) se insertan dinámicamente aquí — ver
+  // construirPerfilVisible() en Cuestionario.tsx.
   {
     campo: "ley_como_obtenida",
-    texto: "¿Cómo obtuviste esa ley?",
+    texto: "¿Cómo obtuviste esas leyes?",
     tipo: "opciones",
     opciones: [
       { valor: "Ensaye de laboratorio certificado", etiqueta: "Ensaye de laboratorio certificado" },
