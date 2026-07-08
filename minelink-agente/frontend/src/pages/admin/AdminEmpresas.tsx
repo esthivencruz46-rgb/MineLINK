@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AdminLayout } from "../../components/AdminLayout";
+import { CampoTelefono } from "../../components/CampoTelefono";
 import { useAuth } from "../../context/AuthContext";
 import { DEPARTAMENTOS } from "../../data/departamentos";
 import { INFO_BRECHA } from "../../data/brechas";
@@ -47,7 +48,7 @@ const FORMULARIO_VACIO: Formulario = {
   ruc: "",
   colegiatura: "",
   anios_servicio: "",
-  whatsapp: "+51",
+  whatsapp: "",
   email: "",
   regiones_json: [],
   estudios_json: [],
@@ -61,12 +62,12 @@ function validar(f: Formulario): Record<string, string> {
   if (!f.nombre.trim()) errores.nombre = "El nombre es obligatorio";
   if (f.tipo === "empresa" && !/^\d{11}$/.test(f.ruc))
     errores.ruc = "El RUC debe tener 11 dígitos numéricos";
-  if (f.tipo === "consultor" && !f.colegiatura.trim())
-    errores.colegiatura = "La colegiatura es obligatoria";
+  if (f.tipo === "consultor" && !/^\d+$/.test(f.colegiatura.trim()))
+    errores.colegiatura = "Ingresa solo el número de colegiatura (ej. 123456)";
   if (!f.anios_servicio || Number(f.anios_servicio) < 0)
     errores.anios_servicio = "Ingresa un número válido de años";
-  if (!/^\+51\d{9}$/.test(f.whatsapp))
-    errores.whatsapp = "El WhatsApp debe tener formato +51987654321";
+  if (!/^\d{9}$/.test(f.whatsapp))
+    errores.whatsapp = "Ingresa los 9 dígitos del número (sin el +51)";
   if (f.regiones_json.length === 0)
     errores.regiones_json = "Marca al menos 1 departamento";
   if (f.estudios_json.length === 0)
@@ -123,7 +124,7 @@ export function AdminEmpresas() {
       ruc: empresa.ruc ?? "",
       colegiatura: empresa.colegiatura ?? "",
       anios_servicio: String(empresa.anios_servicio),
-      whatsapp: empresa.whatsapp,
+      whatsapp: empresa.whatsapp.replace(/^\+51/, ""),
       email: empresa.email ?? "",
       regiones_json: empresa.regiones_json,
       estudios_json: empresa.estudios_json,
@@ -156,7 +157,7 @@ export function AdminEmpresas() {
       ruc: form.tipo === "empresa" ? form.ruc : null,
       colegiatura: form.tipo === "consultor" ? form.colegiatura.trim() : null,
       anios_servicio: Number(form.anios_servicio),
-      whatsapp: form.whatsapp,
+      whatsapp: `+51${form.whatsapp}`,
       email: form.email.trim() || null,
       regiones_json: form.regiones_json,
       estudios_json: form.estudios_json,
@@ -556,7 +557,7 @@ export function AdminEmpresas() {
                 <div>
                   <input
                     className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-                    placeholder="Colegiatura (ej. CIP 123456)"
+                    placeholder="N° de colegiatura (solo el número, ej. 123456)"
                     value={form.colegiatura}
                     onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
                   />
@@ -607,11 +608,9 @@ export function AdminEmpresas() {
               </div>
 
               <div>
-                <input
-                  className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-                  placeholder="+51987654321"
+                <CampoTelefono
                   value={form.whatsapp}
-                  onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+                  onChange={(v) => setForm({ ...form, whatsapp: v })}
                 />
                 {errores.whatsapp && (
                   <p className="mt-1 text-xs text-red-500">{errores.whatsapp}</p>

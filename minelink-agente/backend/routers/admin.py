@@ -405,8 +405,12 @@ async def importar_empresas(
                 raise ValueError("falta el nombre")
 
             ruc = fila.get("ruc") or None
+            # Normalizadas ANTES del chequeo de duplicados, para que "CIP 123"
+            # y "123" (o "+51 9..." y "+519...") cuenten como el mismo registro
             colegiatura = fila.get("colegiatura") or None
-            whatsapp = fila.get("whatsapp", "")
+            if colegiatura:
+                colegiatura = schemas.normalizar_colegiatura(colegiatura)
+            whatsapp = schemas.normalizar_whatsapp(fila.get("whatsapp", ""))
 
             condiciones = [
                 (models.Empresa.nombre == nombre) & (models.Empresa.whatsapp == whatsapp)

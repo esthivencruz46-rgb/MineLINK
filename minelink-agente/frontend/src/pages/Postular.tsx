@@ -4,6 +4,7 @@ import { INFO_BRECHA } from "../data/brechas";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { ESTUDIOS_POR_DIMENSION, ORDEN_DIMENSIONES } from "../data/estudiosPorDimension";
 import { postularConsultor } from "../services/api";
+import { CampoTelefono } from "../components/CampoTelefono";
 
 interface Formulario {
   nombre: string;
@@ -19,7 +20,7 @@ const VACIO: Formulario = {
   nombre: "",
   colegiatura: "",
   anios_servicio: "",
-  whatsapp: "+51",
+  whatsapp: "",
   email: "",
   regiones_json: [],
   estudios_json: [],
@@ -30,11 +31,12 @@ const CV_TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024; // 5 MB, igual que el backend
 function validar(f: Formulario, cv: File | null): Record<string, string> {
   const errores: Record<string, string> = {};
   if (!f.nombre.trim()) errores.nombre = "Tu nombre es obligatorio";
-  if (!f.colegiatura.trim()) errores.colegiatura = "La colegiatura es obligatoria";
+  if (!/^\d+$/.test(f.colegiatura.trim()))
+    errores.colegiatura = "Ingresa solo el número de tu colegiatura (ej. 123456)";
   if (!f.anios_servicio || Number(f.anios_servicio) < 3)
     errores.anios_servicio = "Se requiere un mínimo de 3 años de experiencia";
-  if (!/^\+51\d{9}$/.test(f.whatsapp))
-    errores.whatsapp = "El WhatsApp debe tener formato +51987654321";
+  if (!/^\d{9}$/.test(f.whatsapp))
+    errores.whatsapp = "Ingresa los 9 dígitos de tu número (sin el +51)";
   if (f.regiones_json.length === 0)
     errores.regiones_json = "Marca al menos 1 departamento";
   if (f.estudios_json.length === 0)
@@ -72,7 +74,7 @@ export function Postular() {
         nombre: form.nombre.trim(),
         colegiatura: form.colegiatura.trim(),
         anios_servicio: Number(form.anios_servicio),
-        whatsapp: form.whatsapp,
+        whatsapp: `+51${form.whatsapp}`,
         email: form.email.trim() || undefined,
         regiones_json: form.regiones_json,
         estudios_json: form.estudios_json,
@@ -121,7 +123,7 @@ export function Postular() {
       <div>
         <input
           className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
-          placeholder="Colegiatura (ej. CIP 123456)"
+          placeholder="N° de colegiatura (solo el número, ej. 123456)"
           value={form.colegiatura}
           onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
         />
@@ -145,11 +147,10 @@ export function Postular() {
       </div>
 
       <div>
-        <input
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
-          placeholder="+51987654321"
+        <CampoTelefono
           value={form.whatsapp}
-          onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+          onChange={(v) => setForm({ ...form, whatsapp: v })}
+          placeholder="Tu WhatsApp (9 dígitos)"
         />
         {errores.whatsapp && <p className="mt-1 text-xs text-red-500">{errores.whatsapp}</p>}
       </div>

@@ -8,6 +8,25 @@ from scoring import ids_esperados_para
 TIPOS_MINA = ("subterranea", "tajo_abierto")
 
 
+def normalizar_whatsapp(v: str) -> str:
+    """Acepta '+51 987654321', '987654321' o '+51987654321' y guarda
+    siempre '+51987654321' (los enlaces wa.me necesitan el formato pegado)."""
+    v = v.replace(" ", "").replace("-", "")
+    if v and not v.startswith("+"):
+        v = f"+51{v}"
+    if not v.startswith("+51") or not v[1:].isdigit():
+        raise ValueError("WhatsApp debe ser +51 seguido del número (ej. +51 987654321)")
+    return v
+
+
+def normalizar_colegiatura(v: str) -> str:
+    """Solo el número de colegiatura: se descarta 'CIP', espacios, etc."""
+    numero = "".join(c for c in v if c.isdigit())
+    if not numero:
+        raise ValueError("La colegiatura debe ser solo el número (ej. 123456)")
+    return numero
+
+
 # ---------- Diagnostico ----------
 
 class DiagnosticoRequest(BaseModel):
@@ -90,9 +109,14 @@ class EmpresaBase(BaseModel):
     @field_validator("whatsapp")
     @classmethod
     def validar_whatsapp(cls, v: str) -> str:
-        if not v.startswith("+51") or not v[1:].isdigit():
-            raise ValueError("WhatsApp debe tener formato +51XXXXXXXXX")
-        return v
+        return normalizar_whatsapp(v)
+
+    @field_validator("colegiatura")
+    @classmethod
+    def validar_colegiatura(cls, v: Optional[str]) -> Optional[str]:
+        if v is None or not v.strip():
+            return None
+        return normalizar_colegiatura(v)
 
     @field_validator("regiones_json")
     @classmethod
@@ -158,7 +182,7 @@ class PostulacionConsultorCreate(BaseModel):
     def validar_colegiatura(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("La colegiatura es obligatoria")
-        return v.strip()
+        return normalizar_colegiatura(v)
 
     @field_validator("anios_servicio")
     @classmethod
@@ -170,9 +194,7 @@ class PostulacionConsultorCreate(BaseModel):
     @field_validator("whatsapp")
     @classmethod
     def validar_whatsapp(cls, v: str) -> str:
-        if not v.startswith("+51") or not v[1:].isdigit():
-            raise ValueError("WhatsApp debe tener formato +51XXXXXXXXX")
-        return v
+        return normalizar_whatsapp(v)
 
     @field_validator("regiones_json")
     @classmethod
@@ -204,9 +226,7 @@ class LeadCreate(BaseModel):
     @field_validator("whatsapp")
     @classmethod
     def validar_whatsapp(cls, v: str) -> str:
-        if not v.startswith("+51") or not v[1:].isdigit():
-            raise ValueError("WhatsApp debe tener formato +51XXXXXXXXX")
-        return v
+        return normalizar_whatsapp(v)
 
     @field_validator("username")
     @classmethod

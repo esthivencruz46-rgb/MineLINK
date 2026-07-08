@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CampoPassword } from "../CampoPassword";
+import { CampoTelefono } from "../CampoTelefono";
 import { registrarInteresInversion } from "../../services/api";
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 
 export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }: Props) {
   const [nombre, setNombre] = useState("");
-  const [telefono, setTelefono] = useState("+51");
+  const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [motivoInversion, setMotivoInversion] = useState("");
   const [monto, setMonto] = useState("");
@@ -33,7 +34,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
         nombre: nombre.trim(),
         username: username.trim(),
         password,
-        telefono: telefono.trim() || undefined,
+        telefono: telefono.trim() ? `+51${telefono.trim()}` : undefined,
         email: email.trim() || undefined,
         motivo_inversion: motivoInversion.trim() || undefined,
         monto: monto.trim() || undefined,
@@ -89,11 +90,10 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
               />
-              <input
-                className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-                placeholder="Tu número (+51987654321)"
+              <CampoTelefono
                 value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
+                onChange={setTelefono}
+                placeholder="Tu número (9 dígitos)"
               />
               <input
                 className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"

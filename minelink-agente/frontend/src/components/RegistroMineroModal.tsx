@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CampoPassword } from "./CampoPassword";
+import { CampoTelefono } from "./CampoTelefono";
 
 interface Props {
   codigoReinfoInicial?: string;
@@ -25,7 +26,7 @@ export function RegistroMineroModal({
   onEnviar,
 }: Props) {
   const [nombre, setNombre] = useState("");
-  const [whatsapp, setWhatsapp] = useState("+51");
+  const [whatsapp, setWhatsapp] = useState("");
   const [email, setEmail] = useState("");
   const [nombreOperacion, setNombreOperacion] = useState("");
   const [codigoReinfo, setCodigoReinfo] = useState(codigoReinfoInicial ?? "");
@@ -39,7 +40,7 @@ export function RegistroMineroModal({
 
   const valido =
     nombre.trim().length > 0 &&
-    /^\+51\d{9}$/.test(whatsapp) &&
+    /^\d{9}$/.test(whatsapp) &&
     usernameValido &&
     passwordValida &&
     passwordsCoinciden;
@@ -60,11 +61,10 @@ export function RegistroMineroModal({
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
           />
-          <input
-            className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-            placeholder="+51987654321"
+          <CampoTelefono
             value={whatsapp}
-            onChange={(e) => setWhatsapp(e.target.value)}
+            onChange={setWhatsapp}
+            placeholder="Tu WhatsApp (9 dígitos)"
           />
           <input
             className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
@@ -123,7 +123,7 @@ export function RegistroMineroModal({
             onClick={() =>
               onEnviar({
                 nombre: nombre.trim(),
-                whatsapp,
+                whatsapp: `+51${whatsapp}`,
                 email: email.trim(),
                 nombreOperacion: nombreOperacion.trim(),
                 codigoReinfo: codigoReinfo.trim(),

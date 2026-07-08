@@ -37,7 +37,7 @@ const EMPRESAS_DEMO: Empresa[] = [
     tipo: "consultor",
     nombre: "Ing. Ejemplo Demo (DEMO)",
     ruc: null,
-    colegiatura: "CIP 000000",
+    colegiatura: "000000",
     anios_servicio: 5,
     regiones_json: ["arequipa", "puno"],
     estudios_json: ["plan_seguridad", "evaluacion_geomecanica", "sctr"],

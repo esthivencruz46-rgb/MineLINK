@@ -1119,7 +1119,8 @@ def test_postular_consultor_queda_inactivo():
     assert resp.status_code == 201
     body = resp.json()
     assert body["tipo"] == "consultor"
-    assert body["colegiatura"] == "CIP 123456"
+    # Se envió "CIP 123456": el backend guarda solo el número
+    assert body["colegiatura"] == "123456"
     assert body["ruc"] is None
     assert body["cv_filename"] is not None
     assert body["activa"] is False  # pendiente de aprobación de Esthiven
