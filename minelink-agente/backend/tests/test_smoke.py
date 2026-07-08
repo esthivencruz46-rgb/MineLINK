@@ -1485,3 +1485,56 @@ def test_rating_fuera_de_rango_rechazado():
         },
     )
     assert resp.status_code == 422
+
+
+def test_diagnostico_concesionario_sin_l3():
+    respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items() if k != "L3"}
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    # Todo SÍ menos S5 (falso en RESPUESTAS_COMPLETAS): 90/95 aplicables → 95
+    assert body["score_total"] == 95
+    assert body["dimensiones"]["legal"]["maximo"] == 20  # sin L3
+    assert "contrato_explotacion" not in body["brechas"]
+
+    # Mandar L3 igual debe rechazarse (formulario dinámico estricto)
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_diagnostico_yacimiento_solo_titularidad_y_tecnico():
+    respuestas = {i: True for i in ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"]}
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "puno",
+            "mineral": "cobre",
+            "tipo_mina": "tajo_abierto",
+            "situacion": "yacimiento",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["score_total"] == 100  # normalizado sobre su máximo aplicable
+    # Sin operación no hay REINFO → bloqueado → nunca en la vitrina pública
+    assert body["bloqueado"] is True
+    assert set(body["dimensiones"].keys()) == {"legal", "tecnico"}
