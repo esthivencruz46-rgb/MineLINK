@@ -146,16 +146,37 @@ export function Empresas() {
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
-        {empresas.map((empresa) => (
-          <EmpresaCard
-            key={empresa.id}
-            empresa={empresa}
-            brechasMinero={guardado.respuesta.brechas}
-            demo={esDemo}
-          />
-        ))}
-      </div>
+      {/* Bloques: primero empresas, luego consultores independientes.
+          Dentro de cada bloque, de mejor a peor rating (los sin rating al
+          final) — el rating en sí no se muestra al público por ahora. */}
+      {(["empresa", "consultor"] as const).map((tipo) => {
+        const bloque = empresas
+          .filter((e) => e.tipo === tipo)
+          .sort(
+            (a, b) =>
+              (b.rating ?? -1) - (a.rating ?? -1) ||
+              (b.num_resenas ?? 0) - (a.num_resenas ?? 0)
+          );
+        if (bloque.length === 0) return null;
+        return (
+          <div key={tipo} className="flex flex-col gap-4">
+            <h2 className="text-lg font-bold">
+              {tipo === "empresa" ? "🏢 Empresas" : "🛠️ Consultores independientes"}
+              <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                ({bloque.length})
+              </span>
+            </h2>
+            {bloque.map((empresa) => (
+              <EmpresaCard
+                key={empresa.id}
+                empresa={empresa}
+                brechasMinero={guardado.respuesta.brechas}
+                demo={esDemo}
+              />
+            ))}
+          </div>
+        );
+      })}
 
       {!cargando && empresas.length > 0 && (
         <button

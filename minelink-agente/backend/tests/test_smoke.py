@@ -1436,3 +1436,52 @@ def test_maximo_fotos_de_mina():
         headers=headers,
     )
     assert resp.status_code == 201
+
+
+def test_importar_empresas_desde_csv():
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    csv_contenido = (
+        "tipo,nombre,ruc,colegiatura,anios_servicio,regiones,estudios,whatsapp,email,rating,num_resenas\n"
+        "empresa,Geoconsult SAC,20123456789,,8,arequipa;puno,igafom_correctivo;topografia,+51911223344,geo@x.com,4.7,120\n"
+        "consultor,Ing. Test Import,,CIP 99887,5,cusco,iperc,+51911223355,,4.2,15\n"
+        # Duplicado del primero (mismo RUC): debe saltarse
+        "empresa,Geoconsult SAC,20123456789,,8,arequipa,topografia,+51911223344,,4.7,120\n"
+        # Fila mala (sin nombre): debe reportar error sin romper el resto
+        "empresa,,,,3,lima,iperc,+51900000000,,,\n"
+    )
+    resp = client.post(
+        "/admin/empresas/importar",
+        headers=headers,
+        files={"archivo": ("profesionales.csv", csv_contenido.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200
+    r = resp.json()
+    assert r["creadas"] == 2
+    assert r["saltadas"] == 1
+    assert len(r["errores"]) == 1
+
+    empresas = client.get("/admin/empresas", headers=headers).json()
+    geo = [e for e in empresas if e["nombre"] == "Geoconsult SAC"][0]
+    assert geo["rating"] == 4.7
+    assert geo["num_resenas"] == 120
+
+
+def test_rating_fuera_de_rango_rechazado():
+    token = _admin_token()
+    resp = client.post(
+        "/admin/empresas",
+        headers={"Authorization": f"Bearer {token}"},
+        json={
+            "tipo": "empresa",
+            "nombre": "Rating Malo SAC",
+            "ruc": "20999999999",
+            "anios_servicio": 3,
+            "regiones_json": ["lima"],
+            "estudios_json": ["iperc"],
+            "whatsapp": "+51999888777",
+            "rating": 7.5,
+        },
+    )
+    assert resp.status_code == 422

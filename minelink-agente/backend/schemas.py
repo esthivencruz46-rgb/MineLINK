@@ -63,6 +63,17 @@ class EmpresaBase(BaseModel):
     whatsapp: str
     email: Optional[str] = None
     activa: bool = True
+    # Calificación (0-5) y reseñas que la respaldan — solo visible en el
+    # admin por ahora; ordena internamente los listados públicos
+    rating: Optional[float] = None
+    num_resenas: Optional[int] = None
+
+    @field_validator("rating")
+    @classmethod
+    def validar_rating(cls, v: Optional[float]) -> Optional[float]:
+        if v is not None and not (0 <= v <= 5):
+            raise ValueError("rating debe estar entre 0 y 5")
+        return v
 
     @field_validator("ruc")
     @classmethod

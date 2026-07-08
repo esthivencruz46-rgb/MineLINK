@@ -45,11 +45,15 @@ Plataforma web donde un minero artesanal peruano:
    esa ventana solo muestra lo que ya dejó registrado, sin match ni
    funciones nuevas todavía
 
-Esthiven es el único administrador: carga empresas, revisa leads, y
-puede marcar brechas puntuales como resueltas por seguimiento manual
-(sin que el minero repita el cuestionario, ver agents/admin.md). Las
-empresas NO tienen acceso; Esthiven las carga manualmente, o las aprueba
-si un consultor independiente se postuló solo.
+Esthiven es el único administrador: carga empresas (una por una o en lote
+vía CSV con `POST /admin/empresas/importar` — su base externa de
+profesionales con rating 0-5 y nº de reseñas), revisa leads, resetea
+contraseñas de mineros y puede marcar brechas puntuales como resueltas
+por seguimiento manual (ver agents/admin.md). Las empresas NO tienen
+acceso; Esthiven las carga manualmente, o las aprueba si un consultor
+independiente se postuló solo. El rating de empresas/consultores solo se
+ve en el admin; en la página pública /empresas ordena internamente los
+bloques (Empresas / Consultores) de mejor a peor, sin mostrarse.
 
 ## Rol de este archivo
 Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:

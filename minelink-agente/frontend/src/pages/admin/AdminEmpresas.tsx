@@ -18,6 +18,8 @@ type Formulario = {
   regiones_json: string[];
   estudios_json: string[];
   activa: boolean;
+  rating: string;
+  num_resenas: string;
 };
 
 const FORMULARIO_VACIO: Formulario = {
@@ -31,6 +33,8 @@ const FORMULARIO_VACIO: Formulario = {
   regiones_json: [],
   estudios_json: [],
   activa: true,
+  rating: "",
+  num_resenas: "",
 };
 
 function validar(f: Formulario): Record<string, string> {
@@ -48,6 +52,8 @@ function validar(f: Formulario): Record<string, string> {
     errores.regiones_json = "Marca al menos 1 departamento";
   if (f.estudios_json.length === 0)
     errores.estudios_json = "Marca al menos 1 estudio";
+  if (f.rating && (Number(f.rating) < 0 || Number(f.rating) > 5 || isNaN(Number(f.rating))))
+    errores.rating = "El rating va de 0 a 5 (ej. 4.5)";
   return errores;
 }
 
@@ -101,6 +107,8 @@ export function AdminEmpresas() {
       regiones_json: empresa.regiones_json,
       estudios_json: empresa.estudios_json,
       activa: empresa.activa,
+      rating: empresa.rating != null ? String(empresa.rating) : "",
+      num_resenas: empresa.num_resenas != null ? String(empresa.num_resenas) : "",
     });
     setErrores({});
     setMostrarForm(true);
@@ -132,6 +140,8 @@ export function AdminEmpresas() {
       regiones_json: form.regiones_json,
       estudios_json: form.estudios_json,
       activa: form.activa,
+      rating: form.rating ? Number(form.rating) : null,
+      num_resenas: form.num_resenas ? Number(form.num_resenas) : null,
     };
 
     try {
@@ -188,6 +198,8 @@ export function AdminEmpresas() {
         regiones_json: empresa.regiones_json,
         estudios_json: empresa.estudios_json,
         activa: true,
+        rating: empresa.rating,
+        num_resenas: empresa.num_resenas,
       }),
     });
     cargar();
@@ -213,19 +225,62 @@ export function AdminEmpresas() {
     setCvNombre("");
   }
 
+  async function importarArchivo(archivo: File) {
+    setErrorGeneral(null);
+    const formData = new FormData();
+    formData.set("archivo", archivo);
+    const resp = await authFetch("/admin/empresas/importar", {
+      method: "POST",
+      body: formData,
+    });
+    if (!resp.ok) {
+      const detalle = await resp.json().catch(() => null);
+      setErrorGeneral(detalle?.detail ?? "No se pudo importar el archivo.");
+      return;
+    }
+    const r = await resp.json();
+    window.alert(
+      `Importación terminada:\n• ${r.creadas} creadas\n• ${r.saltadas} saltadas (ya existían)` +
+        (r.errores.length > 0
+          ? `\n• ${r.errores.length} con error:\n${r.errores.slice(0, 10).join("\n")}`
+          : "")
+    );
+    cargar();
+  }
+
   const pendientes = empresas.filter((e) => e.tipo === "consultor" && !e.activa);
 
   return (
     <AdminLayout>
-      <div className="mb-5 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold">Empresas y consultores</h1>
-        <button
-          onClick={abrirNueva}
-          className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white"
-        >
-          + Nuevo
-        </button>
+        <div className="flex gap-2">
+          <label className="flex min-h-[44px] cursor-pointer items-center rounded-lg border border-acento px-4 font-semibold text-acento">
+            Importar CSV
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              onChange={(e) => {
+                const archivo = e.target.files?.[0];
+                if (archivo) importarArchivo(archivo);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <button
+            onClick={abrirNueva}
+            className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white"
+          >
+            + Nuevo
+          </button>
+        </div>
       </div>
+      <p className="-mt-3 mb-4 text-xs text-texto-suave dark:text-texto-suave-dark">
+        Formato del CSV (con encabezados): tipo, nombre, ruc, colegiatura,
+        anios_servicio, regiones, estudios, whatsapp, email, rating, num_resenas —
+        regiones y estudios separados por ";". Los duplicados se saltan solos.
+      </p>
 
       {pendientes.length > 0 && (
         <p className="mb-4 rounded-lg bg-secundario/15 p-3 text-sm text-secundario">
@@ -246,6 +301,7 @@ export function AdminEmpresas() {
                 <th className="p-3">Nombre</th>
                 <th className="p-3">RUC / Colegiatura</th>
                 <th className="p-3">Años</th>
+                <th className="p-3">Rating</th>
                 <th className="p-3">Departamentos</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3"></th>
@@ -262,6 +318,18 @@ export function AdminEmpresas() {
                   <td className="p-3">{e.nombre}</td>
                   <td className="p-3 font-mono text-xs">{e.ruc ?? e.colegiatura}</td>
                   <td className="p-3">{e.anios_servicio}</td>
+                  <td className="p-3 whitespace-nowrap">
+                    {e.rating != null ? (
+                      <>
+                        ⭐ {e.rating}
+                        <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          {" "}({e.num_resenas ?? 0})
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-texto-suave dark:text-texto-suave-dark">—</span>
+                    )}
+                  </td>
                   <td className="p-3 capitalize">{e.regiones_json.join(", ")}</td>
                   <td className="p-3">
                     <span
@@ -391,6 +459,32 @@ export function AdminEmpresas() {
                 {errores.anios_servicio && (
                   <p className="mt-1 text-xs text-red-500">{errores.anios_servicio}</p>
                 )}
+              </div>
+
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    min={0}
+                    max={5}
+                    step={0.1}
+                    className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                    placeholder="Rating 0-5 (ej. 4.5)"
+                    value={form.rating}
+                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
+                  />
+                  {errores.rating && (
+                    <p className="mt-1 text-xs text-red-500">{errores.rating}</p>
+                  )}
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  className="min-h-[44px] flex-1 rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                  placeholder="N° de reseñas"
+                  value={form.num_resenas}
+                  onChange={(e) => setForm({ ...form, num_resenas: e.target.value })}
+                />
               </div>
 
               <div>

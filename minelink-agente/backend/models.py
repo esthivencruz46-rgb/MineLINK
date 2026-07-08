@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, JSON, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -58,6 +58,12 @@ class Empresa(Base):
     whatsapp = Column(String, nullable=False)
     email = Column(String, nullable=True)
     activa = Column(Boolean, nullable=False, default=True)
+    # Calificación del profesional (0-5, ej. 4.7) y cuántas reseñas la
+    # respaldan. Viene de la base de datos externa de profesionales o la
+    # asigna Esthiven al revisar el CV. Por ahora SOLO se ve en el admin
+    # (no en la web pública); internamente ordena los listados.
+    rating = Column(Float, nullable=True)
+    num_resenas = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=_now)
 
 

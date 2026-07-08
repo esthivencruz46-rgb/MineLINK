@@ -2,8 +2,9 @@ from collections import Counter
 from datetime import date, datetime, time, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import models
@@ -366,6 +367,81 @@ def listar_intereses_inversion(
         .order_by(models.InteresInversion.created_at.desc())
         .all()
     )
+
+
+@router.post("/empresas/importar", status_code=200)
+async def importar_empresas(
+    archivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Importa empresas/consultores en lote desde un archivo CSV (la base
+    de datos externa de profesionales). Columnas esperadas (con encabezado):
+    tipo,nombre,ruc,colegiatura,anios_servicio,regiones,estudios,whatsapp,
+    email,rating,num_resenas — regiones y estudios separados por ';'.
+    Los duplicados (mismo RUC, colegiatura o nombre+whatsapp) se saltan."""
+    import csv
+    import io
+
+    crudo = await archivo.read()
+    try:
+        texto = crudo.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        texto = crudo.decode("latin-1")
+
+    # Detectar si Excel exportó con ';' en vez de ','
+    primera_linea = texto.splitlines()[0] if texto.splitlines() else ""
+    delimitador = ";" if primera_linea.count(";") > primera_linea.count(",") else ","
+    filas = list(csv.DictReader(io.StringIO(texto), delimiter=delimitador))
+    if not filas:
+        raise HTTPException(422, "El archivo está vacío o no tiene encabezados")
+
+    creadas, saltadas, errores = 0, 0, []
+    for numero, fila in enumerate(filas, start=2):  # 2 = primera fila de datos
+        try:
+            fila = {(k or "").strip().lower(): (v or "").strip() for k, v in fila.items()}
+            nombre = fila.get("nombre", "")
+            if not nombre:
+                raise ValueError("falta el nombre")
+
+            ruc = fila.get("ruc") or None
+            colegiatura = fila.get("colegiatura") or None
+            whatsapp = fila.get("whatsapp", "")
+
+            condiciones = [
+                (models.Empresa.nombre == nombre) & (models.Empresa.whatsapp == whatsapp)
+            ]
+            if ruc:
+                condiciones.append(models.Empresa.ruc == ruc)
+            if colegiatura:
+                condiciones.append(models.Empresa.colegiatura == colegiatura)
+            ya_existe = db.query(models.Empresa).filter(or_(*condiciones)).first()
+            if ya_existe is not None:
+                saltadas += 1
+                continue
+
+            datos = schemas.EmpresaCreate(
+                tipo=fila.get("tipo") or "empresa",
+                nombre=nombre,
+                ruc=ruc,
+                colegiatura=colegiatura,
+                anios_servicio=int(fila.get("anios_servicio") or 0),
+                regiones_json=[r.strip().lower() for r in fila.get("regiones", "").split(";") if r.strip()],
+                estudios_json=[e.strip().lower() for e in fila.get("estudios", "").split(";") if e.strip()],
+                whatsapp=whatsapp,
+                email=fila.get("email") or None,
+                rating=float(fila["rating"].replace(",", ".")) if fila.get("rating") else None,
+                num_resenas=int(fila["num_resenas"]) if fila.get("num_resenas") else None,
+                activa=True,
+            )
+            db.add(models.Empresa(**datos.model_dump()))
+            db.flush()
+            creadas += 1
+        except Exception as e:
+            errores.append(f"fila {numero}: {e}")
+
+    db.commit()
+    return {"creadas": creadas, "saltadas": saltadas, "errores": errores}
 
 
 @router.post("/empresas", response_model=schemas.EmpresaOut, status_code=201)

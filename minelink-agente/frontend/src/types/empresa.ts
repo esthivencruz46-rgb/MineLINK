@@ -14,4 +14,8 @@ export interface Empresa {
   email?: string | null;
   activa: boolean;
   created_at: string;
+  // Solo se muestran en el panel admin por ahora; internamente ordenan
+  // los listados públicos de mejor a peor
+  rating?: number | null;
+  num_resenas?: number | null;
 }
