@@ -34,7 +34,7 @@ export function Proyectos() {
       <h1 className="text-2xl font-bold">Proyectos mineros</h1>
       <p className="text-texto-suave dark:text-texto-suave-dark">
         Operaciones formalizándose en Perú, en camino a REINFO. Búscalas por
-        mineral o departamento.
+        elemento o departamento.
       </p>
 
       <div className="flex flex-col gap-3 md:flex-row">
@@ -44,11 +44,11 @@ export function Proyectos() {
           onChange={(e) => setMineral(e.target.value)}
         >
           <option value="" className="bg-white text-black">
-            Todos los minerales
+            Todos los elementos
           </option>
           {minerales.map((m) => (
-            <option key={m} value={m} className="bg-white text-black capitalize">
-              {m}
+            <option key={m} value={m} className="bg-white text-black">
+              {cap(m)}
             </option>
           ))}
         </select>
@@ -159,4 +159,8 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
       </div>
     </Link>
   );
+}
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
