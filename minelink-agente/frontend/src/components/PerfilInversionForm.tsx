@@ -3,7 +3,12 @@ import { useMineroAuth } from "../context/MineroAuthContext";
 import { CampoMonto } from "./CampoMonto";
 import { CampoUsoFondos } from "./CampoUsoFondos";
 import { CampoProduccion } from "./CampoProduccion";
+import { OPCIONES_TIPO_APOYO } from "../data/preguntasPerfil";
 import type { MineroPerfil } from "../types/minero";
+
+function etiquetaTipoApoyo(valor: string): string {
+  return OPCIONES_TIPO_APOYO.find((o) => o.valor === valor)?.etiqueta ?? valor;
+}
 
 interface Props {
   perfil: MineroPerfil;
@@ -36,16 +41,17 @@ const CAMPOS: {
   },
   {
     campo: "uso_fondos",
-    etiqueta: "¿Para qué buscas el dinero? (motivo)",
-    placeholder: "Ej: comprar chancadora, planta de beneficio, capital de trabajo",
+    etiqueta: "¿Para qué buscas el dinero? Detalla un poco más",
+    placeholder:
+      'Ej: "Necesito un socio operador con experiencia en tajo abierto porque mi actual encargado se jubila este año y quiero mantener la producción sin bajar el ritmo."',
     // Ya no es obligatorio: esto se pregunta en el diagnóstico (Bloque de
-    // oportunidad e inversión) y llega precargado — este campo es solo
-    // para afinarlo si quiere.
+    // oportunidad e inversión) y aquí se muestra como recordatorio junto
+    // al campo — este campo es para ampliarlo con contexto, no repetirlo.
     obligatorio: false,
   },
   {
     campo: "capital_buscado",
-    etiqueta: "¿Cuánto capital buscas?",
+    etiqueta: "¿Cuánto capital buscas? (monto exacto)",
     placeholder: "",
     obligatorio: false,
     unaLinea: true,
@@ -53,7 +59,8 @@ const CAMPOS: {
   {
     campo: "descripcion_operacion",
     etiqueta: "Cuéntanos sobre tu operación",
-    placeholder: "Ej: mina de oro a tajo abierto, 3 años operando, 8 trabajadores...",
+    placeholder:
+      'Ej: "Mina de oro a tajo abierto en Puno, con 3 años operando y 8 trabajadores. Producimos 40 gramos de oro al mes y ya tenemos el IGAFOM aprobado. Buscamos capital para comprar una chancadora y duplicar nuestra capacidad de procesamiento."',
     obligatorio: false,
   },
   {
@@ -142,6 +149,28 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
               {etiqueta}
               {obligatorio && <span className="ml-1 text-red-500">*</span>}
             </label>
+            {campo === "capital_buscado" && perfil.monto_requerido && (
+              <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Recordatorio: en tu diagnóstico marcaste{" "}
+                <span className="font-medium">{perfil.monto_requerido}</span>. Aquí
+                puedes precisar el monto exacto.
+              </p>
+            )}
+            {campo === "uso_fondos" && (perfil.tipo_apoyo || perfil.motivo_capital) && (
+              <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Recordatorio: en tu diagnóstico marcaste{" "}
+                {perfil.tipo_apoyo && (
+                  <span className="font-medium">{etiquetaTipoApoyo(perfil.tipo_apoyo)}</span>
+                )}
+                {perfil.motivo_capital && (
+                  <>
+                    {perfil.tipo_apoyo && " — "}
+                    <span className="font-medium">"{perfil.motivo_capital}"</span>
+                  </>
+                )}
+                .
+              </p>
+            )}
             {campo === "capital_buscado" ? (
               <CampoMonto
                 value={valores[campo]}

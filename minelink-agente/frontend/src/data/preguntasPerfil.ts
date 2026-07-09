@@ -96,7 +96,7 @@ export const OPCIONES_MINERAL_POR_ELEMENTO: Record<string, OpcionPerfil[]> = {
 
 // "¿Qué es lo más importante / qué tipo de apoyo buscas primordialmente?"
 // — opción única (antes era multi-selección, tipo_apoyo_json).
-const OPCIONES_TIPO_APOYO: OpcionPerfil[] = [
+export const OPCIONES_TIPO_APOYO: OpcionPerfil[] = [
   { valor: "financiamiento", etiqueta: "Financiamiento" },
   { valor: "maquinaria", etiqueta: "Maquinaria o equipos" },
   { valor: "capital_trabajo", etiqueta: "Capital de trabajo" },
