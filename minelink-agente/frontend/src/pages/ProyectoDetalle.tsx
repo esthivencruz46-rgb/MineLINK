@@ -266,9 +266,9 @@ export function ProyectoDetalle() {
                     ayuda="Gasto mensual para operar (insumos, combustible, planilla, mantenimiento)."
                   />
                   <FilaFinanciera
-                    indicador="Valor Neto Presente (VPN)"
+                    indicador="VPN"
                     valor={null}
-                    ayuda="Cuánto valor generaría el proyecto hoy, descontando los flujos futuros esperados."
+                    ayuda="Valor Neto Presente: cuánto valor generaría el proyecto hoy, descontando los flujos futuros esperados."
                   />
                   <FilaFinanciera
                     indicador="TIR"
@@ -590,15 +590,17 @@ function FilaFinanciera({
   return (
     <tr className="border-b border-black/5 dark:border-white/5">
       <td className="py-3">
-        {ayuda && (
-          <span
-            title={ayuda}
-            className="mr-1.5 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-black/10 text-[10px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
-          >
-            ?
-          </span>
-        )}
-        {indicador}
+        <span className="inline-flex items-center gap-1">
+          {ayuda && (
+            <span
+              title={ayuda}
+              className="inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full bg-black/10 text-[9px] font-semibold leading-none text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
+            >
+              ?
+            </span>
+          )}
+          {indicador}
+        </span>
       </td>
       <td
         className={`py-3 font-medium ${

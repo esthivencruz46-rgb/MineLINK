@@ -30,7 +30,7 @@ export interface PreguntaPerfil {
   mostrarSi?: (perfil: Record<string, unknown>) => boolean;
 }
 
-const OPCIONES_ELEMENTO_VALOR: OpcionPerfil[] = [
+export const OPCIONES_ELEMENTO_VALOR: OpcionPerfil[] = [
   { valor: "oro", etiqueta: "Oro (Au)" },
   { valor: "plata", etiqueta: "Plata (Ag)" },
   { valor: "cobre", etiqueta: "Cobre (Cu)" },

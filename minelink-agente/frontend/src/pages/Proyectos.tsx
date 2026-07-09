@@ -1,22 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, MapPin, Pickaxe } from "lucide-react";
+import { Autocomplete } from "../components/Autocomplete";
 import { DEPARTAMENTOS } from "../data/departamentos";
-import { BASE_URL, obtenerMineralesDisponibles, obtenerProyectos } from "../services/api";
+import { OPCIONES_ELEMENTO_VALOR } from "../data/preguntasPerfil";
+import { BASE_URL, obtenerProyectos } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import type { ProyectoPublico } from "../types/proyecto";
 
+const ELEMENTOS = OPCIONES_ELEMENTO_VALOR.map((o) => cap(o.valor));
+
 export function Proyectos() {
   const [proyectos, setProyectos] = useState<ProyectoPublico[]>([]);
-  const [minerales, setMinerales] = useState<string[]>([]);
   const [mineral, setMineral] = useState("");
   const [region, setRegion] = useState("");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    obtenerMineralesDisponibles().then(setMinerales).catch(() => setMinerales([]));
-  }, []);
 
   useEffect(() => {
     setCargando(true);
@@ -38,35 +37,18 @@ export function Proyectos() {
       </p>
 
       <div className="flex flex-col gap-3 md:flex-row">
-        <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+        <Autocomplete
+          opciones={ELEMENTOS}
           value={mineral}
-          onChange={(e) => setMineral(e.target.value)}
-        >
-          <option value="" className="bg-white text-black">
-            Todos los elementos
-          </option>
-          {minerales.map((m) => (
-            <option key={m} value={m} className="bg-white text-black">
-              {cap(m)}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          onChange={setMineral}
+          placeholder="Buscar elemento (ej. Oro)"
+        />
+        <Autocomplete
+          opciones={DEPARTAMENTOS}
           value={region}
-          onChange={(e) => setRegion(e.target.value)}
-        >
-          <option value="" className="bg-white text-black">
-            Todos los departamentos
-          </option>
-          {DEPARTAMENTOS.map((d) => (
-            <option key={d} value={d.toLowerCase()} className="bg-white text-black">
-              {d}
-            </option>
-          ))}
-        </select>
+          onChange={setRegion}
+          placeholder="Buscar departamento"
+        />
       </div>
 
       {error && <p className="text-red-500">{error}</p>}

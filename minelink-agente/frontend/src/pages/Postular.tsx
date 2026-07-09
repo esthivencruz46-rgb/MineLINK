@@ -183,11 +183,12 @@ export function Postular() {
             {todosMarcados ? "Quitar todos" : "Todos los departamentos"}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded-lg border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
           {DEPARTAMENTOS.map((d) => (
-            <label key={d} className="flex items-center gap-1.5 text-sm">
+            <label key={d} className="flex items-center gap-1.5 text-xs">
               <input
                 type="checkbox"
+                className="h-3.5 w-3.5"
                 checked={form.regiones_json.includes(d.toLowerCase())}
                 onChange={() => alternarLista("regiones_json", d.toLowerCase())}
               />
