@@ -38,7 +38,11 @@ def listar_empresas(
 ):
     empresas = db.query(models.Empresa).all()
 
-    if estudios is None or region is None:
+    # "" (sin filtro, ej. "Todos los departamentos") debe comportarse
+    # igual que el parámetro ausente — nunca dejar pasar un region="" a
+    # `recomendar`, que lo trataría como un departamento literal y
+    # descartaría todo (ver errores_aprendidos.md).
+    if not estudios or not region:
         return [e for e in empresas if e.activa]
 
     brechas = [s for s in estudios.split(",") if s]

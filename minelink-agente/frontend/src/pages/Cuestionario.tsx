@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Lightbulb } from "lucide-react";
 import { PreguntaPerfilScreen } from "../components/PreguntaPerfilScreen";
 import { ProgressBar } from "../components/ProgressBar";
@@ -11,7 +11,7 @@ import {
   type PreguntaPerfil,
 } from "../data/preguntasPerfil";
 import { enviarDiagnostico, registrarEvento } from "../services/api";
-import { guardarDiagnostico } from "../services/storage";
+import { guardarDiagnostico, leerDiagnostico } from "../services/storage";
 import type { DiagnosticoRequest, Respuestas, Situacion, TipoMina } from "../types/diagnostico";
 
 type DatosInformativos = {
@@ -131,11 +131,20 @@ function mineralDe(perfilFinal: Perfil): string {
 
 export function Cuestionario() {
   const navigate = useNavigate();
-  const [paso, setPaso] = useState(0);
-  const [situacion, setSituacion] = useState<Situacion | "">("");
-  const [perfil, setPerfil] = useState<Perfil>({});
-  const [respuestas, setRespuestas] = useState<Respuestas>({});
-  const [informativas, setInformativas] = useState<DatosInformativos>({});
+  const location = useLocation();
+  // "Volver" desde /resultado: retoma el wizard en la última pregunta
+  // respondida en vez de reiniciar todo el cuestionario desde cero.
+  const estadoPrevio = (location.state as { volver?: boolean } | null)?.volver
+    ? leerDiagnostico()?.estadoWizard
+    : undefined;
+
+  const [paso, setPaso] = useState(estadoPrevio?.paso ?? 0);
+  const [situacion, setSituacion] = useState<Situacion | "">(estadoPrevio?.situacion ?? "");
+  const [perfil, setPerfil] = useState<Perfil>(estadoPrevio?.perfil ?? {});
+  const [respuestas, setRespuestas] = useState<Respuestas>(estadoPrevio?.respuestas ?? {});
+  const [informativas, setInformativas] = useState<DatosInformativos>(
+    estadoPrevio?.informativas ?? {}
+  );
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,7 +247,17 @@ export function Cuestionario() {
       };
 
       const respuesta = await enviarDiagnostico(payload);
-      guardarDiagnostico({ respuesta, region: SIN_ESPECIFICAR });
+      guardarDiagnostico({
+        respuesta,
+        region: SIN_ESPECIFICAR,
+        estadoWizard: {
+          situacion,
+          perfil: perfilFinal,
+          respuestas: respuestasFinales,
+          informativas: datosFinales,
+          paso,
+        },
+      });
       navigate("/resultado");
     } catch {
       setError(

@@ -51,6 +51,15 @@ export function Resultado() {
         </p>
       )}
 
+      {guardado.estadoWizard && (
+        <button
+          onClick={() => navigate("/diagnostico", { state: { volver: true } })}
+          className="self-start text-sm text-texto-suave underline dark:text-texto-suave-dark"
+        >
+          ← Volver a la última pregunta
+        </button>
+      )}
+
       <ScoreBadge scoreTotal={respuesta.score_total} bloqueado={respuesta.bloqueado} />
 
       <DimensionBars

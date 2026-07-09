@@ -148,6 +148,23 @@ def test_get_empresa_404():
     assert resp.status_code == 404
 
 
+def test_get_empresas_region_vacia_se_comporta_como_sin_filtro():
+    # region="" (ej. "Todos los departamentos") NUNCA debe colarse hasta
+    # recomendar() como si fuera un departamento real — ahí ninguna
+    # empresa calza y la lista sale vacía por error (ver
+    # errores_aprendidos.md, 2026-07-09).
+    token = _admin_token()
+    _crear_empresa(token, nombre="Empresa Cualquiera SAC", ruc="20444444444")
+
+    resp = client.get("/empresas", params={"estudios": "tramite_reinfo", "region": ""})
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+    resp = client.get("/empresas", params={"estudios": "", "region": "cusco"})
+    assert resp.status_code == 200
+    assert len(resp.json()) == 1
+
+
 def test_empresas_publico_no_expone_whatsapp():
     # El WhatsApp de la empresa ya no es público: el contacto pasa por
     # "Me interesa" (POST /empresas/{id}/interes), Esthiven intermedia.

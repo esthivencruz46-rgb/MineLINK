@@ -113,6 +113,38 @@ en producción), migrar a Postgres/Supabase sigue siendo el paso correcto,
 no solo seguir ajustando SQLite.
 **Estado:** RESUELTO (para el nivel de tráfico actual)
 
+---
+
+## 2026-07-09 — /empresas mostraba vacío hasta que el usuario reseleccionaba "Todos los departamentos"
+**Síntoma:** al entrar a /empresas justo después del diagnóstico, la
+lista salía vacía; volver a elegir "Todos los departamentos" en el
+select (mismo valor visual) la hacía aparecer.
+**Causa raíz:** el diagnóstico nunca pregunta el departamento — guarda el
+placeholder interno `"no especificado"` en `region` (ver
+`Cuestionario.tsx` `SIN_ESPECIFICAR`). `Empresas.tsx` inicializaba su
+filtro con `guardado?.region ?? ""`, así que en el primer render
+`region` valía literalmente `"no especificado"` (string truthy, sin
+`<option>` que lo represente — el `<select>` mostraba "Todos los
+departamentos" pero el estado real era otro). Ese valor SÍ se mandaba
+como query param al backend, que lo trataba como un departamento real en
+`recomendar()` y descartaba todas las empresas (ninguna tiene "no
+especificado" en `regiones_json`). Al reseleccionar "Todos los
+departamentos" a mano, `region` pasaba a `""` (falsy) y el frontend
+directamente OMITÍA el parámetro, activando la rama "sin filtro" del
+backend — "arreglando" el síntoma por una razón distinta a la esperada.
+**Solución aplicada:** `Empresas.tsx` trata `"no especificado"` como
+`""` al inicializar el filtro. Además, `routers/empresas.py`
+`listar_empresas` ahora usa `not estudios or not region` (en vez de
+`is None`) para decidir si aplica el filtro, así un `region=""` explícito
+se comporta igual que el parámetro ausente en vez de colarse hasta
+`recomendar()`.
+**Cómo evitarlo:** cuando un campo tiene un valor "placeholder" interno
+(no un dato real vacío), nunca inicializar un `<select>`/filtro público
+con ese placeholder directamente — normalizarlo a "sin selección" antes.
+Y en endpoints con filtros opcionales, tratar `""` y `None` de forma
+idéntica desde el principio, no solo `None`.
+**Estado:** RESUELTO
+
 <!-- Formato de nuevas entradas:
 
 ## [FECHA] — [título corto]

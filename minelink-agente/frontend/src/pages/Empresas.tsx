@@ -16,7 +16,13 @@ export function Empresas() {
   const navigate = useNavigate();
   const guardado = leerDiagnostico();
 
-  const [region, setRegion] = useState(guardado?.region ?? "");
+  // "no especificado" es el placeholder que guarda el diagnóstico cuando
+  // el departamento aún no se preguntó (ver Cuestionario.tsx) — nunca es
+  // un departamento real, así que debe tratarse como "sin filtro" (""),
+  // igual que cuando el usuario elige "Todos los departamentos" a mano.
+  const [region, setRegion] = useState(
+    guardado?.region && guardado.region !== "no especificado" ? guardado.region : ""
+  );
   const [estudiosFiltro, setEstudiosFiltro] = useState<string[]>(
     guardado?.respuesta.brechas ?? []
   );
