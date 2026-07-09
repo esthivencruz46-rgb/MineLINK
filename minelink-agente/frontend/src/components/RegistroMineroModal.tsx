@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CampoPassword } from "./CampoPassword";
 import { CampoPreguntaSeguridad } from "./CampoPreguntaSeguridad";
 import { CampoTelefono } from "./CampoTelefono";
+import { DEPARTAMENTOS } from "../data/departamentos";
 
 interface Props {
   situacion?: string;
@@ -12,6 +13,7 @@ interface Props {
   onEnviar: (datos: {
     nombre: string;
     whatsapp: string;
+    region: string;
     email: string;
     nombreOperacion: string;
     codigoReinfo: string;
@@ -33,6 +35,7 @@ export function RegistroMineroModal({
   const esConcesionario = situacion === "concesionario";
   const [nombre, setNombre] = useState("");
   const [whatsapp, setWhatsapp] = useState("");
+  const [region, setRegion] = useState("");
   const [email, setEmail] = useState("");
   const [nombreOperacion, setNombreOperacion] = useState("");
   const [codigoReinfo, setCodigoReinfo] = useState(codigoReinfoInicial ?? "");
@@ -49,6 +52,7 @@ export function RegistroMineroModal({
   const valido =
     nombre.trim().length > 0 &&
     /^\d{9}$/.test(whatsapp) &&
+    region.trim().length > 0 &&
     usernameValido &&
     passwordValida &&
     passwordsCoinciden &&
@@ -80,6 +84,20 @@ export function RegistroMineroModal({
             onChange={setWhatsapp}
             placeholder="Tu WhatsApp (9 dígitos)"
           />
+          <select
+            className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="" className="bg-white text-black">
+              ¿En qué departamento trabajas?
+            </option>
+            {DEPARTAMENTOS.map((d) => (
+              <option key={d} value={d.toLowerCase()} className="bg-white text-black">
+                {d}
+              </option>
+            ))}
+          </select>
           <input
             className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
             placeholder={
@@ -149,6 +167,7 @@ export function RegistroMineroModal({
               onEnviar({
                 nombre: nombre.trim(),
                 whatsapp: `+51${whatsapp}`,
+                region,
                 email: email.trim(),
                 nombreOperacion: nombreOperacion.trim(),
                 codigoReinfo: codigoReinfo.trim(),

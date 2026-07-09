@@ -2,6 +2,7 @@ export interface LeadRequest {
   nombre: string;
   whatsapp: string;
   operacion_id: string;
+  region: string;
   username: string;
   password: string;
   pregunta_seguridad: string;

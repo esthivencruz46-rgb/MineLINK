@@ -18,11 +18,17 @@ DOCUMENTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 FOTOS_MINA_MAXIMO = 5
 
 # categoría → (tipos de contenido aceptados, etiqueta legible)
+# Los documentos legales aceptan PDF O una foto del documento (imagen) —
+# muchos mineros no tienen un escaneo, solo pueden fotografiarlo con el
+# celular. Distinto del CV de consultores (postulación), que sigue siendo
+# solo PDF (ver routers/empresas.py).
+_PDF_O_IMAGEN = ("application/pdf", "image/jpeg", "image/png", "image/webp")
+
 CATEGORIAS_DOCUMENTO = {
     "fotos_mina": (("image/jpeg", "image/png", "image/webp"), "Fotos de la mina"),
-    "informe_leyes": (("application/pdf",), "Informe de leyes / ensayes"),
-    "catastro": (("application/pdf",), "Catastro / plano de ubicación"),
-    "ruc": (("application/pdf",), "RUC escaneado"),
-    "contrato_explotacion": (("application/pdf",), "Contrato de explotación"),
-    "titulo_concesion": (("application/pdf",), "Título de concesión"),
+    "informe_leyes": (_PDF_O_IMAGEN, "Informe de leyes / ensayes"),
+    "catastro": (_PDF_O_IMAGEN, "Catastro / plano de ubicación"),
+    "ruc": (_PDF_O_IMAGEN, "RUC escaneado"),
+    "contrato_explotacion": (_PDF_O_IMAGEN, "Contrato de explotación"),
+    "titulo_concesion": (_PDF_O_IMAGEN, "Título de concesión"),
 }

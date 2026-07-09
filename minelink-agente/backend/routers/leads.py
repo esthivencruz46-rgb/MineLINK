@@ -53,13 +53,17 @@ def crear_lead(payload: schemas.LeadCreate, db: Session = Depends(get_db)):
         whatsapp=payload.whatsapp,
         email=payload.email,
         nombre_operacion=payload.nombre_operacion,
-        region=operacion.region,
+        region=payload.region,
         codigo_reinfo=codigo_reinfo,
         username=payload.username,
         password_hash=hash_password(payload.password),
         pregunta_seguridad=payload.pregunta_seguridad,
         respuesta_seguridad_hash=hash_password(payload.respuesta_seguridad),
     )
+    # El diagnóstico ya no pregunta departamento (queda "no especificado");
+    # el del registro es el dato real — se refleja en la operación para que
+    # el filtro por departamento de /proyectos tenga sentido.
+    operacion.region = payload.region
     db.add(lead)
     db.commit()
     db.refresh(lead)

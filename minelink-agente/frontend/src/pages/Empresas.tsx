@@ -50,6 +50,7 @@ export function Empresas() {
   async function enviarRegistro(datos: {
     nombre: string;
     whatsapp: string;
+    region: string;
     email: string;
     nombreOperacion: string;
     codigoReinfo: string;
@@ -65,6 +66,7 @@ export function Empresas() {
       await enviarLead({
         nombre: datos.nombre,
         whatsapp: datos.whatsapp,
+        region: datos.region,
         operacion_id: guardado.respuesta.id,
         username: datos.username,
         password: datos.password,

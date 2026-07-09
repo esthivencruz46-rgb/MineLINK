@@ -14,15 +14,18 @@ Plataforma web donde un minero artesanal peruano:
      exploración, tipo de apoyo que busca) + un set Sí/No mucho más chico
      (L1,L2,L3,L4,L6,T1,T3,T6) que mide incertidumbre legal gradual, no
      todo-o-nada
-   Departamento sigue sin preguntarse (pendiente de definir dónde
-   recogerlo); mineral se deriva del "elemento económico principal" que
-   el usuario declara en el perfil de cada ruta
+   Departamento NO se pregunta en el diagnóstico (queda "no especificado"
+   en `Operacion.region` hasta que se registre); mineral se deriva del
+   "elemento económico principal" que el usuario declara en el perfil de
+   cada ruta
 2. Recibe su score (0-100) y su lista de brechas
 3. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
    le faltan, o postula él mismo como consultor si es profesional
-4. Si busca ayuda cercana, se registra (nombre, WhatsApp, email opcional,
-   nombre de su operación, usuario y contraseña que él elige) — ese
-   registro reemplaza el antiguo modal de solo nombre+WhatsApp
+4. Si busca ayuda cercana, se registra (nombre, WhatsApp, **departamento
+   obligatorio** — reemplaza el "no especificado" tanto en el lead como en
+   la operación, para que el filtro de /proyectos tenga sentido —, email
+   opcional, nombre de su operación, usuario y contraseña que él elige) —
+   ese registro reemplaza el antiguo modal de solo nombre+WhatsApp
 5. Puede volver a iniciar sesión (`/ingresar` → `/mi-cuenta`) con ese
    usuario/contraseña para ver su score y brechas sin rehacer el
    cuestionario (`POST /mineros/login`, `GET /mineros/me`)

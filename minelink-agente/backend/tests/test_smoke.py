@@ -141,6 +141,7 @@ def _lead_payload(operacion_id, **overrides):
         "nombre": "Juan Quispe",
         "whatsapp": "+51987654321",
         "operacion_id": operacion_id,
+        "region": "arequipa",
         "username": "juanq",
         "password": "clave123",
         "pregunta_seguridad": "¿Nombre de tu primera mascota?",
@@ -469,14 +470,26 @@ def test_mineros_documento_rechaza_categoria_invalida():
 
 def test_mineros_documento_rechaza_tipo_incorrecto():
     token = _token_minero(username="minerodocs3")
-    # catastro exige PDF, no imagen
+    # catastro acepta PDF o imagen, pero no cualquier tipo (ej. texto plano)
+    resp = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "catastro"},
+        files={"archivo": ("catastro.txt", b"esto no es un pdf ni una imagen", "text/plain")},
+    )
+    assert resp.status_code == 422
+
+
+def test_mineros_documento_legal_acepta_imagen():
+    # Muchos mineros solo tienen una foto del documento, no un escaneo PDF
+    token = _token_minero(username="minerodocs3b")
     resp = client.post(
         "/mineros/documentos",
         headers={"Authorization": f"Bearer {token}"},
         data={"categoria": "catastro"},
         files={"archivo": ("catastro.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 201
 
 
 def test_mineros_elimina_su_documento():
@@ -604,7 +617,7 @@ def test_proyectos_filtra_por_mineral_y_region():
     client.post(
         "/leads",
         json=_lead_payload(
-            diag2["id"], username="filtro2", whatsapp="+51900000022"
+            diag2["id"], username="filtro2", whatsapp="+51900000022", region="puno"
         ),
     )
 

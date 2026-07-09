@@ -247,6 +247,7 @@ class LeadCreate(BaseModel):
     nombre: str
     whatsapp: str
     operacion_id: str
+    region: str
     username: str
     password: str
     pregunta_seguridad: str
@@ -254,6 +255,14 @@ class LeadCreate(BaseModel):
     email: Optional[str] = None
     nombre_operacion: Optional[str] = None
     codigo_reinfo: Optional[str] = None
+
+    @field_validator("region")
+    @classmethod
+    def validar_region(cls, v: str) -> str:
+        v = v.strip().lower()
+        if not v:
+            raise ValueError("El departamento es obligatorio")
+        return v
 
     @field_validator("whatsapp")
     @classmethod
