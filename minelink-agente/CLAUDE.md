@@ -3,17 +3,27 @@
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:
 1. Elige su situación — **2 rutas completamente distintas, no una
-   variación de la misma** (ver context/criterios_score.md):
-   - Ruta 1 `minero_artesanal` (ya opera): perfil informativo de
-     Operación/Producción (tipo de explotación, material, comercialización,
-     producción, ley) + el cuestionario Sí/No completo de formalización
-     (L1-L5, A1-A3, O1, T1-T6, S1-S5). `tipo_mina` se DERIVA del tipo de
+   variación de la misma** (ver context/criterios_score.md, fuente de
+   verdad completa — esto es solo un resumen):
+   - Ruta 1 `minero_artesanal` (ya opera): perfil informativo de 8 bloques
+     (operación actual, conocimiento técnico, equipo, ambiente, oportunidad
+     e inversión, riesgos/conformidad, capacidad del operador, visión a
+     futuro) + el cuestionario Sí/No de formalización (L1-L5, A1-A4 con A4
+     condicional, O1, T1-T7, S1-S5). `tipo_mina` se DERIVA del tipo de
      explotación que declara (ya no se pregunta aparte)
    - Ruta 2 `concesionario` (recién inicia, no opera): perfil informativo
-     de Concesión/Exploración (vigencia, tipo de depósito, trabajos de
-     exploración, tipo de apoyo que busca) + un set Sí/No mucho más chico
-     (L1,L2,L3,L4,L6,T1,T3,T6) que mide incertidumbre legal gradual, no
-     todo-o-nada
+     de 8 bloques (titularidad/vigencia, geología/depósito, etapa del
+     proyecto, proyecto/escala, historial/riesgos, formalización,
+     capacidad/equipo, motivación/estructura) + un set Sí/No reducido
+     (L1,L2,L3,L4,L6,A1,A2,T1,T3,T6,T7,R1 — incluye Ambiental y una
+     dimensión Social nueva) que mide incertidumbre legal/ambiental/social
+     gradual, no todo-o-nada
+   Varias preguntas del perfil se copian silenciosamente al cuestionario
+   Sí/No en vez de repetirse (L1/L2/L4/L6/A1/A4/R1/T7 según ruta — ver
+   "Preguntas condicionales y prellenadas" en criterios_score.md). El
+   monto de capital que busca, el plazo y el uso de fondos se preguntan
+   DURANTE el diagnóstico (ya no solo al registrarse) y se copian a
+   `Lead.capital_buscado`/`uso_fondos` al crear la cuenta.
    Departamento NO se pregunta en el diagnóstico (queda "no especificado"
    en `Operacion.region` hasta que se registre); mineral se deriva del
    "elemento económico principal" que el usuario declara en el perfil de

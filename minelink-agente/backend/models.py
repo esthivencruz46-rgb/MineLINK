@@ -52,19 +52,58 @@ class Operacion(Base):
     tiempo_operacion = Column(String, nullable=True)
     ley_promedio = Column(String, nullable=True)  # valor+unidad combinados, ej. "2.5 g/t"
     ley_como_obtenida = Column(String, nullable=True)
-    tiene_resultados_laboratorio = Column(Boolean, nullable=True)
+    # Antes Boolean (Sí/No); ahora String de 3 opciones ("No" / "Sí, algunos"
+    # / "Sí, completos") — bloque "Fase 1: preguntas del diagnóstico".
+    tiene_resultados_laboratorio = Column(String, nullable=True)
+    modalidad_trabajadores = Column(String, nullable=True)  # planilla | destajo | combinado
+    provincia = Column(String, nullable=True)
+    sustancias_toxicas = Column(String, nullable=True)  # no|mercurio|cianuro|relaves|multiples — también decide si A4 aplica
+    gestion_sustancias = Column(String, nullable=True)  # condicional, prellena A4
+    incidentes_previos = Column(String, nullable=True)
+    permisos_comunitarios = Column(String, nullable=True)
+    acceso_logistico = Column(String, nullable=True)
+    experiencia_operador = Column(String, nullable=True)
+    capacitacion_operador = Column(String, nullable=True)
+    documentacion_disponible = Column(String, nullable=True)  # prellena T7 (Ruta 1)
+    plan_formalizacion = Column(String, nullable=True)
+    prioridad_crecimiento = Column(String, nullable=True)
 
     # Perfil de la concesión (Ruta 2 — concesionario): informativo, nunca puntúa.
-    concesion_vigente = Column(Boolean, nullable=True)  # también prellena L6
+    # Antes Boolean; ahora String (ver nota de tiene_resultados_laboratorio).
+    concesion_vigente = Column(String, nullable=True)  # también prellena L6
     tipo_deposito = Column(String, nullable=True)
     etapa_proyecto = Column(String, nullable=True)
     trabajos_exploracion_json = Column(JSON, nullable=True)  # lista: muestreo/calicatas/etc.
-    info_geologica_disponible = Column(Boolean, nullable=True)
-    tiene_estimaciones_leyes = Column(Boolean, nullable=True)
+    info_geologica_disponible = Column(String, nullable=True)
+    tiene_estimaciones_leyes = Column(String, nullable=True)
+    pagos_vigencia_al_dia = Column(String, nullable=True)
+    toneladas_estimadas = Column(String, nullable=True)
+    ley_esperada = Column(String, nullable=True)
+    capital_disponible = Column(String, nullable=True)
+    estudio_previo = Column(String, nullable=True)  # prellena T7 (Ruta 2)
+    historial_operacion = Column(String, nullable=True)
+    pasivos_ambientales = Column(String, nullable=True)  # prellena A1 (Ruta 2)
+    experiencia_titular = Column(String, nullable=True)
+    background_titular = Column(String, nullable=True)
+    equipo_tecnico = Column(String, nullable=True)
+    tipo_socio_buscado = Column(String, nullable=True)
+    siguiente_hito = Column(String, nullable=True)
+    timeline_operacion = Column(String, nullable=True)
+    motivo_inicio = Column(String, nullable=True)
 
     # Compartidos por ambas rutas
     documento_autorizacion = Column(String, nullable=True)  # cuando titular=No
-    tipo_apoyo_json = Column(JSON, nullable=True)  # lista: financiamiento/maquinaria/etc.
+    tipo_apoyo_json = Column(JSON, nullable=True)  # histórico, ya no se escribe (ver tipo_apoyo)
+    tipo_apoyo = Column(String, nullable=True)  # opción única, reemplaza tipo_apoyo_json
+    acceso_agua = Column(String, nullable=True)
+    acceso_energia = Column(String, nullable=True)
+    conflictividad_social = Column(String, nullable=True)  # prellena R1 (Ruta 2)
+    estructura_propiedad = Column(String, nullable=True)
+    monto_requerido = Column(String, nullable=True)  # bucket, copiado a Lead.capital_buscado al registrarse
+    plazo_capital = Column(String, nullable=True)
+    motivo_capital = Column(String, nullable=True)
+    produccion_objetivo = Column(String, nullable=True)
+    uso_fondos_diagnostico = Column(String, nullable=True)  # copiado a Lead.uso_fondos al registrarse
 
     created_at = Column(DateTime, default=_now)
 

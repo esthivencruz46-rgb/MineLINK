@@ -62,23 +62,61 @@ class DiagnosticoRequest(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
-    tiene_resultados_laboratorio: Optional[bool] = None
+    # "No" / "Sí, algunos" / "Sí, completos" (antes booleano)
+    tiene_resultados_laboratorio: Optional[str] = None
+    modalidad_trabajadores: Optional[str] = None
+    provincia: Optional[str] = None
+    sustancias_toxicas: Optional[str] = None
+    gestion_sustancias: Optional[str] = None
+    incidentes_previos: Optional[str] = None
+    permisos_comunitarios: Optional[str] = None
+    acceso_logistico: Optional[str] = None
+    experiencia_operador: Optional[str] = None
+    capacitacion_operador: Optional[str] = None
+    documentacion_disponible: Optional[str] = None
+    plan_formalizacion: Optional[str] = None
+    prioridad_crecimiento: Optional[str] = None
 
     # Perfil de la concesión (Ruta 2) — informativo, nunca puntúa
-    concesion_vigente: Optional[bool] = None
+    concesion_vigente: Optional[str] = None
     tipo_deposito: Optional[str] = None
     etapa_proyecto: Optional[str] = None
     trabajos_exploracion_json: Optional[list[str]] = None
-    info_geologica_disponible: Optional[bool] = None
-    tiene_estimaciones_leyes: Optional[bool] = None
+    info_geologica_disponible: Optional[str] = None
+    tiene_estimaciones_leyes: Optional[str] = None
+    pagos_vigencia_al_dia: Optional[str] = None
+    toneladas_estimadas: Optional[str] = None
+    ley_esperada: Optional[str] = None
+    capital_disponible: Optional[str] = None
+    estudio_previo: Optional[str] = None
+    historial_operacion: Optional[str] = None
+    pasivos_ambientales: Optional[str] = None
+    experiencia_titular: Optional[str] = None
+    background_titular: Optional[str] = None
+    equipo_tecnico: Optional[str] = None
+    tipo_socio_buscado: Optional[str] = None
+    siguiente_hito: Optional[str] = None
+    timeline_operacion: Optional[str] = None
+    motivo_inicio: Optional[str] = None
 
     # Compartidos por ambas rutas
     documento_autorizacion: Optional[str] = None
     tipo_apoyo_json: Optional[list[str]] = None
+    tipo_apoyo: Optional[str] = None
+    acceso_agua: Optional[str] = None
+    acceso_energia: Optional[str] = None
+    conflictividad_social: Optional[str] = None
+    estructura_propiedad: Optional[str] = None
+    monto_requerido: Optional[str] = None
+    plazo_capital: Optional[str] = None
+    motivo_capital: Optional[str] = None
+    produccion_objetivo: Optional[str] = None
+    uso_fondos_diagnostico: Optional[str] = None
 
     @model_validator(mode="after")
     def validar_ids_segun_tipo_mina(self) -> "DiagnosticoRequest":
-        esperados = ids_esperados_para(self.tipo_mina, self.situacion)
+        perfil = {"sustancias_toxicas": self.sustancias_toxicas}
+        esperados = ids_esperados_para(self.tipo_mina, self.situacion, perfil)
         if set(self.respuestas.keys()) != esperados:
             raise ValueError(
                 f"Para tipo_mina={self.tipo_mina} y situacion={self.situacion} "
@@ -376,15 +414,51 @@ class MineroPerfilOut(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
-    tiene_resultados_laboratorio: Optional[bool] = None
-    concesion_vigente: Optional[bool] = None
+    tiene_resultados_laboratorio: Optional[str] = None
+    modalidad_trabajadores: Optional[str] = None
+    provincia: Optional[str] = None
+    sustancias_toxicas: Optional[str] = None
+    gestion_sustancias: Optional[str] = None
+    incidentes_previos: Optional[str] = None
+    permisos_comunitarios: Optional[str] = None
+    acceso_logistico: Optional[str] = None
+    experiencia_operador: Optional[str] = None
+    capacitacion_operador: Optional[str] = None
+    documentacion_disponible: Optional[str] = None
+    plan_formalizacion: Optional[str] = None
+    prioridad_crecimiento: Optional[str] = None
+    concesion_vigente: Optional[str] = None
     tipo_deposito: Optional[str] = None
     etapa_proyecto: Optional[str] = None
     trabajos_exploracion_json: Optional[list[str]] = None
-    info_geologica_disponible: Optional[bool] = None
-    tiene_estimaciones_leyes: Optional[bool] = None
+    info_geologica_disponible: Optional[str] = None
+    tiene_estimaciones_leyes: Optional[str] = None
+    pagos_vigencia_al_dia: Optional[str] = None
+    toneladas_estimadas: Optional[str] = None
+    ley_esperada: Optional[str] = None
+    capital_disponible: Optional[str] = None
+    estudio_previo: Optional[str] = None
+    historial_operacion: Optional[str] = None
+    pasivos_ambientales: Optional[str] = None
+    experiencia_titular: Optional[str] = None
+    background_titular: Optional[str] = None
+    equipo_tecnico: Optional[str] = None
+    tipo_socio_buscado: Optional[str] = None
+    siguiente_hito: Optional[str] = None
+    timeline_operacion: Optional[str] = None
+    motivo_inicio: Optional[str] = None
     documento_autorizacion: Optional[str] = None
     tipo_apoyo_json: Optional[list[str]] = None
+    tipo_apoyo: Optional[str] = None
+    acceso_agua: Optional[str] = None
+    acceso_energia: Optional[str] = None
+    conflictividad_social: Optional[str] = None
+    estructura_propiedad: Optional[str] = None
+    monto_requerido: Optional[str] = None
+    plazo_capital: Optional[str] = None
+    motivo_capital: Optional[str] = None
+    produccion_objetivo: Optional[str] = None
+    uso_fondos_diagnostico: Optional[str] = None
     # Códigos de estudio del catálogo que aplican a su tipo_mina/situación
     # (ver scoring.ESTUDIO_POR_PREGUNTA) — para que pueda subir una foto de
     # respaldo por cada uno desde /mi-cuenta o /mi-concesion, sin importar
@@ -633,15 +707,53 @@ class LeadConDiagnostico(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
-    tiene_resultados_laboratorio: Optional[bool] = None
-    concesion_vigente: Optional[bool] = None
+    num_trabajadores: Optional[str] = None
+    maquinaria: Optional[str] = None
+    tiene_resultados_laboratorio: Optional[str] = None
+    modalidad_trabajadores: Optional[str] = None
+    provincia: Optional[str] = None
+    sustancias_toxicas: Optional[str] = None
+    gestion_sustancias: Optional[str] = None
+    incidentes_previos: Optional[str] = None
+    permisos_comunitarios: Optional[str] = None
+    acceso_logistico: Optional[str] = None
+    experiencia_operador: Optional[str] = None
+    capacitacion_operador: Optional[str] = None
+    documentacion_disponible: Optional[str] = None
+    plan_formalizacion: Optional[str] = None
+    prioridad_crecimiento: Optional[str] = None
+    concesion_vigente: Optional[str] = None
     tipo_deposito: Optional[str] = None
     etapa_proyecto: Optional[str] = None
     trabajos_exploracion_json: Optional[list[str]] = None
-    info_geologica_disponible: Optional[bool] = None
-    tiene_estimaciones_leyes: Optional[bool] = None
+    info_geologica_disponible: Optional[str] = None
+    tiene_estimaciones_leyes: Optional[str] = None
+    pagos_vigencia_al_dia: Optional[str] = None
+    toneladas_estimadas: Optional[str] = None
+    ley_esperada: Optional[str] = None
+    capital_disponible: Optional[str] = None
+    estudio_previo: Optional[str] = None
+    historial_operacion: Optional[str] = None
+    pasivos_ambientales: Optional[str] = None
+    experiencia_titular: Optional[str] = None
+    background_titular: Optional[str] = None
+    equipo_tecnico: Optional[str] = None
+    tipo_socio_buscado: Optional[str] = None
+    siguiente_hito: Optional[str] = None
+    timeline_operacion: Optional[str] = None
+    motivo_inicio: Optional[str] = None
     documento_autorizacion: Optional[str] = None
     tipo_apoyo_json: Optional[list[str]] = None
+    tipo_apoyo: Optional[str] = None
+    acceso_agua: Optional[str] = None
+    acceso_energia: Optional[str] = None
+    conflictividad_social: Optional[str] = None
+    estructura_propiedad: Optional[str] = None
+    monto_requerido: Optional[str] = None
+    plazo_capital: Optional[str] = None
+    motivo_capital: Optional[str] = None
+    produccion_objetivo: Optional[str] = None
+    uso_fondos_diagnostico: Optional[str] = None
 
 
 class ActualizarEstadoContactoRequest(BaseModel):

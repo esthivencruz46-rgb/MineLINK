@@ -28,6 +28,7 @@ const COLOR_BARRA_DIMENSION: Record<NombreDimension, string> = {
   operativo: "bg-secundario",
   tecnico: "bg-purple-500",
   seguridad: "bg-amber-500",
+  social: "bg-pink-500",
 };
 
 const NO_ESPECIFICADO = "No especificado";
@@ -106,6 +107,7 @@ export function ProyectoDetalle() {
     ...estudiosDe("legal"),
     ...estudiosDe("ambiental"),
     ...estudiosDe("seguridad"),
+    ...estudiosDe("social"),
   ];
   const estudiosTecnicos = estudiosDe("tecnico");
 
@@ -446,6 +448,7 @@ export function ProyectoDetalle() {
                     }}
                   />
                 )}
+                {dims.social && <FactorRiesgo etiqueta="Riesgo social" dimension={dims.social} />}
                 <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
                   <p className="text-sm font-medium">Riesgo financiero</p>
                   <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">

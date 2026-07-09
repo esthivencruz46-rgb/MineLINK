@@ -53,7 +53,8 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
     el minero pueda subir una foto de respaldo por cada uno, sin importar
     si respondió Sí o No."""
     situacion = operacion.situacion or "minero_artesanal"
-    ids = ids_esperados_para(operacion.tipo_mina, situacion)
+    perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
+    ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
     return sorted({ESTUDIO_POR_PREGUNTA[i] for i in ids})
 
 
@@ -86,14 +87,50 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         ley_promedio=operacion.ley_promedio,
         ley_como_obtenida=operacion.ley_como_obtenida,
         tiene_resultados_laboratorio=operacion.tiene_resultados_laboratorio,
+        modalidad_trabajadores=operacion.modalidad_trabajadores,
+        provincia=operacion.provincia,
+        sustancias_toxicas=operacion.sustancias_toxicas,
+        gestion_sustancias=operacion.gestion_sustancias,
+        incidentes_previos=operacion.incidentes_previos,
+        permisos_comunitarios=operacion.permisos_comunitarios,
+        acceso_logistico=operacion.acceso_logistico,
+        experiencia_operador=operacion.experiencia_operador,
+        capacitacion_operador=operacion.capacitacion_operador,
+        documentacion_disponible=operacion.documentacion_disponible,
+        plan_formalizacion=operacion.plan_formalizacion,
+        prioridad_crecimiento=operacion.prioridad_crecimiento,
         concesion_vigente=operacion.concesion_vigente,
         tipo_deposito=operacion.tipo_deposito,
         etapa_proyecto=operacion.etapa_proyecto,
         trabajos_exploracion_json=operacion.trabajos_exploracion_json,
         info_geologica_disponible=operacion.info_geologica_disponible,
         tiene_estimaciones_leyes=operacion.tiene_estimaciones_leyes,
+        pagos_vigencia_al_dia=operacion.pagos_vigencia_al_dia,
+        toneladas_estimadas=operacion.toneladas_estimadas,
+        ley_esperada=operacion.ley_esperada,
+        capital_disponible=operacion.capital_disponible,
+        estudio_previo=operacion.estudio_previo,
+        historial_operacion=operacion.historial_operacion,
+        pasivos_ambientales=operacion.pasivos_ambientales,
+        experiencia_titular=operacion.experiencia_titular,
+        background_titular=operacion.background_titular,
+        equipo_tecnico=operacion.equipo_tecnico,
+        tipo_socio_buscado=operacion.tipo_socio_buscado,
+        siguiente_hito=operacion.siguiente_hito,
+        timeline_operacion=operacion.timeline_operacion,
+        motivo_inicio=operacion.motivo_inicio,
         documento_autorizacion=operacion.documento_autorizacion,
         tipo_apoyo_json=operacion.tipo_apoyo_json,
+        tipo_apoyo=operacion.tipo_apoyo,
+        acceso_agua=operacion.acceso_agua,
+        acceso_energia=operacion.acceso_energia,
+        conflictividad_social=operacion.conflictividad_social,
+        estructura_propiedad=operacion.estructura_propiedad,
+        monto_requerido=operacion.monto_requerido,
+        plazo_capital=operacion.plazo_capital,
+        motivo_capital=operacion.motivo_capital,
+        produccion_objetivo=operacion.produccion_objetivo,
+        uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,
         estudios_aplicables=_estudios_aplicables(operacion),
         **estado_seguimiento(operacion),
     )

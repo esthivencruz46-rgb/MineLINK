@@ -24,7 +24,7 @@ const EMPRESAS_DEMO: Empresa[] = [
     estudios_json: [
       "tramite_reinfo",
       "levantamiento_georreferenciado",
-      "igafom_correctivo",
+      "igafom_aprobado",
       "informe_geologico",
     ],
     whatsapp: "+51900000001",

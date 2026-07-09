@@ -10,6 +10,13 @@ export interface Pregunta {
   ayuda?: string;
   /** Si está presente, la pregunta solo aplica cuando tipo_mina === este valor. */
   soloSiTipoMina?: "subterranea";
+  /** Se muestra solo si esta función, evaluada contra el perfil informativo
+   * acumulado, devuelve true. Sin esto = siempre se muestra (salvo que la
+   * excluya soloSiTipoMina o la regla de situación). Hoy solo la usa A4. */
+  mostrarSi?: (perfil: Record<string, unknown>) => boolean;
+  /** El mismo id puede significar algo distinto según la ruta (ej. T7).
+   * Si la situación actual tiene entrada acá, se usa esa en vez de `texto`. */
+  textoPorSituacion?: Partial<Record<Situacion, string>>;
 }
 
 export interface Bloque {
@@ -73,22 +80,36 @@ export const BLOQUES: Bloque[] = [
     preguntas: [
       {
         id: "A1",
-        texto: "¿Tiene IGAFOM Correctivo?",
-        nota: "IGAFOM: tu plan ambiental",
+        texto: "¿Tiene tu IGAFOM aprobado?",
+        nota: "IGAFOM: tu plan ambiental (Correctivo o Preventivo, según tu caso)",
         ayuda:
-          "El IGAFOM es tu compromiso ambiental ante el Estado. El Correctivo aplica si YA vienes trabajando: dice cómo vas a corregir los daños que existen (relaves, desmontes, pozas).",
+          "El IGAFOM es tu compromiso ambiental ante el Estado. Si ya operas, es el Correctivo (corrige daños existentes); si vas a operar, el Preventivo. Responde Sí si ya lo presentaste y fue aprobado.",
+        textoPorSituacion: {
+          concesionario: "¿La concesión está libre de pasivos ambientales heredados?",
+        },
       },
       {
         id: "A2",
-        texto: "¿Tiene IGAFOM Preventivo?",
+        texto: "¿Su instrumento ambiental está vigente?",
         ayuda:
-          "El Preventivo es para lo que vas a hacer de aquí en adelante: dice cómo evitarás dañar el ambiente en tus próximas labores.",
+          "No basta con que te lo hayan aprobado alguna vez: el instrumento ambiental tiene una vigencia y hay que renovarlo. Responde Sí si sigue vigente hoy.",
+        textoPorSituacion: {
+          concesionario: "¿Tienes un plan de gestión ambiental preliminar?",
+        },
       },
       {
         id: "A3",
-        texto: "¿Su instrumento ambiental está aprobado?",
+        texto: "¿No ha tenido clausuras ambientales en los últimos 3 años?",
         ayuda:
-          "No basta con presentar tu IGAFOM: la autoridad de minería de tu región (DREM o GREM) debe revisarlo y darte una resolución de aprobación. Si tienes ese papel, responde Sí.",
+          "Una clausura es cuando la autoridad ambiental paraliza tu operación por incumplimiento. Responde Sí si en los últimos 3 años no te clausuraron por temas ambientales.",
+      },
+      {
+        id: "A4",
+        texto: "¿Cuenta con un plan de manejo para el mercurio, cianuro o relaves que genera?",
+        ayuda:
+          "Si en tu proceso usas mercurio, cianuro, o generas relaves, necesitas un plan que diga cómo los confinas, tratas o reúsas sin dañar el ambiente.",
+        mostrarSi: (perfil) =>
+          typeof perfil.sustancias_toxicas === "string" && perfil.sustancias_toxicas !== "no",
       },
     ],
   },
@@ -144,6 +165,15 @@ export const BLOQUES: Bloque[] = [
         ayuda:
           "Es el cálculo técnico de cuánto mineral tienes y para cuánto tiempo te alcanza. Es lo primero que pregunta un inversionista serio.",
       },
+      {
+        id: "T7",
+        texto: "¿Puedes documentar tu operación con fotos o reportes técnicos?",
+        ayuda:
+          "Fotos actuales de tu labor o reportes técnicos que respalden lo que declaras — le dan más confianza a quien evalúa tu proyecto.",
+        textoPorSituacion: {
+          concesionario: "¿Cuenta con un estudio de prefactibilidad o factibilidad?",
+        },
+      },
     ],
   },
   {
@@ -182,6 +212,22 @@ export const BLOQUES: Bloque[] = [
         soloSiTipoMina: "subterranea",
         ayuda:
           "Es un estudio que verifica que dentro del socavón entre suficiente aire limpio y no se acumulen gases peligrosos donde trabaja tu gente.",
+      },
+    ],
+  },
+  {
+    // Dimensión nueva, hoy exclusiva de Ruta 2 (concesionario) — ver
+    // scoring.SITUACIONES. Un proyecto que recién inicia no tiene
+    // historial operativo que evaluar en Seguridad/Ambiental, pero sí
+    // puede tener conflictividad social alrededor de la concesión.
+    dimension: "social",
+    titulo: "Social",
+    preguntas: [
+      {
+        id: "R1",
+        texto: "¿No hay conflictividad comunitaria activa alrededor de la concesión?",
+        ayuda:
+          "Responde Sí si no hay protestas activas ni oposición organizada de las comunidades cercanas a tu concesión.",
       },
     ],
   },
@@ -232,31 +278,40 @@ export const SITUACIONES: {
   },
 ];
 
-// Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados)
+// Espejo exacto de backend/scoring.py → SITUACIONES (mantener sincronizados).
+// A4 es condicional (ver `mostrarSi` en su Pregunta) y no se resuelve acá.
 const REGLA_POR_SITUACION: Record<Situacion, { excluir?: string[]; solo?: string[] }> = {
-  minero_artesanal: { excluir: ["L6"] },
-  concesionario: { solo: ["L1", "L2", "L3", "L4", "L6", "T1", "T3", "T6"] },
+  minero_artesanal: { excluir: ["L6", "R1"] },
+  concesionario: {
+    solo: ["L1", "L2", "L3", "L4", "L6", "A1", "A2", "T1", "T3", "T6", "T7", "R1"],
+  },
 };
 
+/** `perfil` es el perfil informativo acumulado hasta este punto del
+ * cuestionario — solo se usa para resolver preguntas condicionales
+ * (`mostrarSi`), hoy únicamente A4. Aplica también `textoPorSituacion`
+ * cuando corresponde, así el llamador siempre recibe el texto correcto. */
 export function preguntasAplicables(
   tipoMina: "subterranea" | "tajo_abierto",
-  situacion: Situacion = "minero_artesanal"
+  situacion: Situacion = "minero_artesanal",
+  perfil: Record<string, unknown> = {}
 ): Pregunta[] {
   const regla = REGLA_POR_SITUACION[situacion];
   return BLOQUES.flatMap((b) => b.preguntas)
     .filter((p) => !p.soloSiTipoMina || p.soloSiTipoMina === tipoMina)
     .filter((p) =>
       regla.solo ? regla.solo.includes(p.id) : !(regla.excluir ?? []).includes(p.id)
-    );
+    )
+    .filter((p) => !p.mostrarSi || p.mostrarSi(perfil))
+    .map((p) => ({ ...p, texto: p.textoPorSituacion?.[situacion] ?? p.texto }));
 }
 
-/** Las informativas de Operativo (maquinaria, trabajadores, y producción
- * solo si esa ruta no la preguntó ya en el perfil previo). Ruta 2
- * (concesionario) no opera todavía, así que ninguna de las 3 aplica. */
-export function informativasAplicables(situacion: Situacion): PreguntaInformativa[] {
-  if (situacion === "concesionario") return [];
-  // minero_artesanal ya preguntó producción mensual en el perfil previo
-  return PREGUNTAS_INFORMATIVAS_OPERATIVO.filter((p) => p.campo !== "produccion_mensual");
+/** Ya no se usa: maquinaria y num_trabajadores se preguntan ahora en el
+ * perfil informativo (Ruta 1, Bloque 3) y producción mensual también.
+ * Se deja definida por si se necesita reactivar una informativa suelta
+ * más adelante. */
+export function informativasAplicables(_situacion: Situacion): PreguntaInformativa[] {
+  return [];
 }
 
 export const NOMBRES_DIMENSION: Record<NombreDimension, string> = {
@@ -265,4 +320,5 @@ export const NOMBRES_DIMENSION: Record<NombreDimension, string> = {
   operativo: "Operativo",
   tecnico: "Técnico",
   seguridad: "Seguridad",
+  social: "Social",
 };

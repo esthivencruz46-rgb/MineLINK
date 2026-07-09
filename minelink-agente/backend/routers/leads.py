@@ -59,6 +59,11 @@ def crear_lead(payload: schemas.LeadCreate, db: Session = Depends(get_db)):
         password_hash=hash_password(payload.password),
         pregunta_seguridad=payload.pregunta_seguridad,
         respuesta_seguridad_hash=hash_password(payload.respuesta_seguridad),
+        # El monto/uso de fondos ya se preguntaron en el diagnóstico (Bloque
+        # 5) — se copian como valor inicial; el minero los puede afinar
+        # después desde /mi-cuenta (PerfilInversionForm ya no los obliga).
+        capital_buscado=operacion.monto_requerido,
+        uso_fondos=operacion.uso_fondos_diagnostico,
     )
     # El diagnóstico ya no pregunta departamento (queda "no especificado");
     # el del registro es el dato real — se refleja en la operación para que

@@ -76,7 +76,7 @@ RESPUESTAS_COMPLETAS = {
     "L1": True, "L2": True, "L3": True, "L4": True, "L5": True,
     "A1": True, "A2": True, "A3": True,
     "O1": True,
-    "T1": True, "T2": True, "T3": True, "T4": True, "T5": True, "T6": True,
+    "T1": True, "T2": True, "T3": True, "T4": True, "T5": True, "T6": True, "T7": True,
     "S1": True, "S2": True, "S3": True, "S4": True, "S5": False,
 }
 
@@ -1770,7 +1770,9 @@ def test_rating_fuera_de_rango_rechazado():
 
 RESPUESTAS_CONCESIONARIO = {
     "L1": True, "L2": True, "L3": True, "L4": True, "L6": True,
-    "T1": True, "T3": True, "T6": True,
+    "A1": True, "A2": True,
+    "T1": True, "T3": True, "T6": True, "T7": True,
+    "R1": True,
 }
 
 
@@ -1788,9 +1790,11 @@ def test_diagnostico_concesionario_set_reducido():
     assert resp.status_code == 200
     body = resp.json()
     assert body["score_total"] == 100
-    assert set(body["dimensiones"].keys()) == {"legal", "tecnico"}
+    assert set(body["dimensiones"].keys()) == {"legal", "ambiental", "tecnico", "social"}
     assert body["dimensiones"]["legal"]["maximo"] == 25  # L1,L2,L3,L4,L6 (sin L5)
-    assert body["dimensiones"]["tecnico"]["maximo"] == 15  # T1,T3,T6
+    assert body["dimensiones"]["ambiental"]["maximo"] == 10  # A1,A2
+    assert body["dimensiones"]["tecnico"]["maximo"] == 20  # T1,T3,T6,T7
+    assert body["dimensiones"]["social"]["maximo"] == 5  # R1
     assert body["brechas"] == []
 
     # El set completo de artesanal (con L5, sin L6) debe rechazarse para concesionario
@@ -1848,8 +1852,8 @@ def test_diagnostico_guarda_perfil_ruta1():
             "situacion": "minero_artesanal",
             "estado_operacion": "activa",
             "tipo_explotacion": "subterranea",
-            "tiene_resultados_laboratorio": True,
-            "tipo_apoyo_json": ["financiamiento", "asesoria_tecnica"],
+            "tiene_resultados_laboratorio": "completo",
+            "tipo_apoyo": "financiamiento",
         },
     )
     assert resp.status_code == 200
@@ -1864,12 +1868,59 @@ def test_diagnostico_guarda_perfil_ruta2():
             "mineral": "cobre",
             "tipo_mina": "subterranea",
             "situacion": "concesionario",
-            "concesion_vigente": True,
+            "concesion_vigente": "si",
             "etapa_proyecto": "exploracion inicial",
             "trabajos_exploracion_json": ["muestreo", "calicatas"],
         },
     )
     assert resp.status_code == 200
+
+
+def test_diagnostico_a4_es_condicional_segun_sustancias_toxicas():
+    # Sin declarar sustancias tóxicas, A4 no debe pedirse ni aceptarse.
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "sustancias_toxicas": "no",
+        },
+    )
+    assert resp.status_code == 200
+
+    # Si declara mercurio/cianuro/relaves, A4 pasa a ser obligatorio.
+    respuestas_con_a4 = {**RESPUESTAS_COMPLETAS, "A4": True}
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_con_a4,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "sustancias_toxicas": "mercurio",
+            "gestion_sustancias": "confinamiento",
+        },
+    )
+    assert resp.status_code == 200
+    assert resp.json()["dimensiones"]["ambiental"]["maximo"] == 20  # A1-A4
+
+    # El mismo payload SIN A4 debe rechazarse cuando sí declaró sustancias tóxicas.
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "sustancias_toxicas": "mercurio",
+        },
+    )
+    assert resp.status_code == 422
 
 
 def test_diagnostico_situacion_yacimiento_ya_no_existe():

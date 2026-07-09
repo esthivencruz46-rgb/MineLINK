@@ -38,13 +38,16 @@ const CAMPOS: {
     campo: "uso_fondos",
     etiqueta: "¿Para qué buscas el dinero? (motivo)",
     placeholder: "Ej: comprar chancadora, planta de beneficio, capital de trabajo",
-    obligatorio: true,
+    // Ya no es obligatorio: esto se pregunta en el diagnóstico (Bloque de
+    // oportunidad e inversión) y llega precargado — este campo es solo
+    // para afinarlo si quiere.
+    obligatorio: false,
   },
   {
     campo: "capital_buscado",
     etiqueta: "¿Cuánto capital buscas?",
     placeholder: "",
-    obligatorio: true,
+    obligatorio: false,
     unaLinea: true,
   },
   {

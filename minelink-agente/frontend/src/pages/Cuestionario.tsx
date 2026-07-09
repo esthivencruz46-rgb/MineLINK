@@ -30,10 +30,6 @@ function textoOpcional(v: unknown): string | undefined {
   return typeof v === "string" && v.trim() ? v.trim() : undefined;
 }
 
-function boolOpcional(v: unknown): boolean | undefined {
-  return typeof v === "boolean" ? v : undefined;
-}
-
 function listaOpcional(v: unknown): string[] | undefined {
   return Array.isArray(v) && v.length > 0 ? (v as string[]) : undefined;
 }
@@ -72,23 +68,42 @@ function construirPerfilVisible(situacion: Situacion, perfil: Perfil): PreguntaP
   ];
 }
 
+function noEsNo(v: unknown): boolean {
+  return typeof v === "string" && v !== "no";
+}
+
 /** Ruta 2 (concesionario): TODAS sus preguntas de formalización (L1-L4,L6,
- * T1,T3,T6) ya se respondieron en el perfil — se copian aquí, sin repetir
- * la pregunta en un paso Sí/No aparte. Ruta 1 no prellena nada: su
- * cuestionario Sí/No sigue siendo el completo de siempre. */
+ * A1,T1,T3,T6,T7,R1) ya se respondieron en el perfil — se copian aquí, sin
+ * repetir la pregunta en un paso Sí/No aparte. Ruta 1 prellena T7 (de
+ * "documentacion_disponible") y, si declaró sustancias tóxicas, A4 (de
+ * "gestion_sustancias") — el resto de su cuestionario Sí/No sigue siendo
+ * el completo de siempre. */
 function respuestasPrellenadasDe(situacion: Situacion, perfil: Perfil): Respuestas {
-  if (situacion !== "concesionario") return {};
-  const titular = perfil.titular === true;
-  return {
-    L1: perfil.formalizacion_iniciada === true,
-    L2: titular,
-    L3: titular ? true : Boolean(perfil.documento_autorizacion),
-    L4: perfil.tiene_ruc === true,
-    L6: perfil.concesion_vigente === true,
-    T1: perfil.info_geologica_disponible === true,
-    T3: perfil.tiene_resultados_laboratorio === true,
-    T6: perfil.tiene_estimaciones_leyes === true,
-  };
+  const prellenadas: Respuestas = {};
+
+  if (situacion === "concesionario") {
+    const titular = perfil.titular === true;
+    prellenadas.L1 = perfil.formalizacion_iniciada === "aprobado";
+    prellenadas.L2 = titular;
+    prellenadas.L3 = titular ? true : Boolean(perfil.documento_autorizacion);
+    prellenadas.L4 = perfil.tiene_ruc === "activo";
+    prellenadas.L6 = perfil.concesion_vigente === "si";
+    prellenadas.A1 = perfil.pasivos_ambientales === "no";
+    prellenadas.T1 = noEsNo(perfil.info_geologica_disponible);
+    prellenadas.T3 = noEsNo(perfil.tiene_resultados_laboratorio);
+    prellenadas.T6 = noEsNo(perfil.tiene_estimaciones_leyes);
+    prellenadas.T7 = noEsNo(perfil.estudio_previo);
+    prellenadas.R1 = perfil.conflictividad_social === "no";
+  }
+
+  if (situacion === "minero_artesanal") {
+    prellenadas.T7 = noEsNo(perfil.documentacion_disponible);
+    if (noEsNo(perfil.sustancias_toxicas)) {
+      prellenadas.A4 = perfil.gestion_sustancias !== "no_se_gestiona" && noEsNo(perfil.gestion_sustancias);
+    }
+  }
+
+  return prellenadas;
 }
 
 /** "Oro: 2.5 g/t; Plata: 30 g/t" — una ley por cada elemento marcado. */
@@ -130,7 +145,7 @@ export function Cuestionario() {
   const respuestasPrellenadas = situacion ? respuestasPrellenadasDe(situacion, perfil) : {};
   const tipoMina = situacion ? tipoMinaDe(situacion, perfil) : "subterranea";
   const preguntas = situacion
-    ? preguntasAplicables(tipoMina, situacion).filter((p) => !(p.id in respuestasPrellenadas))
+    ? preguntasAplicables(tipoMina, situacion, perfil).filter((p) => !(p.id in respuestasPrellenadas))
     : [];
   const informativasDelCaso = situacion ? informativasAplicables(situacion) : [];
   const TOTAL_PREGUNTAS = preguntas.length;
@@ -167,8 +182,8 @@ export function Cuestionario() {
         tipo_mina: tipoMinaDe(situacion, perfilFinal),
         situacion,
         produccion_mensual: textoOpcional(perfilFinal.produccion_mensual),
-        maquinaria: datosFinales.maquinaria,
-        num_trabajadores: datosFinales.num_trabajadores,
+        maquinaria: textoOpcional(perfilFinal.maquinaria) ?? datosFinales.maquinaria,
+        num_trabajadores: textoOpcional(perfilFinal.num_trabajadores) ?? datosFinales.num_trabajadores,
         estado_operacion: textoOpcional(perfilFinal.estado_operacion),
         tipo_explotacion: textoOpcional(perfilFinal.tipo_explotacion),
         material_comercializado: textoOpcional(perfilFinal.material_comercializado),
@@ -176,15 +191,50 @@ export function Cuestionario() {
         tiempo_operacion: textoOpcional(perfilFinal.tiempo_operacion),
         ley_promedio: leyPromedioDe(perfilFinal),
         ley_como_obtenida: textoOpcional(perfilFinal.ley_como_obtenida),
-        tiene_resultados_laboratorio: boolOpcional(perfilFinal.tiene_resultados_laboratorio),
-        concesion_vigente: boolOpcional(perfilFinal.concesion_vigente),
+        tiene_resultados_laboratorio: textoOpcional(perfilFinal.tiene_resultados_laboratorio),
+        modalidad_trabajadores: textoOpcional(perfilFinal.modalidad_trabajadores),
+        provincia: textoOpcional(perfilFinal.provincia),
+        sustancias_toxicas: textoOpcional(perfilFinal.sustancias_toxicas),
+        gestion_sustancias: textoOpcional(perfilFinal.gestion_sustancias),
+        incidentes_previos: textoOpcional(perfilFinal.incidentes_previos),
+        permisos_comunitarios: textoOpcional(perfilFinal.permisos_comunitarios),
+        acceso_logistico: textoOpcional(perfilFinal.acceso_logistico),
+        experiencia_operador: textoOpcional(perfilFinal.experiencia_operador),
+        capacitacion_operador: textoOpcional(perfilFinal.capacitacion_operador),
+        documentacion_disponible: textoOpcional(perfilFinal.documentacion_disponible),
+        plan_formalizacion: textoOpcional(perfilFinal.plan_formalizacion),
+        prioridad_crecimiento: textoOpcional(perfilFinal.prioridad_crecimiento),
+        concesion_vigente: textoOpcional(perfilFinal.concesion_vigente),
         tipo_deposito: textoOpcional(perfilFinal.tipo_deposito),
         etapa_proyecto: textoOpcional(perfilFinal.etapa_proyecto),
         trabajos_exploracion_json: listaOpcional(perfilFinal.trabajos_exploracion_json),
-        info_geologica_disponible: boolOpcional(perfilFinal.info_geologica_disponible),
-        tiene_estimaciones_leyes: boolOpcional(perfilFinal.tiene_estimaciones_leyes),
+        info_geologica_disponible: textoOpcional(perfilFinal.info_geologica_disponible),
+        tiene_estimaciones_leyes: textoOpcional(perfilFinal.tiene_estimaciones_leyes),
+        pagos_vigencia_al_dia: textoOpcional(perfilFinal.pagos_vigencia_al_dia),
+        toneladas_estimadas: textoOpcional(perfilFinal.toneladas_estimadas),
+        ley_esperada: textoOpcional(perfilFinal.ley_esperada),
+        capital_disponible: textoOpcional(perfilFinal.capital_disponible),
+        estudio_previo: textoOpcional(perfilFinal.estudio_previo),
+        historial_operacion: textoOpcional(perfilFinal.historial_operacion),
+        pasivos_ambientales: textoOpcional(perfilFinal.pasivos_ambientales),
+        experiencia_titular: textoOpcional(perfilFinal.experiencia_titular),
+        background_titular: textoOpcional(perfilFinal.background_titular),
+        equipo_tecnico: textoOpcional(perfilFinal.equipo_tecnico),
+        tipo_socio_buscado: textoOpcional(perfilFinal.tipo_socio_buscado),
+        siguiente_hito: textoOpcional(perfilFinal.siguiente_hito),
+        timeline_operacion: textoOpcional(perfilFinal.timeline_operacion),
+        motivo_inicio: textoOpcional(perfilFinal.motivo_inicio),
         documento_autorizacion: textoOpcional(perfilFinal.documento_autorizacion),
-        tipo_apoyo_json: listaOpcional(perfilFinal.tipo_apoyo_json),
+        tipo_apoyo: textoOpcional(perfilFinal.tipo_apoyo),
+        acceso_agua: textoOpcional(perfilFinal.acceso_agua),
+        acceso_energia: textoOpcional(perfilFinal.acceso_energia),
+        conflictividad_social: textoOpcional(perfilFinal.conflictividad_social),
+        estructura_propiedad: textoOpcional(perfilFinal.estructura_propiedad),
+        monto_requerido: textoOpcional(perfilFinal.monto_requerido),
+        plazo_capital: textoOpcional(perfilFinal.plazo_capital),
+        motivo_capital: textoOpcional(perfilFinal.motivo_capital),
+        produccion_objetivo: textoOpcional(perfilFinal.produccion_objetivo),
+        uso_fondos_diagnostico: textoOpcional(perfilFinal.uso_fondos_diagnostico),
       };
 
       const respuesta = await enviarDiagnostico(payload);

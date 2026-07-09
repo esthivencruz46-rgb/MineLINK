@@ -24,43 +24,107 @@ sino también qué **perfil informativo** (no puntúa) se recoge antes. Son 2
 rutas completamente distintas, no una variación de la misma:
 
 ### Ruta 1 — `minero_artesanal` (ya tiene una operación)
-Perfil informativo (Operación/Producción, se guarda en `Operacion`, NUNCA
-puntúa): estado de la operación (activa/no activa/temporal), tipo de
-explotación (subterránea/tajo abierto/aluvial/mixta/otro — de aquí se
-deriva `tipo_mina`, ya no se pregunta aparte), material comercializado,
-**elementos económicos que extrae (selección múltiple, → `mineral` unidos
-por coma)**, forma de comercialización, tiempo de operación, producción
-mensual (valor+unidad en una sola pregunta). Si conoce la ley, se pregunta
-**una ley (valor+unidad, una sola pregunta) por CADA elemento marcado**
-(ej. si marcó oro y plata, dos preguntas de ley) — todas se combinan en
-`ley_promedio` como `"Oro: 2.5 g/t; Plata: 30 g/t"`. Luego cómo se obtuvo
-la ley, y si cuenta con resultados de laboratorio.
+Perfil informativo (se guarda en `Operacion`, NUNCA puntúa), en bloques:
+1. **Operación actual**: activa/no activa/temporal; tipo de explotación
+   (subterránea/tajo abierto/aluvial/mixta/otro — de aquí se deriva
+   `tipo_mina`); material comercializado; **elementos económicos que
+   extrae (selección múltiple, → `mineral` unidos por coma)**; forma de
+   comercialización; tiempo de operación; producción mensual (valor+unidad
+   en una sola pregunta).
+2. **Conocimiento técnico**: si conoce la ley, se pregunta **una ley
+   (valor+unidad) por CADA elemento marcado** en el bloque 1 (ej. oro y
+   plata → dos preguntas), combinadas en `ley_promedio` como
+   `"Oro: 2.5 g/t; Plata: 30 g/t"`; cómo se obtuvo la ley; si cuenta con
+   resultados de laboratorio (3 niveles: no / algunos / completos).
+3. **Equipo y operación**: nº de trabajadores + modalidad (planilla/
+   destajo/combinado), maquinaria principal (texto libre), provincia.
+4. **Ambiente y operación específica**: si usa mercurio/cianuro o genera
+   relaves (`sustancias_toxicas`) y cómo los gestiona (condicional); acceso
+   a agua limpia; acceso a energía.
+5. **Oportunidad e inversión**: tipo de apoyo que busca primordialmente
+   (opción única, `tipo_apoyo`); monto aproximado que necesita
+   (`monto_requerido`, bucket); plazo para usarlo (`plazo_capital`); para
+   qué lo usaría primero (`uso_fondos_diagnostico`); por qué lo necesita
+   ahora (`motivo_capital`, texto breve); producción objetivo en 12 meses.
+   **Estos 4 primeros reemplazan lo que antes se preguntaba recién al
+   registrarse** — `POST /leads` copia `monto_requerido`/
+   `uso_fondos_diagnostico` a `Lead.capital_buscado`/`Lead.uso_fondos` como
+   valor inicial; el minero los puede afinar después desde Mi Cuenta.
+6. **Riesgos y conformidad**: incidentes en los últimos 2 años (clausura/
+   multa/accidente denunciado); conflictividad con comunidades; permisos/
+   relaciones formales con comunidades; acceso logístico a la mina.
+7. **Capacidad del operador**: años de experiencia de quien dirige;
+   capacitación/colegiatura; si puede documentar con fotos o reportes
+   (`documentacion_disponible`, prellena `T7`); estructura de propiedad.
+8. **Visión a futuro**: plan para formalizar; qué es lo más importante
+   para crecer (`prioridad_crecimiento`).
 
-Formalización: el cuestionario Sí/No de siempre, **TODAS las preguntas**
-(L1-L5, A1-A3, O1, T1-T6, S1-S5) — sin cambios respecto a antes. `L6`
-(vigencia de concesión) NO aplica a esta ruta.
+Formalización: el cuestionario Sí/No, **L1-L5, A1-A4 (A4 condicional),
+O1, T1-T7, S1-S5** — `L6` y `R1` (Social) NO aplican a esta ruta. `T7` y
+(si aplica) `A4` nunca se preguntan aparte: se prellenan desde el bloque 7
+y el bloque 4 del perfil respectivamente (ver "Preguntas condicionales y
+prellenadas" más abajo).
 
 ### Ruta 2 — `concesionario` (recién inicia, todavía no opera)
-Perfil informativo (Concesión/Exploración, nunca puntúa): vigencia de la
-concesión (también prellena `L6`), tipo de depósito (si lo conoce), etapa
-del proyecto, trabajos de exploración realizados (muestreo/calicatas/
-trincheras/perforación/cartografía/otro — multi), tipo de apoyo que busca.
-NO se pregunta nada de producción/comercialización/ventas — todavía no
-opera.
+Perfil informativo (nunca puntúa), en bloques:
+1. **Titularidad y vigencia**: si es titular; documento que lo autoriza
+   (si no es titular); si la concesión está vigente (3 niveles: sí/no/en
+   trámite de renovación, también prellena `L6`); pagos de derecho de
+   vigencia al día.
+2. **Geología y depósito**: elemento económico principal esperado; tipo de
+   depósito (estructurado: veta epitérmica/pórfido/aluvial/masivo/
+   diseminado/sedimentario/otro); estimación de toneladas (bucket); ley
+   esperada (texto libre, opcional).
+3. **Etapa del proyecto**: etapa (solo concesión/exploración inicial/
+   avanzada/pre-factibilidad/listo para operar); trabajos de exploración
+   realizados (multi); información geológica disponible (3 niveles);
+   ensayes de laboratorio (3 niveles); estimaciones de leyes confirmadas
+   (3 niveles: no/preliminar/por terceros).
+4. **Proyecto y escala**: producción objetivo anual; capital estimado para
+   iniciar (`monto_requerido`, bucket — escala mucho mayor que Ruta 1);
+   si ya cuenta con capital o fuentes de financiamiento; si hizo un
+   estudio de prefactibilidad/factibilidad (`estudio_previo`, prellena
+   `T7`).
+5. **Historial y riesgos**: si la concesión fue operada antes; pasivos
+   ambientales heredados (prellena `A1`); conflictividad comunitaria
+   conocida (prellena `R1`); acceso a agua; acceso a energía.
+6. **Formalización**: si inició REINFO (no/en trámite/aprobado — solo
+   "aprobado" prellena `L1`); si cuenta con RUC (no/activo/inactivo — solo
+   "activo" prellena `L4`).
+7. **Capacidad y equipo**: experiencia del titular/promotor; background
+   profesional (opcional); si tiene equipo técnico definido; tipo de socio
+   que busca; siguiente hito técnico/administrativo; timeline esperado
+   hasta operación.
+8. **Motivación y estructura**: por qué inició el proyecto; qué es lo más
+   importante para desarrollarlo (opción única, `tipo_apoyo`); estructura
+   de propiedad.
 
-Formalización: set MUCHO más chico, mide incertidumbre gradual en vez de
-todo-o-nada: `L1` (¿inició su proceso de formalización/REINFO?), `L2`
-(titularidad), `L3` (contrato/autorización, solo si no es titular), `L4`
-(RUC), `L6` (vigencia de la concesión, NUEVO). De lo Técnico solo `T1`
-(información geológica disponible), `T3` (ensayes de laboratorio), `T6`
-(estimaciones de leyes). Las dimensiones Ambiental/Operativo/Seguridad
-quedan vacías y se ocultan (no aplican — sin operación no hay nada que
+Formalización: set reducido, mide incertidumbre legal/ambiental/social
+gradual en vez de todo-o-nada: **L1, L2, L3 (solo si no es titular), L4,
+L6** (Legal); **A1 "sin pasivos ambientales heredados", A2 "plan de
+gestión ambiental preliminar"** (Ambiental — A2 se pregunta directo, sin
+prefill); **T1, T3, T6, T7** (Técnico); **R1 "sin conflictividad
+comunitaria activa"** (Social, dimensión nueva). Operativo y Seguridad
+quedan vacíos y se ocultan (no aplican — sin operación no hay nada que
 evaluar ahí).
 
 | situacion | ids de formalización que aplican |
 |---|---|
-| minero_artesanal | L1,L2,L3,L4,L5,A1,A2,A3,O1,T1-T6,S1-S5 (todas, sin L6) |
-| concesionario | L1,L2,L3,L4,L6,T1,T3,T6 (8 en total) |
+| minero_artesanal | L1-L5, A1-A3 (+ A4 si declaró sustancias tóxicas), O1, T1-T7, S1-S5 |
+| concesionario | L1,L2,L3,L4,L6,A1,A2,T1,T3,T6,T7,R1 (12 en total) |
+
+## Preguntas condicionales y prellenadas (además de L1/L2/L4/L6)
+- **A4** ("¿Plan de manejo para mercurio/cianuro/relaves?", Ruta 1): solo
+  es un id esperado si el minero declaró `sustancias_toxicas` distinto de
+  "no" en el bloque 4 del perfil. Cuando aplica, se prellena desde
+  `gestion_sustancias` (cualquier gestión declarada que no sea "no se
+  gestiona" cuenta como Sí) — nunca se pregunta como pantalla aparte.
+- **T7** (ambas rutas, texto distinto por ruta — "¿Documentas tu operación
+  con fotos o reportes?" en Ruta 1, "¿Cuenta con estudio de
+  prefactibilidad/factibilidad?" en Ruta 2): siempre se prellena, desde
+  `documentacion_disponible` (Ruta 1) o `estudio_previo` (Ruta 2).
+- **A1 (Ruta 2)**: se prellena desde `pasivos_ambientales` ("no" → Sí).
+- **R1 (Ruta 2)**: se prellena desde `conflictividad_social` ("no" → Sí).
 
 Reglas derivadas (sin cambios):
 - El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable a esa ruta.
@@ -81,21 +145,28 @@ de definir): por ahora el diagnóstico usa siempre `tipo_mina=subterranea`
 se implemente esa recolección, los proyectos nuevos en la vitrina pública
 no se pueden filtrar por mineral/departamento real.
 
-## Las 5 dimensiones (total 100 puntos)
+## Las 6 dimensiones
 
-| Dimensión | Peso (subterránea) | Peso (tajo abierto) | Quién la verifica en la vida real |
-|---|---|---|---|
-| Legal | 25 | 25 | MINEM / DREM / INGEMMET |
-| Ambiental | 15 | 15 | DREM / MINEM |
-| Operativo | 5 | 5 | Autodeclarado |
-| Técnico | 30 | 30 | Geólogo colegiado (CIP) |
-| Seguridad | 25 | 25 | Visita técnica / ingeniero de seguridad |
+| Dimensión | Peso Ruta 1 (subterránea) | Peso Ruta 1 (tajo abierto) | Peso Ruta 2 | Quién la verifica en la vida real |
+|---|---|---|---|---|
+| Legal | 25 | 25 | 25 | MINEM / DREM / INGEMMET |
+| Ambiental | 15-20* | 15-20* | 10 | DREM / MINEM |
+| Operativo | 5 | 5 | no aplica | Autodeclarado |
+| Técnico | 35 | 35 | 20 | Geólogo colegiado (CIP) |
+| Seguridad | 25 | 25 | no aplica | Visita técnica / ingeniero de seguridad |
+| Social | no aplica | no aplica | 5 | Autodeclarado |
+
+\* Ambiental en Ruta 1 llega a 20 pts solo si `A4` aplica (declaró
+mercurio/cianuro/relaves); si no, se queda en 15 y el score se sigue
+normalizando sobre el máximo real (no se penaliza por no tener A4).
 
 El peso de cada dimensión es automático: 5 puntos por cada pregunta SÍ/NO
-que contiene (100 / nº total de preguntas aplicables). En minería
-subterránea Seguridad reparte sus 25 puntos entre 5 preguntas (5 c/u); en
-tajo abierto, entre las 4 preguntas que aplican (S5 no se pregunta) con
-reparto 6/6/6/7 para que la dimensión siga sumando 25.
+que contiene (el score total se normaliza a 0-100 sobre el máximo
+aplicable a cada caso, así el peso relativo por pregunta siempre da 5 y no
+hace falta ajustar tablas manualmente). En minería subterránea Seguridad
+reparte sus 25 puntos entre 5 preguntas (5 c/u); en tajo abierto, entre
+las 4 preguntas que aplican (S5 no se pregunta) con reparto 6/6/6/7 para
+que la dimensión siga sumando 25.
 
 ## Las preguntas del cuestionario
 
@@ -114,12 +185,18 @@ empresas), y el minero puede responder "Prefiero no decirlo".
 | L5 | ¿Cuenta con coordenadas georreferenciadas? | 5 | solo Ruta 1 | levantamiento_georreferenciado |
 | L6 | ¿La concesión se encuentra vigente? | 5 | solo Ruta 2 | vigencia_concesion |
 
-### Bloque 2 — AMBIENTAL (15 pts, 3 preguntas x 5 pts)
-| id | Pregunta | Pts | Brecha → estudio |
-|---|---|---|---|
-| A1 | ¿Tiene IGAFOM Correctivo? | 5 | igafom_correctivo |
-| A2 | ¿Tiene IGAFOM Preventivo? | 5 | igafom_preventivo |
-| A3 | ¿Su instrumento ambiental está aprobado? | 5 | aprobacion_instrumento_ambiental |
+### Bloque 2 — AMBIENTAL (15 pts Ruta 1, +5 si A4 aplica; 10 pts Ruta 2)
+Redefinido julio 2026 — antes A1/A2 eran "IGAFOM Correctivo"/"IGAFOM
+Preventivo" por separado; ahora A1 fusiona ambos (uno u otro según si ya
+opera) y A2 pasa a ser la vigencia del instrumento. En Ruta 2 el mismo id
+significa algo distinto (ver columna Ruta 2).
+
+| id | Pregunta (Ruta 1) | Pregunta (Ruta 2) | Pts | Brecha → estudio |
+|---|---|---|---|---|
+| A1 | ¿Tiene tu IGAFOM aprobado? (Correctivo si ya operas, Preventivo si vas a operar) | ¿La concesión está libre de pasivos ambientales heredados? (prellenada) | 5 | igafom_aprobado |
+| A2 | ¿Su instrumento ambiental está vigente? | ¿Tienes un plan de gestión ambiental preliminar? (se pregunta directo) | 5 | instrumento_ambiental_vigente |
+| A3 | ¿No ha tenido clausuras ambientales en los últimos 3 años? | no aplica | 5 | sin_clausura_ambiental |
+| A4 | ¿Cuenta con plan de manejo para mercurio/cianuro/relaves? (condicional, prellenada) | no aplica | 5 | plan_manejo_residuos |
 
 ### Bloque 3 — OPERATIVO (5 pts, 1 pregunta que puntúa + 3 informativas)
 | id | Pregunta | Pts | Tipo | Brecha → estudio |
@@ -129,7 +206,7 @@ empresas), y el minero puede responder "Prefiero no decirlo".
 | O3 | ¿Qué maquinaria posee? | — | informativa (texto libre / "prefiero no decirlo") | no aplica |
 | O4 | ¿Cuántos trabajadores tiene? | — | informativa (número / "prefiero no decirlo") | no aplica |
 
-### Bloque 4 — TÉCNICO (30 pts, 6 preguntas x 5 pts)
+### Bloque 4 — TÉCNICO (35 pts Ruta 1 / 7 preguntas; 20 pts Ruta 2 / T1,T3,T6,T7)
 | id | Pregunta | Pts | Brecha → estudio |
 |---|---|---|---|
 | T1 | ¿Tiene informe geológico? | 5 | informe_geologico |
@@ -138,6 +215,7 @@ empresas), y el minero puede responder "Prefiero no decirlo".
 | T4 | ¿Posee planos geológicos? | 5 | planos_geologicos |
 | T5 | ¿Tiene topografía? | 5 | levantamiento_topografico |
 | T6 | ¿Cuenta con una estimación de recursos? | 5 | estimacion_recursos |
+| T7 | ¿Documenta con fotos/reportes? (Ruta 1) / ¿Tiene estudio de prefactibilidad-factibilidad? (Ruta 2) — siempre prellenada | 5 | documentacion_operacion |
 
 ### Bloque 5 — SEGURIDAD (25 pts, 4 o 5 preguntas según tipo_mina)
 | id | Pregunta | Pts (subterránea) | Pts (tajo abierto) | Brecha → estudio |
@@ -148,14 +226,24 @@ empresas), y el minero puede responder "Prefiero no decirlo".
 | S4 | ¿Tiene evaluación geomecánica? | 5 | 7 | evaluacion_geomecanica |
 | S5 | ¿Cuenta con estudio de ventilación? (solo minería subterránea) | 5 | no aplica | estudio_ventilacion |
 
+### Bloque 6 — SOCIAL (5 pts, solo Ruta 2)
+Dimensión nueva (julio 2026), exclusiva de Ruta 2 por ahora — un proyecto
+que recién inicia no tiene historial operativo que evaluar en Seguridad,
+pero sí puede tener conflictividad social alrededor de la concesión.
+
+| id | Pregunta | Pts | Brecha → estudio |
+|---|---|---|---|
+| R1 | ¿No hay conflictividad comunitaria activa alrededor de la concesión? (prellenada desde `conflictividad_social`) | 5 | gestion_conflictividad_social |
+
 ## Catálogo de tipos de estudio (etiquetas exactas para la BD)
 ```
 tramite_reinfo, titularidad_concesion, contrato_explotacion, tramite_sunat,
-levantamiento_georreferenciado, vigencia_concesion, igafom_correctivo,
-igafom_preventivo, aprobacion_instrumento_ambiental, puesta_en_produccion,
-informe_geologico, muestreo_geoquimico, analisis_laboratorio,
-planos_geologicos, levantamiento_topografico, estimacion_recursos, iperc,
-sctr, plan_seguridad, evaluacion_geomecanica, estudio_ventilacion
+levantamiento_georreferenciado, vigencia_concesion, igafom_aprobado,
+instrumento_ambiental_vigente, sin_clausura_ambiental, plan_manejo_residuos,
+puesta_en_produccion, informe_geologico, muestreo_geoquimico,
+analisis_laboratorio, planos_geologicos, levantamiento_topografico,
+estimacion_recursos, documentacion_operacion, iperc, sctr, plan_seguridad,
+evaluacion_geomecanica, estudio_ventilacion, gestion_conflictividad_social
 ```
 Cada empresa o consultor tiene un array `estudios[]` con estas etiquetas
 exactas. El recomendador cruza las brechas del minero contra ese array.

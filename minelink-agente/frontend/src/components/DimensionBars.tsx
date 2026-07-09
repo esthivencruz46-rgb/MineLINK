@@ -17,6 +17,7 @@ const ORDEN: NombreDimension[] = [
   "operativo",
   "tecnico",
   "seguridad",
+  "social",
 ];
 
 export function DimensionBars({ dimensiones, etiquetas }: Props) {

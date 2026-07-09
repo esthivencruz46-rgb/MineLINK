@@ -30,6 +30,62 @@ function etiquetaCategoria(categoria: string): string {
   );
 }
 
+/** Perfil informativo del diagnóstico (bloques 1-8 del cuestionario): se
+ * muestra genéricamente en vez de un <p> hardcodeado por campo — evita
+ * repetir el mismo patrón ~40 veces. Solo se listan los que tengan valor. */
+const CAMPOS_PERFIL_DIAGNOSTICO: { campo: keyof LeadConDiagnostico; etiqueta: string }[] = [
+  { campo: "estado_operacion", etiqueta: "Estado de la operación" },
+  { campo: "tipo_explotacion", etiqueta: "Tipo de explotación" },
+  { campo: "material_comercializado", etiqueta: "Material comercializado" },
+  { campo: "forma_comercializacion", etiqueta: "Forma de comercialización" },
+  { campo: "tiempo_operacion", etiqueta: "Tiempo operando" },
+  { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio" },
+  { campo: "num_trabajadores", etiqueta: "Nº de trabajadores" },
+  { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores" },
+  { campo: "maquinaria", etiqueta: "Maquinaria principal" },
+  { campo: "provincia", etiqueta: "Provincia" },
+  { campo: "sustancias_toxicas", etiqueta: "Mercurio/cianuro/relaves" },
+  { campo: "gestion_sustancias", etiqueta: "Gestión de esas sustancias" },
+  { campo: "acceso_agua", etiqueta: "Acceso a agua" },
+  { campo: "acceso_energia", etiqueta: "Acceso a energía" },
+  { campo: "tipo_apoyo", etiqueta: "Apoyo que busca primordialmente" },
+  { campo: "monto_requerido", etiqueta: "Monto aproximado que necesita" },
+  { campo: "plazo_capital", etiqueta: "Plazo para usar el capital" },
+  { campo: "uso_fondos_diagnostico", etiqueta: "Para qué lo usaría primero" },
+  { campo: "motivo_capital", etiqueta: "Por qué necesita capital ahora" },
+  { campo: "produccion_objetivo", etiqueta: "Producción objetivo" },
+  { campo: "incidentes_previos", etiqueta: "Incidentes en los últimos 2 años" },
+  { campo: "conflictividad_social", etiqueta: "Conflictividad con comunidades" },
+  { campo: "permisos_comunitarios", etiqueta: "Permisos/relaciones comunitarias" },
+  { campo: "acceso_logistico", etiqueta: "Acceso logístico" },
+  { campo: "experiencia_operador", etiqueta: "Experiencia del operador" },
+  { campo: "capacitacion_operador", etiqueta: "Capacitación/colegiatura" },
+  { campo: "documentacion_disponible", etiqueta: "Documentación disponible (fotos/reportes)" },
+  { campo: "estructura_propiedad", etiqueta: "Estructura de propiedad" },
+  { campo: "plan_formalizacion", etiqueta: "Plan de formalización" },
+  { campo: "prioridad_crecimiento", etiqueta: "Prioridad para crecer" },
+  { campo: "concesion_vigente", etiqueta: "Concesión vigente" },
+  { campo: "pagos_vigencia_al_dia", etiqueta: "Pagos de vigencia al día" },
+  { campo: "tipo_deposito", etiqueta: "Tipo de depósito" },
+  { campo: "toneladas_estimadas", etiqueta: "Toneladas estimadas del depósito" },
+  { campo: "ley_esperada", etiqueta: "Ley esperada" },
+  { campo: "etapa_proyecto", etiqueta: "Etapa del proyecto" },
+  { campo: "info_geologica_disponible", etiqueta: "Información geológica disponible" },
+  { campo: "tiene_estimaciones_leyes", etiqueta: "Estimaciones de leyes" },
+  { campo: "capital_disponible", etiqueta: "Capital ya disponible" },
+  { campo: "estudio_previo", etiqueta: "Estudio de prefactibilidad/factibilidad" },
+  { campo: "historial_operacion", etiqueta: "Operada previamente" },
+  { campo: "pasivos_ambientales", etiqueta: "Pasivos ambientales heredados" },
+  { campo: "experiencia_titular", etiqueta: "Experiencia del titular" },
+  { campo: "background_titular", etiqueta: "Background profesional del titular" },
+  { campo: "equipo_tecnico", etiqueta: "Equipo técnico definido" },
+  { campo: "tipo_socio_buscado", etiqueta: "Tipo de socio buscado" },
+  { campo: "siguiente_hito", etiqueta: "Siguiente hito" },
+  { campo: "timeline_operacion", etiqueta: "Timeline esperado hasta operación" },
+  { campo: "motivo_inicio", etiqueta: "Por qué inició el proyecto" },
+  { campo: "documento_autorizacion", etiqueta: "Documento de autorización" },
+];
+
 function exportarCSV(leads: LeadConDiagnostico[]) {
   const encabezados = [
     "fecha",
@@ -547,51 +603,33 @@ export function AdminLeads() {
               <p className="text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
                 Perfil del diagnóstico ({leadDetalle.situacion === "concesionario" ? "concesión que inicia" : "operación activa"})
               </p>
-              {leadDetalle.estado_operacion && (
-                <p><span className="font-medium">Estado de la operación:</span> {leadDetalle.estado_operacion}</p>
-              )}
-              {leadDetalle.tipo_explotacion && (
-                <p><span className="font-medium">Tipo de explotación:</span> {leadDetalle.tipo_explotacion}</p>
-              )}
-              {leadDetalle.material_comercializado && (
-                <p><span className="font-medium">Material comercializado:</span> {leadDetalle.material_comercializado}</p>
-              )}
-              {leadDetalle.forma_comercializacion && (
-                <p><span className="font-medium">Forma de comercialización:</span> {leadDetalle.forma_comercializacion}</p>
-              )}
-              {leadDetalle.tiempo_operacion && (
-                <p><span className="font-medium">Tiempo operando:</span> {leadDetalle.tiempo_operacion}</p>
-              )}
               {leadDetalle.ley_promedio && (
-                <p><span className="font-medium">Ley promedio:</span> {leadDetalle.ley_promedio} ({leadDetalle.ley_como_obtenida ?? "sin especificar cómo se obtuvo"})</p>
-              )}
-              {leadDetalle.tiene_resultados_laboratorio != null && (
-                <p><span className="font-medium">Resultados de laboratorio:</span> {leadDetalle.tiene_resultados_laboratorio ? "Sí" : "No"}</p>
-              )}
-              {leadDetalle.concesion_vigente != null && (
-                <p><span className="font-medium">Concesión vigente:</span> {leadDetalle.concesion_vigente ? "Sí" : "No"}</p>
-              )}
-              {leadDetalle.tipo_deposito && (
-                <p><span className="font-medium">Tipo de depósito:</span> {leadDetalle.tipo_deposito}</p>
-              )}
-              {leadDetalle.etapa_proyecto && (
-                <p><span className="font-medium">Etapa del proyecto:</span> {leadDetalle.etapa_proyecto}</p>
+                <p>
+                  <span className="font-medium">Ley promedio:</span> {leadDetalle.ley_promedio}{" "}
+                  ({leadDetalle.ley_como_obtenida ?? "sin especificar cómo se obtuvo"})
+                </p>
               )}
               {leadDetalle.trabajos_exploracion_json && leadDetalle.trabajos_exploracion_json.length > 0 && (
-                <p><span className="font-medium">Trabajos de exploración:</span> {leadDetalle.trabajos_exploracion_json.join(", ")}</p>
-              )}
-              {leadDetalle.info_geologica_disponible != null && (
-                <p><span className="font-medium">Información geológica disponible:</span> {leadDetalle.info_geologica_disponible ? "Sí" : "No"}</p>
-              )}
-              {leadDetalle.tiene_estimaciones_leyes != null && (
-                <p><span className="font-medium">Estimaciones de leyes:</span> {leadDetalle.tiene_estimaciones_leyes ? "Sí" : "No"}</p>
-              )}
-              {leadDetalle.documento_autorizacion && (
-                <p><span className="font-medium">Documento de autorización:</span> {leadDetalle.documento_autorizacion}</p>
+                <p>
+                  <span className="font-medium">Trabajos de exploración:</span>{" "}
+                  {leadDetalle.trabajos_exploracion_json.join(", ")}
+                </p>
               )}
               {leadDetalle.tipo_apoyo_json && leadDetalle.tipo_apoyo_json.length > 0 && (
-                <p><span className="font-medium">Apoyo que busca:</span> {leadDetalle.tipo_apoyo_json.join(", ")}</p>
+                <p>
+                  <span className="font-medium">Apoyo que busca (declaración anterior):</span>{" "}
+                  {leadDetalle.tipo_apoyo_json.join(", ")}
+                </p>
               )}
+              {CAMPOS_PERFIL_DIAGNOSTICO.map(({ campo, etiqueta }) => {
+                const valor = leadDetalle[campo];
+                if (!valor || (Array.isArray(valor) && valor.length === 0)) return null;
+                return (
+                  <p key={campo}>
+                    <span className="font-medium">{etiqueta}:</span> {String(valor)}
+                  </p>
+                );
+              })}
             </div>
 
             {(leadDetalle.descripcion_operacion ||

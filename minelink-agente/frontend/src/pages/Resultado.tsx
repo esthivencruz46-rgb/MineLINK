@@ -12,7 +12,9 @@ import type { NombreDimension } from "../types/diagnostico";
 // MineScore de una mina en producción.
 const ETIQUETAS_CONCESIONARIO: Partial<Record<NombreDimension, string>> = {
   legal: "Situación legal y de la concesión",
+  ambiental: "Diligencia ambiental preliminar",
   tecnico: "Información técnica y geológica",
+  social: "Relación con comunidades",
 };
 
 export function Resultado() {

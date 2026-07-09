@@ -29,17 +29,21 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
     texto: "Renovar la vigencia de tu concesión",
     resuelve: "Una concesión vencida no te da derechos legales sobre la zona.",
   },
-  igafom_correctivo: {
-    texto: "Tu plan ambiental (IGAFOM correctivo)",
-    resuelve: "Ordena el impacto ambiental que ya generó tu labor.",
+  igafom_aprobado: {
+    texto: "Tu plan ambiental (IGAFOM) aprobado",
+    resuelve: "Ordena y valida ante la autoridad el impacto ambiental de tu labor (Correctivo si ya operas, Preventivo si vas a operar).",
   },
-  igafom_preventivo: {
-    texto: "Tu plan ambiental (IGAFOM preventivo)",
-    resuelve: "Planifica cómo cuidarás el ambiente antes de operar.",
+  instrumento_ambiental_vigente: {
+    texto: "Renovar la vigencia de tu instrumento ambiental",
+    resuelve: "Un instrumento ambiental aprobado hace tiempo también vence y hay que renovarlo.",
   },
-  aprobacion_instrumento_ambiental: {
-    texto: "Aprobar tu instrumento ambiental",
-    resuelve: "Valida tu IGAFOM ante la autoridad.",
+  sin_clausura_ambiental: {
+    texto: "Regularizar clausuras ambientales previas",
+    resuelve: "Una clausura ambiental en los últimos 3 años pesa en tu historial de cumplimiento.",
+  },
+  plan_manejo_residuos: {
+    texto: "Plan de manejo de mercurio, cianuro o relaves",
+    resuelve: "Ordena cómo confinas, tratas o reúsas esas sustancias sin dañar el ambiente.",
   },
   puesta_en_produccion: {
     texto: "Poner tu operación en producción",
@@ -88,5 +92,13 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
   estudio_ventilacion: {
     texto: "Medir el aire de tus labores",
     resuelve: "Asegura aire respirable dentro de la mina (solo minería subterránea).",
+  },
+  documentacion_operacion: {
+    texto: "Documentar tu operación (fotos, reportes o estudios previos)",
+    resuelve: "Respalda con evidencia lo que declaras — le da confianza a quien evalúa tu proyecto.",
+  },
+  gestion_conflictividad_social: {
+    texto: "Gestionar la relación con comunidades cercanas",
+    resuelve: "Reduce el riesgo de que una oposición social frene tu proyecto.",
   },
 };

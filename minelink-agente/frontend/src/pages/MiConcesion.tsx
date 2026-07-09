@@ -174,10 +174,10 @@ export function MiConcesion() {
           escríbenos por WhatsApp.
         </p>
         <div className="mt-3 flex flex-col gap-1">
-          {perfil.concesion_vigente != null && (
+          {perfil.concesion_vigente && (
             <p>
               <span className="font-medium">Concesión vigente:</span>{" "}
-              {perfil.concesion_vigente ? "Sí" : "No"}
+              {perfil.concesion_vigente}
             </p>
           )}
           {perfil.tipo_deposito && (
@@ -196,16 +196,16 @@ export function MiConcesion() {
               {perfil.trabajos_exploracion_json.join(", ")}
             </p>
           )}
-          {perfil.info_geologica_disponible != null && (
+          {perfil.info_geologica_disponible && (
             <p>
               <span className="font-medium">Información geológica disponible:</span>{" "}
-              {perfil.info_geologica_disponible ? "Sí" : "No"}
+              {perfil.info_geologica_disponible}
             </p>
           )}
-          {perfil.tiene_estimaciones_leyes != null && (
+          {perfil.tiene_estimaciones_leyes && (
             <p>
               <span className="font-medium">Estimaciones de leyes:</span>{" "}
-              {perfil.tiene_estimaciones_leyes ? "Sí" : "No"}
+              {perfil.tiene_estimaciones_leyes}
             </p>
           )}
           {perfil.documento_autorizacion && (
