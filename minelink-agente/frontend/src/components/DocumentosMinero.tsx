@@ -3,6 +3,9 @@ import { ImageIcon } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CATEGORIAS_DOCUMENTO, type CategoriaInfo, type DocumentoOperacion } from "../types/documento";
 import { INFO_BRECHA } from "../data/brechas";
+import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
+import { ORDEN_DIMENSIONES } from "../data/estudiosPorDimension";
+import { NOMBRES_DIMENSION } from "../data/preguntas";
 
 const FORMATOS_FOTO_O_PDF = "Formato: PDF o una foto del documento (JPG, PNG, WEBP)";
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
@@ -125,6 +128,17 @@ export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Pro
     formatos: FORMATOS_FOTO_O_PDF,
   }));
 
+  // Agrupadas por dimensión (Legal/Ambiental/Operativo/Técnico/Seguridad/
+  // Social) para que "Respalda tu declaración" no sea una lista larga sin
+  // orden — mismo criterio que ya usan Postular.tsx y AdminEmpresas.tsx.
+  const categoriasEstudioPorDimension = ORDEN_DIMENSIONES.map((dim) => ({
+    dim,
+    categorias: categoriasEstudio.filter((c) => DIMENSION_POR_ESTUDIO[c.categoria] === dim),
+  })).filter((grupo) => grupo.categorias.length > 0);
+
+  const categoriaFotos = CATEGORIAS_DOCUMENTO.filter((c) => c.categoria === "fotos_mina");
+  const categoriasLegales = CATEGORIAS_DOCUMENTO.filter((c) => c.categoria !== "fotos_mina");
+
   function bloqueCategoria(cat: CategoriaInfo) {
     const archivos = documentos.filter((d) => d.categoria === cat.categoria);
     return (
@@ -212,22 +226,46 @@ export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Pro
       {cargando && <p className="mt-2 text-sm">Cargando...</p>}
 
       {!cargando && (
-        <div className="mt-4 flex flex-col gap-4">
-          {CATEGORIAS_DOCUMENTO.map(bloqueCategoria)}
+        <div className="mt-4 flex flex-col gap-6">
+          <div>
+            <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+              Fotos de la mina
+            </h3>
+            <div className="mt-2 flex flex-col gap-4">
+              {categoriaFotos.map(bloqueCategoria)}
+            </div>
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+              Documentos legales
+            </h3>
+            <div className="mt-2 flex flex-col gap-4">
+              {categoriasLegales.map(bloqueCategoria)}
+            </div>
+          </div>
         </div>
       )}
 
-      {!cargando && categoriasEstudio.length > 0 && (
+      {!cargando && categoriasEstudioPorDimension.length > 0 && (
         <div className="mt-6 border-t border-black/10 pt-4 dark:border-white/10">
-          <h3 className="font-semibold">Respalda tu declaración</h3>
+          <h2 className="font-semibold">Respalda tu declaración</h2>
           <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
             En el diagnóstico respondiste Sí/No sobre tu estado de
             formalización, pero esa respuesta por sí sola no se puede
             comprobar. Sube una foto de respaldo (o una foto del PDF) por
             cada trámite o estudio que quieras acreditar — es opcional.
           </p>
-          <div className="mt-4 flex flex-col gap-4">
-            {categoriasEstudio.map(bloqueCategoria)}
+          <div className="mt-4 flex flex-col gap-5">
+            {categoriasEstudioPorDimension.map(({ dim, categorias }) => (
+              <div key={dim}>
+                <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                  {NOMBRES_DIMENSION[dim]}
+                </h3>
+                <div className="mt-2 flex flex-col gap-4">
+                  {categorias.map(bloqueCategoria)}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ export const ORDEN_DIMENSIONES: NombreDimension[] = [
   "operativo",
   "tecnico",
   "seguridad",
+  "social",
 ];
 
 export const ESTUDIOS_POR_DIMENSION: Record<NombreDimension, string[]> =
