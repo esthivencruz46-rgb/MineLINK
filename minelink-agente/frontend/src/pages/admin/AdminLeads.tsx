@@ -22,6 +22,19 @@ interface InteresInversion {
   created_at: string;
 }
 
+interface InteresEmpresa {
+  id: number;
+  empresa_id: number;
+  empresa_nombre: string;
+  empresa_whatsapp: string;
+  nombre: string;
+  whatsapp: string;
+  brecha?: string | null;
+  mensaje?: string | null;
+  estado_contacto: string;
+  created_at: string;
+}
+
 function etiquetaCategoria(categoria: string): string {
   return (
     CATEGORIAS_DOCUMENTO.find((c) => c.categoria === categoria)?.etiqueta ??
@@ -148,6 +161,9 @@ export function AdminLeads() {
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
+  const [leadInteresesEmpresas, setLeadInteresesEmpresas] = useState<LeadConDiagnostico | null>(null);
+  const [interesesEmpresas, setInteresesEmpresas] = useState<InteresEmpresa[]>([]);
+  const [cargandoInteresesEmpresas, setCargandoInteresesEmpresas] = useState(false);
   const [vistaUrl, setVistaUrl] = useState<string | null>(null);
   const [vistaTipo, setVistaTipo] = useState("");
 
@@ -291,6 +307,31 @@ export function AdminLeads() {
       .then(setIntereses)
       .catch(() => setError("No pudimos cargar los inversionistas."))
       .finally(() => setCargandoIntereses(false));
+  }
+
+  function verInteresesEmpresas(lead: LeadConDiagnostico) {
+    setLeadInteresesEmpresas(lead);
+    setCargandoInteresesEmpresas(true);
+    authFetch(`/admin/operaciones/${lead.operacion_id}/intereses-empresas`)
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then(setInteresesEmpresas)
+      .catch(() => setError("No pudimos cargar los intereses en empresas."))
+      .finally(() => setCargandoInteresesEmpresas(false));
+  }
+
+  async function cambiarEstadoContactoEmpresa(interes: InteresEmpresa, estado: string) {
+    const resp = await authFetch(`/admin/intereses-empresas/${interes.id}/estado-contacto`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado_contacto: estado }),
+    });
+    if (!resp.ok) return;
+    setInteresesEmpresas((actuales) =>
+      actuales.map((i) => (i.id === interes.id ? { ...i, estado_contacto: estado } : i))
+    );
   }
 
   async function verArchivo(doc: DocumentoOperacion) {
@@ -566,6 +607,12 @@ export function AdminLeads() {
                         Inversionistas
                       </button>
                       <button
+                        onClick={() => verInteresesEmpresas(lead)}
+                        className="min-h-[32px] rounded border border-acento/30 px-2 text-xs font-semibold text-acento"
+                      >
+                        Empresas
+                      </button>
+                      <button
                         onClick={() => resetearPassword(lead)}
                         className="min-h-[32px] rounded border border-black/10 px-2 text-xs font-semibold dark:border-white/10"
                       >
@@ -751,6 +798,112 @@ export function AdminLeads() {
                     <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                       {new Date(interes.created_at).toLocaleString("es-PE")}
                     </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {leadInteresesEmpresas && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Empresas de interés</h2>
+              <button
+                onClick={() => setLeadInteresesEmpresas(null)}
+                className="text-sm font-semibold text-acento underline"
+              >
+                Cerrar
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+              El minero marcó "Me interesa" en vez de escribirle directo a la
+              empresa. Escríbele tú desde tu WhatsApp dándole el contacto
+              del minero.
+            </p>
+
+            {cargandoInteresesEmpresas && <p className="text-sm">Cargando...</p>}
+            {!cargandoInteresesEmpresas && interesesEmpresas.length === 0 && (
+              <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                Este minero no ha marcado interés en ninguna empresa todavía.
+              </p>
+            )}
+            {!cargandoInteresesEmpresas && interesesEmpresas.length > 0 && (
+              <ul className="flex flex-col gap-3">
+                {interesesEmpresas.map((interes) => (
+                  <li
+                    key={interes.id}
+                    className="rounded-lg border border-black/10 p-3 text-sm dark:border-white/10"
+                  >
+                    <p className="font-medium">{interes.empresa_nombre}</p>
+                    <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                      Minero: {interes.nombre} ·{" "}
+                      <a
+                        href={`https://wa.me/${interes.whatsapp.replace("+", "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-acento underline"
+                      >
+                        {interes.whatsapp}
+                      </a>
+                    </p>
+                    {interes.brecha && (
+                      <p>
+                        <span className="font-medium">Necesita:</span>{" "}
+                        {INFO_BRECHA[interes.brecha]?.texto ?? interes.brecha}
+                      </p>
+                    )}
+                    {interes.mensaje && (
+                      <p>
+                        <span className="font-medium">Mensaje:</span> {interes.mensaje}
+                      </p>
+                    )}
+                    <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                      {new Date(interes.created_at).toLocaleString("es-PE")}
+                    </p>
+                    <div className="mt-2 flex gap-2">
+                      <a
+                        href={enlaceWhatsApp(
+                          interes.empresa_whatsapp,
+                          `Hola, les escribe el equipo de MineLink. Tenemos un minero (${interes.nombre}, WhatsApp ${interes.whatsapp}) interesado en sus servicios${
+                            interes.brecha
+                              ? ` para ${INFO_BRECHA[interes.brecha]?.texto ?? interes.brecha}`
+                              : ""
+                          }. ¿Pueden contactarlo?`
+                        )}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={() => cambiarEstadoContactoEmpresa(interes, "contactado")}
+                        className="flex min-h-[32px] items-center rounded bg-[#25D366] px-2 text-xs font-semibold text-white"
+                      >
+                        Escribir a la empresa
+                      </a>
+                      <button
+                        onClick={() =>
+                          cambiarEstadoContactoEmpresa(
+                            interes,
+                            interes.estado_contacto === "contactado" ? "buscando" : "contactado"
+                          )
+                        }
+                        title="Clic para cambiar el estado"
+                        className={`min-h-[32px] rounded px-2 text-xs font-semibold ${
+                          interes.estado_contacto === "contactado"
+                            ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                            : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                        }`}
+                      >
+                        {interes.estado_contacto === "contactado" ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Check size={13} strokeWidth={2.5} aria-hidden />
+                            Contactado
+                          </span>
+                        ) : (
+                          "En cola"
+                        )}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

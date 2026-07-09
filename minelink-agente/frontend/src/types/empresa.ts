@@ -19,3 +19,22 @@ export interface Empresa {
   rating?: number | null;
   num_resenas?: number | null;
 }
+
+/** Lo que ve el minero en /empresas — sin whatsapp ni email. El contacto
+ * directo se reemplazó por "Me interesa" (ver services/api.ts,
+ * enviarInteresEmpresa): Esthiven intermedia desde /admin. */
+export interface EmpresaPublica {
+  id: number;
+  tipo: TipoProveedor;
+  nombre: string;
+  ruc?: string | null;
+  colegiatura?: string | null;
+  anios_servicio: number;
+  regiones_json: string[];
+  estudios_json: string[];
+  activa: boolean;
+  created_at: string;
+  // No se muestra en la UI, solo ordena internamente los bloques
+  rating?: number | null;
+  num_resenas?: number | null;
+}

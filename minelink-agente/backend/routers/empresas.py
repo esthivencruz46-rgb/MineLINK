@@ -30,7 +30,7 @@ def recomendar(empresas, brechas: list[str], region: str):
     return [(e, n) for n, _, e in candidatas]
 
 
-@router.get("/empresas", response_model=list[schemas.EmpresaOut])
+@router.get("/empresas", response_model=list[schemas.EmpresaPublicoOut])
 def listar_empresas(
     estudios: Optional[str] = None,
     region: Optional[str] = None,
@@ -157,9 +157,55 @@ async def postular_consultor(
     return consultor
 
 
-@router.get("/empresas/{empresa_id}", response_model=schemas.EmpresaOut)
+@router.get("/empresas/{empresa_id}", response_model=schemas.EmpresaPublicoOut)
 def obtener_empresa(empresa_id: int, db: Session = Depends(get_db)):
     empresa = db.query(models.Empresa).filter(models.Empresa.id == empresa_id).first()
     if empresa is None:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return empresa
+
+
+@router.post("/empresas/{empresa_id}/interes", response_model=schemas.InteresEmpresaOut, status_code=201)
+def registrar_interes_empresa(
+    empresa_id: int,
+    payload: schemas.InteresEmpresaCreate,
+    db: Session = Depends(get_db),
+):
+    """El minero deja su contacto para que ESTA empresa/consultor lo
+    llame — reemplaza el link directo a WhatsApp. NUNCA le damos el
+    WhatsApp de la empresa al minero ni viceversa aquí: Esthiven ve este
+    interés en /admin y hace de intermediario con su propio número."""
+    empresa = db.query(models.Empresa).filter(models.Empresa.id == empresa_id).first()
+    if empresa is None:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+
+    operacion = (
+        db.query(models.Operacion).filter(models.Operacion.id == payload.operacion_id).first()
+    )
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Diagnóstico no encontrado")
+
+    interes = models.InteresEmpresa(
+        operacion_id=payload.operacion_id,
+        empresa_id=empresa_id,
+        nombre=payload.nombre,
+        whatsapp=payload.whatsapp,
+        brecha=payload.brecha,
+        mensaje=payload.mensaje,
+    )
+    db.add(interes)
+    db.commit()
+    db.refresh(interes)
+    return schemas.InteresEmpresaOut(
+        id=interes.id,
+        operacion_id=interes.operacion_id,
+        empresa_id=empresa.id,
+        empresa_nombre=empresa.nombre,
+        empresa_whatsapp=empresa.whatsapp,
+        nombre=interes.nombre,
+        whatsapp=interes.whatsapp,
+        brecha=interes.brecha,
+        mensaje=interes.mensaje,
+        estado_contacto=interes.estado_contacto,
+        created_at=interes.created_at,
+    )

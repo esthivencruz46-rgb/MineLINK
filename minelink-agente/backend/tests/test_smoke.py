@@ -148,6 +148,78 @@ def test_get_empresa_404():
     assert resp.status_code == 404
 
 
+def test_empresas_publico_no_expone_whatsapp():
+    # El WhatsApp de la empresa ya no es público: el contacto pasa por
+    # "Me interesa" (POST /empresas/{id}/interes), Esthiven intermedia.
+    token = _admin_token()
+    empresa = _crear_empresa(token, nombre="Empresa Privada SAC", ruc="20222222222")
+
+    resp = client.get("/empresas")
+    assert resp.status_code == 200
+    assert all("whatsapp" not in e for e in resp.json())
+
+    resp = client.get(f"/empresas/{empresa['id']}")
+    assert resp.status_code == 200
+    assert "whatsapp" not in resp.json()
+
+
+def test_interes_empresa_flujo_completo():
+    token = _admin_token()
+    empresa = _crear_empresa(
+        token, nombre="Consultora Interesada SAC", ruc="20333333333"
+    )
+    diag = _crear_diagnostico().json()
+
+    resp = client.post(
+        f"/empresas/{empresa['id']}/interes",
+        json={
+            "operacion_id": diag["id"],
+            "nombre": "Juan Quispe",
+            "whatsapp": "+51987654321",
+            "brecha": "estudio_ventilacion",
+            "mensaje": "Necesito ayuda con esto",
+        },
+    )
+    assert resp.status_code == 201
+    body = resp.json()
+    assert body["empresa_nombre"] == "Consultora Interesada SAC"
+    assert body["empresa_whatsapp"] == empresa["whatsapp"]
+    assert body["estado_contacto"] == "buscando"
+
+    # Empresa inexistente
+    resp = client.post(
+        "/empresas/99999/interes",
+        json={"operacion_id": diag["id"], "nombre": "Juan", "whatsapp": "+51987654321"},
+    )
+    assert resp.status_code == 404
+
+    # Operación inexistente
+    resp = client.post(
+        f"/empresas/{empresa['id']}/interes",
+        json={"operacion_id": "no-existe", "nombre": "Juan", "whatsapp": "+51987654321"},
+    )
+    assert resp.status_code == 404
+
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.get(f"/admin/operaciones/{diag['id']}/intereses-empresas", headers=headers)
+    assert resp.status_code == 200
+    intereses = resp.json()
+    assert len(intereses) == 1
+    interes_id = intereses[0]["id"]
+
+    # Sin JWT, el admin no puede ver los intereses
+    resp = client.get(f"/admin/operaciones/{diag['id']}/intereses-empresas")
+    assert resp.status_code == 403
+
+    resp = client.put(
+        f"/admin/intereses-empresas/{interes_id}/estado-contacto",
+        json={"estado_contacto": "contactado"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["estado_contacto"] == "contactado"
+
+
 def _lead_payload(operacion_id, **overrides):
     payload = {
         "nombre": "Juan Quispe",

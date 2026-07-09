@@ -427,6 +427,66 @@ def listar_intereses_inversion(
     )
 
 
+@router.get(
+    "/operaciones/{operacion_id}/intereses-empresas",
+    response_model=list[schemas.InteresEmpresaOut],
+)
+def listar_intereses_empresa(
+    operacion_id: str,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Empresas/consultores en los que el minero marcó "Me interesa" desde
+    /empresas (reemplaza el link directo a WhatsApp). Esthiven ve el
+    contacto del minero y el de la empresa aquí, y es quien intermedia."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+
+    filas = (
+        db.query(models.InteresEmpresa, models.Empresa)
+        .join(models.Empresa, models.InteresEmpresa.empresa_id == models.Empresa.id)
+        .filter(models.InteresEmpresa.operacion_id == operacion_id)
+        .order_by(models.InteresEmpresa.created_at.desc())
+        .all()
+    )
+    return [
+        schemas.InteresEmpresaOut(
+            id=interes.id,
+            operacion_id=interes.operacion_id,
+            empresa_id=empresa.id,
+            empresa_nombre=empresa.nombre,
+            empresa_whatsapp=empresa.whatsapp,
+            nombre=interes.nombre,
+            whatsapp=interes.whatsapp,
+            brecha=interes.brecha,
+            mensaje=interes.mensaje,
+            estado_contacto=interes.estado_contacto,
+            created_at=interes.created_at,
+        )
+        for interes, empresa in filas
+    ]
+
+
+@router.put("/intereses-empresas/{interes_id}/estado-contacto", status_code=200)
+def actualizar_estado_contacto_interes_empresa(
+    interes_id: int,
+    payload: schemas.ActualizarEstadoContactoRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Marca si Esthiven ya le escribió a la empresa por este interés
+    puntual ("contactado") o si sigue en cola ("buscando")."""
+    interes = (
+        db.query(models.InteresEmpresa).filter(models.InteresEmpresa.id == interes_id).first()
+    )
+    if interes is None:
+        raise HTTPException(status_code=404, detail="Interés no encontrado")
+    interes.estado_contacto = payload.estado_contacto
+    db.commit()
+    return {"id": interes.id, "estado_contacto": interes.estado_contacto}
+
+
 @router.post("/empresas/importar", status_code=200)
 async def importar_empresas(
     archivo: UploadFile = File(...),

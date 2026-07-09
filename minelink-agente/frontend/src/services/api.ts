@@ -1,5 +1,5 @@
 import type { DiagnosticoRequest, DiagnosticoResponse } from "../types/diagnostico";
-import type { Empresa } from "../types/empresa";
+import type { Empresa, EmpresaPublica } from "../types/empresa";
 import type { LeadRequest, LeadResponse } from "../types/lead";
 import type {
   InteresInversionRequest,
@@ -12,7 +12,7 @@ export { BASE_URL };
 
 // DEMO: empresas de ejemplo si el backend no responde, marcadas
 // visualmente en EmpresaCard para no hacerlas pasar por reales.
-const EMPRESAS_DEMO: Empresa[] = [
+const EMPRESAS_DEMO: EmpresaPublica[] = [
   {
     id: -1,
     tipo: "empresa",
@@ -27,8 +27,6 @@ const EMPRESAS_DEMO: Empresa[] = [
       "igafom_aprobado",
       "informe_geologico",
     ],
-    whatsapp: "+51900000001",
-    email: null,
     activa: true,
     created_at: new Date().toISOString(),
   },
@@ -41,8 +39,6 @@ const EMPRESAS_DEMO: Empresa[] = [
     anios_servicio: 5,
     regiones_json: ["arequipa", "puno"],
     estudios_json: ["plan_seguridad", "evaluacion_geomecanica", "sctr"],
-    whatsapp: "+51900000002",
-    email: null,
     activa: true,
     created_at: new Date().toISOString(),
   },
@@ -70,7 +66,7 @@ export async function enviarDiagnostico(
 export async function obtenerEmpresas(
   estudios: string[],
   region: string
-): Promise<{ empresas: Empresa[]; demo: boolean }> {
+): Promise<{ empresas: EmpresaPublica[]; demo: boolean }> {
   const params = new URLSearchParams();
   if (estudios.length > 0) params.set("estudios", estudios.join(","));
   if (region) params.set("region", region);
@@ -78,12 +74,29 @@ export async function obtenerEmpresas(
   try {
     const resp = await fetch(`${BASE_URL}/empresas?${params.toString()}`);
     if (!resp.ok) throw new Error(`${resp.status}`);
-    const empresas = (await resp.json()) as Empresa[];
+    const empresas = (await resp.json()) as EmpresaPublica[];
     return { empresas, demo: false };
   } catch {
     // DEMO: backend caído, se muestran empresas de ejemplo
     return { empresas: EMPRESAS_DEMO, demo: true };
   }
+}
+
+export interface InteresEmpresaRequest {
+  operacion_id: string;
+  nombre: string;
+  whatsapp: string;
+  brecha?: string;
+  mensaje?: string;
+}
+
+/** Reemplaza el link directo a WhatsApp: el minero deja su contacto para
+ * ESTA empresa/consultor y Esthiven intermedia desde /admin. */
+export async function enviarInteresEmpresa(
+  empresaId: number,
+  payload: InteresEmpresaRequest
+): Promise<void> {
+  await postJSON(`/empresas/${empresaId}/interes`, payload);
 }
 
 export async function enviarLead(payload: LeadRequest): Promise<LeadResponse> {

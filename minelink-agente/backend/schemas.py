@@ -224,6 +224,32 @@ class EmpresaOut(EmpresaBase):
     created_at: datetime
 
 
+class EmpresaPublicoOut(BaseModel):
+    """Lo que ve el minero en /empresas — sin whatsapp ni email. El
+    contacto directo por WhatsApp se reemplazó por "Me interesa"
+    (POST /empresas/{id}/interes): Esthiven ve el interés en /admin y es
+    quien escribe a la empresa desde su propio número, dándole el
+    contacto del minero. Así ningún visitante se va del sitio sin que
+    quede registro, y Esthiven siempre puede hacer seguimiento."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tipo: Literal["empresa", "consultor"]
+    nombre: str
+    ruc: Optional[str] = None
+    colegiatura: Optional[str] = None
+    anios_servicio: int
+    regiones_json: list[str]
+    estudios_json: list[str]
+    activa: bool
+    created_at: datetime
+    # No se muestra en la UI pública, pero el frontend lo usa para ordenar
+    # internamente los bloques (Empresas / Consultores) de mejor a peor.
+    rating: Optional[float] = None
+    num_resenas: Optional[int] = None
+
+
 class MejorOpcionOut(BaseModel):
     modo: Literal["empresa_unica", "por_brecha"]
     empresa_unica: Optional[EmpresaOut] = None
@@ -694,6 +720,48 @@ class InteresInversionOut(BaseModel):
     monto: Optional[str] = None
     informacion_requerida: Optional[str] = None
     mensaje: Optional[str] = None
+    created_at: datetime
+
+
+# ---------- Interés del minero en una empresa/consultor puntual ----------
+# Reemplaza el botón "Escribir por WhatsApp" de /empresas: en vez de que
+# el minero salga del sitio a hablar directo con la empresa (sin que
+# Esthiven se entere), deja su contacto para ESA empresa en particular y
+# Esthiven hace de intermediario manualmente (mismo patrón que
+# InteresInversion, pero sin crear una cuenta nueva — el minero ya pasó
+# por el diagnóstico, solo se pide nombre + WhatsApp).
+
+class InteresEmpresaCreate(BaseModel):
+    operacion_id: str
+    nombre: str
+    whatsapp: str
+    brecha: Optional[str] = None
+    mensaje: Optional[str] = None
+
+    @field_validator("nombre")
+    @classmethod
+    def validar_nombre(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("El nombre es obligatorio")
+        return v.strip()
+
+    @field_validator("whatsapp")
+    @classmethod
+    def validar_whatsapp(cls, v: str) -> str:
+        return normalizar_whatsapp(v)
+
+
+class InteresEmpresaOut(BaseModel):
+    id: int
+    operacion_id: str
+    empresa_id: int
+    empresa_nombre: str
+    empresa_whatsapp: str
+    nombre: str
+    whatsapp: str
+    brecha: Optional[str] = None
+    mensaje: Optional[str] = None
+    estado_contacto: str
     created_at: datetime
 
 

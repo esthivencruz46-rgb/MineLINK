@@ -228,6 +228,31 @@ class InteresInversion(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class InteresEmpresa(Base):
+    """El minero deja su interés en que UNA empresa/consultor específico lo
+    contacte, en vez de escribirle directo por WhatsApp (eso lo sacaba del
+    sitio, sin que Esthiven se enterara). Esthiven ve este interés en el
+    panel admin (junto al lead) y es quien escribe a la empresa desde su
+    propio WhatsApp, dándole el contacto del minero — mismo patrón de
+    intermediación que InteresInversion."""
+
+    __tablename__ = "intereses_empresa"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    operacion_id = Column(String, ForeignKey("operaciones.id"), nullable=False, index=True)
+    empresa_id = Column(Integer, ForeignKey("empresas.id"), nullable=False, index=True)
+    nombre = Column(String, nullable=False)
+    whatsapp = Column(String, nullable=False)
+    # Estudio/brecha puntual que motivó el interés (opcional: puede venir
+    # de "me interesa" general sin brecha específica marcada)
+    brecha = Column(String, nullable=True)
+    mensaje = Column(String, nullable=True)
+    # Igual que Lead.estado_contacto: "buscando" → "contactado" cuando
+    # Esthiven ya le escribió a la empresa.
+    estado_contacto = Column(String, nullable=False, default="buscando", server_default="buscando")
+    created_at = Column(DateTime, default=_now)
+
+
 class Evento(Base):
     """Eventos simples de uso para métricas del embudo (cuántos empiezan
     el diagnóstico vs. cuántos lo terminan vs. cuántos se registran).

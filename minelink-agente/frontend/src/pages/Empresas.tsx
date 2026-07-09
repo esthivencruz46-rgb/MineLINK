@@ -8,7 +8,7 @@ import { INFO_BRECHA } from "../data/brechas";
 import { obtenerEmpresas } from "../services/api";
 import { enviarLead } from "../services/api";
 import { leerDiagnostico } from "../services/storage";
-import type { Empresa } from "../types/empresa";
+import type { EmpresaPublica } from "../types/empresa";
 
 const TODOS_LOS_ESTUDIOS = Object.keys(INFO_BRECHA);
 
@@ -20,7 +20,7 @@ export function Empresas() {
   const [estudiosFiltro, setEstudiosFiltro] = useState<string[]>(
     guardado?.respuesta.brechas ?? []
   );
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [empresas, setEmpresas] = useState<EmpresaPublica[]>([]);
   const [esDemo, setEsDemo] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
@@ -183,6 +183,7 @@ export function Empresas() {
                 key={empresa.id}
                 empresa={empresa}
                 brechasMinero={guardado.respuesta.brechas}
+                operacionId={guardado.respuesta.id}
                 demo={esDemo}
               />
             ))}

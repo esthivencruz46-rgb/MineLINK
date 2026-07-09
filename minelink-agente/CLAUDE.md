@@ -30,7 +30,14 @@ Plataforma web donde un minero artesanal peruano:
    cada ruta
 2. Recibe su score (0-100) y su lista de brechas
 3. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
-   le faltan, o postula él mismo como consultor si es profesional
+   le faltan, o postula él mismo como consultor si es profesional. El
+   WhatsApp de la empresa NO es público (julio 2026, cambio de política):
+   en vez de un link directo a wa.me, el minero deja su nombre/WhatsApp
+   con "Me interesa" (`POST /empresas/{id}/interes`, crea un
+   `InteresEmpresa`, sin cuenta) y Esthiven ve el interés en `/admin` →
+   Leads → botón "Empresas", desde donde escribe a la empresa con su
+   propio WhatsApp dándole el contacto del minero (mismo patrón de
+   intermediación que con inversionistas, punto 8 más abajo)
 4. Si busca ayuda cercana, se registra (nombre, WhatsApp, **departamento
    obligatorio** — reemplaza el "no especificado" tanto en el lead como en
    la operación, para que el filtro de /proyectos tenga sentido —, email

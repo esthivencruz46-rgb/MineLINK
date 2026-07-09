@@ -1,27 +1,54 @@
-import type { Empresa } from "../types/empresa";
+import { useState } from "react";
+import { Check } from "lucide-react";
+import type { EmpresaPublica } from "../types/empresa";
 import { INFO_BRECHA } from "../data/brechas";
+import { enviarInteresEmpresa } from "../services/api";
 
 interface Props {
-  empresa: Empresa;
+  empresa: EmpresaPublica;
   brechasMinero: string[];
+  operacionId?: string;
   demo?: boolean;
 }
 
-export function EmpresaCard({ empresa, brechasMinero, demo }: Props) {
+export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props) {
+  const [nombre, setNombre] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [mostrarForm, setMostrarForm] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const setBrechas = new Set(brechasMinero);
   const coincidentes = empresa.estudios_json.filter((e) => setBrechas.has(e));
   const otros = empresa.estudios_json.filter((e) => !setBrechas.has(e));
 
-  const mensaje =
-    coincidentes.length > 0
-      ? `Hola, vengo de MineLink. Mi diagnóstico dice que necesito: ${coincidentes
-          .map((e) => INFO_BRECHA[e]?.texto ?? e)
-          .join(", ")}. ¿Me pueden orientar?`
-      : "Hola, vengo de MineLink. ¿Me pueden orientar?";
-
-  const linkWhatsApp = `https://wa.me/${empresa.whatsapp.replace("+", "")}?text=${encodeURIComponent(
-    mensaje
-  )}`;
+  async function enviar() {
+    if (!operacionId || demo) return;
+    if (!nombre.trim() || !whatsapp.trim()) {
+      setError("Completa tu nombre y WhatsApp.");
+      return;
+    }
+    setEnviando(true);
+    setError(null);
+    try {
+      await enviarInteresEmpresa(empresa.id, {
+        operacion_id: operacionId,
+        nombre: nombre.trim(),
+        whatsapp: whatsapp.trim(),
+        brecha: coincidentes[0],
+        mensaje:
+          coincidentes.length > 0
+            ? `Necesita: ${coincidentes.map((e) => INFO_BRECHA[e]?.texto ?? e).join(", ")}`
+            : undefined,
+      });
+      setEnviado(true);
+    } catch {
+      setError("No pudimos enviar tu interés. Intenta de nuevo.");
+    } finally {
+      setEnviando(false);
+    }
+  }
 
   return (
     <div className="rounded-xl bg-tarjeta p-4 shadow-sm dark:bg-tarjeta-dark">
@@ -74,14 +101,45 @@ export function EmpresaCard({ empresa, brechasMinero, demo }: Props) {
         Trabaja en: {empresa.regiones_json.join(", ")}
       </p>
 
-      <a
-        href={linkWhatsApp}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-4 flex min-h-[44px] items-center justify-center rounded-lg bg-acento px-4 font-semibold text-white active:opacity-90"
-      >
-        Escribir por WhatsApp
-      </a>
+      {enviado ? (
+        <p className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+          <Check size={16} strokeWidth={2.5} aria-hidden />
+          Listo, te contactamos pronto
+        </p>
+      ) : mostrarForm ? (
+        <div className="mt-4 flex flex-col gap-2">
+          <input
+            type="text"
+            placeholder="Tu nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            className="min-h-[40px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+          />
+          <input
+            type="tel"
+            placeholder="Tu WhatsApp"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            className="min-h-[40px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+          />
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <button
+            onClick={enviar}
+            disabled={enviando}
+            className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+          >
+            {enviando ? "Enviando..." : "Enviar"}
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setMostrarForm(true)}
+          disabled={demo || !operacionId}
+          className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+        >
+          Me interesa
+        </button>
+      )}
     </div>
   );
 }
