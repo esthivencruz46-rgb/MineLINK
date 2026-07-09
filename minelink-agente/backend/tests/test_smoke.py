@@ -1638,6 +1638,45 @@ def test_proyectos_expone_perfil_informativo_del_diagnostico():
     assert detalle["monto_requerido"] == "S/. 200,000 - 1,000,000"
 
 
+def test_proyectos_check_publico_requiere_foto_de_respaldo():
+    # El diagnóstico es autodeclarado: responder "sí" no basta para que la
+    # ficha pública muestre check ✓. Solo cuenta como verificado si además
+    # hay una foto de respaldo subida para ese estudio.
+    token = _token_minero(username="minerocheck")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    proyectos = client.get("/proyectos").json()
+    operacion_id = proyectos[0]["operacion_id"]
+
+    detalle_sin_fotos = client.get(f"/proyectos/{operacion_id}").json()
+    # "tramite_reinfo" (L1) fue respondido "sí" en RESPUESTAS_COMPLETAS
+    # (por eso no aparece en brechas_pendientes), pero sin foto no debe
+    # contar como verificado para el check ✓ público.
+    assert "tramite_reinfo" not in detalle_sin_fotos["brechas_pendientes"]
+    assert "tramite_reinfo" not in detalle_sin_fotos["brechas_verificadas"]
+
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "tramite_reinfo"},
+        files={"archivo": ("reinfo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+
+    detalle_con_foto = client.get(f"/proyectos/{operacion_id}").json()
+    assert "tramite_reinfo" in detalle_con_foto["brechas_verificadas"]
+    assert len(detalle_con_foto["documentos_estudios"]["tramite_reinfo"]) == 1
+    # Una brecha que sigue pendiente (S5) no se vuelve verificada aunque
+    # alguien suba una foto con esa categoría.
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "estudio_ventilacion"},
+        files={"archivo": ("vent.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    detalle_final = client.get(f"/proyectos/{operacion_id}").json()
+    assert "estudio_ventilacion" not in detalle_final["brechas_verificadas"]
+
+
 def test_evento_diagnostico_iniciado_y_metricas():
     resp = client.post("/eventos", json={"tipo": "diagnostico_iniciado"})
     assert resp.status_code == 201

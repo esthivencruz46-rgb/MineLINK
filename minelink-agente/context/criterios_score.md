@@ -336,3 +336,29 @@ desincronizar).
   responder casi todas las preguntas de opción única antes de dejar
   avanzar (solo unas pocas de texto libre son opcionales), así que en la
   práctica el score siempre se calcula sobre un perfil casi completo.
+
+## Verificación por foto en la ficha pública (julio 2026)
+
+El diagnóstico Sí/No es autodeclarado: el minero puede responder "sí" a
+todo sin sustento. Por eso, en la ficha pública del proyecto
+(`ProyectoDetalle.tsx`, secciones "Estado de Formalización" y
+"Documentación Técnica"), el check ✓ **nunca** se basa solo en la
+respuesta del diagnóstico — requiere además una foto de respaldo subida
+para ese estudio (`DocumentoOperacion.categoria == código de estudio`,
+sección "Respalda tu declaración" de `/mi-cuenta` o `/mi-concesion`).
+
+- Backend: `routers/proyectos.py` calcula `brechas_verificadas` = el set
+  completo de estudios aplicables a la ruta de la operación
+  (`ids_esperados_para`) que NO están en `brechas_pendientes` (o sea: se
+  respondió "sí", o un "no" que el admin marcó resuelto por seguimiento)
+  **y además** tienen una foto subida. Este campo es distinto de
+  `brechas_resueltas`, que solo trackea brechas marcadas resueltas
+  manualmente por el admin — nunca incluye las respuestas "sí" originales.
+- El score (`score_actual`/`score_inversion`) sigue calculándose sobre las
+  respuestas autodeclaradas, sin requerir foto — la exigencia de foto es
+  solo para el check visual en la ficha pública, no cambia el score ni el
+  ranking de `/proyectos`.
+- Frontend: la ficha pública agrupa el checklist de "Estado de
+  Formalización" por dimensión (Legal/Ambiental/Seguridad/Social), igual
+  que el bloque "Respalda tu declaración" del propio minero — mismo
+  criterio de orden en ambas ventanas.

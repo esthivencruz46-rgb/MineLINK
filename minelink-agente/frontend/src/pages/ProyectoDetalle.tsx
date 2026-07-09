@@ -15,6 +15,7 @@ import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
 import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
+import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import {
@@ -145,18 +146,23 @@ export function ProyectoDetalle() {
   const destacado = proyecto.score_actual >= 85;
 
   const dims = proyecto.dimensiones;
-  const pendientes = new Set(proyecto.brechas_pendientes);
+  // El diagnóstico es autodeclarado — el minero puede responder "sí" a
+  // todo sin sustento. brechas_verificadas es el subconjunto de
+  // brechas_resueltas que además tiene foto de respaldo subida: solo esas
+  // muestran check ✓ en la ficha pública.
+  const verificadas = new Set(proyecto.brechas_verificadas);
 
   const estudiosDe = (dim: NombreDimension) =>
     Object.keys(INFO_BRECHA).filter((e) => DIMENSION_POR_ESTUDIO[e] === dim);
 
-  const estudiosFormalizacion = [
-    ...estudiosDe("legal"),
-    ...estudiosDe("ambiental"),
-    ...estudiosDe("seguridad"),
-    ...estudiosDe("social"),
-  ];
   const estudiosTecnicos = estudiosDe("tecnico");
+
+  const BLOQUES_FORMALIZACION: { dim: NombreDimension; conReinfo?: boolean }[] = [
+    { dim: "legal", conReinfo: true },
+    { dim: "ambiental" },
+    { dim: "seguridad" },
+    { dim: "social" },
+  ];
 
   // Resumen ejecutivo: foco en el score y la oportunidad de inversión.
   // Los datos operativos (mineral, ubicación, producción) ya están en
@@ -379,35 +385,71 @@ export function ProyectoDetalle() {
           {/* ESTADO DE FORMALIZACIÓN */}
           <Card>
             <h2 className="text-lg font-semibold">Estado de Formalización</h2>
-            <ul className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-              <ItemChecklist etiqueta="REINFO vigente" completo />
-              {estudiosFormalizacion.map((estudio) => (
-                <ItemChecklist
-                  key={estudio}
-                  etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
-                  completo={!pendientes.has(estudio)}
-                />
-              ))}
-            </ul>
+            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+              El diagnóstico es autodeclarado por el titular. Un ✓ solo
+              aparece cuando además subió una foto de respaldo verificable
+              — sin foto, el trámite queda como pendiente aunque haya
+              declarado que sí.
+            </p>
+            <div className="mt-4 flex flex-col gap-5">
+              {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
+                const estudios = estudiosDe(dim);
+                if (estudios.length === 0 && !conReinfo) return null;
+                return (
+                  <div key={dim}>
+                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                      {NOMBRES_DIMENSION[dim]}
+                    </h3>
+                    <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                      {conReinfo && <ItemChecklist etiqueta="REINFO vigente" completo />}
+                      {estudios.map((estudio) => (
+                        <ItemChecklist
+                          key={estudio}
+                          etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
+                          completo={verificadas.has(estudio)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
           </Card>
 
           {/* DOCUMENTACIÓN TÉCNICA */}
           <Card>
             <h2 className="text-lg font-semibold">Documentación Técnica</h2>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              Refleja lo que el proyecto declaró en su diagnóstico de formalización.
+              "Disponible" requiere foto de respaldo subida, no solo la
+              respuesta del diagnóstico.
             </p>
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
               {estudiosTecnicos.map((estudio) => {
-                const disponible = !pendientes.has(estudio);
+                const disponible = verificadas.has(estudio);
+                const fotos = proyecto.documentos_estudios[estudio] ?? [];
                 return (
                   <div
                     key={estudio}
                     className="flex items-center gap-3 rounded-lg border border-black/10 px-4 py-3 dark:border-white/10"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/5 text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
-                      <FileText size={17} strokeWidth={1.75} aria-hidden />
-                    </span>
+                    {fotos[0] ? (
+                      <a
+                        href={`${BASE_URL}${fotos[0].url}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
+                      >
+                        <img
+                          src={`${BASE_URL}${fotos[0].url}`}
+                          alt={INFO_BRECHA[estudio]?.texto ?? estudio}
+                          className="h-full w-full object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/5 text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+                        <FileText size={17} strokeWidth={1.75} aria-hidden />
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {INFO_BRECHA[estudio]?.texto ?? estudio}

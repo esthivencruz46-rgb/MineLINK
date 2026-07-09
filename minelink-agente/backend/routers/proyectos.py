@@ -9,12 +9,15 @@ import schemas
 import storage
 from auth import hash_password
 from database import get_db
-from scoring import calcular_score_inversion, estado_seguimiento
-from uploads_config import CATEGORIAS_DOCUMENTO
+from scoring import ESTUDIO_POR_PREGUNTA, calcular_score_inversion, estado_seguimiento, ids_esperados_para
+from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
 CATEGORIAS_LEGALES = [c for c in CATEGORIAS_DOCUMENTO if c != "fotos_mina"]
+# Categorías que se sirven vía /documentos/{id} (foto pública de respaldo):
+# los 5 documentos legales fijos + cualquier estudio del catálogo.
+CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
 
 
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
@@ -187,23 +190,46 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     categorias_presentadas = {d.categoria for d in documentos}
     documentos_presentados = {c: c in categorias_presentadas for c in CATEGORIAS_LEGALES}
     documentos_legales: dict[str, list[schemas.FotoPublicaOut]] = {c: [] for c in CATEGORIAS_LEGALES}
+    documentos_estudios: dict[str, list[schemas.FotoPublicaOut]] = {c: [] for c in CATEGORIAS_ESTUDIO}
     for d in documentos:
         if d.categoria in documentos_legales:
             documentos_legales[d.categoria].append(
+                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+            )
+        elif d.categoria in documentos_estudios:
+            documentos_estudios[d.categoria].append(
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )
 
     seguimiento = estado_seguimiento(operacion)
     n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
     score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
+    # El diagnóstico es autodeclarado — el minero puede responder "sí" a
+    # todo sin sustento, y eso NUNCA queda en brechas_json/brechas_resueltas
+    # (solo las respuestas "no" originales generan una brecha ahí). Para
+    # saber si un estudio "está bien" hay que mirar el set completo de
+    # estudios aplicables a esta ruta y ver cuáles NO están pendientes
+    # (o sea: se respondió "sí", o un "no" que el admin marcó resuelto) —
+    # y de esos, solo cuentan como verificados (check ✓ público) los que
+    # además tienen foto de respaldo subida.
+    perfil_situacion = {"sustancias_toxicas": operacion.sustancias_toxicas}
+    situacion = operacion.situacion or "minero_artesanal"
+    ids_aplicables = ids_esperados_para(operacion.tipo_mina, situacion, perfil_situacion)
+    estudios_aplicables = {ESTUDIO_POR_PREGUNTA[i] for i in ids_aplicables}
+    pendientes = set(seguimiento["brechas_pendientes"])
+    brechas_verificadas = sorted(
+        e for e in estudios_aplicables if e not in pendientes and e in categorias_presentadas
+    )
 
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),
         fotos=fotos,
         documentos_presentados=documentos_presentados,
         documentos_legales=documentos_legales,
+        documentos_estudios=documentos_estudios,
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
+        brechas_verificadas=brechas_verificadas,
         dimensiones=seguimiento["dimensiones"],
         dimensiones_inversion=score_inversion["dimensiones"],
         ubicacion_maps=lead.ubicacion_maps,
@@ -332,8 +358,9 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
 @router.get("/{operacion_id}/documentos/{documento_id}")
 def foto_documento_legal(operacion_id: str, documento_id: int, db: Session = Depends(get_db)):
     """Sirve la foto de un documento legal (informe de leyes, catastro,
-    RUC, contrato, título de concesión) que el minero eligió mostrar en
-    la vitrina pública del proyecto. Siempre es una foto — los PDFs
+    RUC, contrato, título de concesión) o de un estudio de respaldo
+    ("Respalda tu declaración") que el minero eligió mostrar en la
+    vitrina pública del proyecto. Siempre es una foto — los PDFs
     subidos se convierten a imagen al momento de subirlos, nunca se
     guarda ni se sirve un PDF crudo."""
     _lead_y_operacion_visibles(db, operacion_id)
@@ -343,7 +370,7 @@ def foto_documento_legal(operacion_id: str, documento_id: int, db: Session = Dep
         .filter(
             models.DocumentoOperacion.id == documento_id,
             models.DocumentoOperacion.operacion_id == operacion_id,
-            models.DocumentoOperacion.categoria.in_(CATEGORIAS_LEGALES),
+            models.DocumentoOperacion.categoria.in_(CATEGORIAS_DOCUMENTOS_PUBLICOS),
         )
         .first()
     )

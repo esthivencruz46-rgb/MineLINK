@@ -33,8 +33,15 @@ export interface ProyectoDetalle extends ProyectoPublico {
   fotos: FotoPublica[];
   documentos_presentados: Record<string, boolean>;
   documentos_legales: Record<string, FotoPublica[]>;
+  // Fotos de respaldo por estudio (catálogo completo, no solo los 5
+  // documentos legales fijos) — ver brechas_verificadas.
+  documentos_estudios: Record<string, FotoPublica[]>;
   brechas_pendientes: string[];
   brechas_resueltas: string[];
+  // Subconjunto de brechas_resueltas con foto de respaldo subida. El
+  // diagnóstico es autodeclarado, así que el check ✓ público solo debe
+  // mostrarse para brechas en esta lista, no para brechas_resueltas.
+  brechas_verificadas: string[];
   dimensiones: Record<string, DimensionScore> | null;
   // Desglose del score_inversion: formalizacion, escala_economica,
   // viabilidad_tecnica, riesgo_ambiental_social, capacidad_equipo,

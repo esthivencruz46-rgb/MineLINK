@@ -510,6 +510,15 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     fotos: list[FotoPublicaOut] = []
     documentos_presentados: dict[str, bool] = {}
     documentos_legales: dict[str, list[FotoPublicaOut]] = {}
+    # Fotos de respaldo por estudio (misma idea que documentos_legales pero
+    # para el catálogo de estudios de formalización, no solo los 5 legales
+    # fijos — ver uploads_config.CATEGORIAS_ESTUDIO).
+    documentos_estudios: dict[str, list[FotoPublicaOut]] = {}
+    # Subconjunto de brechas_resueltas que además tiene foto de respaldo
+    # subida. El diagnóstico es autodeclarado (el minero puede responder
+    # "sí" a todo sin sustento), así que el check ✓ en la ficha pública
+    # solo se muestra para brechas en esta lista, no para brechas_resueltas.
+    brechas_verificadas: list[str] = []
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None
