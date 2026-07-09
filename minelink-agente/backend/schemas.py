@@ -478,6 +478,11 @@ class ProyectoPublicoOut(BaseModel):
     tipo_mina: str
     situacion: str
     score_actual: int
+    # Score de Atractivo de Inversión (Fase 2) — el número que se muestra
+    # como principal al inversionista y decide el orden de /proyectos.
+    # `score_actual` (MineScore de formalización) sigue existiendo como un
+    # ingrediente más, no como el resultado final.
+    score_inversion: int = 0
     # Informativo, ya no filtra el listado (ver context/criterios_score.md):
     # true = todavía no inició REINFO/proceso de formalización.
     bloqueado_actual: bool = False
@@ -520,6 +525,10 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     brechas_pendientes: list[str] = []
     brechas_resueltas: list[str] = []
     dimensiones: Optional[dict[str, DimensionOut]] = None
+    # Desglose del Score de Atractivo de Inversión (Fase 2): formalizacion,
+    # escala_economica, viabilidad_tecnica, riesgo_ambiental_social,
+    # capacidad_equipo, claridad_oportunidad — ver scoring.PESOS_INVERSION.
+    dimensiones_inversion: dict[str, DimensionOut] = {}
 
 
 class PerfilInversionUpdate(BaseModel):

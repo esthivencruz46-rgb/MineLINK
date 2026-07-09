@@ -198,13 +198,14 @@ significa algo distinto (ver columna Ruta 2).
 | A3 | ¿No ha tenido clausuras ambientales en los últimos 3 años? | no aplica | 5 | sin_clausura_ambiental |
 | A4 | ¿Cuenta con plan de manejo para mercurio/cianuro/relaves? (condicional, prellenada) | no aplica | 5 | plan_manejo_residuos |
 
-### Bloque 3 — OPERATIVO (5 pts, 1 pregunta que puntúa + 3 informativas)
+### Bloque 3 — OPERATIVO (5 pts, 1 pregunta que puntúa)
 | id | Pregunta | Pts | Tipo | Brecha → estudio |
 |---|---|---|---|---|
 | O1 | ¿Actualmente produce mineral? | 5 | SÍ/NO | puesta_en_produccion |
-| O2 | ¿Cuánto produce por mes? | — | informativa (texto libre / "prefiero no decirlo") | no aplica |
-| O3 | ¿Qué maquinaria posee? | — | informativa (texto libre / "prefiero no decirlo") | no aplica |
-| O4 | ¿Cuántos trabajadores tiene? | — | informativa (número / "prefiero no decirlo") | no aplica |
+
+Producción mensual, maquinaria y nº de trabajadores ya NO son
+"informativas" sueltas post-diagnóstico — desde Fase 1 se preguntan dentro
+del perfil informativo de Ruta 1 (bloques 1 y 3), nunca puntúan.
 
 ### Bloque 4 — TÉCNICO (35 pts Ruta 1 / 7 preguntas; 20 pts Ruta 2 / T1,T3,T6,T7)
 | id | Pregunta | Pts | Brecha → estudio |
@@ -271,3 +272,67 @@ El minero puede ingresar su código REINFO al final del cuestionario.
 La verificación es MANUAL: el código queda en el lead y Esthiven lo
 consulta en pad.minem.gob.pe (MINEM no tiene API pública). Nunca
 prometer al minero "verificación automática".
+
+---
+
+# Score de Atractivo de Inversión (Fase 2, julio 2026)
+
+Segundo score, **distinto** del MineScore de formalización de arriba.
+Mide qué tan atractivo es el proyecto para un inversionista combinando
+escala económica, viabilidad técnica, riesgo ambiental/social, capacidad
+del equipo y claridad de la oportunidad — la formalización es UN
+ingrediente más (ver tabla de pesos), no el resultado final. Se calcula
+siempre a partir del perfil informativo (nunca de las preguntas Sí/No
+directamente) — lógica pura en `backend/scoring.py` →
+`calcular_score_inversion()`.
+
+**Dónde se ve**: es el número público y principal en la ficha del
+proyecto (reemplaza al MineScore como número grande del panel lateral) y
+decide el orden de `/proyectos`. El MineScore de formalización sigue
+siendo el número principal en las pantallas privadas del minero
+(`/resultado`, `/mi-cuenta`, `/mi-concesion`) — ahí no cambia nada.
+
+## Pesos por dimensión
+
+| Dimensión | Ruta 1 | Ruta 2 |
+|---|---|---|
+| Formalización (= `score_actual` del MineScore, sin recalcular) | 20% | 15% |
+| Escala económica | 25% | 30% |
+| Viabilidad técnica | 15% | 20% |
+| Riesgo ambiental/social | 15% | 15% |
+| Capacidad del equipo | 10% | 10% |
+| Claridad de oportunidad | 15% | 10% |
+
+`score_inversion = round(Σ peso_dim × subscore_dim)`. Cada subscore
+(salvo Formalización) es el **promedio de 2-3 señales** sacadas de
+preguntas del perfil informativo (Fase 1), cada una normalizada a 0-100:
+dato ausente = 0, dato presente = puntos según qué tan favorable es la
+respuesta. Las tablas exactas de "respuesta → puntos" por señal viven en
+`scoring.py` (`_subscores_ruta1`/`_subscores_ruta2` y sus tablas
+`_TABLA_*`) — son la fuente de verdad ejecutable; este documento describe
+de qué pregunta sale cada señal, no el número exacto (para no duplicar y
+desincronizar).
+
+## Origen de las señales por dimensión
+
+| Dimensión | Ruta 1 (de qué preguntas sale) | Ruta 2 |
+|---|---|---|
+| Escala económica | Producción mensual declarada, ley conocida, producción objetivo 12 meses | Toneladas estimadas del depósito, ley esperada, producción objetivo anual |
+| Viabilidad técnica | Resultados de laboratorio, documentación disponible (fotos/reportes) | Información geológica disponible, ensayes de laboratorio, estudio de prefactibilidad/factibilidad |
+| Riesgo ambiental/social | Uso de mercurio/cianuro/relaves y su gestión, conflictividad comunitaria, permisos/relaciones con comunidades | Pasivos ambientales heredados, conflictividad comunitaria conocida |
+| Capacidad del equipo | Experiencia del operador, capacitación/colegiatura | Experiencia del titular/promotor, si tiene equipo técnico definido |
+| Claridad de oportunidad | Monto requerido, plazo para usar el capital, motivo de la necesidad | Monto requerido, capital ya disponible, timeline esperado hasta operación |
+
+## Notas de diseño
+- Un perfil completamente vacío en Ruta 1 no da exactamente 0: la señal de
+  riesgo ambiental/social asume "no usa sustancias tóxicas" cuando el
+  campo está vacío (ausencia de declaración ≠ riesgo), así que esa señal
+  sola vale 100 de las 3 que promedia esa dimensión. En Ruta 2 sí da 0
+  exacto (no tiene ese caso especial).
+- Nunca lanza excepción por datos faltantes — es intencional: una
+  operación diagnosticada antes de Fase 1/2 (sin estos campos) igual
+  recibe un `score_inversion` bajo pero válido, no rompe el listado.
+- No hay gate de "perfil completo": el wizard del diagnóstico ya obliga a
+  responder casi todas las preguntas de opción única antes de dejar
+  avanzar (solo unas pocas de texto libre son opcionales), así que en la
+  práctica el score siempre se calcula sobre un perfil casi completo.

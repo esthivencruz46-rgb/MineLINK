@@ -15,21 +15,16 @@ import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
 import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
-import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
-import { ETIQUETAS_DOCUMENTO_LEGAL } from "../types/proyecto";
+import {
+  COLOR_DIMENSION_INVERSION,
+  ETIQUETAS_DOCUMENTO_LEGAL,
+  NOMBRES_DIMENSION_INVERSION,
+  ORDEN_DIMENSION_INVERSION,
+} from "../types/proyecto";
 import type { ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
 import type { NombreDimension } from "../types/diagnostico";
-
-const COLOR_BARRA_DIMENSION: Record<NombreDimension, string> = {
-  legal: "bg-acento",
-  ambiental: "bg-blue-500",
-  operativo: "bg-secundario",
-  tecnico: "bg-purple-500",
-  seguridad: "bg-amber-500",
-  social: "bg-pink-500",
-};
 
 const NO_ESPECIFICADO = "No especificado";
 
@@ -95,6 +90,7 @@ export function ProyectoDetalle() {
   }
 
   const semaforo = calcularSemaforo(proyecto.score_actual, false);
+  const semaforoInversion = calcularSemaforo(proyecto.score_inversion, false);
   const destacado = proyecto.score_actual >= 85;
 
   const dims = proyecto.dimensiones;
@@ -490,40 +486,40 @@ export function ProyectoDetalle() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  MineScore™
+                  Score de Atractivo de Inversión
                 </p>
-                <p className="text-4xl font-bold">{proyecto.score_actual}</p>
+                <p className="text-4xl font-bold">{proyecto.score_inversion}</p>
                 <p className="text-xs text-texto-suave dark:text-texto-suave-dark">de 100 puntos</p>
               </div>
-              <span className={`rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold ${semaforo.claseTexto}`}>
-                {semaforo.etiqueta.toUpperCase()}
+              <span className={`rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold ${semaforoInversion.claseTexto}`}>
+                {semaforoInversion.etiqueta.toUpperCase()}
               </span>
             </div>
 
-            {dims && (
-              <div className="flex flex-col gap-3">
-                {(Object.keys(dims) as NombreDimension[]).map((dim) => {
-                  const { puntaje, maximo } = dims[dim];
-                  const porcentaje = maximo > 0 ? Math.round((puntaje / maximo) * 100) : 0;
-                  return (
-                    <div key={dim}>
-                      <div className="flex justify-between text-xs text-texto-suave dark:text-texto-suave-dark">
-                        <span>{NOMBRES_DIMENSION[dim]}</span>
-                        <span className="font-semibold text-texto dark:text-texto-dark">
-                          {porcentaje}
-                        </span>
-                      </div>
-                      <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                        <div
-                          className={`h-full rounded-full transition-all duration-[250ms] ${COLOR_BARRA_DIMENSION[dim]}`}
-                          style={{ width: `${porcentaje}%` }}
-                        />
-                      </div>
+            <div className="flex flex-col gap-3">
+              {ORDEN_DIMENSION_INVERSION.map((dim) => {
+                const info = proyecto.dimensiones_inversion[dim];
+                if (!info) return null;
+                const { puntaje, maximo } = info;
+                const porcentaje = maximo > 0 ? Math.round((puntaje / maximo) * 100) : 0;
+                return (
+                  <div key={dim}>
+                    <div className="flex justify-between text-xs text-texto-suave dark:text-texto-suave-dark">
+                      <span>{NOMBRES_DIMENSION_INVERSION[dim]}</span>
+                      <span className="font-semibold text-texto dark:text-texto-dark">
+                        {porcentaje}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+                      <div
+                        className={`h-full rounded-full transition-all duration-[250ms] ${COLOR_DIMENSION_INVERSION[dim]}`}
+                        style={{ width: `${porcentaje}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             <div className="mt-2 flex flex-col gap-2.5">
               <button

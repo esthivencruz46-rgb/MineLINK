@@ -1582,6 +1582,34 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
     assert "planta de beneficio" not in generada
 
 
+def test_proyectos_expone_score_de_inversion():
+    diag = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="scoreinversion", nombre_operacion="Mina Score"),
+    )
+
+    proyectos = client.get("/proyectos").json()
+    assert len(proyectos) == 1
+    proyecto = proyectos[0]
+    assert "score_inversion" in proyecto
+    assert isinstance(proyecto["score_inversion"], int)
+    assert 0 <= proyecto["score_inversion"] <= 100
+
+    detalle = client.get(f"/proyectos/{proyecto['operacion_id']}").json()
+    dims = detalle["dimensiones_inversion"]
+    assert set(dims.keys()) == {
+        "formalizacion", "escala_economica", "viabilidad_tecnica",
+        "riesgo_ambiental_social", "capacidad_equipo", "claridad_oportunidad",
+    }
+    for dim in dims.values():
+        assert dim["maximo"] == 100
+        assert 0 <= dim["puntaje"] <= 100
+    # score_actual (MineScore de formalización) sigue viviendo aparte, es
+    # uno de los ingredientes, no el resultado final.
+    assert dims["formalizacion"]["puntaje"] == detalle["score_actual"]
+
+
 def test_evento_diagnostico_iniciado_y_metricas():
     resp = client.post("/eventos", json={"tipo": "diagnostico_iniciado"})
     assert resp.status_code == 201

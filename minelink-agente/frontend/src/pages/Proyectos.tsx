@@ -65,7 +65,7 @@ export function Proyectos() {
           {(["minero_artesanal", "concesionario"] as const).map((sit) => {
             const grupo = proyectos
               .filter((p) => p.situacion === sit)
-              .sort((a, b) => b.score_actual - a.score_actual);
+              .sort((a, b) => b.score_inversion - a.score_inversion);
             return (
               <div key={sit} className="flex flex-col gap-4">
                 <h2 className="flex items-center gap-2 text-lg font-bold">
@@ -100,7 +100,7 @@ export function Proyectos() {
 }
 
 function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
-  const semaforo = calcularSemaforo(p.score_actual, false);
+  const semaforo = calcularSemaforo(p.score_inversion, false);
   return (
     <Link
       to={`/proyectos/${p.operacion_id}`}
@@ -121,8 +121,11 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-semibold">{p.nombre_proyecto}</h2>
-          <span className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}>
-            {p.score_actual}
+          <span
+            className={`shrink-0 font-mono text-sm font-bold ${semaforo.claseTexto}`}
+            title="Score de Atractivo de Inversión"
+          >
+            {p.score_inversion}
           </span>
         </div>
         <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">

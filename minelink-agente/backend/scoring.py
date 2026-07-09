@@ -225,3 +225,168 @@ def calcular_diagnostico(
         "bloqueado": not respuestas.get("L1", False),
         "brechas": brechas,
     }
+
+
+# ==========================================================================
+# Score de Atractivo de Inversión (Fase 2, julio 2026)
+#
+# Distinto del MineScore de formalización de arriba: mide qué tan atractivo
+# es el proyecto para un inversionista (escala, viabilidad técnica, riesgo,
+# equipo, claridad de la oportunidad), reutilizando la formalización como
+# UN ingrediente más, no como el resultado. Se calcula a partir de las
+# preguntas informativas del perfil (Fase 1), NUNCA de las preguntas Sí/No.
+# Público, visible al inversionista en la ficha del proyecto — ver
+# routers/proyectos.py.
+# ==========================================================================
+
+PESOS_INVERSION = {
+    "minero_artesanal": {
+        "formalizacion": 0.20,
+        "escala_economica": 0.25,
+        "viabilidad_tecnica": 0.15,
+        "riesgo_ambiental_social": 0.15,
+        "capacidad_equipo": 0.10,
+        "claridad_oportunidad": 0.15,
+    },
+    "concesionario": {
+        "formalizacion": 0.15,
+        "escala_economica": 0.30,
+        "viabilidad_tecnica": 0.20,
+        "riesgo_ambiental_social": 0.15,
+        "capacidad_equipo": 0.10,
+        "claridad_oportunidad": 0.10,
+    },
+}
+
+
+def _bucket(valor, tabla: dict, default: int = 0) -> int:
+    """Traduce una respuesta de opción única a puntos 0-100 según `tabla`.
+    Si el valor es None o no está en la tabla, devuelve `default`."""
+    if valor is None:
+        return default
+    return tabla.get(valor, default)
+
+
+def _presente(valor) -> int:
+    """100 si el campo tiene un valor no vacío, 0 si está ausente."""
+    if valor is None:
+        return 0
+    if isinstance(valor, str) and not valor.strip():
+        return 0
+    return 100
+
+
+def _promedio(señales: list[int]) -> int:
+    return round(sum(señales) / len(señales)) if señales else 0
+
+
+_TABLA_PRODUCCION_OBJETIVO = {"igual": 25, "2-3x": 60, "5x+": 100, "no_se": 0}
+_TABLA_TRES_NIVELES_ASC = {"no": 0, "parcial": 50, "completo": 100}
+_TABLA_RIESGO_CONFLICTIVIDAD = {"no": 100, "percibida": 50, "activa": 0}
+_TABLA_EXPERIENCIA_OPERADOR = {"< 2 años": 20, "2-5 años": 50, "5-10 años": 80, "> 10 años": 100}
+_TABLA_CAPACITACION_OPERADOR = {
+    "ninguna": 0, "cursos_tecnicos": 40, "otro_profesional": 70,
+    "cip": 100, "ing_geologo": 100,
+}
+_TABLA_TONELADAS = {
+    "< 100k t": 20, "100k-1M": 40, "1M-10M": 60, "10M-50M": 80,
+    "50M-500M": 90, "500M+": 100, "No sé": 0,
+}
+_TABLA_PRODUCCION_OBJETIVO_ANUAL = {
+    "< 1k t/año": 15, "1-10k": 35, "10-50k": 55, "50-100k": 70,
+    "100-500k": 85, "500k+": 100, "No definida": 0,
+}
+_TABLA_ESTUDIO_PREVIO = {
+    "no": 0, "interno_preliminar": 40, "externo_parcial": 70, "externo_completo": 100,
+}
+_TABLA_PASIVOS_AMBIENTALES = {"no": 100, "desconozco": 40, "menor": 60, "mayor": 0}
+_TABLA_RIESGO_CONFLICTIVIDAD_CON_DESCONOZCO = {
+    "no": 100, "percibida": 50, "desconozco": 40, "activa": 0,
+}
+_TABLA_EXPERIENCIA_TITULAR = {
+    "individual_sin_experiencia": 20, "empresa_nueva": 50,
+    "individual_con_experiencia": 60, "empresa_con_trayectoria": 100,
+}
+_TABLA_CAPITAL_DISPONIBLE = {"no_tengo": 0, "buscando": 30, "parcial": 60, "completo": 100}
+
+
+def _subscores_ruta1(o) -> dict[str, int]:
+    # "conoce_ley" es una pregunta de gate del frontend, no se persiste —
+    # `ley_promedio` solo tiene valor si el minero dijo que sí la conocía
+    # y la llenó, así que su sola presencia ya es la señal completa.
+    return {
+        "escala_economica": _promedio([
+            _presente(o.produccion_mensual),
+            _presente(o.ley_promedio),
+            _bucket(o.produccion_objetivo, _TABLA_PRODUCCION_OBJETIVO),
+        ]),
+        "viabilidad_tecnica": _promedio([
+            _bucket(o.tiene_resultados_laboratorio, _TABLA_TRES_NIVELES_ASC),
+            _bucket(o.documentacion_disponible, {
+                "no": 0, "fotos_basicas": 50, "reportes_tecnicos": 75, "ambos": 100,
+            }),
+        ]),
+        "riesgo_ambiental_social": _promedio([
+            100 if not o.sustancias_toxicas or o.sustancias_toxicas == "no"
+            else (60 if o.gestion_sustancias and o.gestion_sustancias != "no_se_gestiona" else 0),
+            _bucket(o.conflictividad_social, _TABLA_RIESGO_CONFLICTIVIDAD),
+            _bucket(o.permisos_comunitarios, {
+                "formales": 100, "en_tramite": 60, "informales": 30, "no": 0,
+            }),
+        ]),
+        "capacidad_equipo": _promedio([
+            _bucket(o.experiencia_operador, _TABLA_EXPERIENCIA_OPERADOR),
+            _bucket(o.capacitacion_operador, _TABLA_CAPACITACION_OPERADOR),
+        ]),
+        "claridad_oportunidad": _promedio([
+            _presente(o.monto_requerido),
+            _presente(o.plazo_capital) if o.plazo_capital != "No definido" else 0,
+            _presente(o.motivo_capital),
+        ]),
+    }
+
+
+def _subscores_ruta2(o) -> dict[str, int]:
+    return {
+        "escala_economica": _promedio([
+            _bucket(o.toneladas_estimadas, _TABLA_TONELADAS),
+            _presente(o.ley_esperada),
+            _bucket(o.produccion_objetivo, _TABLA_PRODUCCION_OBJETIVO_ANUAL),
+        ]),
+        "viabilidad_tecnica": _promedio([
+            _bucket(o.info_geologica_disponible, _TABLA_TRES_NIVELES_ASC),
+            _bucket(o.tiene_resultados_laboratorio, _TABLA_TRES_NIVELES_ASC),
+            _bucket(o.estudio_previo, _TABLA_ESTUDIO_PREVIO),
+        ]),
+        "riesgo_ambiental_social": _promedio([
+            _bucket(o.pasivos_ambientales, _TABLA_PASIVOS_AMBIENTALES),
+            _bucket(o.conflictividad_social, _TABLA_RIESGO_CONFLICTIVIDAD_CON_DESCONOZCO),
+        ]),
+        "capacidad_equipo": _promedio([
+            _bucket(o.experiencia_titular, _TABLA_EXPERIENCIA_TITULAR),
+            _bucket(o.equipo_tecnico, _TABLA_TRES_NIVELES_ASC),
+        ]),
+        "claridad_oportunidad": _promedio([
+            _presente(o.monto_requerido),
+            _bucket(o.capital_disponible, _TABLA_CAPITAL_DISPONIBLE),
+            _presente(o.timeline_operacion) if o.timeline_operacion != "indefinido" else 0,
+        ]),
+    }
+
+
+def calcular_score_inversion(operacion, score_formalizacion: int) -> dict:
+    """Score de Atractivo de Inversión (0-100) — combina `score_formalizacion`
+    (el MineScore ya calculado, se le pasa hecho para no recalcularlo dos
+    veces) con 5 subscores nuevos sacados del perfil informativo. `operacion`
+    es cualquier objeto con los atributos del perfil (Operacion de
+    SQLAlchemy). Nunca lanza excepción: campos ausentes puntúan 0 en esa
+    señal, no rompen el cálculo."""
+    situacion = getattr(operacion, "situacion", None) or "minero_artesanal"
+    pesos = PESOS_INVERSION.get(situacion, PESOS_INVERSION["minero_artesanal"])
+    subscores = _subscores_ruta2(operacion) if situacion == "concesionario" else _subscores_ruta1(operacion)
+    subscores["formalizacion"] = score_formalizacion
+
+    score_total = round(sum(pesos[dim] * subscores[dim] for dim in pesos))
+    dimensiones = {dim: {"puntaje": subscores[dim], "maximo": 100} for dim in pesos}
+
+    return {"score_total": score_total, "dimensiones": dimensiones}

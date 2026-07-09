@@ -9,7 +9,7 @@ import schemas
 import storage
 from auth import hash_password
 from database import get_db
-from scoring import estado_seguimiento
+from scoring import calcular_score_inversion, estado_seguimiento
 from uploads_config import CATEGORIAS_DOCUMENTO
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
@@ -41,6 +41,7 @@ def _proyecto_publico_out(
     foto_portada_url: Optional[str] = None,
 ) -> schemas.ProyectoPublicoOut:
     seguimiento = estado_seguimiento(operacion)
+    score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
     return schemas.ProyectoPublicoOut(
         operacion_id=operacion.id,
         nombre_proyecto=_nombre_proyecto(lead, operacion),
@@ -49,6 +50,7 @@ def _proyecto_publico_out(
         tipo_mina=operacion.tipo_mina,
         situacion=operacion.situacion,
         score_actual=seguimiento["score_actual"],
+        score_inversion=score_inversion["score_total"],
         bloqueado_actual=seguimiento["bloqueado_actual"],
         descripcion_operacion=lead.descripcion_operacion,
         capacidad_produccion=lead.capacidad_produccion,
@@ -193,6 +195,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
 
     seguimiento = estado_seguimiento(operacion)
     n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
+    score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
 
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),
@@ -202,6 +205,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         dimensiones=seguimiento["dimensiones"],
+        dimensiones_inversion=score_inversion["dimensiones"],
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
