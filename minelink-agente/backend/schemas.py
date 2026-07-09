@@ -529,6 +529,59 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # escala_economica, viabilidad_tecnica, riesgo_ambiental_social,
     # capacidad_equipo, claridad_oportunidad — ver scoring.PESOS_INVERSION.
     dimensiones_inversion: dict[str, DimensionOut] = {}
+    # Perfil informativo del diagnóstico (Fase 1) — antes solo se usaba
+    # para calcular score_inversion, invisible al inversionista. Ahora
+    # también se expone tal cual para la sección "Perfil del proyecto" de
+    # la ficha pública (nunca datos de contacto, solo info del negocio).
+    tiempo_operacion: Optional[str] = None
+    ley_promedio: Optional[str] = None
+    ley_como_obtenida: Optional[str] = None
+    tiene_resultados_laboratorio: Optional[str] = None
+    num_trabajadores: Optional[str] = None
+    modalidad_trabajadores: Optional[str] = None
+    maquinaria: Optional[str] = None
+    provincia: Optional[str] = None
+    sustancias_toxicas: Optional[str] = None
+    gestion_sustancias: Optional[str] = None
+    acceso_agua: Optional[str] = None
+    acceso_energia: Optional[str] = None
+    tipo_apoyo: Optional[str] = None
+    monto_requerido: Optional[str] = None
+    plazo_capital: Optional[str] = None
+    uso_fondos_diagnostico: Optional[str] = None
+    motivo_capital: Optional[str] = None
+    produccion_objetivo: Optional[str] = None
+    incidentes_previos: Optional[str] = None
+    conflictividad_social: Optional[str] = None
+    permisos_comunitarios: Optional[str] = None
+    acceso_logistico: Optional[str] = None
+    experiencia_operador: Optional[str] = None
+    capacitacion_operador: Optional[str] = None
+    documentacion_disponible: Optional[str] = None
+    estructura_propiedad: Optional[str] = None
+    plan_formalizacion: Optional[str] = None
+    prioridad_crecimiento: Optional[str] = None
+    concesion_vigente: Optional[str] = None
+    pagos_vigencia_al_dia: Optional[str] = None
+    tipo_deposito: Optional[str] = None
+    toneladas_estimadas: Optional[str] = None
+    ley_esperada: Optional[str] = None
+    etapa_proyecto: Optional[str] = None
+    trabajos_exploracion_json: Optional[list[str]] = None
+    info_geologica_disponible: Optional[str] = None
+    tiene_estimaciones_leyes: Optional[str] = None
+    capital_disponible: Optional[str] = None
+    estudio_previo: Optional[str] = None
+    historial_operacion: Optional[str] = None
+    pasivos_ambientales: Optional[str] = None
+    experiencia_titular: Optional[str] = None
+    background_titular: Optional[str] = None
+    equipo_tecnico: Optional[str] = None
+    tipo_socio_buscado: Optional[str] = None
+    siguiente_hito: Optional[str] = None
+    timeline_operacion: Optional[str] = None
+    motivo_inicio: Optional[str] = None
+    documento_autorizacion: Optional[str] = None
 
 
 class PerfilInversionUpdate(BaseModel):

@@ -43,6 +43,57 @@ export interface ProyectoDetalle extends ProyectoPublico {
   ubicacion_maps?: string | null;
   ubicacion_coords?: string | null;
   descripcion_generada?: string | null;
+  // Perfil informativo del diagnóstico (Fase 1) — para la sección
+  // "Perfil del proyecto" de la ficha pública.
+  tiempo_operacion?: string | null;
+  ley_promedio?: string | null;
+  ley_como_obtenida?: string | null;
+  tiene_resultados_laboratorio?: string | null;
+  num_trabajadores?: string | null;
+  modalidad_trabajadores?: string | null;
+  maquinaria?: string | null;
+  provincia?: string | null;
+  sustancias_toxicas?: string | null;
+  gestion_sustancias?: string | null;
+  acceso_agua?: string | null;
+  acceso_energia?: string | null;
+  tipo_apoyo?: string | null;
+  monto_requerido?: string | null;
+  plazo_capital?: string | null;
+  uso_fondos_diagnostico?: string | null;
+  motivo_capital?: string | null;
+  produccion_objetivo?: string | null;
+  incidentes_previos?: string | null;
+  conflictividad_social?: string | null;
+  permisos_comunitarios?: string | null;
+  acceso_logistico?: string | null;
+  experiencia_operador?: string | null;
+  capacitacion_operador?: string | null;
+  documentacion_disponible?: string | null;
+  estructura_propiedad?: string | null;
+  plan_formalizacion?: string | null;
+  prioridad_crecimiento?: string | null;
+  concesion_vigente?: string | null;
+  pagos_vigencia_al_dia?: string | null;
+  tipo_deposito?: string | null;
+  toneladas_estimadas?: string | null;
+  ley_esperada?: string | null;
+  etapa_proyecto?: string | null;
+  trabajos_exploracion_json?: string[] | null;
+  info_geologica_disponible?: string | null;
+  tiene_estimaciones_leyes?: string | null;
+  capital_disponible?: string | null;
+  estudio_previo?: string | null;
+  historial_operacion?: string | null;
+  pasivos_ambientales?: string | null;
+  experiencia_titular?: string | null;
+  background_titular?: string | null;
+  equipo_tecnico?: string | null;
+  tipo_socio_buscado?: string | null;
+  siguiente_hito?: string | null;
+  timeline_operacion?: string | null;
+  motivo_inicio?: string | null;
+  documento_autorizacion?: string | null;
 }
 
 export type NombreDimensionInversion =

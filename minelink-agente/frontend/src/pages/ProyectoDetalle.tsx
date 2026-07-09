@@ -28,6 +28,57 @@ import type { NombreDimension } from "../types/diagnostico";
 
 const NO_ESPECIFICADO = "No especificado";
 
+/** Perfil informativo del diagnóstico (Fase 1): antes solo alimentaba el
+ * cálculo del Score de Atractivo de Inversión, invisible al inversionista.
+ * Se muestra genéricamente — cada proyecto solo llena los campos de su
+ * ruta, el resto queda null y no se renderiza. */
+const CAMPOS_PERFIL_PROYECTO: { campo: keyof ProyectoDetalleType; etiqueta: string }[] = [
+  { campo: "tiempo_operacion", etiqueta: "Tiempo operando" },
+  { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores" },
+  { campo: "num_trabajadores", etiqueta: "Nº de trabajadores" },
+  { campo: "maquinaria", etiqueta: "Maquinaria principal" },
+  { campo: "provincia", etiqueta: "Provincia" },
+  { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio" },
+  { campo: "sustancias_toxicas", etiqueta: "Mercurio/cianuro/relaves" },
+  { campo: "gestion_sustancias", etiqueta: "Gestión de esas sustancias" },
+  { campo: "acceso_agua", etiqueta: "Acceso a agua" },
+  { campo: "acceso_energia", etiqueta: "Acceso a energía" },
+  { campo: "acceso_logistico", etiqueta: "Acceso logístico" },
+  { campo: "experiencia_operador", etiqueta: "Experiencia del operador" },
+  { campo: "capacitacion_operador", etiqueta: "Capacitación/colegiatura" },
+  { campo: "documentacion_disponible", etiqueta: "Documentación disponible" },
+  { campo: "estructura_propiedad", etiqueta: "Estructura de propiedad" },
+  { campo: "plan_formalizacion", etiqueta: "Plan de formalización" },
+  { campo: "prioridad_crecimiento", etiqueta: "Prioridad para crecer" },
+  { campo: "incidentes_previos", etiqueta: "Incidentes en los últimos 2 años" },
+  { campo: "conflictividad_social", etiqueta: "Conflictividad con comunidades" },
+  { campo: "permisos_comunitarios", etiqueta: "Permisos/relaciones comunitarias" },
+  { campo: "tipo_apoyo", etiqueta: "Apoyo que busca primordialmente" },
+  { campo: "monto_requerido", etiqueta: "Monto aproximado que necesita" },
+  { campo: "plazo_capital", etiqueta: "Plazo para usar el capital" },
+  { campo: "produccion_objetivo", etiqueta: "Producción objetivo" },
+  { campo: "concesion_vigente", etiqueta: "Concesión vigente" },
+  { campo: "pagos_vigencia_al_dia", etiqueta: "Pagos de vigencia al día" },
+  { campo: "tipo_deposito", etiqueta: "Tipo de depósito" },
+  { campo: "toneladas_estimadas", etiqueta: "Toneladas estimadas del depósito" },
+  { campo: "ley_esperada", etiqueta: "Ley esperada" },
+  { campo: "etapa_proyecto", etiqueta: "Etapa del proyecto" },
+  { campo: "info_geologica_disponible", etiqueta: "Información geológica disponible" },
+  { campo: "tiene_estimaciones_leyes", etiqueta: "Estimaciones de leyes" },
+  { campo: "capital_disponible", etiqueta: "Capital ya disponible" },
+  { campo: "estudio_previo", etiqueta: "Estudio de prefactibilidad/factibilidad" },
+  { campo: "historial_operacion", etiqueta: "Operada previamente" },
+  { campo: "pasivos_ambientales", etiqueta: "Pasivos ambientales heredados" },
+  { campo: "experiencia_titular", etiqueta: "Experiencia del titular" },
+  { campo: "background_titular", etiqueta: "Background profesional del titular" },
+  { campo: "equipo_tecnico", etiqueta: "Equipo técnico definido" },
+  { campo: "tipo_socio_buscado", etiqueta: "Tipo de socio buscado" },
+  { campo: "siguiente_hito", etiqueta: "Siguiente hito" },
+  { campo: "timeline_operacion", etiqueta: "Timeline esperado hasta operación" },
+  { campo: "motivo_inicio", etiqueta: "Por qué inició el proyecto" },
+  { campo: "documento_autorizacion", etiqueta: "Documento de autorización" },
+];
+
 function colorRiesgo(porcentaje: number): { texto: string; etiqueta: string } {
   if (porcentaje >= 80) return { texto: "text-emerald-500", etiqueta: "Riesgo bajo" };
   if (porcentaje >= 50) return { texto: "text-amber-500", etiqueta: "Riesgo medio" };
@@ -232,6 +283,42 @@ export function ProyectoDetalle() {
                 valor={proyecto.capacidad_produccion ?? NO_ESPECIFICADO}
               />
             </div>
+          </Card>
+
+          {/* PERFIL DEL PROYECTO */}
+          <Card>
+            <h2 className="text-lg font-semibold">Perfil del proyecto</h2>
+            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+              Respuestas declaradas por el titular en su diagnóstico — la
+              base del Score de Atractivo de Inversión de arriba.
+            </p>
+            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              {proyecto.ley_promedio && (
+                <div>
+                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Ley promedio</dt>
+                  <dd className="text-sm font-medium">
+                    {proyecto.ley_promedio}
+                    {proyecto.ley_como_obtenida && ` (${proyecto.ley_como_obtenida})`}
+                  </dd>
+                </div>
+              )}
+              {proyecto.trabajos_exploracion_json && proyecto.trabajos_exploracion_json.length > 0 && (
+                <div>
+                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Trabajos de exploración</dt>
+                  <dd className="text-sm font-medium">{proyecto.trabajos_exploracion_json.join(", ")}</dd>
+                </div>
+              )}
+              {CAMPOS_PERFIL_PROYECTO.map(({ campo, etiqueta }) => {
+                const valor = proyecto[campo];
+                if (!valor || (Array.isArray(valor) && valor.length === 0)) return null;
+                return (
+                  <div key={campo}>
+                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</dt>
+                    <dd className="text-sm font-medium">{String(valor)}</dd>
+                  </div>
+                );
+              })}
+            </dl>
           </Card>
 
           {/* INFORMACIÓN FINANCIERA */}

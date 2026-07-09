@@ -1610,6 +1610,34 @@ def test_proyectos_expone_score_de_inversion():
     assert dims["formalizacion"]["puntaje"] == detalle["score_actual"]
 
 
+def test_proyectos_expone_perfil_informativo_del_diagnostico():
+    # Antes el perfil (Fase 1) solo alimentaba el cálculo del score de
+    # inversión; ahora también se expone tal cual para que el
+    # inversionista lo vea como texto en la ficha del proyecto.
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "experiencia_operador": "5-10 años",
+            "capacitacion_operador": "cip",
+            "monto_requerido": "S/. 200,000 - 1,000,000",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="perfilexpuesto", nombre_operacion="Mina Perfil"),
+    )
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["experiencia_operador"] == "5-10 años"
+    assert detalle["capacitacion_operador"] == "cip"
+    assert detalle["monto_requerido"] == "S/. 200,000 - 1,000,000"
+
+
 def test_evento_diagnostico_iniciado_y_metricas():
     resp = client.post("/eventos", json={"tipo": "diagnostico_iniciado"})
     assert resp.status_code == 201
