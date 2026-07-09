@@ -31,53 +31,93 @@ const NO_ESPECIFICADO = "No especificado";
 
 /** Perfil informativo del diagnóstico (Fase 1): antes solo alimentaba el
  * cálculo del Score de Atractivo de Inversión, invisible al inversionista.
- * Se muestra genéricamente — cada proyecto solo llena los campos de su
- * ruta, el resto queda null y no se renderiza. */
-const CAMPOS_PERFIL_PROYECTO: { campo: keyof ProyectoDetalleType; etiqueta: string }[] = [
-  { campo: "tiempo_operacion", etiqueta: "Tiempo operando" },
-  { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores" },
-  { campo: "num_trabajadores", etiqueta: "Nº de trabajadores" },
-  { campo: "maquinaria", etiqueta: "Maquinaria principal" },
-  { campo: "provincia", etiqueta: "Provincia" },
-  { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio" },
-  { campo: "sustancias_toxicas", etiqueta: "Mercurio/cianuro/relaves" },
-  { campo: "gestion_sustancias", etiqueta: "Gestión de esas sustancias" },
-  { campo: "acceso_agua", etiqueta: "Acceso a agua" },
-  { campo: "acceso_energia", etiqueta: "Acceso a energía" },
-  { campo: "acceso_logistico", etiqueta: "Acceso logístico" },
-  { campo: "experiencia_operador", etiqueta: "Experiencia del operador" },
-  { campo: "capacitacion_operador", etiqueta: "Capacitación/colegiatura" },
-  { campo: "documentacion_disponible", etiqueta: "Documentación disponible" },
-  { campo: "estructura_propiedad", etiqueta: "Estructura de propiedad" },
-  { campo: "plan_formalizacion", etiqueta: "Plan de formalización" },
-  { campo: "prioridad_crecimiento", etiqueta: "Prioridad para crecer" },
-  { campo: "incidentes_previos", etiqueta: "Incidentes en los últimos 2 años" },
-  { campo: "conflictividad_social", etiqueta: "Conflictividad con comunidades" },
-  { campo: "permisos_comunitarios", etiqueta: "Permisos/relaciones comunitarias" },
-  { campo: "tipo_apoyo", etiqueta: "Apoyo que busca primordialmente" },
-  { campo: "monto_requerido", etiqueta: "Monto aproximado que necesita" },
-  { campo: "plazo_capital", etiqueta: "Plazo para usar el capital" },
-  { campo: "produccion_objetivo", etiqueta: "Producción objetivo" },
-  { campo: "concesion_vigente", etiqueta: "Concesión vigente" },
-  { campo: "pagos_vigencia_al_dia", etiqueta: "Pagos de vigencia al día" },
-  { campo: "tipo_deposito", etiqueta: "Tipo de depósito" },
-  { campo: "toneladas_estimadas", etiqueta: "Toneladas estimadas del depósito" },
-  { campo: "ley_esperada", etiqueta: "Ley esperada" },
-  { campo: "etapa_proyecto", etiqueta: "Etapa del proyecto" },
-  { campo: "info_geologica_disponible", etiqueta: "Información geológica disponible" },
-  { campo: "tiene_estimaciones_leyes", etiqueta: "Estimaciones de leyes" },
-  { campo: "capital_disponible", etiqueta: "Capital ya disponible" },
-  { campo: "estudio_previo", etiqueta: "Estudio de prefactibilidad/factibilidad" },
-  { campo: "historial_operacion", etiqueta: "Operada previamente" },
-  { campo: "pasivos_ambientales", etiqueta: "Pasivos ambientales heredados" },
-  { campo: "experiencia_titular", etiqueta: "Experiencia del titular" },
-  { campo: "background_titular", etiqueta: "Background profesional del titular" },
-  { campo: "equipo_tecnico", etiqueta: "Equipo técnico definido" },
-  { campo: "tipo_socio_buscado", etiqueta: "Tipo de socio buscado" },
-  { campo: "siguiente_hito", etiqueta: "Siguiente hito" },
-  { campo: "timeline_operacion", etiqueta: "Timeline esperado hasta operación" },
-  { campo: "motivo_inicio", etiqueta: "Por qué inició el proyecto" },
-  { campo: "documento_autorizacion", etiqueta: "Documento de autorización" },
+ * Se muestra agrupado por categoría (en vez de una lista plana de ~44
+ * campos) — cada proyecto solo llena los campos de su ruta, el resto
+ * queda null y no se renderiza; una categoría sin campos con valor
+ * tampoco se muestra. */
+const CATEGORIAS_PERFIL_PROYECTO = [
+  "operacion",
+  "geologia",
+  "titularidad",
+  "ambiente",
+  "riesgos",
+  "equipo",
+  "formalizacion",
+  "capital",
+  "vision",
+] as const;
+
+type CategoriaPerfilProyecto = (typeof CATEGORIAS_PERFIL_PROYECTO)[number];
+
+const NOMBRES_CATEGORIA_PERFIL_PROYECTO: Record<CategoriaPerfilProyecto, string> = {
+  operacion: "Operación",
+  geologia: "Geología y técnico",
+  titularidad: "Titularidad y concesión",
+  ambiente: "Ambiente",
+  riesgos: "Riesgos y comunidad",
+  equipo: "Equipo y capacidad",
+  formalizacion: "Formalización",
+  capital: "Capital y oportunidad",
+  vision: "Visión a futuro",
+};
+
+const CAMPOS_PERFIL_PROYECTO: {
+  campo: keyof ProyectoDetalleType;
+  etiqueta: string;
+  categoria: CategoriaPerfilProyecto;
+}[] = [
+  { campo: "tiempo_operacion", etiqueta: "Tiempo operando", categoria: "operacion" },
+  { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores", categoria: "operacion" },
+  { campo: "num_trabajadores", etiqueta: "Nº de trabajadores", categoria: "operacion" },
+  { campo: "maquinaria", etiqueta: "Maquinaria principal", categoria: "operacion" },
+  { campo: "provincia", etiqueta: "Provincia", categoria: "operacion" },
+  { campo: "produccion_objetivo", etiqueta: "Producción objetivo", categoria: "operacion" },
+
+  { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio", categoria: "geologia" },
+  { campo: "tipo_deposito", etiqueta: "Tipo de depósito", categoria: "geologia" },
+  { campo: "toneladas_estimadas", etiqueta: "Toneladas estimadas del depósito", categoria: "geologia" },
+  { campo: "ley_esperada", etiqueta: "Ley esperada", categoria: "geologia" },
+  { campo: "etapa_proyecto", etiqueta: "Etapa del proyecto", categoria: "geologia" },
+  { campo: "info_geologica_disponible", etiqueta: "Información geológica disponible", categoria: "geologia" },
+  { campo: "tiene_estimaciones_leyes", etiqueta: "Estimaciones de leyes", categoria: "geologia" },
+  { campo: "estudio_previo", etiqueta: "Estudio de prefactibilidad/factibilidad", categoria: "geologia" },
+
+  { campo: "concesion_vigente", etiqueta: "Concesión vigente", categoria: "titularidad" },
+  { campo: "pagos_vigencia_al_dia", etiqueta: "Pagos de vigencia al día", categoria: "titularidad" },
+  { campo: "documento_autorizacion", etiqueta: "Documento de autorización", categoria: "titularidad" },
+  { campo: "historial_operacion", etiqueta: "Operada previamente", categoria: "titularidad" },
+
+  { campo: "sustancias_toxicas", etiqueta: "Mercurio/cianuro/relaves", categoria: "ambiente" },
+  { campo: "gestion_sustancias", etiqueta: "Gestión de esas sustancias", categoria: "ambiente" },
+  { campo: "acceso_agua", etiqueta: "Acceso a agua", categoria: "ambiente" },
+  { campo: "acceso_energia", etiqueta: "Acceso a energía", categoria: "ambiente" },
+  { campo: "acceso_logistico", etiqueta: "Acceso logístico", categoria: "ambiente" },
+  { campo: "pasivos_ambientales", etiqueta: "Pasivos ambientales heredados", categoria: "ambiente" },
+
+  { campo: "incidentes_previos", etiqueta: "Incidentes en los últimos 2 años", categoria: "riesgos" },
+  { campo: "conflictividad_social", etiqueta: "Conflictividad con comunidades", categoria: "riesgos" },
+  { campo: "permisos_comunitarios", etiqueta: "Permisos/relaciones comunitarias", categoria: "riesgos" },
+
+  { campo: "experiencia_operador", etiqueta: "Experiencia del operador", categoria: "equipo" },
+  { campo: "capacitacion_operador", etiqueta: "Capacitación/colegiatura", categoria: "equipo" },
+  { campo: "documentacion_disponible", etiqueta: "Documentación disponible", categoria: "equipo" },
+  { campo: "experiencia_titular", etiqueta: "Experiencia del titular", categoria: "equipo" },
+  { campo: "background_titular", etiqueta: "Background profesional del titular", categoria: "equipo" },
+  { campo: "equipo_tecnico", etiqueta: "Equipo técnico definido", categoria: "equipo" },
+
+  { campo: "estructura_propiedad", etiqueta: "Estructura de propiedad", categoria: "formalizacion" },
+  { campo: "plan_formalizacion", etiqueta: "Plan de formalización", categoria: "formalizacion" },
+
+  { campo: "tipo_apoyo", etiqueta: "Apoyo que busca primordialmente", categoria: "capital" },
+  { campo: "monto_requerido", etiqueta: "Monto aproximado que necesita", categoria: "capital" },
+  { campo: "plazo_capital", etiqueta: "Plazo para usar el capital", categoria: "capital" },
+  { campo: "capital_disponible", etiqueta: "Capital ya disponible", categoria: "capital" },
+  { campo: "tipo_socio_buscado", etiqueta: "Tipo de socio buscado", categoria: "capital" },
+
+  { campo: "prioridad_crecimiento", etiqueta: "Prioridad para crecer", categoria: "vision" },
+  { campo: "siguiente_hito", etiqueta: "Siguiente hito", categoria: "vision" },
+  { campo: "timeline_operacion", etiqueta: "Timeline esperado hasta operación", categoria: "vision" },
+  { campo: "motivo_inicio", etiqueta: "Por qué inició el proyecto", categoria: "vision" },
 ];
 
 function colorRiesgo(porcentaje: number): { texto: string; etiqueta: string } {
@@ -291,6 +331,46 @@ export function ProyectoDetalle() {
             </div>
           </Card>
 
+          {/* RESUMEN EJECUTIVO */}
+          <Card acento>
+            <h2 className="text-lg font-semibold">Resumen Ejecutivo</h2>
+            <p className="mt-2">{partesResumen.join(" ")}</p>
+          </Card>
+
+          {/* ESTADO DE FORMALIZACIÓN */}
+          <Card>
+            <h2 className="text-lg font-semibold">Estado de Formalización</h2>
+            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+              El diagnóstico es autodeclarado por el titular. Un ✓ solo
+              aparece cuando además subió una foto de respaldo verificable
+              — sin foto, el trámite queda como pendiente aunque haya
+              declarado que sí.
+            </p>
+            <div className="mt-4 flex flex-col gap-5">
+              {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
+                const estudios = estudiosDe(dim);
+                if (estudios.length === 0 && !conReinfo) return null;
+                return (
+                  <div key={dim}>
+                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                      {NOMBRES_DIMENSION[dim]}
+                    </h3>
+                    <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+                      {conReinfo && <ItemChecklist etiqueta="REINFO vigente" completo />}
+                      {estudios.map((estudio) => (
+                        <ItemChecklist
+                          key={estudio}
+                          etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
+                          completo={verificadas.has(estudio)}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
           {/* PERFIL DEL PROYECTO */}
           <Card>
             <h2 className="text-lg font-semibold">Perfil del proyecto</h2>
@@ -298,39 +378,68 @@ export function ProyectoDetalle() {
               Respuestas declaradas por el titular en su diagnóstico — la
               base del Score de Atractivo de Inversión de arriba.
             </p>
-            <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-              {proyecto.ley_promedio && (
-                <div>
-                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Ley promedio</dt>
-                  <dd className="text-sm font-medium">
-                    {proyecto.ley_promedio}
-                    {proyecto.ley_como_obtenida && ` (${proyecto.ley_como_obtenida})`}
-                  </dd>
-                </div>
-              )}
-              {proyecto.especie_mineral && (
-                <div>
-                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Especie mineralógica</dt>
-                  <dd className="text-sm font-medium">{proyecto.especie_mineral}</dd>
-                </div>
-              )}
-              {proyecto.trabajos_exploracion_json && proyecto.trabajos_exploracion_json.length > 0 && (
-                <div>
-                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Trabajos de exploración</dt>
-                  <dd className="text-sm font-medium">{proyecto.trabajos_exploracion_json.join(", ")}</dd>
-                </div>
-              )}
-              {CAMPOS_PERFIL_PROYECTO.map(({ campo, etiqueta }) => {
-                const valor = proyecto[campo];
-                if (!valor || (Array.isArray(valor) && valor.length === 0)) return null;
+            <div className="mt-4 flex flex-col gap-5">
+              {CATEGORIAS_PERFIL_PROYECTO.map((categoria) => {
+                const camposDeCategoria = CAMPOS_PERFIL_PROYECTO.filter(
+                  (c) => c.categoria === categoria
+                );
+                const camposConValor = camposDeCategoria.filter((c) => {
+                  const valor = proyecto[c.campo];
+                  return valor && !(Array.isArray(valor) && valor.length === 0);
+                });
+                // La categoría "geologia" siempre tiene 3 campos especiales
+                // adicionales (ley, especie mineral, trabajos de
+                // exploración) que no viven en CAMPOS_PERFIL_PROYECTO.
+                const tieneExtrasGeologia =
+                  categoria === "geologia" &&
+                  (proyecto.ley_promedio ||
+                    proyecto.especie_mineral ||
+                    (proyecto.trabajos_exploracion_json &&
+                      proyecto.trabajos_exploracion_json.length > 0));
+                if (camposConValor.length === 0 && !tieneExtrasGeologia) return null;
+
                 return (
-                  <div key={campo}>
-                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</dt>
-                    <dd className="text-sm font-medium">{String(valor)}</dd>
+                  <div key={categoria}>
+                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                      {NOMBRES_CATEGORIA_PERFIL_PROYECTO[categoria]}
+                    </h3>
+                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                      {categoria === "geologia" && proyecto.ley_promedio && (
+                        <div>
+                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Ley promedio</dt>
+                          <dd className="text-sm font-medium">
+                            {proyecto.ley_promedio}
+                            {proyecto.ley_como_obtenida && ` (${proyecto.ley_como_obtenida})`}
+                          </dd>
+                        </div>
+                      )}
+                      {categoria === "geologia" && proyecto.especie_mineral && (
+                        <div>
+                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Especie mineralógica</dt>
+                          <dd className="text-sm font-medium">{proyecto.especie_mineral}</dd>
+                        </div>
+                      )}
+                      {categoria === "geologia" &&
+                        proyecto.trabajos_exploracion_json &&
+                        proyecto.trabajos_exploracion_json.length > 0 && (
+                          <div>
+                            <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Trabajos de exploración</dt>
+                            <dd className="text-sm font-medium">
+                              {proyecto.trabajos_exploracion_json.join(", ")}
+                            </dd>
+                          </div>
+                        )}
+                      {camposConValor.map(({ campo, etiqueta }) => (
+                        <div key={campo}>
+                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</dt>
+                          <dd className="text-sm font-medium">{String(proyecto[campo])}</dd>
+                        </div>
+                      ))}
+                    </dl>
                   </div>
                 );
               })}
-            </dl>
+            </div>
           </Card>
 
           {/* INFORMACIÓN FINANCIERA */}
@@ -379,46 +488,6 @@ export function ProyectoDetalle() {
                   />
                 </tbody>
               </table>
-            </div>
-          </Card>
-
-          {/* RESUMEN EJECUTIVO */}
-          <Card acento>
-            <h2 className="text-lg font-semibold">Resumen Ejecutivo</h2>
-            <p className="mt-2">{partesResumen.join(" ")}</p>
-          </Card>
-
-          {/* ESTADO DE FORMALIZACIÓN */}
-          <Card>
-            <h2 className="text-lg font-semibold">Estado de Formalización</h2>
-            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              El diagnóstico es autodeclarado por el titular. Un ✓ solo
-              aparece cuando además subió una foto de respaldo verificable
-              — sin foto, el trámite queda como pendiente aunque haya
-              declarado que sí.
-            </p>
-            <div className="mt-4 flex flex-col gap-5">
-              {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
-                const estudios = estudiosDe(dim);
-                if (estudios.length === 0 && !conReinfo) return null;
-                return (
-                  <div key={dim}>
-                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-                      {NOMBRES_DIMENSION[dim]}
-                    </h3>
-                    <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                      {conReinfo && <ItemChecklist etiqueta="REINFO vigente" completo />}
-                      {estudios.map((estudio) => (
-                        <ItemChecklist
-                          key={estudio}
-                          etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
-                          completo={verificadas.has(estudio)}
-                        />
-                      ))}
-                    </ul>
-                  </div>
-                );
-              })}
             </div>
           </Card>
 
@@ -511,56 +580,6 @@ export function ProyectoDetalle() {
             )}
           </Card>
 
-          {/* MAPA */}
-          <Card>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Ubicación</h2>
-              {proyecto.ubicacion_maps && (
-                <a
-                  href={proyecto.ubicacion_maps}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-semibold text-acento underline"
-                >
-                  Abrir en Google Maps
-                </a>
-              )}
-            </div>
-            {proyecto.ubicacion_coords ? (
-              <>
-                <div className="mt-3 overflow-hidden rounded-lg">
-                  <iframe
-                    title="Ubicación del proyecto"
-                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=14&t=h&output=embed`}
-                    className="h-72 w-full border-0"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-                <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
-                  Zona aproximada declarada por el titular del proyecto.
-                </p>
-              </>
-            ) : (
-              <div className="mt-3 flex h-56 items-center justify-center rounded-lg border border-dashed border-black/10 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-                El titular aún no registró la ubicación de su operación
-              </div>
-            )}
-          </Card>
-
-          {/* CRONOLOGÍA */}
-          <Card>
-            <h2 className="text-lg font-semibold">Cronología</h2>
-            <div className="mt-4 flex flex-col gap-4 border-l-2 border-black/10 pl-4 dark:border-white/10">
-              <PuntoCronologia titulo="Registro en MineLink" fecha={proyecto.created_at} />
-              <PuntoCronologia
-                titulo="Diagnóstico de formalización completado"
-                fecha={proyecto.created_at}
-              />
-            </div>
-          </Card>
-
           {/* FACTORES DE RIESGO */}
           {dims && (
             <Card>
@@ -612,6 +631,56 @@ export function ProyectoDetalle() {
                 <ItemOportunidad texto="Busca activamente capital para crecer." />
               )}
             </ul>
+          </Card>
+
+          {/* MAPA */}
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Ubicación</h2>
+              {proyecto.ubicacion_maps && (
+                <a
+                  href={proyecto.ubicacion_maps}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-semibold text-acento underline"
+                >
+                  Abrir en Google Maps
+                </a>
+              )}
+            </div>
+            {proyecto.ubicacion_coords ? (
+              <>
+                <div className="mt-3 overflow-hidden rounded-lg">
+                  <iframe
+                    title="Ubicación del proyecto"
+                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=14&t=h&output=embed`}
+                    className="h-72 w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
+                <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+                  Zona aproximada declarada por el titular del proyecto.
+                </p>
+              </>
+            ) : (
+              <div className="mt-3 flex h-56 items-center justify-center rounded-lg border border-dashed border-black/10 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
+                El titular aún no registró la ubicación de su operación
+              </div>
+            )}
+          </Card>
+
+          {/* CRONOLOGÍA */}
+          <Card>
+            <h2 className="text-lg font-semibold">Cronología</h2>
+            <div className="mt-4 flex flex-col gap-4 border-l-2 border-black/10 pl-4 dark:border-white/10">
+              <PuntoCronologia titulo="Registro en MineLink" fecha={proyecto.created_at} />
+              <PuntoCronologia
+                titulo="Diagnóstico de formalización completado"
+                fecha={proyecto.created_at}
+              />
+            </div>
           </Card>
         </div>
 
