@@ -63,6 +63,16 @@ export function Postular() {
     }));
   }
 
+  const TODOS_LOS_DEPARTAMENTOS = DEPARTAMENTOS.map((d) => d.toLowerCase());
+  const todosMarcados = TODOS_LOS_DEPARTAMENTOS.every((d) => form.regiones_json.includes(d));
+
+  function alternarTodosDepartamentos() {
+    setForm((f) => ({
+      ...f,
+      regiones_json: todosMarcados ? [] : TODOS_LOS_DEPARTAMENTOS,
+    }));
+  }
+
   async function enviar() {
     const erroresValidacion = validar(form, cv);
     setErrores(erroresValidacion);
@@ -163,8 +173,17 @@ export function Postular() {
       />
 
       <div>
-        <p className="mb-1 text-sm font-medium">Departamentos donde puedes atender</p>
-        <div className="flex flex-wrap gap-3">
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <p className="text-sm font-medium">Departamentos donde puedes atender</p>
+          <button
+            type="button"
+            onClick={alternarTodosDepartamentos}
+            className="text-xs font-semibold text-acento underline"
+          >
+            {todosMarcados ? "Quitar todos" : "Todos los departamentos"}
+          </button>
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
           {DEPARTAMENTOS.map((d) => (
             <label key={d} className="flex items-center gap-1.5 text-sm">
               <input
