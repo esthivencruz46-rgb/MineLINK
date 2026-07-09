@@ -10,7 +10,7 @@ import storage
 from auth import hash_password
 from database import get_db
 from scoring import ESTUDIO_POR_PREGUNTA, calcular_score_inversion, estado_seguimiento, ids_esperados_para
-from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO
+from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, categoria_equivalente
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
@@ -201,6 +201,20 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )
 
+    # Varios estudios se subieron bajo una categoría equivalente en vez de
+    # la propia (ver uploads_config.categoria_equivalente) — para que su
+    # miniatura se vea igual en "Documentación Técnica", se completan acá.
+    situacion_equiv = operacion.situacion or "minero_artesanal"
+    for estudio in documentos_estudios:
+        if documentos_estudios[estudio]:
+            continue
+        equivalente = categoria_equivalente(estudio, situacion_equiv)
+        if equivalente is None or equivalente == estudio:
+            continue
+        documentos_estudios[estudio] = list(
+            documentos_legales.get(equivalente) or documentos_estudios.get(equivalente) or []
+        )
+
     seguimiento = estado_seguimiento(operacion)
     n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
     score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
@@ -217,8 +231,15 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     ids_aplicables = ids_esperados_para(operacion.tipo_mina, situacion, perfil_situacion)
     estudios_aplicables = {ESTUDIO_POR_PREGUNTA[i] for i in ids_aplicables}
     pendientes = set(seguimiento["brechas_pendientes"])
+
+    def _tiene_respaldo(estudio: str) -> bool:
+        if estudio in categorias_presentadas:
+            return True
+        equivalente = categoria_equivalente(estudio, situacion)
+        return equivalente is not None and equivalente in categorias_presentadas
+
     brechas_verificadas = sorted(
-        e for e in estudios_aplicables if e not in pendientes and e in categorias_presentadas
+        e for e in estudios_aplicables if e not in pendientes and _tiene_respaldo(e)
     )
 
     return schemas.ProyectoDetalleOut(

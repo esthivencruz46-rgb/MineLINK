@@ -389,3 +389,44 @@ sección "Respalda tu declaración" de `/mi-cuenta` o `/mi-concesion`).
   Formalización" por dimensión (Legal/Ambiental/Seguridad/Social), igual
   que el bloque "Respalda tu declaración" del propio minero — mismo
   criterio de orden en ambas ventanas.
+
+## Categorías de documento equivalentes (julio 2026)
+
+Varios estudios del catálogo pedían, en la práctica, LA MISMA foto que
+otra categoría ya existente (un documento legal fijo u otro estudio),
+mostrándose como slots separados en "Respalda tu declaración" y
+confundiendo al minero (ej. "Título de concesión" fijo y "Ser titular de
+tu concesión" como estudio aparte, pidiendo la misma foto dos veces).
+
+`backend/uploads_config.categoria_equivalente(categoria, situacion)`
+resuelve esto — el estudio de la izquierda NO se muestra como slot aparte
+en "Respalda tu declaración" y basta con subir la categoría de la derecha
+para que quede verificado también:
+
+| Estudio (no se pide aparte) | Categoría equivalente |
+|---|---|
+| titularidad_concesion (L2) | titulo_concesion |
+| vigencia_concesion (L6) | titulo_concesion |
+| tramite_sunat (L4) | ruc |
+| levantamiento_georreferenciado (L5) | catastro |
+| levantamiento_topografico (T5) | catastro |
+| instrumento_ambiental_vigente (A2) | igafom_aprobado |
+| puesta_en_produccion (O1) | fotos_mina |
+| analisis_laboratorio (T3) | informe_leyes |
+| documentacion_operacion (T7) | fotos_mina (solo Ruta 1 — en Ruta 2 T7 pide un estudio de prefactibilidad, no fotos) |
+| contrato_explotacion (L3) | contrato_explotacion (mismo nombre en ambos catálogos, se excluye por claridad) |
+
+Estudios que se mantienen SIN equivalente (evidencia genuinamente
+distinta): tramite_reinfo, igafom_aprobado, sin_clausura_ambiental,
+plan_manejo_residuos, informe_geologico, muestreo_geoquimico,
+planos_geologicos, estimacion_recursos, iperc, sctr, plan_seguridad,
+evaluacion_geomecanica, estudio_ventilacion, gestion_conflictividad_social.
+
+Esta función se usa en dos lugares — hay que mantenerlos sincronizados si
+se agrega una equivalencia nueva:
+- `routers/mineros.py` `_estudios_aplicables()`: excluye del listado de
+  "Respalda tu declaración" lo que ya tiene equivalente.
+- `routers/proyectos.py` `detalle_proyecto()`: `brechas_verificadas` acepta
+  la categoría equivalente como respaldo válido, y `documentos_estudios`
+  completa la miniatura desde la categoría equivalente si el estudio en sí
+  no tiene foto propia subida.

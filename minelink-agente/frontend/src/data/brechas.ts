@@ -30,7 +30,7 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
     resuelve: "Una concesión vencida no te da derechos legales sobre la zona.",
   },
   igafom_aprobado: {
-    texto: "Tu plan ambiental (IGAFOM) aprobado",
+    texto: "Tu plan ambiental (IGAFOM) aprobado y vigente",
     resuelve: "Ordena y valida ante la autoridad el impacto ambiental de tu labor (Correctivo si ya operas, Preventivo si vas a operar).",
   },
   instrumento_ambiental_vigente: {

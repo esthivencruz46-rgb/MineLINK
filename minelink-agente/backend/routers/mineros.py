@@ -26,6 +26,7 @@ from uploads_config import (
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
     FOTOS_MINA_MAXIMO,
     TIPOS_PDF_O_IMAGEN,
+    categoria_equivalente,
 )
 
 router = APIRouter(prefix="/mineros", tags=["mineros"])
@@ -52,13 +53,22 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
     marcó la brecha como resuelta después) — para que "Respalda tu
     declaración" solo le pida foto de lo que realmente tiene, no de todo
     el catálogo de su ruta. Pedirle que suba prueba de algo que ya dijo
-    que NO tiene no tiene sentido y solo lo satura de archivos."""
+    que NO tiene no tiene sentido y solo lo satura de archivos.
+
+    Tampoco se listan los estudios que en la práctica piden la MISMA foto
+    que ya se pide en "Documentos legales" u otro estudio (ver
+    `uploads_config.categoria_equivalente`) — evita pedir "Título de
+    concesión" y "Ser titular de tu concesión" como dos slots separados
+    cuando es un solo papel."""
     situacion = operacion.situacion or "minero_artesanal"
     perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
     ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
     todos = {ESTUDIO_POR_PREGUNTA[i] for i in ids}
     pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
-    return sorted(e for e in todos if e not in pendientes)
+    return sorted(
+        e for e in todos
+        if e not in pendientes and categoria_equivalente(e, situacion) is None
+    )
 
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:

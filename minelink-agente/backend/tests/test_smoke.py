@@ -620,6 +620,19 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     assert "iperc" in aplicables  # S1 = True
     assert "vigencia_concesion" not in aplicables  # L6, exclusivo de concesionario
     assert "estudio_ventilacion" not in aplicables  # S5 = False, no aplica pedirle foto
+    # Estudios que piden la MISMA foto que un documento legal fijo u otro
+    # estudio (ver uploads_config.categoria_equivalente) no se listan
+    # aparte, aunque el minero haya respondido Sí — evita pedir "Título de
+    # concesión" y "Ser titular de tu concesión" como dos slots distintos.
+    assert "titularidad_concesion" not in aplicables  # L2 = True, equivale a titulo_concesion
+    assert "tramite_sunat" not in aplicables  # L4 = True, equivale a ruc
+    assert "levantamiento_georreferenciado" not in aplicables  # L5 = True, equivale a catastro
+    assert "levantamiento_topografico" not in aplicables  # T5 = True, equivale a catastro
+    assert "instrumento_ambiental_vigente" not in aplicables  # A2 = True, equivale a igafom_aprobado
+    assert "puesta_en_produccion" not in aplicables  # O1 = True, equivale a fotos_mina
+    assert "analisis_laboratorio" not in aplicables  # T3 = True, equivale a informe_leyes
+    assert "documentacion_operacion" not in aplicables  # T7 = True, equivale a fotos_mina (Ruta 1)
+    assert "contrato_explotacion" not in aplicables  # L3 = True, mismo nombre que el fijo
 
 
 def test_mineros_documento_pdf_se_convierte_a_foto():
@@ -1766,6 +1779,55 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     )
     detalle_final = client.get(f"/proyectos/{operacion_id}").json()
     assert "estudio_ventilacion" not in detalle_final["brechas_verificadas"]
+
+
+def test_proyectos_check_publico_acepta_categoria_equivalente():
+    # Varios estudios piden, en la práctica, la MISMA foto que un documento
+    # legal fijo (ver uploads_config.categoria_equivalente) — subir la
+    # categoría equivalente también debe verificar el estudio, sin pedirle
+    # al minero que suba la misma foto dos veces con nombres distintos.
+    token = _token_minero(username="minerocheckequiv")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    proyectos = client.get("/proyectos").json()
+    operacion_id = proyectos[0]["operacion_id"]
+
+    detalle_inicial = client.get(f"/proyectos/{operacion_id}").json()
+    for estudio in (
+        "titularidad_concesion", "tramite_sunat", "levantamiento_georreferenciado",
+        "levantamiento_topografico", "instrumento_ambiental_vigente",
+        "puesta_en_produccion", "analisis_laboratorio", "documentacion_operacion",
+    ):
+        assert estudio not in detalle_inicial["brechas_verificadas"]
+
+    def _subir(categoria):
+        client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": categoria},
+            files={"archivo": (f"{categoria}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        )
+
+    _subir("titulo_concesion")
+    _subir("ruc")
+    _subir("catastro")
+    _subir("igafom_aprobado")
+    _subir("fotos_mina")
+    _subir("informe_leyes")
+
+    detalle_final = client.get(f"/proyectos/{operacion_id}").json()
+    assert "titularidad_concesion" in detalle_final["brechas_verificadas"]  # vía titulo_concesion
+    assert "tramite_sunat" in detalle_final["brechas_verificadas"]  # vía ruc
+    assert "levantamiento_georreferenciado" in detalle_final["brechas_verificadas"]  # vía catastro
+    assert "levantamiento_topografico" in detalle_final["brechas_verificadas"]  # vía catastro
+    assert "instrumento_ambiental_vigente" in detalle_final["brechas_verificadas"]  # vía igafom_aprobado
+    assert "puesta_en_produccion" in detalle_final["brechas_verificadas"]  # vía fotos_mina
+    assert "analisis_laboratorio" in detalle_final["brechas_verificadas"]  # vía informe_leyes
+    assert "documentacion_operacion" in detalle_final["brechas_verificadas"]  # vía fotos_mina (Ruta 1)
+    # La miniatura de "Documentación Técnica" también debe completarse con
+    # la foto de la categoría equivalente, no quedar vacía.
+    assert len(detalle_final["documentos_estudios"]["analisis_laboratorio"]) == 1
+    assert len(detalle_final["documentos_estudios"]["levantamiento_topografico"]) == 1
 
 
 def test_diagnostico_guarda_y_expone_especie_mineral():
