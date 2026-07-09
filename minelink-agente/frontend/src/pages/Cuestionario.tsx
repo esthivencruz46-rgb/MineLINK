@@ -125,6 +125,10 @@ function respuestasPrellenadasDe(situacion: Situacion, perfil: Perfil): Respuest
 
   if (situacion === "minero_artesanal") {
     prellenadas.T7 = noEsNo(perfil.documentacion_disponible);
+    // El perfil ya pregunta "¿Cuentas con resultados de laboratorio?"
+    // (mismo hecho que T3) — evita preguntarlo dos veces, igual que ya
+    // se hace en Ruta 2 con el mismo campo.
+    prellenadas.T3 = noEsNo(perfil.tiene_resultados_laboratorio);
     if (noEsNo(perfil.sustancias_toxicas)) {
       prellenadas.A4 = perfil.gestion_sustancias !== "no_se_gestiona" && noEsNo(perfil.gestion_sustancias);
     }
@@ -214,7 +218,23 @@ export function Cuestionario() {
       : undefined;
 
   function volver() {
-    setPaso((p) => Math.max(0, p - 1));
+    setPaso((p) => {
+      let anterior = Math.max(0, p - 1);
+      // Si el paso anterior es una pregunta que se autocompletó al
+      // avanzar (ver responder()), sáltala también para volver
+      // directo a la pregunta que la originó (L2 o A1).
+      const preguntaAnterior =
+        anterior > TOTAL_PERFIL && anterior <= TOTAL_PERFIL + TOTAL_PREGUNTAS
+          ? preguntas[anterior - TOTAL_PERFIL - 1]
+          : undefined;
+      if (
+        (preguntaAnterior?.id === "L3" && respuestas.L2 === true) ||
+        (preguntaAnterior?.id === "A2" && respuestas.A1 === false)
+      ) {
+        anterior = Math.max(0, anterior - 1);
+      }
+      return anterior;
+    });
   }
 
   async function terminar(
@@ -262,7 +282,6 @@ export function Cuestionario() {
         trabajos_exploracion_json: listaOpcional(perfilFinal.trabajos_exploracion_json),
         info_geologica_disponible: textoOpcional(perfilFinal.info_geologica_disponible),
         tiene_estimaciones_leyes: textoOpcional(perfilFinal.tiene_estimaciones_leyes),
-        pagos_vigencia_al_dia: textoOpcional(perfilFinal.pagos_vigencia_al_dia),
         toneladas_estimadas: textoOpcional(perfilFinal.toneladas_estimadas),
         ley_esperada: textoOpcional(perfilFinal.ley_esperada),
         capital_disponible: textoOpcional(perfilFinal.capital_disponible),
@@ -328,17 +347,36 @@ export function Cuestionario() {
 
   function responder(valor: boolean) {
     if (!preguntaActual) return;
-    const nuevas = { ...respuestas, [preguntaActual.id]: valor };
+    let nuevas = { ...respuestas, [preguntaActual.id]: valor };
+    let saltos = 1;
+
+    // Dos preguntas que la siguiente pregunta hace lógicamente innecesaria:
+    // si eres titular (L2=Sí), el "contrato de explotación" (L3) no aplica
+    // — su propia ayuda lo dice ("si la concesión es tuya, no te hace
+    // falta"). Si no tienes IGAFOM aprobado (A1=No), su vigencia (A2)
+    // tampoco puede ser Sí. En vez de preguntarlas y arriesgar una
+    // respuesta inconsistente que penaliza el score sin motivo, se
+    // autocompletan y se saltan (ver "Autocompletado dentro del propio
+    // Sí/No" en context/criterios_score.md).
+    const siguiente = preguntas[preguntas.indexOf(preguntaActual) + 1];
+    if (preguntaActual.id === "L2" && valor === true && siguiente?.id === "L3") {
+      nuevas = { ...nuevas, L3: true };
+      saltos = 2;
+    } else if (preguntaActual.id === "A1" && valor === false && siguiente?.id === "A2") {
+      nuevas = { ...nuevas, A2: false };
+      saltos = 2;
+    }
+
     setRespuestas(nuevas);
 
     // Antes, el paso de "informativas" siempre existía y era el que
     // terminaba el cuestionario. Ahora puede estar vacío (Ruta 1 movió
     // maquinaria/trabajadores al perfil, Ruta 2 nunca las tuvo) — si esta
     // era la última pantalla de cualquier tipo, hay que terminar aquí.
-    if (paso + 1 > TOTAL_PERFIL + TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS) {
+    if (paso + saltos > TOTAL_PERFIL + TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS) {
       terminar(nuevas, informativas, perfil);
     } else {
-      setPaso(paso + 1);
+      setPaso(paso + saltos);
     }
   }
 

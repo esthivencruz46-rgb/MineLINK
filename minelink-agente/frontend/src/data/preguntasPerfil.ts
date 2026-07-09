@@ -538,16 +538,6 @@ export const PERFIL_CONCESIONARIO: PreguntaPerfil[] = [
     ],
   },
   {
-    campo: "pagos_vigencia_al_dia",
-    texto: "¿Pagos de derecho de vigencia al día?",
-    tipo: "opciones",
-    opciones: [
-      { valor: "si", etiqueta: "Sí" },
-      { valor: "atrasados", etiqueta: "Atrasados" },
-      { valor: "desconozco", etiqueta: "Desconozco" },
-    ],
-  },
-  {
     campo: "elemento_valor",
     texto: "¿Cuál es el principal elemento económico esperado?",
     tipo: "opciones",

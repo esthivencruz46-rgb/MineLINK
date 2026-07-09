@@ -132,6 +132,26 @@ evaluar ahí).
   `documentacion_disponible` (Ruta 1) o `estudio_previo` (Ruta 2).
 - **A1 (Ruta 2)**: se prellena desde `pasivos_ambientales` ("no" → Sí).
 - **R1 (Ruta 2)**: se prellena desde `conflictividad_social` ("no" → Sí).
+- **T3 (Ruta 1)**: se prellena desde `tiene_resultados_laboratorio` del
+  perfil (mismo hecho que ya prellenaba T3 en Ruta 2) — antes se volvía a
+  preguntar "¿Tiene análisis de laboratorio?" en el Sí/No aunque el perfil
+  ya lo había preguntado (julio 2026, corrección de redundancia).
+
+## Autocompletado dentro del propio Sí/No (Ruta 1, julio 2026)
+Dos pares de preguntas donde la respuesta de la primera hace lógicamente
+innecesaria la segunda — antes se preguntaban ambas por separado y una
+respuesta inconsistente penalizaba el score sin motivo real:
+- **L2 → L3**: si responde Sí a "¿Es titular de la concesión?", "¿Cuenta
+  con contrato de explotación o autorización?" se autocompleta en Sí y no
+  se muestra (la ayuda de L3 ya decía "si la concesión es tuya, este
+  contrato no te hace falta" — ahora el sistema actúa en consecuencia).
+- **A1 → A2**: si responde No a "¿Tiene tu IGAFOM aprobado?", "¿Su
+  instrumento ambiental está vigente?" se autocompleta en No (no puede
+  estar vigente un instrumento que nunca se aprobó).
+En Ruta 2 esto no aplica como salto en vivo porque L2/L3/A1 ya vienen
+prellenados desde el perfil (ver arriba) — nunca se muestran como
+pantalla Sí/No en esa ruta, así que el par nunca coexiste como preguntas
+en vivo. La lógica vive en `responder()`/`volver()` de `Cuestionario.tsx`.
 
 Reglas derivadas (sin cambios):
 - El score SIEMPRE se normaliza a 0–100 sobre el máximo aplicable a esa ruta.
