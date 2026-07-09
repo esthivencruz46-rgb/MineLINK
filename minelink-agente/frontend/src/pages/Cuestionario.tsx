@@ -268,7 +268,16 @@ export function Cuestionario() {
     if (!preguntaActual) return;
     const nuevas = { ...respuestas, [preguntaActual.id]: valor };
     setRespuestas(nuevas);
-    setPaso(paso + 1);
+
+    // Antes, el paso de "informativas" siempre existía y era el que
+    // terminaba el cuestionario. Ahora puede estar vacío (Ruta 1 movió
+    // maquinaria/trabajadores al perfil, Ruta 2 nunca las tuvo) — si esta
+    // era la última pantalla de cualquier tipo, hay que terminar aquí.
+    if (paso + 1 > TOTAL_PERFIL + TOTAL_PREGUNTAS + TOTAL_INFORMATIVAS) {
+      terminar(nuevas, informativas, perfil);
+    } else {
+      setPaso(paso + 1);
+    }
   }
 
   function responderInformativa(valor: string | undefined) {
