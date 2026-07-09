@@ -22,7 +22,11 @@ interface InteresInversion {
 }
 
 function etiquetaCategoria(categoria: string): string {
-  return CATEGORIAS_DOCUMENTO.find((c) => c.categoria === categoria)?.etiqueta ?? categoria;
+  return (
+    CATEGORIAS_DOCUMENTO.find((c) => c.categoria === categoria)?.etiqueta ??
+    INFO_BRECHA[categoria]?.texto ??
+    categoria
+  );
 }
 
 function exportarCSV(leads: LeadConDiagnostico[]) {

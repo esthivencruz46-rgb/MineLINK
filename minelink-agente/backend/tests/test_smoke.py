@@ -504,6 +504,33 @@ def test_mineros_documento_legal_acepta_imagen():
     assert resp.status_code == 201
 
 
+def test_mineros_puede_subir_respaldo_de_estudio_del_catalogo():
+    # El diagnostico Sí/No no se puede comprobar por sí solo: el minero
+    # puede subir una foto de respaldo por cada estudio del catálogo
+    # (ej. "tramite_reinfo", "iperc"), aplique o no a su ruta.
+    token = _token_minero(username="minerorespaldo")
+    resp = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "tramite_reinfo"},
+        files={"archivo": ("reinfo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["categoria"] == "tramite_reinfo"
+
+
+def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
+    token = _token_minero(username="minerorespaldo2")
+    resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    aplicables = resp.json()["estudios_aplicables"]
+    # minero_artesanal (default de _token_minero): todo el catálogo salvo
+    # vigencia_concesion (L6, exclusivo de concesionario)
+    assert "tramite_reinfo" in aplicables
+    assert "iperc" in aplicables
+    assert "vigencia_concesion" not in aplicables
+
+
 def test_mineros_documento_pdf_se_convierte_a_foto():
     # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
     # hoja del PDF se convierte a JPEG al subirse.

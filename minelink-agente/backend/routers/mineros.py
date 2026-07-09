@@ -11,7 +11,7 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from scoring import estado_seguimiento
+from scoring import ESTUDIO_POR_PREGUNTA, estado_seguimiento, ids_esperados_para
 from security import (
     contenido_coincide_con_tipo,
     intentos_recuperacion_restantes,
@@ -22,8 +22,10 @@ from security import (
 )
 from uploads_config import (
     CATEGORIAS_DOCUMENTO,
+    CATEGORIAS_ESTUDIO,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
     FOTOS_MINA_MAXIMO,
+    TIPOS_PDF_O_IMAGEN,
 )
 
 router = APIRouter(prefix="/mineros", tags=["mineros"])
@@ -43,6 +45,16 @@ def _operacion_del_lead(db: Session, lead_id: int) -> tuple[models.Lead, models.
         raise HTTPException(status_code=404, detail="Diagnóstico no encontrado")
 
     return lead, operacion
+
+
+def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
+    """Estudios del catálogo que corresponden al tipo_mina/situación de esta
+    operación (mismo set de ids que se usó en su diagnóstico) — para que
+    el minero pueda subir una foto de respaldo por cada uno, sin importar
+    si respondió Sí o No."""
+    situacion = operacion.situacion or "minero_artesanal"
+    ids = ids_esperados_para(operacion.tipo_mina, situacion)
+    return sorted({ESTUDIO_POR_PREGUNTA[i] for i in ids})
 
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
@@ -82,6 +94,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         tiene_estimaciones_leyes=operacion.tiene_estimaciones_leyes,
         documento_autorizacion=operacion.documento_autorizacion,
         tipo_apoyo_json=operacion.tipo_apoyo_json,
+        estudios_aplicables=_estudios_aplicables(operacion),
         **estado_seguimiento(operacion),
     )
 
@@ -221,18 +234,25 @@ async def subir_documento(
     db: Session = Depends(get_db),
     lead_id: int = Depends(get_current_lead_id),
 ):
-    """Sube un archivo del minero (foto de la mina, informe de leyes,
-    catastro, RUC, contrato de explotación o título de concesión).
-    Preparación para un futuro nivel de inversión — esa lógica de match
-    NO existe todavía, esto solo guarda el archivo."""
+    """Sube un archivo del minero: foto de la mina, informe de leyes,
+    catastro, RUC, contrato de explotación, título de concesión, o una foto
+    de respaldo para cualquier estudio/trámite del catálogo (ver
+    uploads_config.CATEGORIAS_ESTUDIO) — esto último para que las
+    respuestas Sí/No del diagnóstico no queden solo en la palabra del
+    minero. Preparación para un futuro nivel de inversión — esa lógica de
+    match NO existe todavía, esto solo guarda el archivo."""
     _lead, operacion = _operacion_del_lead(db, lead_id)
 
-    info_categoria = CATEGORIAS_DOCUMENTO.get(categoria)
-    if info_categoria is None:
+    if categoria in CATEGORIAS_DOCUMENTO:
+        tipos_aceptados, _etiqueta = CATEGORIAS_DOCUMENTO[categoria]
+    elif categoria in CATEGORIAS_ESTUDIO:
+        tipos_aceptados = TIPOS_PDF_O_IMAGEN
+    else:
         raise HTTPException(
-            422, f"Categoría inválida. Debe ser una de: {sorted(CATEGORIAS_DOCUMENTO)}"
+            422,
+            "Categoría inválida. Debe ser una de: "
+            f"{sorted(set(CATEGORIAS_DOCUMENTO) | CATEGORIAS_ESTUDIO)}",
         )
-    tipos_aceptados, _etiqueta = info_categoria
 
     if archivo.content_type not in tipos_aceptados:
         raise HTTPException(

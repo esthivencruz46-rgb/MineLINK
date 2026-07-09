@@ -385,6 +385,11 @@ class MineroPerfilOut(BaseModel):
     tiene_estimaciones_leyes: Optional[bool] = None
     documento_autorizacion: Optional[str] = None
     tipo_apoyo_json: Optional[list[str]] = None
+    # Códigos de estudio del catálogo que aplican a su tipo_mina/situación
+    # (ver scoring.ESTUDIO_POR_PREGUNTA) — para que pueda subir una foto de
+    # respaldo por cada uno desde /mi-cuenta o /mi-concesion, sin importar
+    # si respondió Sí o No en el diagnóstico.
+    estudios_aplicables: list[str] = []
 
 
 class ProyectoPublicoOut(BaseModel):

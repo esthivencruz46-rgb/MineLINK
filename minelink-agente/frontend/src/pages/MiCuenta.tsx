@@ -214,7 +214,10 @@ export function MiCuenta() {
 
       <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
 
-      <DocumentosMinero onDocumentosChange={setDocumentos} />
+      <DocumentosMinero
+        onDocumentosChange={setDocumentos}
+        estudiosAplicables={perfil.estudios_aplicables}
+      />
     </div>
   );
 }

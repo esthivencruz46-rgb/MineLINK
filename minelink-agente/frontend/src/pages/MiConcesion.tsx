@@ -266,7 +266,10 @@ export function MiConcesion() {
 
       <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} ocultarCapacidadProduccion />
 
-      <DocumentosMinero onDocumentosChange={setDocumentos} />
+      <DocumentosMinero
+        onDocumentosChange={setDocumentos}
+        estudiosAplicables={perfil.estudios_aplicables}
+      />
     </div>
   );
 }

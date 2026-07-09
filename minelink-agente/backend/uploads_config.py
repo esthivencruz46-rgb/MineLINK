@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from scoring import ESTUDIO_POR_PREGUNTA
+
 UPLOADS_DIR = Path(__file__).parent / "uploads" / "cvs"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -32,3 +34,13 @@ CATEGORIAS_DOCUMENTO = {
     "contrato_explotacion": (_PDF_O_IMAGEN, "Contrato de explotación"),
     "titulo_concesion": (_PDF_O_IMAGEN, "Título de concesión"),
 }
+
+# El diagnóstico Sí/No declara el estado de formalización, pero esa
+# declaración por sí sola no se puede comprobar. Además de los documentos
+# fijos de arriba, el minero puede subir una foto de respaldo por cada
+# estudio/trámite del catálogo (REINFO, IPERC, IGAFOM, etc. — ver
+# scoring.ESTUDIO_POR_PREGUNTA), sea cual haya sido su respuesta. Mismos
+# tipos aceptados que los documentos legales (PDF o foto, se convierte a
+# foto al subir — ver imagenes.convertir_pdf_a_imagen).
+TIPOS_PDF_O_IMAGEN = _PDF_O_IMAGEN
+CATEGORIAS_ESTUDIO: set[str] = set(ESTUDIO_POR_PREGUNTA.values())

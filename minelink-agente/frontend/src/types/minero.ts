@@ -39,6 +39,7 @@ export interface MineroPerfil {
   tiene_estimaciones_leyes?: boolean | null;
   documento_autorizacion?: string | null;
   tipo_apoyo_json?: string[] | null;
+  estudios_aplicables: string[];
 }
 
 export interface PerfilInversionRequest {
