@@ -184,6 +184,12 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     ]
     categorias_presentadas = {d.categoria for d in documentos}
     documentos_presentados = {c: c in categorias_presentadas for c in CATEGORIAS_LEGALES}
+    documentos_legales: dict[str, list[schemas.FotoPublicaOut]] = {c: [] for c in CATEGORIAS_LEGALES}
+    for d in documentos:
+        if d.categoria in documentos_legales:
+            documentos_legales[d.categoria].append(
+                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+            )
 
     seguimiento = estado_seguimiento(operacion)
     n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
@@ -192,6 +198,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         **base.model_dump(),
         fotos=fotos,
         documentos_presentados=documentos_presentados,
+        documentos_legales=documentos_legales,
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         dimensiones=seguimiento["dimensiones"],
@@ -245,8 +252,7 @@ def registrar_interes(
 
 @router.get("/{operacion_id}/fotos/{documento_id}")
 def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(get_db)):
-    """Sirve SOLO fotos de la mina (categoría fotos_mina), nunca los PDFs
-    legales — esos pueden tener nombre completo/DNI y quedan privados."""
+    """Sirve SOLO fotos de la mina (categoría fotos_mina)."""
     _lead_y_operacion_visibles(db, operacion_id)
 
     documento = (
@@ -260,6 +266,34 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
     )
     if documento is None:
         raise HTTPException(status_code=404, detail="Foto no encontrada")
+
+    contenido = storage.leer("documentos_mineros", documento.filename)
+    if contenido is None:
+        raise HTTPException(status_code=404, detail="El archivo no se encuentra")
+
+    return Response(content=contenido, media_type=documento.content_type)
+
+
+@router.get("/{operacion_id}/documentos/{documento_id}")
+def foto_documento_legal(operacion_id: str, documento_id: int, db: Session = Depends(get_db)):
+    """Sirve la foto de un documento legal (informe de leyes, catastro,
+    RUC, contrato, título de concesión) que el minero eligió mostrar en
+    la vitrina pública del proyecto. Siempre es una foto — los PDFs
+    subidos se convierten a imagen al momento de subirlos, nunca se
+    guarda ni se sirve un PDF crudo."""
+    _lead_y_operacion_visibles(db, operacion_id)
+
+    documento = (
+        db.query(models.DocumentoOperacion)
+        .filter(
+            models.DocumentoOperacion.id == documento_id,
+            models.DocumentoOperacion.operacion_id == operacion_id,
+            models.DocumentoOperacion.categoria.in_(CATEGORIAS_LEGALES),
+        )
+        .first()
+    )
+    if documento is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
 
     contenido = storage.leer("documentos_mineros", documento.filename)
     if contenido is None:

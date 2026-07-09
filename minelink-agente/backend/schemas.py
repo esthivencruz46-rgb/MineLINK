@@ -418,12 +418,14 @@ class FotoPublicaOut(BaseModel):
 
 class ProyectoDetalleOut(ProyectoPublicoOut):
     """Detalle público de un proyecto (al hacer clic desde /proyectos).
-    Además del resumen, incluye las fotos de la mina y un check de qué
-    documentos legales presentó — NUNCA el archivo en sí (pueden tener
-    nombre completo/DNI del minero), solo si lo presentó o no."""
+    Además del resumen, incluye las fotos de la mina y las fotos de los
+    documentos legales que presentó el minero (todo se sube o se convierte
+    a foto, nunca se guarda un PDF crudo — ver
+    imagenes.convertir_pdf_a_imagen)."""
 
     fotos: list[FotoPublicaOut] = []
     documentos_presentados: dict[str, bool] = {}
+    documentos_legales: dict[str, list[FotoPublicaOut]] = {}
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

@@ -28,6 +28,7 @@ export interface DimensionScore {
 export interface ProyectoDetalle extends ProyectoPublico {
   fotos: FotoPublica[];
   documentos_presentados: Record<string, boolean>;
+  documentos_legales: Record<string, FotoPublica[]>;
   brechas_pendientes: string[];
   brechas_resueltas: string[];
   dimensiones: Record<string, DimensionScore> | null;

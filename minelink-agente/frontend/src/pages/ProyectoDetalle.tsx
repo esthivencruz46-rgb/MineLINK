@@ -5,7 +5,7 @@ import { InteresInversionModal } from "../components/proyecto/InteresInversionMo
 import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
-import { obtenerProyecto } from "../services/api";
+import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import { ETIQUETAS_DOCUMENTO_LEGAL } from "../types/proyecto";
 import type { ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
@@ -315,15 +315,35 @@ export function ProyectoDetalle() {
             {Object.keys(ETIQUETAS_DOCUMENTO_LEGAL).length > 0 && (
               <>
                 <h3 className="mt-5 text-sm font-semibold">Documentos legales presentados</h3>
-                <ul className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
-                  {Object.entries(ETIQUETAS_DOCUMENTO_LEGAL).map(([categoria, etiqueta]) => (
-                    <ItemChecklist
-                      key={categoria}
-                      etiqueta={etiqueta}
-                      completo={!!proyecto.documentos_presentados[categoria]}
-                    />
-                  ))}
-                </ul>
+                <div className="mt-2 flex flex-col gap-3">
+                  {Object.entries(ETIQUETAS_DOCUMENTO_LEGAL).map(([categoria, etiqueta]) => {
+                    const fotos = proyecto.documentos_legales[categoria] ?? [];
+                    return (
+                      <div key={categoria}>
+                        <ItemChecklist etiqueta={etiqueta} completo={fotos.length > 0} />
+                        {fotos.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {fotos.map((foto) => (
+                              <a
+                                key={foto.id}
+                                href={`${BASE_URL}${foto.url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block h-20 w-20 overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
+                              >
+                                <img
+                                  src={`${BASE_URL}${foto.url}`}
+                                  alt={etiqueta}
+                                  className="h-full w-full object-cover"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </>
             )}
           </Card>

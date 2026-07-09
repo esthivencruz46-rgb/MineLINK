@@ -712,12 +712,19 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
     assert body["documentos_presentados"]["catastro"] is False
     assert "fotos_mina" not in body["documentos_presentados"]
 
-    # Se puede ver la foto sin login...
+    # Se puede ver la foto de la mina sin login...
     resp = client.get(foto_url)
     assert resp.status_code == 200
     assert resp.content == b"\xff\xd8\xfffoto real"
 
-    # ...pero el PDF con datos personales no tiene ningún endpoint público
+    # ...y también la foto del documento legal (el PDF que subió el minero
+    # se convirtió a foto de la primera hoja al subirse).
+    assert len(body["documentos_legales"]["ruc"]) == 1
+    assert len(body["documentos_legales"]["catastro"]) == 0
+    resp = client.get(body["documentos_legales"]["ruc"][0]["url"])
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/jpeg"
+
     resp = client.get(f"/proyectos/{diag['id']}/fotos/999999")
     assert resp.status_code == 404
 
