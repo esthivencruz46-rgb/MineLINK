@@ -9,6 +9,7 @@ interface Props {
 export function DocumentosMinero({ onDocumentosChange }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
+  const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState<string | null>(null);
@@ -33,6 +34,32 @@ export function DocumentosMinero({ onDocumentosChange }: Props = {}) {
   }
 
   useEffect(cargar, [authFetch]);
+
+  useEffect(() => {
+    let cancelado = false;
+    const urls: string[] = [];
+    Promise.all(
+      documentos.map(async (doc) => {
+        if (!doc.content_type.startsWith("image/")) return null;
+        const resp = await authFetch(`/mineros/documentos/${doc.id}/archivo`);
+        if (!resp.ok) return null;
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        urls.push(url);
+        return [doc.id, url] as const;
+      })
+    ).then((pares) => {
+      if (cancelado) return;
+      const mapa: Record<number, string> = {};
+      for (const par of pares) if (par) mapa[par[0]] = par[1];
+      setMiniaturas(mapa);
+    });
+    return () => {
+      cancelado = true;
+      urls.forEach((u) => URL.revokeObjectURL(u));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentos]);
 
   async function subir(categoria: string, archivo: File) {
     setSubiendo(categoria);
@@ -132,27 +159,33 @@ export function DocumentosMinero({ onDocumentosChange }: Props = {}) {
                 </div>
 
                 {archivos.length > 0 && (
-                  <ul className="mt-2 flex flex-col gap-1">
+                  <div className="mt-2 flex flex-wrap gap-3">
                     {archivos.map((doc) => (
-                      <li
-                        key={doc.id}
-                        className="flex items-center justify-between gap-2 text-sm"
-                      >
+                      <div key={doc.id} className="flex w-20 flex-col items-center gap-1">
                         <button
                           onClick={() => ver(doc)}
-                          className="truncate text-left text-acento underline"
+                          title={doc.nombre_original}
+                          className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-lg border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5"
                         >
-                          {doc.nombre_original}
+                          {miniaturas[doc.id] ? (
+                            <img
+                              src={miniaturas[doc.id]}
+                              className="h-full w-full object-cover"
+                              alt={doc.nombre_original}
+                            />
+                          ) : (
+                            <span className="text-2xl">📷</span>
+                          )}
                         </button>
                         <button
                           onClick={() => eliminar(doc)}
-                          className="shrink-0 text-xs font-semibold text-red-500"
+                          className="text-xs font-semibold text-red-500"
                         >
                           Eliminar
                         </button>
-                      </li>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </div>
             );

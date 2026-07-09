@@ -10,10 +10,12 @@ Best-effort: si la imagen no se puede procesar, se guarda tal cual llegó
 from io import BytesIO
 from typing import Optional
 
+import fitz  # PyMuPDF
 from PIL import Image
 
 LADO_MAXIMO = 1600
 CALIDAD_JPEG = 80
+ESCALA_PDF_A_IMAGEN = 2.0  # ~144 DPI, legible sin pesar demasiado
 
 
 def comprimir_si_es_imagen(
@@ -37,3 +39,20 @@ def comprimir_si_es_imagen(
         return contenido, content_type, None
     except Exception:
         return contenido, content_type, None
+
+
+def convertir_pdf_a_imagen(contenido: bytes) -> Optional[bytes]:
+    """Renderiza la primera hoja de un PDF como foto JPEG. En
+    'Documentación' todo se muestra como foto, nunca se embebe un PDF
+    crudo — el caller debe pasar el resultado por `comprimir_si_es_imagen`
+    igual que cualquier otra foto subida. Devuelve None si el PDF no se
+    pudo leer (ej. corrupto) — el caller decide qué hacer en ese caso."""
+    try:
+        with fitz.open(stream=contenido, filetype="pdf") as doc:
+            if doc.page_count == 0:
+                return None
+            pagina = doc.load_page(0)
+            pixmap = pagina.get_pixmap(matrix=fitz.Matrix(ESCALA_PDF_A_IMAGEN, ESCALA_PDF_A_IMAGEN))
+            return pixmap.tobytes("jpeg")
+    except Exception:
+        return None

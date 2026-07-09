@@ -98,12 +98,21 @@ export function ProyectoDetalle() {
   ];
   const estudiosTecnicos = estudiosDe("tecnico");
 
-  // Resumen ejecutivo generado a partir de datos reales del proyecto,
-  // no texto inventado por dimensión/proyecto.
+  // Resumen ejecutivo: foco en el score y la oportunidad de inversión.
+  // Los datos operativos (mineral, ubicación, producción) ya están en
+  // "Información General" — no se repiten aquí para no duplicar texto.
   const partesResumen: string[] = [
-    `${proyecto.nombre_proyecto} es un proyecto de ${proyecto.mineral} en ${cap(proyecto.region)}, con un MineScore de ${proyecto.score_actual}/100 (${semaforo.etiqueta}).`,
+    `${proyecto.nombre_proyecto} tiene un MineScore de ${proyecto.score_actual}/100 (${semaforo.etiqueta}).`,
   ];
-  if (proyecto.descripcion_operacion) partesResumen.push(proyecto.descripcion_operacion);
+  if (proyecto.brechas_pendientes.length === 0) {
+    partesResumen.push("Completó todos los requisitos del diagnóstico de formalización.");
+  } else {
+    partesResumen.push(
+      `Tiene ${proyecto.brechas_pendientes.length} requisito${
+        proyecto.brechas_pendientes.length !== 1 ? "s" : ""
+      } de formalización en proceso.`
+    );
+  }
   if (proyecto.capital_buscado) {
     partesResumen.push(
       `Actualmente busca ${proyecto.capital_buscado}${
@@ -218,11 +227,31 @@ export function ProyectoDetalle() {
                     notas={proyecto.uso_fondos}
                   />
                   <FilaFinanciera indicador="Producción mensual" valor={proyecto.capacidad_produccion} />
-                  <FilaFinanciera indicador="CAPEX" valor={null} />
-                  <FilaFinanciera indicador="OPEX" valor={null} />
-                  <FilaFinanciera indicador="Valor Neto Presente (VPN)" valor={null} />
-                  <FilaFinanciera indicador="TIR" valor={null} />
-                  <FilaFinanciera indicador="Payback" valor={null} />
+                  <FilaFinanciera
+                    indicador="CAPEX"
+                    valor={null}
+                    ayuda="Inversión inicial para poner en marcha el proyecto (equipos, construcción, permisos)."
+                  />
+                  <FilaFinanciera
+                    indicador="OPEX"
+                    valor={null}
+                    ayuda="Gasto mensual para operar (insumos, combustible, planilla, mantenimiento)."
+                  />
+                  <FilaFinanciera
+                    indicador="Valor Neto Presente (VPN)"
+                    valor={null}
+                    ayuda="Cuánto valor generaría el proyecto hoy, descontando los flujos futuros esperados."
+                  />
+                  <FilaFinanciera
+                    indicador="TIR"
+                    valor={null}
+                    ayuda="Tasa Interna de Retorno: el % de rentabilidad anual estimado de la inversión."
+                  />
+                  <FilaFinanciera
+                    indicador="Payback"
+                    valor={null}
+                    ayuda="Tiempo estimado para recuperar la inversión inicial."
+                  />
                 </tbody>
               </table>
             </div>
@@ -500,14 +529,26 @@ function FilaFinanciera({
   indicador,
   valor,
   notas,
+  ayuda,
 }: {
   indicador: string;
   valor?: string | null;
   notas?: string | null;
+  ayuda?: string;
 }) {
   return (
     <tr className="border-b border-black/5 dark:border-white/5">
-      <td className="py-3">{indicador}</td>
+      <td className="py-3">
+        {indicador}
+        {ayuda && (
+          <span
+            title={ayuda}
+            className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-black/10 text-[10px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
+          >
+            ?
+          </span>
+        )}
+      </td>
       <td
         className={`py-3 font-medium ${
           valor ? "" : "text-texto-suave dark:text-texto-suave-dark"

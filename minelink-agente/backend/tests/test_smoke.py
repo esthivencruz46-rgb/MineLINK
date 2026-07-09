@@ -60,6 +60,18 @@ def _reset_db():
 
 client = TestClient(app)
 
+# PDF mínimo pero real (con página) — los documentos legales del minero se
+# convierten a imagen en el servidor (ver imagenes.convertir_pdf_a_imagen),
+# así que un "%PDF-..." sin páginas de verdad ya no basta para pasar.
+PDF_VALIDO_DE_PRUEBA = (
+    b"%PDF-1.4\n"
+    b"1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
+    b"2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n"
+    b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]>>endobj\n"
+    b"trailer<</Size 4/Root 1 0 R>>\n"
+    b"%%EOF"
+)
+
 RESPUESTAS_COMPLETAS = {
     "L1": True, "L2": True, "L3": True, "L4": True, "L5": True,
     "A1": True, "A2": True, "A3": True,
@@ -492,6 +504,32 @@ def test_mineros_documento_legal_acepta_imagen():
     assert resp.status_code == 201
 
 
+def test_mineros_documento_pdf_se_convierte_a_foto():
+    # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
+    # hoja del PDF se convierte a JPEG al subirse.
+    token = _token_minero(username="minerodocs3c")
+    resp = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "catastro"},
+        files={"archivo": ("catastro.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
+    )
+    assert resp.status_code == 201
+    doc = resp.json()
+    assert doc["content_type"] == "image/jpeg"
+
+
+def test_mineros_documento_pdf_ilegible_se_rechaza():
+    token = _token_minero(username="minerodocs3d")
+    resp = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "catastro"},
+        files={"archivo": ("catastro.pdf", b"%PDF-1.4 pero sin paginas reales", "application/pdf")},
+    )
+    assert resp.status_code == 422
+
+
 def test_mineros_elimina_su_documento():
     token = _token_minero(username="minerodocs4")
     headers = {"Authorization": f"Bearer {token}"}
@@ -499,7 +537,7 @@ def test_mineros_elimina_su_documento():
         "/mineros/documentos",
         headers=headers,
         data={"categoria": "informe_leyes"},
-        files={"archivo": ("leyes.pdf", b"%PDF-contenido", "application/pdf")},
+        files={"archivo": ("leyes.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
     ).json()
 
     resp = client.delete(f"/mineros/documentos/{doc['id']}", headers=headers)
@@ -520,7 +558,7 @@ def test_admin_ve_documentos_de_operacion():
         "/mineros/documentos",
         headers={"Authorization": f"Bearer {token_minero}"},
         data={"categoria": "titulo_concesion"},
-        files={"archivo": ("titulo.pdf", b"%PDF-contenido", "application/pdf")},
+        files={"archivo": ("titulo.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
     )
 
     admin_token = _admin_token()
@@ -538,7 +576,9 @@ def test_admin_ve_documentos_de_operacion():
 
     resp = client.get(f"/admin/documentos/{doc_id}/archivo", headers=headers_admin)
     assert resp.status_code == 200
-    assert resp.content == b"%PDF-contenido"
+    # El PDF subido se convierte a foto (primera hoja) al guardarse — nunca
+    # se guarda el PDF crudo.
+    assert resp.headers["content-type"] == "image/jpeg"
 
 
 def test_proyectos_publicos_lista_sin_datos_sensibles():
@@ -659,7 +699,7 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
         "/mineros/documentos",
         headers=headers,
         data={"categoria": "ruc"},
-        files={"archivo": ("ruc.pdf", b"%PDF-con dni", "application/pdf")},
+        files={"archivo": ("ruc.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
     )
 
     resp = client.get(f"/proyectos/{diag['id']}")
@@ -1445,11 +1485,11 @@ def test_documento_rechaza_contenido_que_no_coincide_con_tipo():
     )
     assert resp.status_code == 422
 
-    # Un PDF real (empieza con %PDF) sí pasa
+    # Un PDF real (con contenido válido) sí pasa
     resp = client.post(
         "/mineros/documentos",
         data={"categoria": "ruc"},
-        files={"archivo": ("real.pdf", b"%PDF-1.4 contenido", "application/pdf")},
+        files={"archivo": ("real.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 201
@@ -1501,9 +1541,11 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
     generada = detalle["descripcion_generada"]
     assert "oro" in generada
     assert "Arequipa" in generada
-    assert "USD 30,000" in generada
-    assert "planta de beneficio" in generada
     assert "REINFO" in generada
+    # Capital buscado / uso de fondos y MineScore van solo en el "Resumen
+    # Ejecutivo" del frontend, no se repiten en la descripción generada.
+    assert "USD 30,000" not in generada
+    assert "planta de beneficio" not in generada
 
 
 def test_evento_diagnostico_iniciado_y_metricas():
@@ -1637,7 +1679,7 @@ def test_maximo_fotos_de_mina():
     resp = client.post(
         "/mineros/documentos",
         data={"categoria": "ruc"},
-        files={"archivo": ("ruc.pdf", b"%PDF-ruc", "application/pdf")},
+        files={"archivo": ("ruc.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
         headers=headers,
     )
     assert resp.status_code == 201

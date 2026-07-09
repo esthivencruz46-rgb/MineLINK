@@ -113,12 +113,13 @@ def listar_minerales(db: Session = Depends(get_db)):
 def _generar_descripcion(
     lead: models.Lead,
     operacion: models.Operacion,
-    seguimiento: dict,
     n_fotos: int,
     n_docs_legales: int,
 ) -> str:
-    """Redacta la descripción pública del proyecto a partir de los datos
-    REALES del diagnóstico y del perfil del minero — nunca inventa cifras.
+    """Redacta la descripción pública del proyecto (bloque "Información
+    General") a partir de los datos REALES de la operación — nunca inventa
+    cifras, y nunca repite lo que ya se muestra en el "Resumen Ejecutivo"
+    (MineScore, capital buscado, uso de fondos: ver `_resumen_ejecutivo`).
     Si un dato no existe, simplemente no se menciona."""
     if operacion.situacion == "concesionario":
         partes = [
@@ -136,31 +137,8 @@ def _generar_descripcion(
     if operacion.tiempo_operacion:
         partes.append(f"Tiempo de operación: {operacion.tiempo_operacion}.")
 
-    score = seguimiento["score_actual"]
-    pendientes = len(seguimiento["brechas_pendientes"])
-    if pendientes == 0:
-        partes.append(
-            f"Alcanzó un MineScore de {score}/100 y completó todos los "
-            "requisitos del diagnóstico de formalización."
-        )
-    else:
-        partes.append(
-            f"Tiene un MineScore de {score}/100, con {pendientes} "
-            f"requisito{'s' if pendientes != 1 else ''} de formalización en proceso."
-        )
-
     if lead.capacidad_produccion:
         partes.append(f"Producción y reservas declaradas: {lead.capacidad_produccion.strip()}.")
-
-    if lead.capital_buscado and lead.uso_fondos:
-        partes.append(
-            f"Busca {lead.capital_buscado.strip()} de inversión, "
-            f"destinados a: {lead.uso_fondos.strip()}."
-        )
-    elif lead.capital_buscado:
-        partes.append(f"Busca {lead.capital_buscado.strip()} de inversión.")
-    elif lead.uso_fondos:
-        partes.append(f"Busca inversión destinada a: {lead.uso_fondos.strip()}.")
 
     respaldo = []
     if n_fotos > 0:
@@ -220,7 +198,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
-            lead, operacion, seguimiento, len(fotos), n_docs_legales
+            lead, operacion, len(fotos), n_docs_legales
         ),
     )
 

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CampoMonto } from "./CampoMonto";
+import { CampoUsoFondos } from "./CampoUsoFondos";
+import { CampoProduccion } from "./CampoProduccion";
 import type { MineroPerfil } from "../types/minero";
 
 interface Props {
@@ -139,6 +141,16 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
             </label>
             {campo === "capital_buscado" ? (
               <CampoMonto
+                value={valores[campo]}
+                onChange={(v) => setValores({ ...valores, [campo]: v })}
+              />
+            ) : campo === "uso_fondos" ? (
+              <CampoUsoFondos
+                value={valores[campo]}
+                onChange={(v) => setValores({ ...valores, [campo]: v })}
+              />
+            ) : campo === "capacidad_produccion" ? (
+              <CampoProduccion
                 value={valores[campo]}
                 onChange={(v) => setValores({ ...valores, [campo]: v })}
               />

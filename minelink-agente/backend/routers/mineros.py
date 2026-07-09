@@ -10,7 +10,7 @@ import storage
 from auth import create_minero_token, get_current_lead_id, hash_password, verify_password
 from database import get_db
 from geoubicacion import resolver_coordenadas
-from imagenes import comprimir_si_es_imagen
+from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
 from scoring import estado_seguimiento
 from security import (
     contenido_coincide_con_tipo,
@@ -265,9 +265,23 @@ async def subir_documento(
             422, "El contenido del archivo no coincide con su tipo declarado"
         )
 
+    tipo_declarado = archivo.content_type or ""
+    # En "Documentación" todo se muestra como foto: si suben un PDF,
+    # convertimos la primera hoja a imagen aquí mismo y guardamos SOLO esa
+    # imagen (nunca el PDF crudo).
+    if tipo_declarado == "application/pdf":
+        convertido = convertir_pdf_a_imagen(contenido)
+        if convertido is None:
+            raise HTTPException(
+                422,
+                "No pudimos leer ese PDF. Sube una foto del documento en su lugar.",
+            )
+        contenido = convertido
+        tipo_declarado = "image/jpeg"
+
     # Las fotos se comprimen para cuidar el almacenamiento (1 GB gratis)
     contenido, tipo_final, extension_forzada = comprimir_si_es_imagen(
-        contenido, archivo.content_type or ""
+        contenido, tipo_declarado
     )
     extension = extension_forzada or (
         (archivo.filename or "").rsplit(".", 1)[-1].lower() if "." in (archivo.filename or "") else "bin"
