@@ -30,6 +30,7 @@ n_leads = db.query(models.Lead).count()
 n_ops = db.query(models.Operacion).count()
 n_docs = db.query(models.DocumentoOperacion).count()
 n_int = db.query(models.InteresInversion).count()
+n_int_emp = db.query(models.InteresEmpresa).count()
 n_ev = db.query(models.Evento).count()
 n_emp = db.query(models.Empresa).count()
 
@@ -39,6 +40,7 @@ Esto borrará DEFINITIVAMENTE:
   - {n_ops} diagnósticos (operaciones)
   - {n_docs} documentos/fotos (y sus archivos en Supabase Storage)
   - {n_int} intereses de inversionistas
+  - {n_int_emp} intereses en empresas ("Me interesa" desde /empresas)
   - {n_ev} eventos de métricas
   - Empresas/consultores: {n_emp} {"(SÍ se borran, con sus CVs)" if incluir_empresas else "(NO se tocan; usa --incluir-empresas si también quieres borrarlas)"}
 
@@ -64,6 +66,7 @@ else:
 # Filas: en orden hijo → padre para respetar las claves foráneas
 db.query(models.DocumentoOperacion).delete()
 db.query(models.InteresInversion).delete()
+db.query(models.InteresEmpresa).delete()
 db.query(models.Lead).delete()
 db.query(models.Operacion).delete()
 db.query(models.Evento).delete()
