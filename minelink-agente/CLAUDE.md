@@ -29,10 +29,19 @@ Plataforma web donde un minero artesanal peruano:
 5. Puede volver a iniciar sesión (`/ingresar` → `/mi-cuenta`) con ese
    usuario/contraseña para ver su score y brechas sin rehacer el
    cuestionario (`POST /mineros/login`, `GET /mineros/me`)
-6. Desde `/mi-cuenta` puede subir documentos (fotos de la mina, informe
-   de leyes, catastro, RUC, contrato de explotación, título de concesión)
-   y llenar un perfil de inversión opcional (descripción, producción/
-   reservas, capital buscado, uso de fondos)
+6. Desde `/mi-cuenta` (o `/mi-concesion` en Ruta 2) puede subir documentos
+   (fotos de la mina, informe de leyes, catastro, RUC, contrato de
+   explotación, título de concesión) y llenar un perfil de inversión
+   opcional (descripción, producción/reservas — con selects estructurados,
+   no texto libre, para evitar errores de redacción en lo que se publica —,
+   capital buscado, uso de fondos). Todo PDF subido se convierte a foto de
+   su primera hoja en el servidor (`imagenes.convertir_pdf_a_imagen`,
+   PyMuPDF) — nunca se guarda ni se sirve un PDF crudo. Además, como el
+   diagnóstico Sí/No es autodeclarado y no se puede comprobar por sí solo,
+   hay una sección "Respalda tu declaración" con un slot de foto por cada
+   estudio del catálogo aplicable a su ruta (ver
+   `uploads_config.CATEGORIAS_ESTUDIO`, expuesto como `estudios_aplicables`
+   en `GET /mineros/me`), sea cual haya sido su respuesta
 7. Todas las operaciones registradas (con Lead) aparecen automáticamente
    en `/proyectos` — REINFO/formalización iniciada YA NO es requisito para
    listarse (enlazado desde Inicio como
@@ -41,10 +50,10 @@ Plataforma web donde un minero artesanal peruano:
    `GET /proyectos/minerales`). Al hacer clic en un proyecto se abre su
    detalle (`GET /proyectos/{operacion_id}`): perfil de inversión
    completo, fotos de la mina (públicas, `GET /proyectos/{id}/fotos/{doc_id}`),
-   y un checklist de qué documentos legales presentó (RUC, catastro,
-   contrato, título, informe de leyes) — SIN mostrar esos archivos, porque
-   suelen tener nombre completo/DNI del minero. Esto es la base de una
-   futura conexión con inversionistas, pero todavía NO hay match
+   y las fotos reales de los documentos legales que presentó (RUC,
+   catastro, contrato, título, informe de leyes — `GET
+   /proyectos/{id}/documentos/{doc_id}`, público, sin login). Esto es la
+   base de una futura conexión con inversionistas, pero todavía NO hay match
 8. El detalle del proyecto tiene un diseño premium (estilo Stripe/Linear/
    Notion) con MineScore por dimensión, checklist de formalización,
    factores de riesgo y oportunidades — todo DERIVADO de datos reales del
@@ -235,8 +244,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── security.py              ← límite de intentos de login por IP (429) y validación
 │   │                              de firma real (magic bytes) de archivos subidos
 │   ├── storage.py               ← archivos en Supabase Storage (prod) o disco local (dev/tests)
-│   ├── imagenes.py              ← compresión automática de fotos subidas (máx 1600px, JPEG 80);
-│   │                              máx 5 fotos de mina por operación (uploads_config.py)
+│   ├── imagenes.py              ← compresión automática de fotos subidas (máx 1600px, JPEG 80) y
+│   │                              conversión de PDF → foto de la 1ª hoja (PyMuPDF); máx 5 fotos de
+│   │                              mina por operación (uploads_config.py)
 │   ├── geoubicacion.py          ← enlace de Google Maps → coordenadas (prioriza el pin !3d!4d
 │   │                              sobre el centro de vista @) para el mapa incrustado
 │   ├── uploads_config.py        ← rutas y categorías de archivos subidos
@@ -298,6 +308,11 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
   en la vitrina pública (cambio de política, julio 2026) — `bloqueado` sigue
   calculándose y se muestra al minero como estado informativo, pero no
   filtra `/proyectos`. Ver `context/criterios_score.md`
+- Las fotos de los documentos legales (RUC, catastro, contrato, título,
+  informe de leyes) SON públicas desde julio 2026 (decisión explícita del
+  cliente, revierte una regla de privacidad anterior) — se sirven sin login
+  vía `GET /proyectos/{id}/documentos/{doc_id}`. Solo se aceptan/guardan
+  como foto (PDF se convierte al subir), nunca como PDF crudo
 - El minero NUNCA ve datos de otros mineros
 - Los datos de contacto del minero (leads) solo son visibles en el panel admin
 - No inventes empresas: solo se muestran las que Esthiven cargó

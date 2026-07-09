@@ -9,5 +9,7 @@ body,
 }
 
 body {
-  @apply bg-fondo text-texto dark:bg-fondo-dark dark:text-texto-dark;
+  @apply bg-fondo text-texto dark:bg-fondo-dark dark:text-texto-dark font-sans;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

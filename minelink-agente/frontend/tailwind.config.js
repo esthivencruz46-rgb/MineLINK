@@ -4,13 +4,27 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: [
+          "Inter",
+          "ui-sans-serif",
+          "system-ui",
+          "-apple-system",
+          "Segoe UI",
+          "Roboto",
+          "sans-serif",
+        ],
+      },
       colors: {
-        fondo: { DEFAULT: "#f4f6f8", dark: "#0f1923" },
-        tarjeta: { DEFAULT: "#ffffff", dark: "#1a2332" },
-        acento: "#0e7c66",
-        secundario: "#b4552d",
-        texto: { DEFAULT: "#1a2332", dark: "#f0f4f8" },
-        "texto-suave": { DEFAULT: "#4a5568", dark: "#8899aa" },
+        // Paleta refinada para un tono más institucional/inversor: verde
+        // profundo (formalización/confianza) + bronce mate como acento
+        // secundario (en vez del naranja-tierra anterior, más "obra").
+        fondo: { DEFAULT: "#f6f7f9", dark: "#0b1420" },
+        tarjeta: { DEFAULT: "#ffffff", dark: "#141f2e" },
+        acento: "#0c6b58",
+        secundario: "#a8752e",
+        texto: { DEFAULT: "#111827", dark: "#eef2f6" },
+        "texto-suave": { DEFAULT: "#4b5566", dark: "#93a2b3" },
       },
     },
   },
