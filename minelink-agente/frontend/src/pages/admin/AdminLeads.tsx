@@ -52,6 +52,7 @@ const CAMPOS_PERFIL_DIAGNOSTICO: { campo: keyof LeadConDiagnostico; etiqueta: st
   { campo: "material_comercializado", etiqueta: "Material comercializado" },
   { campo: "forma_comercializacion", etiqueta: "Forma de comercialización" },
   { campo: "tiempo_operacion", etiqueta: "Tiempo operando" },
+  { campo: "especie_mineral", etiqueta: "Especie mineralógica" },
   { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio" },
   { campo: "num_trabajadores", etiqueta: "Nº de trabajadores" },
   { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores" },

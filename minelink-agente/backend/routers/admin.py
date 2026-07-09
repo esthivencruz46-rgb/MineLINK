@@ -76,6 +76,7 @@ def listar_leads(
             tiempo_operacion=operacion.tiempo_operacion,
             ley_promedio=operacion.ley_promedio,
             ley_como_obtenida=operacion.ley_como_obtenida,
+            especie_mineral=operacion.especie_mineral,
             num_trabajadores=operacion.num_trabajadores,
             maquinaria=operacion.maquinaria,
             tiene_resultados_laboratorio=operacion.tiene_resultados_laboratorio,

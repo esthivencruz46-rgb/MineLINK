@@ -86,6 +86,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         tiempo_operacion=operacion.tiempo_operacion,
         ley_promedio=operacion.ley_promedio,
         ley_como_obtenida=operacion.ley_como_obtenida,
+        especie_mineral=operacion.especie_mineral,
         tiene_resultados_laboratorio=operacion.tiene_resultados_laboratorio,
         modalidad_trabajadores=operacion.modalidad_trabajadores,
         provincia=operacion.provincia,

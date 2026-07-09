@@ -36,6 +36,7 @@ export interface DiagnosticoRequest {
   tiempo_operacion?: string;
   ley_promedio?: string;
   ley_como_obtenida?: string;
+  especie_mineral?: string;
   tiene_resultados_laboratorio?: string;
   modalidad_trabajadores?: string;
   provincia?: string;

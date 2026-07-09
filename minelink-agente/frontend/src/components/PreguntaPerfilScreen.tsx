@@ -20,6 +20,8 @@ export function PreguntaPerfilScreen({ pregunta, valorActual, onResponder, onVol
   );
   const [mostrarOtro, setMostrarOtro] = useState(false);
   const [textoOtro, setTextoOtro] = useState("");
+  const [mostrarOtroMulti, setMostrarOtroMulti] = useState(false);
+  const [textoOtroMulti, setTextoOtroMulti] = useState("");
   const [numeroValor, setNumeroValor] = useState("");
   const [unidad, setUnidad] = useState(pregunta.opciones?.[0]?.valor ?? "");
   const [mostrarOtraUnidad, setMostrarOtraUnidad] = useState(false);
@@ -141,10 +143,31 @@ export function PreguntaPerfilScreen({ pregunta, valorActual, onResponder, onVol
                 </label>
               );
             })}
+            {pregunta.permiteOtro && !mostrarOtroMulti && (
+              <button
+                onClick={() => setMostrarOtroMulti(true)}
+                className="min-h-[44px] rounded-lg border border-dashed border-black/20 px-4 py-2 text-left font-medium dark:border-white/20"
+              >
+                Otro
+              </button>
+            )}
+            {pregunta.permiteOtro && mostrarOtroMulti && (
+              <input
+                autoFocus
+                className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                placeholder="Especifica"
+                value={textoOtroMulti}
+                onChange={(e) => setTextoOtroMulti(e.target.value)}
+              />
+            )}
           </div>
           <button
-            disabled={seleccion.length === 0}
-            onClick={() => onResponder(seleccion)}
+            disabled={seleccion.length === 0 && !textoOtroMulti.trim()}
+            onClick={() =>
+              onResponder(
+                textoOtroMulti.trim() ? [...seleccion, textoOtroMulti.trim()] : seleccion
+              )
+            }
             className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
           >
             Continuar

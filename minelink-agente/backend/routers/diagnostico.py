@@ -39,6 +39,7 @@ def crear_diagnostico(
         tiempo_operacion=payload.tiempo_operacion,
         ley_promedio=payload.ley_promedio,
         ley_como_obtenida=payload.ley_como_obtenida,
+        especie_mineral=payload.especie_mineral,
         tiene_resultados_laboratorio=payload.tiene_resultados_laboratorio,
         modalidad_trabajadores=payload.modalidad_trabajadores,
         provincia=payload.provincia,

@@ -5,6 +5,8 @@ import { PreguntaPerfilScreen } from "../components/PreguntaPerfilScreen";
 import { ProgressBar } from "../components/ProgressBar";
 import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../data/preguntas";
 import {
+  OPCIONES_ELEMENTO_VALOR,
+  OPCIONES_MINERAL_POR_ELEMENTO,
   OPCIONES_UNIDAD_LEY,
   PERFIL_ARTESANAL,
   PERFIL_CONCESIONARIO,
@@ -39,15 +41,40 @@ function tipoMinaDe(situacion: Situacion, perfil: Perfil): TipoMina {
   return perfil.tipo_explotacion === "subterranea" ? "subterranea" : "tajo_abierto";
 }
 
-/** Construye el perfil visible insertando, dinámicamente, una pregunta de
- * ley (valor+unidad en una sola pantalla) por CADA elemento económico que
- * el minero marcó — justo después de "¿Conoces la ley...?". */
+function etiquetaElemento(elemento: string): string {
+  return OPCIONES_ELEMENTO_VALOR.find((o) => o.valor === elemento)?.etiqueta ?? elemento;
+}
+
+/** Construye el perfil visible insertando, dinámicamente: (1) una pregunta
+ * de especie mineralógica por CADA elemento económico marcado — justo
+ * después de "¿Qué elementos económicos extraes?" (no basta con saber que
+ * es cobre: puede ser calcopirita, malaquita, etc.) — y (2) una pregunta de
+ * ley (valor+unidad) por elemento, justo después de "¿Conoces la ley...?". */
 function construirPerfilVisible(situacion: Situacion, perfil: Perfil): PreguntaPerfil[] {
   const base = situacion === "concesionario" ? PERFIL_CONCESIONARIO : PERFIL_ARTESANAL;
-  const visibles = base.filter((p) => !p.mostrarSi || p.mostrarSi(perfil));
+  let visibles = base.filter((p) => !p.mostrarSi || p.mostrarSi(perfil));
+
+  const elementos = Array.isArray(perfil.elemento_valor) ? (perfil.elemento_valor as string[]) : [];
+
+  if (situacion === "minero_artesanal" && elementos.length > 0) {
+    const preguntasMineral: PreguntaPerfil[] = elementos.map((elemento) => ({
+      campo: `mineral__${elemento}`,
+      texto: `¿Qué mineral(es) de ${etiquetaElemento(elemento)} extraes? (puedes marcar varios)`,
+      tipo: "opciones_multi",
+      opciones: OPCIONES_MINERAL_POR_ELEMENTO[elemento] ?? [{ valor: "No sé", etiqueta: "No sé" }],
+      permiteOtro: true,
+    }));
+    const indiceElementoValor = visibles.findIndex((p) => p.campo === "elemento_valor");
+    if (indiceElementoValor !== -1) {
+      visibles = [
+        ...visibles.slice(0, indiceElementoValor + 1),
+        ...preguntasMineral,
+        ...visibles.slice(indiceElementoValor + 1),
+      ];
+    }
+  }
 
   if (situacion !== "minero_artesanal" || perfil.conoce_ley !== true) return visibles;
-  const elementos = Array.isArray(perfil.elemento_valor) ? (perfil.elemento_valor as string[]) : [];
   if (elementos.length === 0) return visibles;
 
   const preguntasLey: PreguntaPerfil[] = elementos.map((elemento) => ({
@@ -116,6 +143,21 @@ function leyPromedioDe(perfilFinal: Perfil): string | undefined {
     .map((elemento) => {
       const valor = textoOpcional(perfilFinal[`ley__${elemento}`]);
       return valor ? `${elemento}: ${valor}` : null;
+    })
+    .filter((v): v is string => v !== null);
+  return partes.length > 0 ? partes.join("; ") : undefined;
+}
+
+/** "Cobre: Calcopirita, Malaquita; Oro: Oro nativo" — especies declaradas
+ * por cada elemento marcado (ver preguntas `mineral__${elemento}`). */
+function especieMineralDe(perfilFinal: Perfil): string | undefined {
+  const elementos = Array.isArray(perfilFinal.elemento_valor)
+    ? (perfilFinal.elemento_valor as string[])
+    : [];
+  const partes = elementos
+    .map((elemento) => {
+      const especies = listaOpcional(perfilFinal[`mineral__${elemento}`]);
+      return especies ? `${etiquetaElemento(elemento)}: ${especies.join(", ")}` : null;
     })
     .filter((v): v is string => v !== null);
   return partes.length > 0 ? partes.join("; ") : undefined;
@@ -200,6 +242,7 @@ export function Cuestionario() {
         tiempo_operacion: textoOpcional(perfilFinal.tiempo_operacion),
         ley_promedio: leyPromedioDe(perfilFinal),
         ley_como_obtenida: textoOpcional(perfilFinal.ley_como_obtenida),
+        especie_mineral: especieMineralDe(perfilFinal),
         tiene_resultados_laboratorio: textoOpcional(perfilFinal.tiene_resultados_laboratorio),
         modalidad_trabajadores: textoOpcional(perfilFinal.modalidad_trabajadores),
         provincia: textoOpcional(perfilFinal.provincia),

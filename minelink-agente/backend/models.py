@@ -52,6 +52,9 @@ class Operacion(Base):
     tiempo_operacion = Column(String, nullable=True)
     ley_promedio = Column(String, nullable=True)  # valor+unidad combinados, ej. "2.5 g/t"
     ley_como_obtenida = Column(String, nullable=True)
+    # Especie mineralógica por elemento, ej. "Cobre: Calcopirita, Malaquita"
+    # — no solo el elemento económico (oro/cobre/etc.), que ya vive en `mineral`.
+    especie_mineral = Column(String, nullable=True)
     # Antes Boolean (Sí/No); ahora String de 3 opciones ("No" / "Sí, algunos"
     # / "Sí, completos") — bloque "Fase 1: preguntas del diagnóstico".
     tiene_resultados_laboratorio = Column(String, nullable=True)

@@ -28,7 +28,14 @@ Perfil informativo (se guarda en `Operacion`, NUNCA puntúa), en bloques:
 1. **Operación actual**: activa/no activa/temporal; tipo de explotación
    (subterránea/tajo abierto/aluvial/mixta/otro — de aquí se deriva
    `tipo_mina`); material comercializado; **elementos económicos que
-   extrae (selección múltiple, → `mineral` unidos por coma)**; forma de
+   extrae (selección múltiple, → `mineral` unidos por coma)**, y por CADA
+   elemento marcado, **qué especie(s) mineralógica(s)** (ej. cobre →
+   calcopirita/malaquita/azurita/bornita/calcosina/covelina/"No sé"/otro;
+   catálogo completo por elemento en
+   `preguntasPerfil.OPCIONES_MINERAL_POR_ELEMENTO`), combinadas en
+   `especie_mineral` como `"Cobre: Calcopirita, Malaquita; Oro: Oro
+   nativo"` — no basta con saber el elemento económico, la especie dice
+   mucho sobre la metalurgia/procesamiento que necesitará; forma de
    comercialización; tiempo de operación; producción mensual (valor+unidad
    en una sola pregunta).
 2. **Conocimiento técnico**: si conoce la ley, se pregunta **una ley

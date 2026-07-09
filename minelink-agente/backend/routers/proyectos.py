@@ -242,6 +242,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         tiempo_operacion=operacion.tiempo_operacion,
         ley_promedio=operacion.ley_promedio,
         ley_como_obtenida=operacion.ley_como_obtenida,
+        especie_mineral=operacion.especie_mineral,
         tiene_resultados_laboratorio=operacion.tiene_resultados_laboratorio,
         num_trabajadores=operacion.num_trabajadores,
         modalidad_trabajadores=operacion.modalidad_trabajadores,

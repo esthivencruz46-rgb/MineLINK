@@ -30,6 +30,7 @@ export interface MineroPerfil {
   tiempo_operacion?: string | null;
   ley_promedio?: string | null;
   ley_como_obtenida?: string | null;
+  especie_mineral?: string | null;
   tiene_resultados_laboratorio?: string | null;
   modalidad_trabajadores?: string | null;
   provincia?: string | null;

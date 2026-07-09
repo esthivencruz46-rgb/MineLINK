@@ -62,6 +62,9 @@ class DiagnosticoRequest(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
+    # Especie mineralógica declarada por elemento (ej. "Cobre: Calcopirita,
+    # Malaquita"), no solo el elemento económico — ver criterios_score.md.
+    especie_mineral: Optional[str] = None
     # "No" / "Sí, algunos" / "Sí, completos" (antes booleano)
     tiene_resultados_laboratorio: Optional[str] = None
     modalidad_trabajadores: Optional[str] = None
@@ -440,6 +443,9 @@ class MineroPerfilOut(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
+    # Especie mineralógica declarada por elemento (ej. "Cobre: Calcopirita,
+    # Malaquita"), no solo el elemento económico — ver criterios_score.md.
+    especie_mineral: Optional[str] = None
     tiene_resultados_laboratorio: Optional[str] = None
     modalidad_trabajadores: Optional[str] = None
     provincia: Optional[str] = None
@@ -571,6 +577,9 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
+    # Especie mineralógica declarada por elemento (ej. "Cobre: Calcopirita,
+    # Malaquita"), no solo el elemento económico — ver criterios_score.md.
+    especie_mineral: Optional[str] = None
     tiene_resultados_laboratorio: Optional[str] = None
     num_trabajadores: Optional[str] = None
     modalidad_trabajadores: Optional[str] = None
@@ -846,6 +855,9 @@ class LeadConDiagnostico(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
+    # Especie mineralógica declarada por elemento (ej. "Cobre: Calcopirita,
+    # Malaquita"), no solo el elemento económico — ver criterios_score.md.
+    especie_mineral: Optional[str] = None
     num_trabajadores: Optional[str] = None
     maquinaria: Optional[str] = None
     tiene_resultados_laboratorio: Optional[str] = None

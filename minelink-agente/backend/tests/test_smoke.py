@@ -1766,6 +1766,35 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     assert "estudio_ventilacion" not in detalle_final["brechas_verificadas"]
 
 
+def test_diagnostico_guarda_y_expone_especie_mineral():
+    # No basta con saber que el minero extrae cobre: puede ser calcopirita,
+    # malaquita, etc. — se declara por elemento en el perfil (Fase 1) y se
+    # combina en un solo string legible, igual que ley_promedio.
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro, cobre",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "especie_mineral": "Oro: Oro nativo; Cobre: Calcopirita, Malaquita",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="especiemineral", nombre_operacion="Mina Especie"),
+    )
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["especie_mineral"] == "Oro: Oro nativo; Cobre: Calcopirita, Malaquita"
+
+    token = _admin_token()
+    leads = client.get("/admin/leads", headers={"Authorization": f"Bearer {token}"}).json()
+    lead = next(l for l in leads if l["nombre_operacion"] == "Mina Especie")
+    assert lead["especie_mineral"] == "Oro: Oro nativo; Cobre: Calcopirita, Malaquita"
+
+
 def test_evento_diagnostico_iniciado_y_metricas():
     resp = client.post("/eventos", json={"tipo": "diagnostico_iniciado"})
     assert resp.status_code == 201

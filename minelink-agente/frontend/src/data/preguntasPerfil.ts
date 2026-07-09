@@ -41,6 +41,59 @@ export const OPCIONES_ELEMENTO_VALOR: OpcionPerfil[] = [
   { valor: "polimetálico", etiqueta: "Polimetálico" },
 ];
 
+/** Reutilizado por Cuestionario.tsx para generar dinámicamente una pregunta
+ * de especie mineralógica por CADA elemento económico marcado — no basta
+ * con saber que extraen cobre, importa si es de calcopirita, malaquita, etc.
+ * "No sé" y "Otro" (permiteOtro a nivel de pregunta) cubren lo no listado. */
+export const OPCIONES_MINERAL_POR_ELEMENTO: Record<string, OpcionPerfil[]> = {
+  oro: [
+    { valor: "Oro nativo", etiqueta: "Oro nativo" },
+    { valor: "Oro libre en cuarzo", etiqueta: "Oro libre en cuarzo" },
+    { valor: "Pirita aurífera", etiqueta: "Pirita aurífera" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  plata: [
+    { valor: "Plata nativa", etiqueta: "Plata nativa" },
+    { valor: "Argentita", etiqueta: "Argentita" },
+    { valor: "Galena argentífera", etiqueta: "Galena argentífera" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  cobre: [
+    { valor: "Calcopirita", etiqueta: "Calcopirita" },
+    { valor: "Malaquita", etiqueta: "Malaquita" },
+    { valor: "Azurita", etiqueta: "Azurita" },
+    { valor: "Bornita", etiqueta: "Bornita" },
+    { valor: "Calcosina", etiqueta: "Calcosina" },
+    { valor: "Covelina", etiqueta: "Covelina" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  zinc: [
+    { valor: "Esfalerita", etiqueta: "Esfalerita" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  plomo: [
+    { valor: "Galena", etiqueta: "Galena" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  estaño: [
+    { valor: "Casiterita", etiqueta: "Casiterita" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  hierro: [
+    { valor: "Magnetita", etiqueta: "Magnetita" },
+    { valor: "Hematita", etiqueta: "Hematita" },
+    { valor: "Limonita", etiqueta: "Limonita" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+  "polimetálico": [
+    { valor: "Calcopirita", etiqueta: "Calcopirita" },
+    { valor: "Esfalerita", etiqueta: "Esfalerita" },
+    { valor: "Galena", etiqueta: "Galena" },
+    { valor: "Pirita", etiqueta: "Pirita" },
+    { valor: "No sé", etiqueta: "No sé" },
+  ],
+};
+
 // "¿Qué es lo más importante / qué tipo de apoyo buscas primordialmente?"
 // — opción única (antes era multi-selección, tipo_apoyo_json).
 const OPCIONES_TIPO_APOYO: OpcionPerfil[] = [

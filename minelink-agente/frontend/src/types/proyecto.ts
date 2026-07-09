@@ -55,6 +55,7 @@ export interface ProyectoDetalle extends ProyectoPublico {
   tiempo_operacion?: string | null;
   ley_promedio?: string | null;
   ley_como_obtenida?: string | null;
+  especie_mineral?: string | null;
   tiene_resultados_laboratorio?: string | null;
   num_trabajadores?: string | null;
   modalidad_trabajadores?: string | null;

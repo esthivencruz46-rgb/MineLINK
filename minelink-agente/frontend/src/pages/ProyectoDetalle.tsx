@@ -308,6 +308,12 @@ export function ProyectoDetalle() {
                   </dd>
                 </div>
               )}
+              {proyecto.especie_mineral && (
+                <div>
+                  <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Especie mineralógica</dt>
+                  <dd className="text-sm font-medium">{proyecto.especie_mineral}</dd>
+                </div>
+              )}
               {proyecto.trabajos_exploracion_json && proyecto.trabajos_exploracion_json.length > 0 && (
                 <div>
                   <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Trabajos de exploración</dt>
