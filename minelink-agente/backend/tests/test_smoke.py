@@ -1830,6 +1830,74 @@ def test_proyectos_check_publico_acepta_categoria_equivalente():
     assert len(detalle_final["documentos_estudios"]["levantamiento_topografico"]) == 1
 
 
+def test_mineros_me_expone_fotos_perfil_condicionadas():
+    # Fotos pedidas según lo que el minero YA declaró (mineral, camino de
+    # acceso, agua, energía) — no genéricas, con su propia respuesta en la
+    # etiqueta, y solo en Ruta 1 (Ruta 2 no opera todavía).
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "cobre",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "acceso_logistico": "trocha",
+            "acceso_agua": "limitado",
+            "acceso_energia": "generador_diesel",
+        },
+    ).json()
+    token = client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="minerofotoperfil", nombre_operacion="Mina Foto"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "minerofotoperfil", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.get("/mineros/me", headers=headers)
+    assert resp.status_code == 200
+    fotos = {f["categoria"]: f["etiqueta"] for f in resp.json()["fotos_perfil"]}
+    assert fotos["foto_mineral"] == "Foto del mineral que extraes (Cobre)"
+    assert fotos["foto_acceso"] == "Foto del camino de acceso (Trocha)"
+    assert "foto_agua" in fotos
+    assert "foto_energia" in fotos
+
+    # Se puede subir a esas categorías nuevas igual que cualquier otra.
+    resp = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "foto_mineral"},
+        files={"archivo": ("mineral.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp.status_code == 201
+
+
+def test_mineros_fotos_perfil_no_aplican_a_concesionario():
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_CONCESIONARIO,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+        },
+    ).json()
+    token = client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="minerofotoperfil2", nombre_operacion="Concesion Foto"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "minerofotoperfil2", "password": "clave123"}
+    ).json()["access_token"]
+
+    resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["fotos_perfil"] == []
+
+
 def test_diagnostico_guarda_y_expone_especie_mineral():
     # No basta con saber que el minero extrae cobre: puede ser calcopirita,
     # malaquita, etc. — se declara por elemento en el perfil (Fase 1) y se

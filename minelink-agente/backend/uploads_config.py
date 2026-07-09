@@ -16,8 +16,11 @@ DOCUMENTOS_MINERO_DIR.mkdir(parents=True, exist_ok=True)
 DOCUMENTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
 # Fotos de la mina: mínimo 3 para que el proyecto se vea completo ante
-# inversionistas (checklist de /mi-cuenta), máximo 5 por operación.
-FOTOS_MINA_MAXIMO = 5
+# inversionistas (checklist de /mi-cuenta), máximo 10 por operación
+# (subido de 5 en julio 2026 — un solo álbum genérico se quedaba corto
+# una vez que se sumaron las fotos específicas de mineral/acceso/agua/
+# energía, ver CATEGORIAS_FOTO_PERFIL).
+FOTOS_MINA_MAXIMO = 10
 
 # categoría → (tipos de contenido aceptados, etiqueta legible)
 # Los documentos legales aceptan PDF O una foto del documento (imagen) —
@@ -66,6 +69,57 @@ _EQUIVALENCIAS_ESTUDIO: dict[str, str] = {
     "analisis_laboratorio": "informe_leyes",  # T3: análisis de laboratorio = informe de leyes/ensayes
     "contrato_explotacion": "contrato_explotacion",  # L3: mismo nombre en ambos catálogos
 }
+
+
+# Fotos condicionadas al PERFIL informativo (no al Sí/No de formalización):
+# solo se piden si el minero declaró el dato correspondiente, con una
+# etiqueta que usa su propia respuesta para que sepa exactamente qué foto
+# es (ej. "Foto del mineral que extraes (Cobre)") — así se reemplaza el
+# recordatorio en texto plano por un pedido de foto concreto y accionable.
+CATEGORIAS_FOTO_PERFIL = {
+    "foto_mineral": (("image/jpeg", "image/png", "image/webp"), "Foto del mineral"),
+    "foto_acceso": (("image/jpeg", "image/png", "image/webp"), "Foto del camino de acceso"),
+    "foto_agua": (("image/jpeg", "image/png", "image/webp"), "Foto de tu fuente de agua"),
+    "foto_energia": (("image/jpeg", "image/png", "image/webp"), "Foto de tu fuente de energía"),
+}
+
+_ETIQUETAS_ACCESO_LOGISTICO = {
+    "carretera_asfaltada": "Carretera asfaltada",
+    "camino_afirmado": "Camino afirmado",
+    "trocha": "Trocha",
+    "muy_remoto": "Acceso remoto",
+}
+
+
+def categorias_perfil_foto_aplicables(operacion) -> list[tuple[str, str]]:
+    """Exclusivo de Ruta 1 (minero_artesanal) — Ruta 2 todavía no opera, no
+    tiene un camino/fuente de agua/energía real de su propia labor que
+    fotografiar. Devuelve (categoria, etiqueta) solo para lo que el minero
+    efectivamente declaró en el perfil, con su propia respuesta en la
+    etiqueta."""
+    if (getattr(operacion, "situacion", None) or "minero_artesanal") != "minero_artesanal":
+        return []
+
+    categorias: list[tuple[str, str]] = []
+
+    mineral = getattr(operacion, "mineral", None)
+    if mineral and mineral != "no especificado":
+        categorias.append(("foto_mineral", f"Foto del mineral que extraes ({mineral.title()})"))
+
+    acceso_logistico = getattr(operacion, "acceso_logistico", None)
+    if acceso_logistico:
+        etiqueta_acceso = _ETIQUETAS_ACCESO_LOGISTICO.get(acceso_logistico, acceso_logistico)
+        categorias.append(("foto_acceso", f"Foto del camino de acceso ({etiqueta_acceso})"))
+
+    acceso_agua = getattr(operacion, "acceso_agua", None)
+    if acceso_agua and acceso_agua != "no_disponible":
+        categorias.append(("foto_agua", "Foto de tu fuente de agua"))
+
+    acceso_energia = getattr(operacion, "acceso_energia", None)
+    if acceso_energia and acceso_energia != "no":
+        categorias.append(("foto_energia", "Foto de tu fuente de energía"))
+
+    return categorias
 
 
 def categoria_equivalente(categoria: str, situacion: str) -> str | None:

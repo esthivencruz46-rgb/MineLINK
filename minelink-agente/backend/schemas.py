@@ -404,6 +404,11 @@ class DocumentoOperacionOut(BaseModel):
     created_at: datetime
 
 
+class CategoriaFotoOut(BaseModel):
+    categoria: str
+    etiqueta: str
+
+
 class MineroPerfilOut(BaseModel):
     nombre: str
     whatsapp: str
@@ -496,6 +501,11 @@ class MineroPerfilOut(BaseModel):
     # respaldo por cada uno desde /mi-cuenta o /mi-concesion, sin importar
     # si respondió Sí o No en el diagnóstico.
     estudios_aplicables: list[str] = []
+    # Fotos condicionadas al PERFIL informativo (mineral que extrae, camino
+    # de acceso, fuente de agua/energía) — solo si el minero declaró ese
+    # dato, con su propia respuesta ya incluida en la etiqueta (ver
+    # uploads_config.categorias_perfil_foto_aplicables).
+    fotos_perfil: list[CategoriaFotoOut] = []
 
 
 class ProyectoPublicoOut(BaseModel):

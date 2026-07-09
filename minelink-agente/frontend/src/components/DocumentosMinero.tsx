@@ -16,9 +16,18 @@ interface Props {
    * ruta de este minero — se muestran como categorías extra para que
    * pueda respaldar con una foto lo que declaró en el diagnóstico. */
   estudiosAplicables?: string[];
+  /** Fotos condicionadas al perfil informativo (mineral, camino de
+   * acceso, agua, energía) — ya vienen con la etiqueta compuesta desde
+   * el backend (incluye lo que el minero declaró, ej. "Foto del mineral
+   * que extraes (Cobre)"). */
+  fotosPerfilAplicables?: { categoria: string; etiqueta: string }[];
 }
 
-export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Props = {}) {
+export function DocumentosMinero({
+  onDocumentosChange,
+  estudiosAplicables,
+  fotosPerfilAplicables,
+}: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
@@ -136,7 +145,21 @@ export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Pro
     categorias: categoriasEstudio.filter((c) => DIMENSION_POR_ESTUDIO[c.categoria] === dim),
   })).filter((grupo) => grupo.categorias.length > 0);
 
-  const categoriaFotos = CATEGORIAS_DOCUMENTO.filter((c) => c.categoria === "fotos_mina");
+  const FORMATOS_SOLO_FOTO = "Formato: JPG, PNG o WEBP";
+  const ACCEPT_SOLO_FOTO = "image/jpeg,image/png,image/webp";
+  const categoriasFotoPerfil: CategoriaInfo[] = (fotosPerfilAplicables ?? []).map(
+    ({ categoria, etiqueta }) => ({
+      categoria: categoria as CategoriaInfo["categoria"],
+      etiqueta,
+      descripcion: "",
+      accept: ACCEPT_SOLO_FOTO,
+      formatos: FORMATOS_SOLO_FOTO,
+    })
+  );
+  const categoriaFotos = [
+    ...CATEGORIAS_DOCUMENTO.filter((c) => c.categoria === "fotos_mina"),
+    ...categoriasFotoPerfil,
+  ];
   const categoriasLegales = CATEGORIAS_DOCUMENTO.filter((c) => c.categoria !== "fotos_mina");
 
   function bloqueCategoria(cat: CategoriaInfo) {
@@ -229,7 +252,7 @@ export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Pro
         <div className="mt-4 flex flex-col gap-6">
           <div>
             <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-              Fotos de la mina
+              Fotos de tu operación
             </h3>
             <div className="mt-2 flex flex-col gap-4">
               {categoriaFotos.map(bloqueCategoria)}

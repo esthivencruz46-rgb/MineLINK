@@ -430,3 +430,24 @@ se agrega una equivalencia nueva:
   la categoría equivalente como respaldo válido, y `documentos_estudios`
   completa la miniatura desde la categoría equivalente si el estudio en sí
   no tiene foto propia subida.
+
+## Fotos condicionadas al perfil (julio 2026)
+
+Además de las categorías de documento fijas y del catálogo de estudios,
+`uploads_config.categorias_perfil_foto_aplicables(operacion)` pide fotos
+puntuales derivadas del PERFIL informativo (no del Sí/No) — solo si el
+minero declaró el dato, con su propia respuesta ya en la etiqueta:
+
+| Categoría | Se pide si... | Etiqueta (ejemplo) |
+|---|---|---|
+| foto_mineral | `mineral` no es "no especificado" | "Foto del mineral que extraes (Cobre)" |
+| foto_acceso | declaró `acceso_logistico` | "Foto del camino de acceso (Trocha)" |
+| foto_agua | `acceso_agua` ≠ "no_disponible" | "Foto de tu fuente de agua" |
+| foto_energia | `acceso_energia` ≠ "no" | "Foto de tu fuente de energía" |
+
+Exclusivo de Ruta 1 (`minero_artesanal`) — Ruta 2 todavía no opera, no
+tiene un camino/fuente de agua/energía real de su propia labor que
+fotografiar. Se muestran junto a "Fotos de la mina" bajo el título "Fotos
+de tu operación" en `DocumentosMinero.tsx` (no como slots del catálogo de
+estudios), y no tienen equivalencia con otra categoría — son siempre
+nuevas.

@@ -23,10 +23,12 @@ from security import (
 from uploads_config import (
     CATEGORIAS_DOCUMENTO,
     CATEGORIAS_ESTUDIO,
+    CATEGORIAS_FOTO_PERFIL,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
     FOTOS_MINA_MAXIMO,
     TIPOS_PDF_O_IMAGEN,
     categoria_equivalente,
+    categorias_perfil_foto_aplicables,
 )
 
 router = APIRouter(prefix="/mineros", tags=["mineros"])
@@ -146,6 +148,10 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         produccion_objetivo=operacion.produccion_objetivo,
         uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,
         estudios_aplicables=_estudios_aplicables(operacion),
+        fotos_perfil=[
+            schemas.CategoriaFotoOut(categoria=c, etiqueta=e)
+            for c, e in categorias_perfil_foto_aplicables(operacion)
+        ],
         **estado_seguimiento(operacion),
     )
 
@@ -298,11 +304,13 @@ async def subir_documento(
         tipos_aceptados, _etiqueta = CATEGORIAS_DOCUMENTO[categoria]
     elif categoria in CATEGORIAS_ESTUDIO:
         tipos_aceptados = TIPOS_PDF_O_IMAGEN
+    elif categoria in CATEGORIAS_FOTO_PERFIL:
+        tipos_aceptados, _etiqueta = CATEGORIAS_FOTO_PERFIL[categoria]
     else:
         raise HTTPException(
             422,
             "Categoría inválida. Debe ser una de: "
-            f"{sorted(set(CATEGORIAS_DOCUMENTO) | CATEGORIAS_ESTUDIO)}",
+            f"{sorted(set(CATEGORIAS_DOCUMENTO) | CATEGORIAS_ESTUDIO | set(CATEGORIAS_FOTO_PERFIL))}",
         )
 
     if archivo.content_type not in tipos_aceptados:

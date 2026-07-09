@@ -47,20 +47,35 @@ Plataforma web donde un minero artesanal peruano:
    usuario/contraseña para ver su score y brechas sin rehacer el
    cuestionario (`POST /mineros/login`, `GET /mineros/me`)
 6. Desde `/mi-cuenta` (o `/mi-concesion` en Ruta 2) puede subir documentos
-   (fotos de la mina, informe de leyes, catastro, RUC, contrato de
-   explotación, título de concesión) y llenar un perfil de inversión
-   opcional (descripción, producción/reservas — con selects estructurados,
-   no texto libre, para evitar errores de redacción en lo que se publica —,
-   capital buscado, uso de fondos). Todo PDF subido se convierte a foto de
-   su primera hoja en el servidor (`imagenes.convertir_pdf_a_imagen`,
-   PyMuPDF) — nunca se guarda ni se sirve un PDF crudo. Además, como el
-   diagnóstico Sí/No es autodeclarado y no se puede comprobar por sí solo,
-   hay una sección "Respalda tu declaración" con un slot de foto por cada
-   estudio que el minero declaró SÍ tener (respondió Sí, o el admin marcó
-   la brecha como resuelta después — ver `routers/mineros.py`
-   `_estudios_aplicables`, expuesto como `estudios_aplicables` en
-   `GET /mineros/me`). No se le pide foto de lo que ya dijo que NO tiene
-   (evita saturarlo de slots irrelevantes; julio 2026)
+   (fotos de la mina — hasta 10 —, informe de leyes, catastro, RUC,
+   contrato de explotación, título de concesión) y llenar un perfil de
+   inversión opcional (descripción, producción/reservas — con selects
+   estructurados, no texto libre, para evitar errores de redacción en lo
+   que se publica —, capital buscado, uso de fondos; estos dos últimos
+   muestran como recordatorio en línea lo que ya declaró en el
+   diagnóstico — monto/motivo —, no lo repiten como pregunta aparte). Todo
+   PDF subido se convierte a foto de su primera hoja en el servidor
+   (`imagenes.convertir_pdf_a_imagen`, PyMuPDF) — nunca se guarda ni se
+   sirve un PDF crudo. Además, como el diagnóstico Sí/No es autodeclarado
+   y no se puede comprobar por sí solo, hay una sección "Respalda tu
+   declaración" con un slot de foto por cada estudio que el minero declaró
+   SÍ tener (respondió Sí, o el admin marcó la brecha como resuelta
+   después — ver `routers/mineros.py` `_estudios_aplicables`, expuesto
+   como `estudios_aplicables` en `GET /mineros/me`), EXCLUYENDO los
+   estudios que en la práctica piden la misma foto que otro (ver
+   `uploads_config.categoria_equivalente` y "Categorías de documento
+   equivalentes" en `criterios_score.md`). También se piden fotos
+   condicionadas al PERFIL (no al Sí/No): del mineral que declaró extraer,
+   de su camino de acceso, de su fuente de agua/energía — solo si lo
+   declaró, con su propia respuesta en la etiqueta (ver
+   `uploads_config.categorias_perfil_foto_aplicables`, expuesto como
+   `fotos_perfil`, exclusivo de Ruta 1). La propia cuenta del minero
+   (`/mi-cuenta`, `/mi-concesion`) YA NO muestra un resumen de todo lo que
+   declaró en el diagnóstico — esa vista completa (perfil agrupado en 9
+   categorías) es solo para el inversionista en la ficha pública del
+   proyecto (`ProyectoDetalle.tsx` → `PerfilInformativoAgrupado`); al
+   minero solo le sirve como recordatorio puntual dentro de los campos que
+   sí puede editar (julio 2026)
 7. Todas las operaciones registradas (con Lead) aparecen automáticamente
    en `/proyectos` — REINFO/formalización iniciada YA NO es requisito para
    listarse (enlazado desde Inicio como

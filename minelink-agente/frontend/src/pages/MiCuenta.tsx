@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Check, CheckCircle2, Circle, Search } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
-import { PerfilInformativoAgrupado } from "../components/PerfilInformativoAgrupado";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { INFO_BRECHA } from "../data/brechas";
 import { useMineroAuth } from "../context/MineroAuthContext";
@@ -222,22 +221,12 @@ export function MiCuenta() {
         </ul>
       </div>
 
-      <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Lo que declaraste en tu diagnóstico</h2>
-        <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-          Un recordatorio de tus respuestas — para actualizarlas, escríbenos
-          por WhatsApp.
-        </p>
-        <div className="mt-4">
-          <PerfilInformativoAgrupado datos={perfil as unknown as Record<string, unknown>} />
-        </div>
-      </div>
-
       <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
 
       <DocumentosMinero
         onDocumentosChange={setDocumentos}
         estudiosAplicables={perfil.estudios_aplicables}
+        fotosPerfilAplicables={perfil.fotos_perfil}
       />
     </div>
   );

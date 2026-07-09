@@ -77,6 +77,7 @@ export interface MineroPerfil {
   produccion_objetivo?: string | null;
   uso_fondos_diagnostico?: string | null;
   estudios_aplicables: string[];
+  fotos_perfil: { categoria: string; etiqueta: string }[];
 }
 
 export interface PerfilInversionRequest {
