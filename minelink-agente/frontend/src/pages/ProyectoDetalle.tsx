@@ -590,15 +590,15 @@ function FilaFinanciera({
   return (
     <tr className="border-b border-black/5 dark:border-white/5">
       <td className="py-3">
-        {indicador}
         {ayuda && (
           <span
             title={ayuda}
-            className="ml-1 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-black/10 text-[10px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
+            className="mr-1.5 inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-black/10 text-[10px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
           >
             ?
           </span>
         )}
+        {indicador}
       </td>
       <td
         className={`py-3 font-medium ${
