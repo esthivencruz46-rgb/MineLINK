@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Building2, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
 import { DEPARTAMENTOS } from "../data/departamentos";
@@ -166,9 +167,14 @@ export function Empresas() {
         if (bloque.length === 0) return null;
         return (
           <div key={tipo} className="flex flex-col gap-4">
-            <h2 className="text-lg font-bold">
-              {tipo === "empresa" ? "🏢 Empresas" : "🛠️ Consultores independientes"}
-              <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+            <h2 className="flex items-center gap-2 text-lg font-bold">
+              {tipo === "empresa" ? (
+                <Building2 size={19} strokeWidth={2} className="text-acento" aria-hidden />
+              ) : (
+                <Wrench size={19} strokeWidth={2} className="text-acento" aria-hidden />
+              )}
+              {tipo === "empresa" ? "Empresas" : "Consultores independientes"}
+              <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                 ({bloque.length})
               </span>
             </h2>

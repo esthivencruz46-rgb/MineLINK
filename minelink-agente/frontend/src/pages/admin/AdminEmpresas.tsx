@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Star } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
 import { CampoTelefono } from "../../components/CampoTelefono";
 import { useAuth } from "../../context/AuthContext";
@@ -439,7 +440,10 @@ export function AdminEmpresas() {
                   <td className="p-3">{e.anios_servicio}</td>
                   <td className="p-3 whitespace-nowrap">
                     {e.rating != null ? (
-                      <>⭐ {e.rating}</>
+                      <span className="inline-flex items-center gap-1">
+                        <Star size={13} strokeWidth={2} fill="currentColor" className="text-amber-500" aria-hidden />
+                        {e.rating}
+                      </span>
                     ) : (
                       <span className="text-texto-suave dark:text-texto-suave-dark">—</span>
                     )}

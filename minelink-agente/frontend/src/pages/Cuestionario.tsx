@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Lightbulb } from "lucide-react";
 import { PreguntaPerfilScreen } from "../components/PreguntaPerfilScreen";
 import { ProgressBar } from "../components/ProgressBar";
 import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../data/preguntas";
@@ -327,7 +328,7 @@ export function Cuestionario() {
           )}
           {preguntaActual.ayuda && (
             <div className="flex items-start gap-2 rounded-lg bg-acento/5 p-3 text-sm text-texto-suave dark:bg-acento/10 dark:text-texto-suave-dark">
-              <span aria-hidden>💡</span>
+              <Lightbulb size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-acento" aria-hidden />
               <p>
                 <span className="font-semibold">¿Qué es esto? </span>
                 {preguntaActual.ayuda}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight, MapPin, Pickaxe } from "lucide-react";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { BASE_URL, obtenerMineralesDisponibles, obtenerProyectos } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
@@ -85,9 +86,14 @@ export function Proyectos() {
               .sort((a, b) => b.score_actual - a.score_actual);
             return (
               <div key={sit} className="flex flex-col gap-4">
-                <h2 className="text-lg font-bold">
-                  {sit === "minero_artesanal" ? "⛏️ Operaciones activas" : "📍 Concesiones en preparación"}
-                  <span className="ml-2 text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                <h2 className="flex items-center gap-2 text-lg font-bold">
+                  {sit === "minero_artesanal" ? (
+                    <Pickaxe size={19} strokeWidth={2} className="text-acento" aria-hidden />
+                  ) : (
+                    <MapPin size={19} strokeWidth={2} className="text-acento" aria-hidden />
+                  )}
+                  {sit === "minero_artesanal" ? "Operaciones activas" : "Concesiones en preparación"}
+                  <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                     ({grupo.length})
                   </span>
                 </h2>
@@ -126,8 +132,8 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           className="h-24 w-24 shrink-0 rounded-lg object-cover"
         />
       ) : (
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 text-3xl dark:bg-white/5">
-          ⛏️
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+          <Pickaxe size={28} strokeWidth={1.75} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
         </div>
       )}
       <div className="min-w-0 flex-1">
@@ -147,7 +153,9 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           <p className="mt-2 line-clamp-2 text-sm">{p.descripcion_operacion}</p>
         )}
 
-        <p className="mt-3 text-sm font-semibold text-acento">Ver detalle →</p>
+        <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-acento">
+          Ver detalle <ArrowRight size={15} strokeWidth={2.25} aria-hidden />
+        </p>
       </div>
     </Link>
   );

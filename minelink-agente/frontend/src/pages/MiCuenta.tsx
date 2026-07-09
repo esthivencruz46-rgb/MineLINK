@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { Check, CheckCircle2, Circle, Search } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { INFO_BRECHA } from "../data/brechas";
@@ -107,8 +108,12 @@ export function MiCuenta() {
               : "bg-acento/10 text-acento"
           }`}
         >
-          <span className="text-lg" aria-hidden>
-            {perfil.estado_contacto === "contactado" ? "✅" : "🔍"}
+          <span aria-hidden>
+            {perfil.estado_contacto === "contactado" ? (
+              <CheckCircle2 size={20} strokeWidth={2} />
+            ) : (
+              <Search size={20} strokeWidth={2} />
+            )}
           </span>
           <p>
             {perfil.estado_contacto === "contactado"
@@ -202,7 +207,11 @@ export function MiCuenta() {
           {requisitos.map((r) => (
             <li key={r.texto} className="flex items-start gap-2">
               <span className={r.cumplido ? "text-emerald-500" : "text-amber-500"}>
-                {r.cumplido ? "✓" : "○"}
+                {r.cumplido ? (
+                  <Check size={16} strokeWidth={2.5} aria-hidden />
+                ) : (
+                  <Circle size={16} strokeWidth={2} aria-hidden />
+                )}
               </span>
               <span className={r.cumplido ? "text-texto-suave line-through dark:text-texto-suave-dark" : ""}>
                 {r.texto}

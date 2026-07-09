@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { Briefcase, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
 interface Paso {
   numero: string;
@@ -7,7 +8,7 @@ interface Paso {
 }
 
 interface Seccion {
-  emoji: string;
+  Icono: LucideIcon;
   titulo: string;
   pasos: Paso[];
   accion: string;
@@ -16,7 +17,7 @@ interface Seccion {
 
 const SECCIONES: Seccion[] = [
   {
-    emoji: "⛏️",
+    Icono: Pickaxe,
     titulo: "Si eres minero",
     pasos: [
       {
@@ -42,7 +43,7 @@ const SECCIONES: Seccion[] = [
     ruta: "/diagnostico",
   },
   {
-    emoji: "💼",
+    Icono: Briefcase,
     titulo: "Si eres inversionista",
     pasos: [
       {
@@ -68,7 +69,7 @@ const SECCIONES: Seccion[] = [
     ruta: "/proyectos",
   },
   {
-    emoji: "🛠️",
+    Icono: Wrench,
     titulo: "Si eres consultor o empresa",
     pasos: [
       {
@@ -108,8 +109,11 @@ export function ComoFunciona() {
 
       {SECCIONES.map((s) => (
         <div key={s.titulo} className="rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
-          <h2 className="flex items-center gap-2 text-xl font-bold">
-            <span aria-hidden>{s.emoji}</span> {s.titulo}
+          <h2 className="flex items-center gap-2.5 text-xl font-bold">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
+              <s.Icono size={20} strokeWidth={2} aria-hidden />
+            </span>
+            {s.titulo}
           </h2>
           <div className="mt-4 flex flex-col gap-4">
             {s.pasos.map((paso) => (

@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import {
+  ArrowUpRight,
+  BadgeCheck,
+  Check,
+  ChevronLeft,
+  FileText,
+  Map,
+  MapPin,
+  Minus,
+  Star,
+} from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
 import { INFO_BRECHA } from "../data/brechas";
@@ -123,21 +134,24 @@ export function ProyectoDetalle() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
-      <Link to="/proyectos" className="text-sm font-semibold text-acento underline">
-        ← Volver a proyectos
+      <Link to="/proyectos" className="inline-flex items-center gap-1 text-sm font-semibold text-acento underline">
+        <ChevronLeft size={16} strokeWidth={2.25} aria-hidden />
+        Volver a proyectos
       </Link>
 
       {/* HEADER */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
-          ✓ Proyecto Verificado
+        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
+          <BadgeCheck size={14} strokeWidth={2.25} aria-hidden />
+          Proyecto Verificado
         </span>
         <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
           {semaforo.etiqueta}
         </span>
         {destacado && (
-          <span className="rounded-full bg-secundario/15 px-3 py-1 text-xs font-semibold text-secundario">
-            ★ Destacado
+          <span className="inline-flex items-center gap-1 rounded-full bg-secundario/15 px-3 py-1 text-xs font-semibold text-secundario">
+            <Star size={13} strokeWidth={2.25} fill="currentColor" aria-hidden />
+            Destacado
           </span>
         )}
       </div>
@@ -150,7 +164,10 @@ export function ProyectoDetalle() {
       </h1>
 
       <p className="mt-2 flex flex-wrap items-center gap-3 text-texto-suave dark:text-texto-suave-dark">
-        <span>📍 {cap(proyecto.region)}, Perú</span>
+        <span className="inline-flex items-center gap-1">
+          <MapPin size={15} strokeWidth={2} aria-hidden />
+          {cap(proyecto.region)}, Perú
+        </span>
         {proyecto.ubicacion_maps && (
           <a
             href={proyecto.ubicacion_maps}
@@ -158,14 +175,25 @@ export function ProyectoDetalle() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-full bg-acento/10 px-3 py-1 text-xs font-semibold text-acento hover:bg-acento/20"
           >
-            🗺 Ver ubicación en Google Maps
+            <Map size={14} strokeWidth={2.25} aria-hidden />
+            Ver ubicación en Google Maps
           </a>
         )}
         <button
           onClick={compartir}
           className="inline-flex items-center gap-1 rounded-full bg-secundario/10 px-3 py-1 text-xs font-semibold text-secundario hover:bg-secundario/20"
         >
-          {enlaceCopiado ? "✓ Enlace copiado" : "↗ Compartir"}
+          {enlaceCopiado ? (
+            <>
+              <Check size={14} strokeWidth={2.25} aria-hidden />
+              Enlace copiado
+            </>
+          ) : (
+            <>
+              <ArrowUpRight size={14} strokeWidth={2.25} aria-hidden />
+              Compartir
+            </>
+          )}
         </button>
       </p>
 
@@ -292,7 +320,9 @@ export function ProyectoDetalle() {
                     key={estudio}
                     className="flex items-center gap-3 rounded-lg border border-black/10 px-4 py-3 dark:border-white/10"
                   >
-                    <span className="text-xl">📄</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/5 text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+                      <FileText size={17} strokeWidth={1.75} aria-hidden />
+                    </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
                         {INFO_BRECHA[estudio]?.texto ?? estudio}
@@ -431,21 +461,22 @@ export function ProyectoDetalle() {
             <h2 className="text-lg font-semibold">Oportunidades</h2>
             <ul className="mt-3 flex flex-col gap-2 text-sm">
               {!proyecto.bloqueado_actual && (
-                <li>✓ REINFO vigente — habilitado para operar formalmente.</li>
+                <ItemOportunidad texto="REINFO vigente — habilitado para operar formalmente." />
               )}
               {dims?.legal && dims.legal.puntaje / dims.legal.maximo >= 0.8 && (
-                <li>✓ Alto avance en formalización legal.</li>
+                <ItemOportunidad texto="Alto avance en formalización legal." />
               )}
               {dims?.ambiental && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8 && (
-                <li>✓ Buen desempeño en gestión ambiental.</li>
+                <ItemOportunidad texto="Buen desempeño en gestión ambiental." />
               )}
               {proyecto.brechas_resueltas.length > 0 && (
-                <li>
-                  ✓ {proyecto.brechas_resueltas.length} estudio(s) resuelto(s) desde el diagnóstico
-                  inicial.
-                </li>
+                <ItemOportunidad
+                  texto={`${proyecto.brechas_resueltas.length} estudio(s) resuelto(s) desde el diagnóstico inicial.`}
+                />
               )}
-              {proyecto.capital_buscado && <li>✓ Busca activamente capital para crecer.</li>}
+              {proyecto.capital_buscado && (
+                <ItemOportunidad texto="Busca activamente capital para crecer." />
+              )}
             </ul>
           </Card>
         </div>
@@ -585,9 +616,22 @@ function ItemChecklist({ etiqueta, completo }: { etiqueta: string; completo: boo
   return (
     <li className="flex items-center gap-2 text-sm">
       <span className={completo ? "text-emerald-500" : "text-texto-suave dark:text-texto-suave-dark"}>
-        {completo ? "✓" : "—"}
+        {completo ? (
+          <Check size={16} strokeWidth={2.5} aria-hidden />
+        ) : (
+          <Minus size={16} strokeWidth={2.5} aria-hidden />
+        )}
       </span>
       <span className={completo ? "" : "text-texto-suave dark:text-texto-suave-dark"}>{etiqueta}</span>
+    </li>
+  );
+}
+
+function ItemOportunidad({ texto }: { texto: string }) {
+  return (
+    <li className="flex items-start gap-2">
+      <Check size={16} strokeWidth={2.5} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden />
+      {texto}
     </li>
   );
 }

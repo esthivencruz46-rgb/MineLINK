@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check } from "lucide-react";
 import { CampoPassword } from "../CampoPassword";
 import { CampoPreguntaSeguridad } from "../CampoPreguntaSeguridad";
 import { CampoTelefono } from "../CampoTelefono";
@@ -69,8 +70,8 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:max-h-[90vh] md:rounded-lg">
         {enviado ? (
           <div className="flex flex-col items-center gap-3 py-4 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-2xl text-emerald-500">
-              ✓
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+              <Check size={24} strokeWidth={2.5} aria-hidden />
             </div>
             <h2 className="text-lg font-semibold">Solicitud enviada</h2>
             <p className="text-sm text-texto-suave dark:text-texto-suave-dark">

@@ -1,8 +1,9 @@
 import { Capacitor } from "@capacitor/core";
 import { Link, useNavigate } from "react-router-dom";
+import { Briefcase, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
 interface TarjetaPerfil {
-  emoji: string;
+  Icono: LucideIcon;
   titulo: string;
   descripcion: string;
   accion: string;
@@ -13,7 +14,7 @@ interface TarjetaPerfil {
 
 const PERFILES: TarjetaPerfil[] = [
   {
-    emoji: "⛏️",
+    Icono: Pickaxe,
     titulo: "Soy minero",
     descripcion:
       "Descubre gratis y en 5 minutos qué te falta para formalizarte. Es anónimo hasta que tú decidas dejar tu contacto.",
@@ -23,7 +24,7 @@ const PERFILES: TarjetaPerfil[] = [
     sesion: { texto: "Ya tengo mi cuenta", ruta: "/ingresar" },
   },
   {
-    emoji: "💼",
+    Icono: Briefcase,
     titulo: "Inversionistas y curiosos",
     descripcion:
       "Explora operaciones mineras verificadas con REINFO, con fotos, puntaje de formalización y ubicación real. Mira libremente y, si algo te interesa, deja tu contacto.",
@@ -32,7 +33,7 @@ const PERFILES: TarjetaPerfil[] = [
     sesion: { texto: "Ya dejé mi interés antes", ruta: "/ingresar-inversionista" },
   },
   {
-    emoji: "🛠️",
+    Icono: Wrench,
     titulo: "Soy consultor o empresa",
     descripcion:
       "¿Eres ingeniero, geólogo o profesional colegiado? Te conectamos con mineros que necesitan exactamente tus servicios.",
@@ -72,9 +73,9 @@ export function Inicio() {
                 : "bg-tarjeta dark:bg-tarjeta-dark"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span className="text-2xl" aria-hidden>
-                {p.emoji}
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
+                <p.Icono size={20} strokeWidth={2} aria-hidden />
               </span>
               <h2 className="text-lg font-bold">{p.titulo}</h2>
             </div>
@@ -109,8 +110,9 @@ export function Inicio() {
         href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
         className="flex w-full max-w-md flex-col items-center rounded-xl border border-acento/30 bg-tarjeta p-4 text-center transition hover:opacity-90 dark:bg-tarjeta-dark"
       >
-        <span className="font-semibold text-acento">
-          📲 Descargar la app para Android (APK)
+        <span className="flex items-center justify-center gap-1.5 font-semibold text-acento">
+          <Download size={18} strokeWidth={2} aria-hidden />
+          Descargar la app para Android (APK)
         </span>
         <span className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
           Gratis, 4 MB. Al instalar, acepta "instalar de origen desconocido" —

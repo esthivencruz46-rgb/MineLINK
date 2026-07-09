@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Check, Mail, MapPin, Phone, Pickaxe } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
 import { enlaceWhatsApp } from "../../config/whatsapp";
 import { useAuth } from "../../context/AuthContext";
@@ -310,10 +311,10 @@ export function AdminLeads() {
             Mineros artesanales y concesionarios
           </option>
           <option value="minero_artesanal" className="bg-white text-black">
-            ⛏️ Solo mineros artesanales
+            Solo mineros artesanales
           </option>
           <option value="concesionario" className="bg-white text-black">
-            📍 Solo concesionarios
+            Solo concesionarios
           </option>
         </select>
       </div>
@@ -353,8 +354,15 @@ export function AdminLeads() {
                       {new Date(lead.created_at).toLocaleString("es-PE")}
                     </td>
                     <td className="p-3">
-                      <span title={lead.situacion === "concesionario" ? "Concesionario" : "Minero artesanal"}>
-                        {lead.situacion === "concesionario" ? "📍" : "⛏️"}
+                      <span
+                        className="inline-flex align-middle text-texto-suave dark:text-texto-suave-dark"
+                        title={lead.situacion === "concesionario" ? "Concesionario" : "Minero artesanal"}
+                      >
+                        {lead.situacion === "concesionario" ? (
+                          <MapPin size={14} strokeWidth={2} />
+                        ) : (
+                          <Pickaxe size={14} strokeWidth={2} />
+                        )}
                       </span>{" "}
                       {lead.nombre}
                       {lead.nombre_operacion && (
@@ -480,7 +488,14 @@ export function AdminLeads() {
                             : "bg-amber-500/15 text-amber-600 dark:text-amber-400"
                         }`}
                       >
-                        {lead.estado_contacto === "contactado" ? "✓ Contactado" : "En cola"}
+                        {lead.estado_contacto === "contactado" ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Check size={13} strokeWidth={2.5} aria-hidden />
+                            Contactado
+                          </span>
+                        ) : (
+                          "En cola"
+                        )}
                       </button>
                       <button
                         onClick={() => verDocumentos(lead)}
@@ -662,8 +677,18 @@ export function AdminLeads() {
                     className="rounded-lg border border-black/10 p-3 text-sm dark:border-white/10"
                   >
                     <p className="font-medium">{interes.nombre}</p>
-                    {interes.telefono && <p>📱 {interes.telefono}</p>}
-                    {interes.email && <p>✉️ {interes.email}</p>}
+                    {interes.telefono && (
+                      <p className="flex items-center gap-1.5">
+                        <Phone size={13} strokeWidth={2} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+                        {interes.telefono}
+                      </p>
+                    )}
+                    {interes.email && (
+                      <p className="flex items-center gap-1.5">
+                        <Mail size={13} strokeWidth={2} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+                        {interes.email}
+                      </p>
+                    )}
                     {interes.motivo_inversion && (
                       <p>
                         <span className="font-medium">Motivo:</span> {interes.motivo_inversion}

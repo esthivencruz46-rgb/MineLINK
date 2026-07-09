@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ImageIcon } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CATEGORIAS_DOCUMENTO, type CategoriaInfo, type DocumentoOperacion } from "../types/documento";
 import { INFO_BRECHA } from "../data/brechas";
@@ -176,7 +177,12 @@ export function DocumentosMinero({ onDocumentosChange, estudiosAplicables }: Pro
                       alt={doc.nombre_original}
                     />
                   ) : (
-                    <span className="text-2xl">📷</span>
+                    <ImageIcon
+                      size={22}
+                      strokeWidth={1.75}
+                      className="text-texto-suave dark:text-texto-suave-dark"
+                      aria-hidden
+                    />
                   )}
                 </button>
                 <button
