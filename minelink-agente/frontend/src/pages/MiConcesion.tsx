@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Check, CheckCircle2, Circle, Search } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
+import { PerfilInformativoAgrupado } from "../components/PerfilInformativoAgrupado";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { INFO_BRECHA } from "../data/brechas";
 import { useMineroAuth } from "../context/MineroAuthContext";
@@ -168,58 +169,13 @@ export function MiConcesion() {
       </div>
 
       <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Perfil de tu concesión</h2>
+        <h2 className="font-semibold">Lo que declaraste en tu diagnóstico</h2>
         <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-          Esto es lo que declaraste en tu diagnóstico — para actualizarlo,
-          escríbenos por WhatsApp.
+          Un recordatorio de tus respuestas — para actualizarlas, escríbenos
+          por WhatsApp.
         </p>
-        <div className="mt-3 flex flex-col gap-1">
-          {perfil.concesion_vigente && (
-            <p>
-              <span className="font-medium">Concesión vigente:</span>{" "}
-              {perfil.concesion_vigente}
-            </p>
-          )}
-          {perfil.tipo_deposito && (
-            <p>
-              <span className="font-medium">Tipo de depósito:</span> {perfil.tipo_deposito}
-            </p>
-          )}
-          {perfil.etapa_proyecto && (
-            <p>
-              <span className="font-medium">Etapa del proyecto:</span> {perfil.etapa_proyecto}
-            </p>
-          )}
-          {perfil.trabajos_exploracion_json && perfil.trabajos_exploracion_json.length > 0 && (
-            <p>
-              <span className="font-medium">Trabajos de exploración:</span>{" "}
-              {perfil.trabajos_exploracion_json.join(", ")}
-            </p>
-          )}
-          {perfil.info_geologica_disponible && (
-            <p>
-              <span className="font-medium">Información geológica disponible:</span>{" "}
-              {perfil.info_geologica_disponible}
-            </p>
-          )}
-          {perfil.tiene_estimaciones_leyes && (
-            <p>
-              <span className="font-medium">Estimaciones de leyes:</span>{" "}
-              {perfil.tiene_estimaciones_leyes}
-            </p>
-          )}
-          {perfil.documento_autorizacion && (
-            <p>
-              <span className="font-medium">Documento de autorización:</span>{" "}
-              {perfil.documento_autorizacion}
-            </p>
-          )}
-          {perfil.tipo_apoyo_json && perfil.tipo_apoyo_json.length > 0 && (
-            <p>
-              <span className="font-medium">Apoyo que buscas:</span>{" "}
-              {perfil.tipo_apoyo_json.join(", ")}
-            </p>
-          )}
+        <div className="mt-4">
+          <PerfilInformativoAgrupado datos={perfil as unknown as Record<string, unknown>} />
         </div>
       </div>
 

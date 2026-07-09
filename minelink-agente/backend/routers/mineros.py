@@ -48,14 +48,17 @@ def _operacion_del_lead(db: Session, lead_id: int) -> tuple[models.Lead, models.
 
 
 def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
-    """Estudios del catálogo que corresponden al tipo_mina/situación de esta
-    operación (mismo set de ids que se usó en su diagnóstico) — para que
-    el minero pueda subir una foto de respaldo por cada uno, sin importar
-    si respondió Sí o No."""
+    """Estudios que el minero declaró SÍ tener (respondió Sí, o el admin
+    marcó la brecha como resuelta después) — para que "Respalda tu
+    declaración" solo le pida foto de lo que realmente tiene, no de todo
+    el catálogo de su ruta. Pedirle que suba prueba de algo que ya dijo
+    que NO tiene no tiene sentido y solo lo satura de archivos."""
     situacion = operacion.situacion or "minero_artesanal"
     perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
     ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
-    return sorted({ESTUDIO_POR_PREGUNTA[i] for i in ids})
+    todos = {ESTUDIO_POR_PREGUNTA[i] for i in ids}
+    pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
+    return sorted(e for e in todos if e not in pendientes)
 
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:

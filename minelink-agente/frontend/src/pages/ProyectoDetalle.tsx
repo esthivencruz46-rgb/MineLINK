@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
+import { PerfilInformativoAgrupado } from "../components/PerfilInformativoAgrupado";
 import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
@@ -28,97 +29,6 @@ import type { ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
 import type { NombreDimension } from "../types/diagnostico";
 
 const NO_ESPECIFICADO = "No especificado";
-
-/** Perfil informativo del diagnóstico (Fase 1): antes solo alimentaba el
- * cálculo del Score de Atractivo de Inversión, invisible al inversionista.
- * Se muestra agrupado por categoría (en vez de una lista plana de ~44
- * campos) — cada proyecto solo llena los campos de su ruta, el resto
- * queda null y no se renderiza; una categoría sin campos con valor
- * tampoco se muestra. */
-const CATEGORIAS_PERFIL_PROYECTO = [
-  "operacion",
-  "geologia",
-  "titularidad",
-  "ambiente",
-  "riesgos",
-  "equipo",
-  "formalizacion",
-  "capital",
-  "vision",
-] as const;
-
-type CategoriaPerfilProyecto = (typeof CATEGORIAS_PERFIL_PROYECTO)[number];
-
-const NOMBRES_CATEGORIA_PERFIL_PROYECTO: Record<CategoriaPerfilProyecto, string> = {
-  operacion: "Operación",
-  geologia: "Geología y técnico",
-  titularidad: "Titularidad y concesión",
-  ambiente: "Ambiente",
-  riesgos: "Riesgos y comunidad",
-  equipo: "Equipo y capacidad",
-  formalizacion: "Formalización",
-  capital: "Capital y oportunidad",
-  vision: "Visión a futuro",
-};
-
-const CAMPOS_PERFIL_PROYECTO: {
-  campo: keyof ProyectoDetalleType;
-  etiqueta: string;
-  categoria: CategoriaPerfilProyecto;
-}[] = [
-  { campo: "tiempo_operacion", etiqueta: "Tiempo operando", categoria: "operacion" },
-  { campo: "modalidad_trabajadores", etiqueta: "Modalidad de trabajadores", categoria: "operacion" },
-  { campo: "num_trabajadores", etiqueta: "Nº de trabajadores", categoria: "operacion" },
-  { campo: "maquinaria", etiqueta: "Maquinaria principal", categoria: "operacion" },
-  { campo: "provincia", etiqueta: "Provincia", categoria: "operacion" },
-  { campo: "produccion_objetivo", etiqueta: "Producción objetivo", categoria: "operacion" },
-
-  { campo: "tiene_resultados_laboratorio", etiqueta: "Resultados de laboratorio", categoria: "geologia" },
-  { campo: "tipo_deposito", etiqueta: "Tipo de depósito", categoria: "geologia" },
-  { campo: "toneladas_estimadas", etiqueta: "Toneladas estimadas del depósito", categoria: "geologia" },
-  { campo: "ley_esperada", etiqueta: "Ley esperada", categoria: "geologia" },
-  { campo: "etapa_proyecto", etiqueta: "Etapa del proyecto", categoria: "geologia" },
-  { campo: "info_geologica_disponible", etiqueta: "Información geológica disponible", categoria: "geologia" },
-  { campo: "tiene_estimaciones_leyes", etiqueta: "Estimaciones de leyes", categoria: "geologia" },
-  { campo: "estudio_previo", etiqueta: "Estudio de prefactibilidad/factibilidad", categoria: "geologia" },
-
-  { campo: "concesion_vigente", etiqueta: "Concesión vigente", categoria: "titularidad" },
-  { campo: "pagos_vigencia_al_dia", etiqueta: "Pagos de vigencia al día", categoria: "titularidad" },
-  { campo: "documento_autorizacion", etiqueta: "Documento de autorización", categoria: "titularidad" },
-  { campo: "historial_operacion", etiqueta: "Operada previamente", categoria: "titularidad" },
-
-  { campo: "sustancias_toxicas", etiqueta: "Mercurio/cianuro/relaves", categoria: "ambiente" },
-  { campo: "gestion_sustancias", etiqueta: "Gestión de esas sustancias", categoria: "ambiente" },
-  { campo: "acceso_agua", etiqueta: "Acceso a agua", categoria: "ambiente" },
-  { campo: "acceso_energia", etiqueta: "Acceso a energía", categoria: "ambiente" },
-  { campo: "acceso_logistico", etiqueta: "Acceso logístico", categoria: "ambiente" },
-  { campo: "pasivos_ambientales", etiqueta: "Pasivos ambientales heredados", categoria: "ambiente" },
-
-  { campo: "incidentes_previos", etiqueta: "Incidentes en los últimos 2 años", categoria: "riesgos" },
-  { campo: "conflictividad_social", etiqueta: "Conflictividad con comunidades", categoria: "riesgos" },
-  { campo: "permisos_comunitarios", etiqueta: "Permisos/relaciones comunitarias", categoria: "riesgos" },
-
-  { campo: "experiencia_operador", etiqueta: "Experiencia del operador", categoria: "equipo" },
-  { campo: "capacitacion_operador", etiqueta: "Capacitación/colegiatura", categoria: "equipo" },
-  { campo: "documentacion_disponible", etiqueta: "Documentación disponible", categoria: "equipo" },
-  { campo: "experiencia_titular", etiqueta: "Experiencia del titular", categoria: "equipo" },
-  { campo: "background_titular", etiqueta: "Background profesional del titular", categoria: "equipo" },
-  { campo: "equipo_tecnico", etiqueta: "Equipo técnico definido", categoria: "equipo" },
-
-  { campo: "estructura_propiedad", etiqueta: "Estructura de propiedad", categoria: "formalizacion" },
-  { campo: "plan_formalizacion", etiqueta: "Plan de formalización", categoria: "formalizacion" },
-
-  { campo: "tipo_apoyo", etiqueta: "Apoyo que busca primordialmente", categoria: "capital" },
-  { campo: "monto_requerido", etiqueta: "Monto aproximado que necesita", categoria: "capital" },
-  { campo: "plazo_capital", etiqueta: "Plazo para usar el capital", categoria: "capital" },
-  { campo: "capital_disponible", etiqueta: "Capital ya disponible", categoria: "capital" },
-  { campo: "tipo_socio_buscado", etiqueta: "Tipo de socio buscado", categoria: "capital" },
-
-  { campo: "prioridad_crecimiento", etiqueta: "Prioridad para crecer", categoria: "vision" },
-  { campo: "siguiente_hito", etiqueta: "Siguiente hito", categoria: "vision" },
-  { campo: "timeline_operacion", etiqueta: "Timeline esperado hasta operación", categoria: "vision" },
-  { campo: "motivo_inicio", etiqueta: "Por qué inició el proyecto", categoria: "vision" },
-];
 
 function colorRiesgo(porcentaje: number): { texto: string; etiqueta: string } {
   if (porcentaje >= 80) return { texto: "text-emerald-500", etiqueta: "Riesgo bajo" };
@@ -378,67 +288,8 @@ export function ProyectoDetalle() {
               Respuestas declaradas por el titular en su diagnóstico — la
               base del Score de Atractivo de Inversión de arriba.
             </p>
-            <div className="mt-4 flex flex-col gap-5">
-              {CATEGORIAS_PERFIL_PROYECTO.map((categoria) => {
-                const camposDeCategoria = CAMPOS_PERFIL_PROYECTO.filter(
-                  (c) => c.categoria === categoria
-                );
-                const camposConValor = camposDeCategoria.filter((c) => {
-                  const valor = proyecto[c.campo];
-                  return valor && !(Array.isArray(valor) && valor.length === 0);
-                });
-                // La categoría "geologia" siempre tiene 3 campos especiales
-                // adicionales (ley, especie mineral, trabajos de
-                // exploración) que no viven en CAMPOS_PERFIL_PROYECTO.
-                const tieneExtrasGeologia =
-                  categoria === "geologia" &&
-                  (proyecto.ley_promedio ||
-                    proyecto.especie_mineral ||
-                    (proyecto.trabajos_exploracion_json &&
-                      proyecto.trabajos_exploracion_json.length > 0));
-                if (camposConValor.length === 0 && !tieneExtrasGeologia) return null;
-
-                return (
-                  <div key={categoria}>
-                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-                      {NOMBRES_CATEGORIA_PERFIL_PROYECTO[categoria]}
-                    </h3>
-                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                      {categoria === "geologia" && proyecto.ley_promedio && (
-                        <div>
-                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Ley promedio</dt>
-                          <dd className="text-sm font-medium">
-                            {proyecto.ley_promedio}
-                            {proyecto.ley_como_obtenida && ` (${proyecto.ley_como_obtenida})`}
-                          </dd>
-                        </div>
-                      )}
-                      {categoria === "geologia" && proyecto.especie_mineral && (
-                        <div>
-                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Especie mineralógica</dt>
-                          <dd className="text-sm font-medium">{proyecto.especie_mineral}</dd>
-                        </div>
-                      )}
-                      {categoria === "geologia" &&
-                        proyecto.trabajos_exploracion_json &&
-                        proyecto.trabajos_exploracion_json.length > 0 && (
-                          <div>
-                            <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Trabajos de exploración</dt>
-                            <dd className="text-sm font-medium">
-                              {proyecto.trabajos_exploracion_json.join(", ")}
-                            </dd>
-                          </div>
-                        )}
-                      {camposConValor.map(({ campo, etiqueta }) => (
-                        <div key={campo}>
-                          <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</dt>
-                          <dd className="text-sm font-medium">{String(proyecto[campo])}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                );
-              })}
+            <div className="mt-4">
+              <PerfilInformativoAgrupado datos={proyecto as unknown as Record<string, unknown>} />
             </div>
           </Card>
 

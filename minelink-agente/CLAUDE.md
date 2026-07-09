@@ -56,9 +56,11 @@ Plataforma web donde un minero artesanal peruano:
    PyMuPDF) — nunca se guarda ni se sirve un PDF crudo. Además, como el
    diagnóstico Sí/No es autodeclarado y no se puede comprobar por sí solo,
    hay una sección "Respalda tu declaración" con un slot de foto por cada
-   estudio del catálogo aplicable a su ruta (ver
-   `uploads_config.CATEGORIAS_ESTUDIO`, expuesto como `estudios_aplicables`
-   en `GET /mineros/me`), sea cual haya sido su respuesta
+   estudio que el minero declaró SÍ tener (respondió Sí, o el admin marcó
+   la brecha como resuelta después — ver `routers/mineros.py`
+   `_estudios_aplicables`, expuesto como `estudios_aplicables` en
+   `GET /mineros/me`). No se le pide foto de lo que ya dijo que NO tiene
+   (evita saturarlo de slots irrelevantes; julio 2026)
 7. Todas las operaciones registradas (con Lead) aparecen automáticamente
    en `/proyectos` — REINFO/formalización iniciada YA NO es requisito para
    listarse (enlazado desde Inicio como

@@ -613,11 +613,13 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     aplicables = resp.json()["estudios_aplicables"]
-    # minero_artesanal (default de _token_minero): todo el catálogo salvo
-    # vigencia_concesion (L6, exclusivo de concesionario)
-    assert "tramite_reinfo" in aplicables
-    assert "iperc" in aplicables
-    assert "vigencia_concesion" not in aplicables
+    # minero_artesanal (default de _token_minero): solo lo que declaró
+    # SÍ tener (RESPUESTAS_COMPLETAS responde Sí a todo salvo S5) — no le
+    # pedimos foto de algo que ya dijo que no tiene.
+    assert "tramite_reinfo" in aplicables  # L1 = True
+    assert "iperc" in aplicables  # S1 = True
+    assert "vigencia_concesion" not in aplicables  # L6, exclusivo de concesionario
+    assert "estudio_ventilacion" not in aplicables  # S5 = False, no aplica pedirle foto
 
 
 def test_mineros_documento_pdf_se_convierte_a_foto():
