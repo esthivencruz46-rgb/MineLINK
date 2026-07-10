@@ -124,12 +124,16 @@ export function ProyectoDetalle() {
   // Técnico se respaldan ambos con el catastro) — sin fusionarlos, subir
   // un solo archivo hacía que la misma imagen apareciera dos veces en el
   // checklist, viéndose como un error/duplicado. Se detecta por el id de
-  // la foto (si dos ítems comparten exactamente la misma foto, es la misma
-  // evidencia) y se combinan en un solo ítem con las etiquetas juntas.
+  // la primera foto (si dos ítems comparten la misma primera foto, el
+  // backend les copió la misma lista completa — ver categoria_equivalente
+  // en routers/proyectos.py) y se combinan en un solo ítem con las
+  // etiquetas juntas. Un ítem puede tener varias fotos (el minero puede
+  // subir más de una por categoría, ej. 3 ángulos del catastro) — se
+  // muestran todas, no solo la primera.
   type ItemFormalizacion = {
     dim: NombreDimension;
     etiqueta: string;
-    foto?: FotoPublica;
+    fotos: FotoPublica[];
     completo: boolean;
   };
   const fotosYaMostradas = new Map<number, ItemFormalizacion>();
@@ -139,17 +143,17 @@ export function ProyectoDetalle() {
       const item: ItemFormalizacion = {
         dim,
         etiqueta: INFO_BRECHA[estudio]?.texto ?? estudio,
-        foto: proyecto.documentos_estudios[estudio]?.[0],
+        fotos: proyecto.documentos_estudios[estudio] ?? [],
         completo: verificadas.has(estudio),
       };
-      if (item.foto) {
-        const previo = fotosYaMostradas.get(item.foto.id);
+      if (item.fotos.length > 0) {
+        const previo = fotosYaMostradas.get(item.fotos[0].id);
         if (previo) {
           previo.etiqueta = `${previo.etiqueta} / ${item.etiqueta}`;
           previo.completo = previo.completo || item.completo;
           continue;
         }
-        fotosYaMostradas.set(item.foto.id, item);
+        fotosYaMostradas.set(item.fotos[0].id, item);
       }
       itemsFormalizacion.push(item);
     }
@@ -348,7 +352,7 @@ export function ProyectoDetalle() {
                         <ItemChecklistFoto
                           key={item.etiqueta}
                           etiqueta={item.etiqueta}
-                          foto={item.foto}
+                          fotos={item.fotos}
                           completo={item.completo}
                           onVer={(url, etiqueta) => setFotoAbierta({ url, etiqueta })}
                         />
@@ -513,41 +517,59 @@ function Card({ children, acento }: { children: React.ReactNode; acento?: boolea
   );
 }
 
-/** Ítem de checklist con su propia miniatura de respaldo (o un icono si
- * todavía no se subió foto) — reemplaza los recuadros aparte de
- * "Documentación Técnica" y "Documentos legales presentados": la misma
- * foto que verifica el ✓ se ve aquí mismo. */
+const MAX_MINIATURAS_VISIBLES = 3;
+
+/** Ítem de checklist con sus miniaturas de respaldo (o un icono si
+ * todavía no se subió ninguna foto) — reemplaza los recuadros aparte de
+ * "Documentación Técnica" y "Documentos legales presentados": las mismas
+ * fotos que verifican el ✓ se ven aquí mismo. El minero puede subir más
+ * de una foto por categoría (ej. varios ángulos del catastro); se
+ * muestran todas, no solo la primera — máximo 3 miniaturas visibles, con
+ * un contador "+N" si hay más. */
 function ItemChecklistFoto({
   etiqueta,
-  foto,
+  fotos,
   completo,
   onVer,
 }: {
   etiqueta: string;
-  foto?: FotoPublica;
+  fotos: FotoPublica[];
   completo: boolean;
   onVer: (url: string, etiqueta: string) => void;
 }) {
+  const visibles = fotos.slice(0, MAX_MINIATURAS_VISIBLES);
+  const restantes = fotos.length - visibles.length;
   return (
     <li className="flex items-center gap-2.5 text-sm">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
-        {foto ? (
-          <button
-            type="button"
-            onClick={() => onVer(`${BASE_URL}${foto.url}`, etiqueta)}
-            className="block h-full w-full"
-          >
-            <img src={`${BASE_URL}${foto.url}`} alt={etiqueta} className="h-full w-full object-cover" />
-          </button>
-        ) : (
+      {visibles.length > 0 ? (
+        <span className="flex shrink-0 -space-x-2">
+          {visibles.map((foto, i) => (
+            <button
+              key={foto.id}
+              type="button"
+              onClick={() => onVer(`${BASE_URL}${foto.url}`, etiqueta)}
+              className="relative block h-8 w-8 overflow-hidden rounded-md border-2 border-tarjeta bg-black/5 dark:border-tarjeta-dark dark:bg-white/5"
+              style={{ zIndex: visibles.length - i }}
+            >
+              <img src={`${BASE_URL}${foto.url}`} alt={etiqueta} className="h-full w-full object-cover" />
+              {i === visibles.length - 1 && restantes > 0 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] font-semibold text-white">
+                  +{restantes}
+                </span>
+              )}
+            </button>
+          ))}
+        </span>
+      ) : (
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
           <ImageIcon
             size={14}
             strokeWidth={1.75}
             className="text-texto-suave dark:text-texto-suave-dark"
             aria-hidden
           />
-        )}
-      </span>
+        </span>
+      )}
       <span className={`flex-1 ${completo ? "" : "text-texto-suave dark:text-texto-suave-dark"}`}>
         {etiqueta}
       </span>
