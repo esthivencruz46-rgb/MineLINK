@@ -8,6 +8,7 @@ import { INFO_BRECHA } from "../../data/brechas";
 import { CATEGORIAS_DOCUMENTO } from "../../types/documento";
 import type { DocumentoOperacion } from "../../types/documento";
 import { calcularSemaforo } from "../../utils/semaforo";
+import { formatearMonto } from "../../utils/formato";
 import type { LeadConDiagnostico } from "../../types/admin";
 
 interface InteresInversion {
@@ -674,7 +675,7 @@ export function AdminLeads() {
                 if (!valor || (Array.isArray(valor) && valor.length === 0)) return null;
                 return (
                   <p key={campo}>
-                    <span className="font-medium">{etiqueta}:</span> {String(valor)}
+                    <span className="font-medium">{etiqueta}:</span> {formatearMonto(String(valor))}
                   </p>
                 );
               })}
@@ -695,7 +696,7 @@ export function AdminLeads() {
                   <p><span className="font-medium">Producción/reservas:</span> {leadDetalle.capacidad_produccion}</p>
                 )}
                 {leadDetalle.capital_buscado && (
-                  <p><span className="font-medium">Capital buscado:</span> {leadDetalle.capital_buscado}</p>
+                  <p><span className="font-medium">Capital buscado:</span> {formatearMonto(leadDetalle.capital_buscado)}</p>
                 )}
                 {leadDetalle.uso_fondos && (
                   <p><span className="font-medium">Uso de fondos:</span> {leadDetalle.uso_fondos}</p>
@@ -782,7 +783,7 @@ export function AdminLeads() {
                     )}
                     {interes.monto && (
                       <p>
-                        <span className="font-medium">Capital:</span> {interes.monto}
+                        <span className="font-medium">Capital:</span> {formatearMonto(interes.monto)}
                       </p>
                     )}
                     {interes.informacion_requerida && (

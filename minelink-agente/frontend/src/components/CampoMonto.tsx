@@ -28,9 +28,15 @@ export function CampoMonto({ value, onChange, monedaFija }: Props) {
   const cantidad = partir(value).cantidad;
   const monedaActual = monedaFija ?? moneda;
 
-  function actualizar(nuevaMoneda: Moneda, nuevaCantidad: string) {
+  function actualizar(nuevaMoneda: Moneda, nuevaCantidadCruda: string) {
     setMoneda(nuevaMoneda);
-    onChange(nuevaCantidad ? `${nuevaMoneda} ${nuevaCantidad}` : "");
+    // Se guarda ya con separador de miles (250000 → 250,000) para que se
+    // vea bien en todos lados donde se muestra este texto tal cual. Se
+    // limpia primero por si nuevaCantidadCruda ya venía formateada (ej. al
+    // cambiar de moneda se reenvía el valor actual, que puede traer comas).
+    const digitos = nuevaCantidadCruda.replace(/\D/g, "");
+    const formateada = digitos ? Number(digitos).toLocaleString("es-PE") : "";
+    onChange(formateada ? `${nuevaMoneda} ${formateada}` : "");
   }
 
   return (

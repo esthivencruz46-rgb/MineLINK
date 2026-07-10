@@ -1,5 +1,6 @@
 import { CATEGORIAS_PERFIL_INFORMATIVO, CAMPOS_PERFIL_INFORMATIVO } from "../data/perfilInformativo";
 import { NOMBRES_DIMENSION_INVERSION } from "../types/proyecto";
+import { formatearMonto } from "../utils/formato";
 import type { DimensionScore } from "../types/proyecto";
 
 interface Props {
@@ -56,7 +57,7 @@ export function PerfilInformativoAgrupado({ datos, dimensiones }: Props) {
                 <div className="sm:col-span-2">
                   <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">Capital buscado</dt>
                   <dd className="text-sm font-medium">
-                    {String(datos.capital_buscado)}
+                    {formatearMonto(String(datos.capital_buscado))}
                     {datos.uso_fondos ? ` — ${String(datos.uso_fondos)}` : ""}
                   </dd>
                 </div>
@@ -85,7 +86,7 @@ export function PerfilInformativoAgrupado({ datos, dimensiones }: Props) {
               {camposConValor.map(({ campo, etiqueta }) => (
                 <div key={campo}>
                   <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</dt>
-                  <dd className="text-sm font-medium">{String(datos[campo])}</dd>
+                  <dd className="text-sm font-medium">{formatearMonto(String(datos[campo]))}</dd>
                 </div>
               ))}
             </dl>

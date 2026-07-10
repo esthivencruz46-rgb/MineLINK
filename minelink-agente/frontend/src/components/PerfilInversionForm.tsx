@@ -4,6 +4,7 @@ import { CampoMonto } from "./CampoMonto";
 import { CampoUsoFondos } from "./CampoUsoFondos";
 import { CampoProduccion } from "./CampoProduccion";
 import { OPCIONES_TIPO_APOYO } from "../data/preguntasPerfil";
+import { formatearMonto } from "../utils/formato";
 import type { MineroPerfil } from "../types/minero";
 
 function etiquetaTipoApoyo(valor: string): string {
@@ -171,7 +172,7 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
               perfil.moneda_capital !== "no_se" && (
                 <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                   Recordatorio: en tu diagnóstico marcaste{" "}
-                  <span className="font-medium">{perfil.monto_requerido}</span>. Aquí
+                  <span className="font-medium">{formatearMonto(perfil.monto_requerido)}</span>. Aquí
                   puedes precisar el monto exacto.
                 </p>
               )}

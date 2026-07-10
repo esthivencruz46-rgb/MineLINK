@@ -19,6 +19,7 @@ import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
+import { formatearMonto } from "../utils/formato";
 import {
   COLOR_DIMENSION_INVERSION,
   NOMBRES_DIMENSION_INVERSION,
@@ -134,7 +135,7 @@ export function ProyectoDetalle() {
   }
   if (proyecto.capital_buscado) {
     partesResumen.push(
-      `Actualmente busca ${proyecto.capital_buscado}${
+      `Actualmente busca ${formatearMonto(proyecto.capital_buscado)}${
         proyecto.uso_fondos ? ` para ${proyecto.uso_fondos.toLowerCase()}` : ""
       }.`
     );
