@@ -80,6 +80,7 @@ def crear_diagnostico(
         acceso_energia=payload.acceso_energia,
         conflictividad_social=payload.conflictividad_social,
         estructura_propiedad=payload.estructura_propiedad,
+        moneda_capital=payload.moneda_capital,
         monto_requerido=payload.monto_requerido,
         plazo_capital=payload.plazo_capital,
         motivo_capital=payload.motivo_capital,

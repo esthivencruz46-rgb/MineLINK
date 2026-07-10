@@ -75,6 +75,7 @@ export interface LeadConDiagnostico {
   acceso_energia?: string | null;
   conflictividad_social?: string | null;
   estructura_propiedad?: string | null;
+  moneda_capital?: string | null;
   monto_requerido?: string | null;
   plazo_capital?: string | null;
   motivo_capital?: string | null;

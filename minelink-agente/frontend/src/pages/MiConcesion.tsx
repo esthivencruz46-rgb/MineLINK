@@ -223,6 +223,7 @@ export function MiConcesion() {
         onDocumentosChange={setDocumentos}
         estudiosAplicables={perfil.estudios_aplicables}
         fotosPerfilAplicables={perfil.fotos_perfil}
+        esTitularConcesion={perfil.es_titular_concesion}
       />
     </div>
   );

@@ -73,6 +73,19 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
     )
 
 
+def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
+    """True si declaró ser titular de la concesión (L2 no está pendiente:
+    respondió Sí, o el admin marcó la brecha como resuelta), False si no,
+    None si L2 no aplica a esta ruta (no debería pasar en la práctica)."""
+    situacion = operacion.situacion or "minero_artesanal"
+    perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
+    ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
+    if "L2" not in ids:
+        return None
+    pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
+    return "titularidad_concesion" not in pendientes
+
+
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
     return schemas.MineroPerfilOut(
         nombre=lead.nombre,
@@ -142,6 +155,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         acceso_energia=operacion.acceso_energia,
         conflictividad_social=operacion.conflictividad_social,
         estructura_propiedad=operacion.estructura_propiedad,
+        moneda_capital=operacion.moneda_capital,
         monto_requerido=operacion.monto_requerido,
         plazo_capital=operacion.plazo_capital,
         motivo_capital=operacion.motivo_capital,
@@ -152,6 +166,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
             schemas.CategoriaFotoOut(categoria=c, etiqueta=e)
             for c, e in categorias_perfil_foto_aplicables(operacion)
         ],
+        es_titular_concesion=_es_titular_concesion(operacion),
         **estado_seguimiento(operacion),
     )
 

@@ -66,6 +66,7 @@ export interface ProyectoDetalle extends ProyectoPublico {
   acceso_agua?: string | null;
   acceso_energia?: string | null;
   tipo_apoyo?: string | null;
+  moneda_capital?: string | null;
   monto_requerido?: string | null;
   plazo_capital?: string | null;
   uso_fondos_diagnostico?: string | null;

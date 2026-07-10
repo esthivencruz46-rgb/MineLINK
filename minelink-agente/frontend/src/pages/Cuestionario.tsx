@@ -7,6 +7,8 @@ import { SITUACIONES, informativasAplicables, preguntasAplicables } from "../dat
 import {
   OPCIONES_ELEMENTO_VALOR,
   OPCIONES_MINERAL_POR_ELEMENTO,
+  OPCIONES_MONTO_REQUERIDO_RUTA1,
+  OPCIONES_MONTO_REQUERIDO_RUTA2,
   OPCIONES_UNIDAD_LEY,
   PERFIL_ARTESANAL,
   PERFIL_CONCESIONARIO,
@@ -72,6 +74,22 @@ function construirPerfilVisible(situacion: Situacion, perfil: Perfil): PreguntaP
         ...visibles.slice(indiceElementoValor + 1),
       ];
     }
+  }
+
+  // "¿En qué moneda calculas ese capital?": si eligió "no sé", la pregunta
+  // de monto (bucket) ni se muestra — significa que necesita asesoría, y
+  // el selector de moneda queda abierto en /mi-cuenta (ver PerfilInversionForm).
+  // Si eligió una moneda, las opciones de monto se reemplazan por la tabla
+  // de esa moneda en vez de las de soles por defecto.
+  const moneda = perfil.moneda_capital;
+  if (moneda === "no_se") {
+    visibles = visibles.filter((p) => p.campo !== "monto_requerido");
+  } else if (moneda === "dolares") {
+    const tabla =
+      situacion === "concesionario"
+        ? OPCIONES_MONTO_REQUERIDO_RUTA2.dolares
+        : OPCIONES_MONTO_REQUERIDO_RUTA1.dolares;
+    visibles = visibles.map((p) => (p.campo === "monto_requerido" ? { ...p, opciones: tabla } : p));
   }
 
   if (situacion !== "minero_artesanal" || perfil.conoce_ley !== true) return visibles;
@@ -301,7 +319,12 @@ export function Cuestionario() {
         acceso_energia: textoOpcional(perfilFinal.acceso_energia),
         conflictividad_social: textoOpcional(perfilFinal.conflictividad_social),
         estructura_propiedad: textoOpcional(perfilFinal.estructura_propiedad),
-        monto_requerido: textoOpcional(perfilFinal.monto_requerido),
+        moneda_capital: textoOpcional(perfilFinal.moneda_capital),
+        monto_requerido:
+          textoOpcional(perfilFinal.monto_requerido) ??
+          (perfilFinal.moneda_capital === "no_se"
+            ? "Aún no sabe — necesita asesoría"
+            : undefined),
         plazo_capital: textoOpcional(perfilFinal.plazo_capital),
         motivo_capital: textoOpcional(perfilFinal.motivo_capital),
         produccion_objetivo: textoOpcional(perfilFinal.produccion_objetivo),

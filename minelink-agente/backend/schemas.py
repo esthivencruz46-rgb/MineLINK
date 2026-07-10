@@ -110,6 +110,7 @@ class DiagnosticoRequest(BaseModel):
     acceso_energia: Optional[str] = None
     conflictividad_social: Optional[str] = None
     estructura_propiedad: Optional[str] = None
+    moneda_capital: Optional[str] = None
     monto_requerido: Optional[str] = None
     plazo_capital: Optional[str] = None
     motivo_capital: Optional[str] = None
@@ -491,6 +492,7 @@ class MineroPerfilOut(BaseModel):
     acceso_energia: Optional[str] = None
     conflictividad_social: Optional[str] = None
     estructura_propiedad: Optional[str] = None
+    moneda_capital: Optional[str] = None
     monto_requerido: Optional[str] = None
     plazo_capital: Optional[str] = None
     motivo_capital: Optional[str] = None
@@ -506,6 +508,12 @@ class MineroPerfilOut(BaseModel):
     # dato, con su propia respuesta ya incluida en la etiqueta (ver
     # uploads_config.categorias_perfil_foto_aplicables).
     fotos_perfil: list[CategoriaFotoOut] = []
+    # True si declaró ser titular de la concesión (L2), False si no, None
+    # si por algún motivo no se pudo determinar — para mostrar en
+    # "Documentos legales" SOLO el slot que le aplica ("Título de
+    # concesión" si es titular, "Contrato de explotación" si no) en vez de
+    # los dos, que confundía (julio 2026).
+    es_titular_concesion: Optional[bool] = None
 
 
 class ProyectoPublicoOut(BaseModel):
@@ -600,6 +608,7 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     acceso_agua: Optional[str] = None
     acceso_energia: Optional[str] = None
     tipo_apoyo: Optional[str] = None
+    moneda_capital: Optional[str] = None
     monto_requerido: Optional[str] = None
     plazo_capital: Optional[str] = None
     uso_fondos_diagnostico: Optional[str] = None
@@ -910,6 +919,7 @@ class LeadConDiagnostico(BaseModel):
     acceso_energia: Optional[str] = None
     conflictividad_social: Optional[str] = None
     estructura_propiedad: Optional[str] = None
+    moneda_capital: Optional[str] = None
     monto_requerido: Optional[str] = None
     plazo_capital: Optional[str] = None
     motivo_capital: Optional[str] = None

@@ -274,6 +274,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         acceso_agua=operacion.acceso_agua,
         acceso_energia=operacion.acceso_energia,
         tipo_apoyo=operacion.tipo_apoyo,
+        moneda_capital=operacion.moneda_capital,
         monto_requerido=operacion.monto_requerido,
         plazo_capital=operacion.plazo_capital,
         uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,

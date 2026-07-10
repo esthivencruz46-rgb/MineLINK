@@ -121,6 +121,55 @@ export const OPCIONES_UNIDAD_LEY: OpcionPerfil[] = [
   { valor: "ppm", etiqueta: "ppm" },
 ];
 
+// "¿En qué moneda calculas ese capital?" — antes "monto_requerido" solo
+// tenía opciones en soles; ahora Cuestionario.tsx cambia dinámicamente sus
+// opciones según esta respuesta (ver construirPerfilVisible). Si elige "no
+// sé", monto_requerido ni se pregunta — significa que necesita asesoría, y
+// el selector de moneda queda ABIERTO (no fijo) en /mi-cuenta.
+export const OPCIONES_MONEDA_CAPITAL: OpcionPerfil[] = [
+  { valor: "soles", etiqueta: "Soles (S/.)" },
+  { valor: "dolares", etiqueta: "Dólares (USD)" },
+  { valor: "no_se", etiqueta: "Aún no sé — necesito asesoría" },
+];
+
+/** Buckets de "¿Monto aproximado que necesitas?" por ruta y moneda —
+ * Cuestionario.tsx elige la tabla correcta según OPCIONES_MONEDA_CAPITAL. */
+export const OPCIONES_MONTO_REQUERIDO_RUTA1: Record<"soles" | "dolares", OpcionPerfil[]> = {
+  soles: [
+    { valor: "< S/. 50,000", etiqueta: "Menos de S/. 50,000" },
+    { valor: "S/. 50,000 - 200,000", etiqueta: "S/. 50,000 - 200,000" },
+    { valor: "S/. 200,000 - 1,000,000", etiqueta: "S/. 200,000 - 1,000,000" },
+    { valor: "S/. 1,000,000 - 5,000,000", etiqueta: "S/. 1,000,000 - 5,000,000" },
+    { valor: "S/. 5,000,000+", etiqueta: "Más de S/. 5,000,000" },
+  ],
+  dolares: [
+    { valor: "< USD 15,000", etiqueta: "Menos de USD 15,000" },
+    { valor: "USD 15,000 - 55,000", etiqueta: "USD 15,000 - 55,000" },
+    { valor: "USD 55,000 - 270,000", etiqueta: "USD 55,000 - 270,000" },
+    { valor: "USD 270,000 - 1,350,000", etiqueta: "USD 270,000 - 1,350,000" },
+    { valor: "USD 1,350,000+", etiqueta: "Más de USD 1,350,000" },
+  ],
+};
+
+export const OPCIONES_MONTO_REQUERIDO_RUTA2: Record<"soles" | "dolares", OpcionPerfil[]> = {
+  soles: [
+    { valor: "S/. 100,000 - 500,000", etiqueta: "S/. 100,000 - 500,000" },
+    { valor: "S/. 500,000 - 2,000,000", etiqueta: "S/. 500,000 - 2,000,000" },
+    { valor: "S/. 2,000,000 - 10,000,000", etiqueta: "S/. 2,000,000 - 10,000,000" },
+    { valor: "S/. 10,000,000 - 50,000,000", etiqueta: "S/. 10,000,000 - 50,000,000" },
+    { valor: "S/. 50,000,000 - 200,000,000", etiqueta: "S/. 50,000,000 - 200,000,000" },
+    { valor: "S/. 200,000,000+", etiqueta: "Más de S/. 200,000,000" },
+  ],
+  dolares: [
+    { valor: "USD 25,000 - 130,000", etiqueta: "USD 25,000 - 130,000" },
+    { valor: "USD 130,000 - 530,000", etiqueta: "USD 130,000 - 530,000" },
+    { valor: "USD 530,000 - 2,700,000", etiqueta: "USD 530,000 - 2,700,000" },
+    { valor: "USD 2,700,000 - 13,000,000", etiqueta: "USD 2,700,000 - 13,000,000" },
+    { valor: "USD 13,000,000 - 53,000,000", etiqueta: "USD 13,000,000 - 53,000,000" },
+    { valor: "USD 53,000,000+", etiqueta: "Más de USD 53,000,000" },
+  ],
+};
+
 export const OPCIONES_UNIDAD_PRODUCCION: OpcionPerfil[] = [
   { valor: "toneladas de mineral", etiqueta: "Toneladas de mineral" },
   { valor: "toneladas de concentrado", etiqueta: "Toneladas de concentrado" },
@@ -351,16 +400,19 @@ export const PERFIL_ARTESANAL: PreguntaPerfil[] = [
     opciones: OPCIONES_TIPO_APOYO,
   },
   {
+    campo: "moneda_capital",
+    texto: "¿En qué moneda calculas ese capital?",
+    tipo: "opciones",
+    opciones: OPCIONES_MONEDA_CAPITAL,
+  },
+  {
+    // Opciones por defecto en soles; Cuestionario.tsx las reemplaza por
+    // OPCIONES_MONTO_REQUERIDO_RUTA1.dolares si eligió "dolares", y oculta
+    // esta pregunta por completo si eligió "no_se" (ver construirPerfilVisible).
     campo: "monto_requerido",
     texto: "¿Monto aproximado que necesitas?",
     tipo: "opciones",
-    opciones: [
-      { valor: "< S/. 50,000", etiqueta: "Menos de S/. 50,000" },
-      { valor: "S/. 50,000 - 200,000", etiqueta: "S/. 50,000 - 200,000" },
-      { valor: "S/. 200,000 - 1,000,000", etiqueta: "S/. 200,000 - 1,000,000" },
-      { valor: "S/. 1,000,000 - 5,000,000", etiqueta: "S/. 1,000,000 - 5,000,000" },
-      { valor: "S/. 5,000,000+", etiqueta: "Más de S/. 5,000,000" },
-    ],
+    opciones: OPCIONES_MONTO_REQUERIDO_RUTA1.soles,
   },
   {
     campo: "plazo_capital",
@@ -643,18 +695,19 @@ export const PERFIL_CONCESIONARIO: PreguntaPerfil[] = [
     ],
   },
   {
+    campo: "moneda_capital",
+    texto: "¿En qué moneda calculas ese capital?",
+    tipo: "opciones",
+    opciones: OPCIONES_MONEDA_CAPITAL,
+  },
+  {
+    // Opciones por defecto en soles; Cuestionario.tsx las reemplaza por
+    // OPCIONES_MONTO_REQUERIDO_RUTA2.dolares si eligió "dolares", y oculta
+    // esta pregunta por completo si eligió "no_se" (ver construirPerfilVisible).
     campo: "monto_requerido",
     texto: "¿Cuánto capital estimas necesario para iniciar operación?",
     tipo: "opciones",
-    opciones: [
-      { valor: "S/. 100,000 - 500,000", etiqueta: "S/. 100,000 - 500,000" },
-      { valor: "S/. 500,000 - 2,000,000", etiqueta: "S/. 500,000 - 2,000,000" },
-      { valor: "S/. 2,000,000 - 10,000,000", etiqueta: "S/. 2,000,000 - 10,000,000" },
-      { valor: "S/. 10,000,000 - 50,000,000", etiqueta: "S/. 10,000,000 - 50,000,000" },
-      { valor: "S/. 50,000,000 - 200,000,000", etiqueta: "S/. 50,000,000 - 200,000,000" },
-      { valor: "S/. 200,000,000+", etiqueta: "Más de S/. 200,000,000" },
-      { valor: "No sé", etiqueta: "No sé" },
-    ],
+    opciones: OPCIONES_MONTO_REQUERIDO_RUTA2.soles,
   },
   {
     campo: "capital_disponible",

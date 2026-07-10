@@ -451,3 +451,30 @@ fotografiar. Se muestran junto a "Fotos de la mina" bajo el título "Fotos
 de tu operación" en `DocumentosMinero.tsx` (no como slots del catálogo de
 estudios), y no tienen equivalencia con otra categoría — son siempre
 nuevas.
+
+## Titularidad: un solo documento legal, no dos (julio 2026)
+
+"Documentos legales" mostraba SIEMPRE "Título de concesión" Y "Contrato
+de explotación" juntos, aunque solo uno le aplica a cada minero (son
+mutuamente excluyentes: o es titular, o trabaja la concesión de otro).
+`routers/mineros.py` `_es_titular_concesion(operacion)` resuelve si L2
+(titularidad_concesion) está o no pendiente y expone
+`MineroPerfilOut.es_titular_concesion` — `DocumentosMinero.tsx` usa ese
+dato para mostrar SOLO el documento que corresponde.
+
+## Moneda del capital buscado (julio 2026)
+
+`monto_requerido` ahora se pregunta junto con una nueva pregunta previa,
+`moneda_capital` (Soles / Dólares / "Aún no sé — necesito asesoría"):
+- Si elige una moneda, las opciones de `monto_requerido` cambian a esa
+  moneda (`preguntasPerfil.OPCIONES_MONTO_REQUERIDO_RUTA1/2`,
+  `dolares`/`soles`) — ver `construirPerfilVisible` en `Cuestionario.tsx`.
+- Si elige "no sé", `monto_requerido` ni se pregunta — se guarda como
+  "Aún no sabe — necesita asesoría" y el selector de moneda del campo
+  "¿Cuánto capital buscas?" en `/mi-cuenta` (`CampoMonto`) queda ABIERTO
+  (puede elegir soles o dólares libremente al precisarlo más adelante).
+- Si eligió una moneda, ese mismo selector queda FIJO en esa moneda (no
+  puede declarar en dólares y pedir en soles, o viceversa) — ver
+  `PerfilInversionForm.monedaFijaDe` y `CampoMonto` prop `monedaFija`.
+
+`Operacion.moneda_capital` (nullable) guarda "soles" | "dolares" | "no_se".

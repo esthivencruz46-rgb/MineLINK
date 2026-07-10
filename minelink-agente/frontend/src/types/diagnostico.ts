@@ -81,6 +81,7 @@ export interface DiagnosticoRequest {
   acceso_energia?: string;
   conflictividad_social?: string;
   estructura_propiedad?: string;
+  moneda_capital?: string;
   monto_requerido?: string;
   plazo_capital?: string;
   motivo_capital?: string;

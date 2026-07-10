@@ -119,6 +119,7 @@ def listar_leads(
             acceso_energia=operacion.acceso_energia,
             conflictividad_social=operacion.conflictividad_social,
             estructura_propiedad=operacion.estructura_propiedad,
+            moneda_capital=operacion.moneda_capital,
             monto_requerido=operacion.monto_requerido,
             plazo_capital=operacion.plazo_capital,
             motivo_capital=operacion.motivo_capital,

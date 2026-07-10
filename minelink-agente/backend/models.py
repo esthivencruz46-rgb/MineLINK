@@ -102,6 +102,10 @@ class Operacion(Base):
     acceso_energia = Column(String, nullable=True)
     conflictividad_social = Column(String, nullable=True)  # prellena R1 (Ruta 2)
     estructura_propiedad = Column(String, nullable=True)
+    # "soles" | "dolares" | "no_se" — fija la moneda del bucket de abajo y
+    # bloquea el selector de moneda en /mi-cuenta (PerfilInversionForm) para
+    # que no declare en una moneda y luego pida en otra.
+    moneda_capital = Column(String, nullable=True)
     monto_requerido = Column(String, nullable=True)  # bucket, copiado a Lead.capital_buscado al registrarse
     plazo_capital = Column(String, nullable=True)
     motivo_capital = Column(String, nullable=True)

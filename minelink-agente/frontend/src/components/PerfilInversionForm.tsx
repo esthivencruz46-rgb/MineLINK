@@ -10,6 +10,16 @@ function etiquetaTipoApoyo(valor: string): string {
   return OPCIONES_TIPO_APOYO.find((o) => o.valor === valor)?.etiqueta ?? valor;
 }
 
+/** Si ya declaró la moneda en el diagnóstico, se fija acá — no puede
+ * declarar en dólares y luego pedir en soles (o viceversa). Si dijo "aún
+ * no sé" (o es un diagnóstico viejo sin este dato), queda sin fijar y el
+ * selector de moneda se muestra abierto. */
+function monedaFijaDe(perfil: MineroPerfil): "S/" | "USD" | undefined {
+  if (perfil.moneda_capital === "soles") return "S/";
+  if (perfil.moneda_capital === "dolares") return "USD";
+  return undefined;
+}
+
 interface Props {
   perfil: MineroPerfil;
   onGuardado: (perfil: MineroPerfil) => void;
@@ -149,13 +159,22 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
               {etiqueta}
               {obligatorio && <span className="ml-1 text-red-500">*</span>}
             </label>
-            {campo === "capital_buscado" && perfil.monto_requerido && (
+            {campo === "capital_buscado" && perfil.moneda_capital === "no_se" && (
               <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                Recordatorio: en tu diagnóstico marcaste{" "}
-                <span className="font-medium">{perfil.monto_requerido}</span>. Aquí
-                puedes precisar el monto exacto.
+                En tu diagnóstico dijiste que aún no sabes cuánto capital
+                necesitas — puedes dejarlo así, o precisar un monto en
+                soles o dólares cuando lo tengas más claro.
               </p>
             )}
+            {campo === "capital_buscado" &&
+              perfil.monto_requerido &&
+              perfil.moneda_capital !== "no_se" && (
+                <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                  Recordatorio: en tu diagnóstico marcaste{" "}
+                  <span className="font-medium">{perfil.monto_requerido}</span>. Aquí
+                  puedes precisar el monto exacto.
+                </p>
+              )}
             {campo === "uso_fondos" && (perfil.tipo_apoyo || perfil.motivo_capital) && (
               <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                 Recordatorio: en tu diagnóstico marcaste{" "}
@@ -175,6 +194,7 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
               <CampoMonto
                 value={valores[campo]}
                 onChange={(v) => setValores({ ...valores, [campo]: v })}
+                monedaFija={monedaFijaDe(perfil)}
               />
             ) : campo === "uso_fondos" ? (
               <CampoUsoFondos

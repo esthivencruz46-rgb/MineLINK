@@ -1898,6 +1898,70 @@ def test_mineros_fotos_perfil_no_aplican_a_concesionario():
     assert resp.json()["fotos_perfil"] == []
 
 
+def test_mineros_me_expone_es_titular_concesion():
+    # RESPUESTAS_COMPLETAS responde Sí a L2 ("¿Es titular de la concesión?")
+    # — en "Documentos legales" solo debe pedirse "Título de concesión",
+    # no también "Contrato de explotación" (no le aplica).
+    token = _token_minero(username="mineroTitular")
+    resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200
+    assert resp.json()["es_titular_concesion"] is True
+
+    # Un minero que responde No a L2 (no es titular) debe salir False.
+    respuestas_no_titular = {**RESPUESTAS_COMPLETAS, "L2": False}
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_no_titular,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(
+            diag["id"],
+            username="mineroNoTitular",
+            nombre_operacion="Mina B",
+            whatsapp="+51987000111",
+        ),
+    )
+    token2 = client.post(
+        "/mineros/login", json={"username": "mineroNoTitular", "password": "clave123"}
+    ).json()["access_token"]
+    resp2 = client.get("/mineros/me", headers={"Authorization": f"Bearer {token2}"})
+    assert resp2.json()["es_titular_concesion"] is False
+
+
+def test_diagnostico_guarda_y_expone_moneda_capital():
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "moneda_capital": "dolares",
+            "monto_requerido": "USD 55,000 - 270,000",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="mineromoneda", nombre_operacion="Mina Moneda"),
+    )
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["moneda_capital"] == "dolares"
+    assert detalle["monto_requerido"] == "USD 55,000 - 270,000"
+
+    token = client.post(
+        "/mineros/login", json={"username": "mineromoneda", "password": "clave123"}
+    ).json()["access_token"]
+    perfil = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert perfil["moneda_capital"] == "dolares"
+
+
 def test_diagnostico_guarda_y_expone_especie_mineral():
     # No basta con saber que el minero extrae cobre: puede ser calcopirita,
     # malaquita, etc. — se declara por elemento en el perfil (Fase 1) y se

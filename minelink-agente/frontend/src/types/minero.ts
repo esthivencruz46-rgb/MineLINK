@@ -71,6 +71,7 @@ export interface MineroPerfil {
   acceso_energia?: string | null;
   conflictividad_social?: string | null;
   estructura_propiedad?: string | null;
+  moneda_capital?: string | null;
   monto_requerido?: string | null;
   plazo_capital?: string | null;
   motivo_capital?: string | null;
@@ -78,6 +79,7 @@ export interface MineroPerfil {
   uso_fondos_diagnostico?: string | null;
   estudios_aplicables: string[];
   fotos_perfil: { categoria: string; etiqueta: string }[];
+  es_titular_concesion?: boolean | null;
 }
 
 export interface PerfilInversionRequest {

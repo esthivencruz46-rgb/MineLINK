@@ -21,12 +21,18 @@ interface Props {
    * el backend (incluye lo que el minero declaró, ej. "Foto del mineral
    * que extraes (Cobre)"). */
   fotosPerfilAplicables?: { categoria: string; etiqueta: string }[];
+  /** True si es titular de la concesión, False si no, undefined si no se
+   * pudo determinar. Solo se muestra el documento legal que le aplica:
+   * "Título de concesión" si es titular, "Contrato de explotación" si no
+   * — mostrar ambos confundía (julio 2026). */
+  esTitularConcesion?: boolean | null;
 }
 
 export function DocumentosMinero({
   onDocumentosChange,
   estudiosAplicables,
   fotosPerfilAplicables,
+  esTitularConcesion,
 }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
@@ -160,7 +166,14 @@ export function DocumentosMinero({
     ...CATEGORIAS_DOCUMENTO.filter((c) => c.categoria === "fotos_mina"),
     ...categoriasFotoPerfil,
   ];
-  const categoriasLegales = CATEGORIAS_DOCUMENTO.filter((c) => c.categoria !== "fotos_mina");
+  const categoriasLegales = CATEGORIAS_DOCUMENTO.filter((c) => {
+    if (c.categoria === "fotos_mina") return false;
+    // Solo se le pide el documento que le aplica según si es titular o
+    // no — pedirle los dos confunde (uno de ellos nunca le va a servir).
+    if (esTitularConcesion === true && c.categoria === "contrato_explotacion") return false;
+    if (esTitularConcesion === false && c.categoria === "titulo_concesion") return false;
+    return true;
+  });
 
   function bloqueCategoria(cat: CategoriaInfo) {
     const archivos = documentos.filter((d) => d.categoria === cat.categoria);
