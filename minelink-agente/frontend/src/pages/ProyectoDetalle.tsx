@@ -5,7 +5,7 @@ import {
   BadgeCheck,
   Check,
   ChevronLeft,
-  FileText,
+  ImageIcon,
   Map,
   MapPin,
   Minus,
@@ -21,20 +21,11 @@ import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import {
   COLOR_DIMENSION_INVERSION,
-  ETIQUETAS_DOCUMENTO_LEGAL,
   NOMBRES_DIMENSION_INVERSION,
   ORDEN_DIMENSION_INVERSION,
 } from "../types/proyecto";
-import type { ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
+import type { FotoPublica, ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
 import type { NombreDimension } from "../types/diagnostico";
-
-const NO_ESPECIFICADO = "No especificado";
-
-function colorRiesgo(porcentaje: number): { texto: string; etiqueta: string } {
-  if (porcentaje >= 80) return { texto: "text-emerald-500", etiqueta: "Riesgo bajo" };
-  if (porcentaje >= 50) return { texto: "text-amber-500", etiqueta: "Riesgo medio" };
-  return { texto: "text-red-500", etiqueta: "Riesgo alto" };
-}
 
 export function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>();
@@ -47,7 +38,7 @@ export function ProyectoDetalle() {
   async function compartir() {
     if (!proyecto) return;
     const url = window.location.href;
-    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region}) — MineScore ${proyecto.score_actual}/100`;
+    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region}) — Score de inversión ${proyecto.score_inversion}/100`;
     // En celular abre el menú nativo de compartir (WhatsApp, etc.);
     // en PC copia el enlace al portapapeles.
     if (navigator.share) {
@@ -102,34 +93,34 @@ export function ProyectoDetalle() {
   // muestran check ✓ en la ficha pública.
   const verificadas = new Set(proyecto.brechas_verificadas);
 
-  const estudiosDe = (dim: NombreDimension) =>
-    Object.keys(INFO_BRECHA).filter((e) => DIMENSION_POR_ESTUDIO[e] === dim);
-
-  const estudiosTecnicos = estudiosDe("tecnico");
-
-  // Solo se muestra el documento legal que le aplica según si es titular o
-  // no de la concesión — mostrar los dos confundía (mismo criterio que en
+  // Solo se muestra "Contrato de explotación" cuando NO es titular — si ya
+  // es titular, el título de concesión ya cubre eso (mismo criterio que en
   // su propia cuenta, ver DocumentosMinero.tsx).
-  const documentosLegalesAplicables = Object.entries(ETIQUETAS_DOCUMENTO_LEGAL).filter(
-    ([categoria]) => {
-      if (proyecto.es_titular_concesion === true && categoria === "contrato_explotacion") return false;
-      if (proyecto.es_titular_concesion === false && categoria === "titulo_concesion") return false;
-      return true;
-    }
-  );
+  const estudiosDe = (dim: NombreDimension) =>
+    Object.keys(INFO_BRECHA).filter(
+      (e) =>
+        DIMENSION_POR_ESTUDIO[e] === dim &&
+        !(proyecto.es_titular_concesion === true && e === "contrato_explotacion")
+    );
 
+  // Un solo checklist cubre TODO el diagnóstico de formalización (antes
+  // "Estado de Formalización" solo mostraba legal/ambiental/seguridad/
+  // social y dejaba técnico y operativo en una tarjeta aparte con las
+  // mismas fotos repetidas — julio 2026: se unificó en un solo lugar, cada
+  // ítem con su propia miniatura, sin recuadros redundantes).
   const BLOQUES_FORMALIZACION: { dim: NombreDimension; conReinfo?: boolean }[] = [
     { dim: "legal", conReinfo: true },
     { dim: "ambiental" },
+    { dim: "tecnico" },
     { dim: "seguridad" },
     { dim: "social" },
+    { dim: "operativo" },
   ];
 
-  // Resumen ejecutivo: foco en el score y la oportunidad de inversión.
-  // Los datos operativos (mineral, ubicación, producción) ya están en
-  // "Información General" — no se repiten aquí para no duplicar texto.
+  // Resumen ejecutivo: foco en el score y la oportunidad de inversión, con
+  // los puntos a favor como chips cortos en vez de una lista/tarjeta aparte.
   const partesResumen: string[] = [
-    `${proyecto.nombre_proyecto} tiene un MineScore de ${proyecto.score_actual}/100 (${semaforo.etiqueta}).`,
+    `${proyecto.nombre_proyecto} tiene un Score de Atractivo de Inversión de ${proyecto.score_inversion}/100 (${semaforoInversion.etiqueta}).`,
   ];
   if (proyecto.brechas_pendientes.length === 0) {
     partesResumen.push("Completó todos los requisitos del diagnóstico de formalización.");
@@ -148,6 +139,17 @@ export function ProyectoDetalle() {
     );
   }
 
+  const puntosAFavor: string[] = [];
+  if (!proyecto.bloqueado_actual) puntosAFavor.push("REINFO vigente");
+  if (dims?.legal && dims.legal.puntaje / dims.legal.maximo >= 0.8) puntosAFavor.push("Alto avance legal");
+  if (dims?.ambiental && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8) {
+    puntosAFavor.push("Buen desempeño ambiental");
+  }
+  if (proyecto.brechas_resueltas.length > 0) {
+    puntosAFavor.push(`${proyecto.brechas_resueltas.length} estudio(s) resuelto(s)`);
+  }
+  if (proyecto.capital_buscado) puntosAFavor.push("Busca capital activamente");
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
       <Link to="/proyectos" className="inline-flex items-center gap-1 text-sm font-semibold text-acento underline">
@@ -163,6 +165,9 @@ export function ProyectoDetalle() {
         </span>
         <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
           {semaforo.etiqueta}
+        </span>
+        <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+          {proyecto.tipo_mina === "subterranea" ? "Subterránea" : "Tajo abierto"}
         </span>
         {destacado && (
           <span className="inline-flex items-center gap-1 rounded-full bg-secundario/15 px-3 py-1 text-xs font-semibold text-secundario">
@@ -220,68 +225,92 @@ export function ProyectoDetalle() {
 
       {/* LAYOUT 2 COLUMNAS */}
       <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[7fr_3fr]">
-        {/* CONTENIDO PRINCIPAL */}
+        {/* CONTENIDO PRINCIPAL — ordenado igual que las barras del panel
+            lateral: Formalización primero, luego las 5 dimensiones del
+            Score de Atractivo de Inversión, para que el orden de lectura
+            coincida con el orden del puntaje. */}
         <div className="flex flex-col gap-6">
-          {/* INFORMACIÓN GENERAL */}
-          <Card>
-            <h2 className="text-lg font-semibold">Información General</h2>
-            <p className="mt-2">
-              {proyecto.descripcion_generada ?? proyecto.descripcion_operacion ?? (
-                <span className="text-texto-suave dark:text-texto-suave-dark">
-                  Aún no se agregó una descripción.
-                </span>
-              )}
-            </p>
-            {proyecto.descripcion_generada && proyecto.descripcion_operacion && (
-              <p className="mt-3 border-l-2 border-acento/40 pl-3 text-sm italic text-texto-suave dark:text-texto-suave-dark">
-                "{proyecto.descripcion_operacion}" — descripción del minero
-              </p>
-            )}
-
-            <div className="mt-5 grid grid-cols-2 gap-5 md:grid-cols-4">
-              <Campo etiqueta="Mineral principal" valor={cap(proyecto.mineral)} />
-              <Campo etiqueta="Etapa" valor={semaforo.etiqueta} />
-              <Campo
-                etiqueta="Tipo de mina"
-                valor={proyecto.tipo_mina === "subterranea" ? "Subterránea" : "Tajo abierto"}
-              />
-              <Campo
-                etiqueta="Producción / reservas"
-                valor={proyecto.capacidad_produccion ?? NO_ESPECIFICADO}
-              />
-            </div>
-          </Card>
-
           {/* RESUMEN EJECUTIVO */}
           <Card acento>
             <h2 className="text-lg font-semibold">Resumen Ejecutivo</h2>
             <p className="mt-2">{partesResumen.join(" ")}</p>
+            {puntosAFavor.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {puntosAFavor.map((texto) => (
+                  <span
+                    key={texto}
+                    className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+                  >
+                    <Check size={12} strokeWidth={2.5} aria-hidden />
+                    {texto}
+                  </span>
+                ))}
+              </div>
+            )}
           </Card>
 
-          {/* ESTADO DE FORMALIZACIÓN */}
+          {/* FORMALIZACIÓN — un solo checklist con la foto de respaldo de
+              cada ítem, sin tarjetas repetidas para lo mismo. */}
           <Card>
-            <h2 className="text-lg font-semibold">Estado de Formalización</h2>
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold">Formalización</h2>
+              <span className="text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
+                {proyecto.score_actual}/100
+              </span>
+            </div>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              El diagnóstico es autodeclarado por el titular. Un ✓ solo
-              aparece cuando además subió una foto de respaldo verificable
-              — sin foto, el trámite queda como pendiente aunque haya
-              declarado que sí.
+              Autodeclarado por el titular — un ✓ solo cuenta cuando además
+              hay una foto de respaldo verificable, sin foto queda como
+              pendiente aunque haya declarado que sí.
             </p>
             <div className="mt-4 flex flex-col gap-5">
               {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
                 const estudios = estudiosDe(dim);
                 if (estudios.length === 0 && !conReinfo) return null;
+                const info = dims?.[dim];
+                const porcentaje =
+                  info && info.maximo > 0 ? Math.round((info.puntaje / info.maximo) * 100) : null;
                 return (
                   <div key={dim}>
-                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-                      {NOMBRES_DIMENSION[dim]}
-                    </h3>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                        {NOMBRES_DIMENSION[dim]}
+                      </h3>
+                      {porcentaje !== null && (
+                        <span className="text-xs font-semibold text-texto-suave dark:text-texto-suave-dark">
+                          {porcentaje}%
+                        </span>
+                      )}
+                    </div>
                     <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                      {conReinfo && <ItemChecklist etiqueta="REINFO vigente" completo />}
+                      {conReinfo && (
+                        <li className="flex items-center gap-2.5 text-sm">
+                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
+                            <BadgeCheck
+                              size={14}
+                              strokeWidth={1.75}
+                              className="text-texto-suave dark:text-texto-suave-dark"
+                              aria-hidden
+                            />
+                          </span>
+                          <span className="flex-1">REINFO vigente</span>
+                          {!proyecto.bloqueado_actual ? (
+                            <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
+                          ) : (
+                            <Minus
+                              size={15}
+                              strokeWidth={2.5}
+                              className="shrink-0 text-texto-suave dark:text-texto-suave-dark"
+                              aria-hidden
+                            />
+                          )}
+                        </li>
+                      )}
                       {estudios.map((estudio) => (
-                        <ItemChecklist
+                        <ItemChecklistFoto
                           key={estudio}
                           etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
+                          foto={proyecto.documentos_estudios[estudio]?.[0]}
                           completo={verificadas.has(estudio)}
                         />
                       ))}
@@ -292,208 +321,13 @@ export function ProyectoDetalle() {
             </div>
           </Card>
 
-          {/* PERFIL DEL PROYECTO */}
-          <Card>
-            <h2 className="text-lg font-semibold">Perfil del proyecto</h2>
-            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              Respuestas declaradas por el titular en su diagnóstico — la
-              base del Score de Atractivo de Inversión de arriba.
-            </p>
-            <div className="mt-4">
-              <PerfilInformativoAgrupado datos={proyecto as unknown as Record<string, unknown>} />
-            </div>
-          </Card>
-
-          {/* INFORMACIÓN FINANCIERA */}
-          <Card>
-            <h2 className="text-lg font-semibold">Información Financiera</h2>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-black/10 text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-                    <th className="py-2 font-medium">Indicador</th>
-                    <th className="py-2 font-medium">Valor</th>
-                    <th className="py-2 font-medium">Notas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <FilaFinanciera
-                    indicador="Capital buscado"
-                    valor={proyecto.capital_buscado}
-                    notas={proyecto.uso_fondos}
-                  />
-                  <FilaFinanciera indicador="Producción mensual" valor={proyecto.capacidad_produccion} />
-                  <FilaFinanciera
-                    indicador="CAPEX"
-                    valor={null}
-                    ayuda="Inversión inicial para poner en marcha el proyecto (equipos, construcción, permisos)."
-                  />
-                  <FilaFinanciera
-                    indicador="OPEX"
-                    valor={null}
-                    ayuda="Gasto mensual para operar (insumos, combustible, planilla, mantenimiento)."
-                  />
-                  <FilaFinanciera
-                    indicador="VPN"
-                    valor={null}
-                    ayuda="Valor Neto Presente: cuánto valor generaría el proyecto hoy, descontando los flujos futuros esperados."
-                  />
-                  <FilaFinanciera
-                    indicador="TIR"
-                    valor={null}
-                    ayuda="Tasa Interna de Retorno: el % de rentabilidad anual estimado de la inversión."
-                  />
-                  <FilaFinanciera
-                    indicador="Payback"
-                    valor={null}
-                    ayuda="Tiempo estimado para recuperar la inversión inicial."
-                  />
-                </tbody>
-              </table>
-            </div>
-          </Card>
-
-          {/* DOCUMENTACIÓN TÉCNICA */}
-          <Card>
-            <h2 className="text-lg font-semibold">Documentación Técnica</h2>
-            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              "Disponible" requiere foto de respaldo subida, no solo la
-              respuesta del diagnóstico.
-            </p>
-            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-              {estudiosTecnicos.map((estudio) => {
-                const disponible = verificadas.has(estudio);
-                const fotos = proyecto.documentos_estudios[estudio] ?? [];
-                return (
-                  <div
-                    key={estudio}
-                    className="flex items-center gap-3 rounded-lg border border-black/10 px-4 py-3 dark:border-white/10"
-                  >
-                    {fotos[0] ? (
-                      <a
-                        href={`${BASE_URL}${fotos[0].url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="block h-9 w-9 shrink-0 overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
-                      >
-                        <img
-                          src={`${BASE_URL}${fotos[0].url}`}
-                          alt={INFO_BRECHA[estudio]?.texto ?? estudio}
-                          className="h-full w-full object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/5 text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
-                        <FileText size={17} strokeWidth={1.75} aria-hidden />
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
-                        {INFO_BRECHA[estudio]?.texto ?? estudio}
-                      </p>
-                      <p
-                        className={`text-xs ${
-                          disponible
-                            ? "text-emerald-500"
-                            : "text-texto-suave dark:text-texto-suave-dark"
-                        }`}
-                      >
-                        {disponible ? "Disponible" : "Pendiente"}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {documentosLegalesAplicables.length > 0 && (
-              <>
-                <h3 className="mt-5 text-sm font-semibold">Documentos legales presentados</h3>
-                <div className="mt-2 flex flex-col gap-3">
-                  {documentosLegalesAplicables.map(([categoria, etiqueta]) => {
-                    const fotos = proyecto.documentos_legales[categoria] ?? [];
-                    return (
-                      <div key={categoria}>
-                        <ItemChecklist etiqueta={etiqueta} completo={fotos.length > 0} />
-                        {fotos.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {fotos.map((foto) => (
-                              <a
-                                key={foto.id}
-                                href={`${BASE_URL}${foto.url}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="block h-20 w-20 overflow-hidden rounded-lg border border-black/10 dark:border-white/10"
-                              >
-                                <img
-                                  src={`${BASE_URL}${foto.url}`}
-                                  alt={etiqueta}
-                                  className="h-full w-full object-cover"
-                                />
-                              </a>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-          </Card>
-
-          {/* FACTORES DE RIESGO */}
-          {dims && (
-            <Card>
-              <h2 className="text-lg font-semibold">Factores de Riesgo</h2>
-              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
-                {dims.legal && <FactorRiesgo etiqueta="Riesgo legal" dimension={dims.legal} />}
-                {dims.ambiental && (
-                  <FactorRiesgo etiqueta="Riesgo ambiental" dimension={dims.ambiental} />
-                )}
-                {(dims.operativo || dims.tecnico) && (
-                  <FactorRiesgo
-                    etiqueta="Riesgo operacional"
-                    dimension={{
-                      puntaje: (dims.operativo?.puntaje ?? 0) + (dims.tecnico?.puntaje ?? 0),
-                      maximo: (dims.operativo?.maximo ?? 0) + (dims.tecnico?.maximo ?? 0),
-                    }}
-                  />
-                )}
-                {dims.social && <FactorRiesgo etiqueta="Riesgo social" dimension={dims.social} />}
-                <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
-                  <p className="text-sm font-medium">Riesgo financiero</p>
-                  <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-                    {proyecto.capital_buscado ? "Información parcial disponible" : "No evaluado"}
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )}
-
-          {/* OPORTUNIDADES */}
-          <Card>
-            <h2 className="text-lg font-semibold">Oportunidades</h2>
-            <ul className="mt-3 flex flex-col gap-2 text-sm">
-              {!proyecto.bloqueado_actual && (
-                <ItemOportunidad texto="REINFO vigente — habilitado para operar formalmente." />
-              )}
-              {dims?.legal && dims.legal.puntaje / dims.legal.maximo >= 0.8 && (
-                <ItemOportunidad texto="Alto avance en formalización legal." />
-              )}
-              {dims?.ambiental && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8 && (
-                <ItemOportunidad texto="Buen desempeño en gestión ambiental." />
-              )}
-              {proyecto.brechas_resueltas.length > 0 && (
-                <ItemOportunidad
-                  texto={`${proyecto.brechas_resueltas.length} estudio(s) resuelto(s) desde el diagnóstico inicial.`}
-                />
-              )}
-              {proyecto.capital_buscado && (
-                <ItemOportunidad texto="Busca activamente capital para crecer." />
-              )}
-            </ul>
-          </Card>
+          {/* ESCALA ECONÓMICA · VIABILIDAD TÉCNICA · RIESGO AMBIENTAL/
+              SOCIAL · CAPACIDAD DEL EQUIPO · CLARIDAD DE OPORTUNIDAD —
+              una tarjeta por dimensión, mismo orden que el panel lateral. */}
+          <PerfilInformativoAgrupado
+            datos={proyecto as unknown as Record<string, unknown>}
+            dimensiones={proyecto.dimensiones_inversion}
+          />
 
           {/* MAPA */}
           <Card>
@@ -531,18 +365,6 @@ export function ProyectoDetalle() {
                 El titular aún no registró la ubicación de su operación
               </div>
             )}
-          </Card>
-
-          {/* CRONOLOGÍA */}
-          <Card>
-            <h2 className="text-lg font-semibold">Cronología</h2>
-            <div className="mt-4 flex flex-col gap-4 border-l-2 border-black/10 pl-4 dark:border-white/10">
-              <PuntoCronologia titulo="Registro en MineLink" fecha={proyecto.created_at} />
-              <PuntoCronologia
-                titulo="Diagnóstico de formalización completado"
-                fecha={proyecto.created_at}
-              />
-            </div>
           </Card>
         </div>
 
@@ -632,108 +454,48 @@ function Card({ children, acento }: { children: React.ReactNode; acento?: boolea
   );
 }
 
-function Campo({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div>
-      <p className="text-xs text-texto-suave dark:text-texto-suave-dark">{etiqueta}</p>
-      <p className="mt-0.5 text-lg font-bold">{valor}</p>
-    </div>
-  );
-}
-
-function FilaFinanciera({
-  indicador,
-  valor,
-  notas,
-  ayuda,
-}: {
-  indicador: string;
-  valor?: string | null;
-  notas?: string | null;
-  ayuda?: string;
-}) {
-  return (
-    <tr className="border-b border-black/5 dark:border-white/5">
-      <td className="py-3">
-        <span className="inline-flex items-center gap-1">
-          {ayuda && (
-            <span
-              title={ayuda}
-              className="inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full bg-black/10 text-[9px] font-semibold leading-none text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
-            >
-              ?
-            </span>
-          )}
-          {indicador}
-        </span>
-      </td>
-      <td
-        className={`py-3 font-medium ${
-          valor ? "" : "text-texto-suave dark:text-texto-suave-dark"
-        }`}
-      >
-        {valor ?? NO_ESPECIFICADO}
-      </td>
-      <td className="py-3 text-texto-suave dark:text-texto-suave-dark">{notas ?? "—"}</td>
-    </tr>
-  );
-}
-
-function ItemChecklist({ etiqueta, completo }: { etiqueta: string; completo: boolean }) {
-  return (
-    <li className="flex items-center gap-2 text-sm">
-      <span className={completo ? "text-emerald-500" : "text-texto-suave dark:text-texto-suave-dark"}>
-        {completo ? (
-          <Check size={16} strokeWidth={2.5} aria-hidden />
-        ) : (
-          <Minus size={16} strokeWidth={2.5} aria-hidden />
-        )}
-      </span>
-      <span className={completo ? "" : "text-texto-suave dark:text-texto-suave-dark"}>{etiqueta}</span>
-    </li>
-  );
-}
-
-function ItemOportunidad({ texto }: { texto: string }) {
-  return (
-    <li className="flex items-start gap-2">
-      <Check size={16} strokeWidth={2.5} className="mt-0.5 shrink-0 text-emerald-500" aria-hidden />
-      {texto}
-    </li>
-  );
-}
-
-function PuntoCronologia({ titulo, fecha }: { titulo: string; fecha: string }) {
-  return (
-    <div className="relative">
-      <span className="absolute -left-[21px] top-1 h-3 w-3 rounded-full bg-acento" />
-      <p className="text-sm font-medium">{titulo}</p>
-      <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-        {new Date(fecha).toLocaleDateString("es-PE", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        })}
-      </p>
-    </div>
-  );
-}
-
-function FactorRiesgo({
+/** Ítem de checklist con su propia miniatura de respaldo (o un icono si
+ * todavía no se subió foto) — reemplaza los recuadros aparte de
+ * "Documentación Técnica" y "Documentos legales presentados": la misma
+ * foto que verifica el ✓ se ve aquí mismo. */
+function ItemChecklistFoto({
   etiqueta,
-  dimension,
+  foto,
+  completo,
 }: {
   etiqueta: string;
-  dimension: { puntaje: number; maximo: number };
+  foto?: FotoPublica;
+  completo: boolean;
 }) {
-  const porcentaje = dimension.maximo > 0 ? Math.round((dimension.puntaje / dimension.maximo) * 100) : 0;
-  const { texto, etiqueta: nivel } = colorRiesgo(porcentaje);
   return (
-    <div className="rounded-lg border border-black/10 p-4 dark:border-white/10">
-      <p className="text-sm font-medium">{etiqueta}</p>
-      <p className={`mt-1 text-sm font-semibold ${texto}`}>
-        {nivel} ({porcentaje}%)
-      </p>
-    </div>
+    <li className="flex items-center gap-2.5 text-sm">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
+        {foto ? (
+          <a
+            href={`${BASE_URL}${foto.url}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block h-full w-full"
+          >
+            <img src={`${BASE_URL}${foto.url}`} alt={etiqueta} className="h-full w-full object-cover" />
+          </a>
+        ) : (
+          <ImageIcon
+            size={14}
+            strokeWidth={1.75}
+            className="text-texto-suave dark:text-texto-suave-dark"
+            aria-hidden
+          />
+        )}
+      </span>
+      <span className={`flex-1 ${completo ? "" : "text-texto-suave dark:text-texto-suave-dark"}`}>
+        {etiqueta}
+      </span>
+      {completo ? (
+        <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
+      ) : (
+        <Minus size={15} strokeWidth={2.5} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+      )}
+    </li>
   );
 }
