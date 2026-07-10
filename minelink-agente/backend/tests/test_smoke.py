@@ -801,6 +801,38 @@ def test_proyectos_filtra_por_mineral_y_region():
     assert resp.json()[0]["mineral"] == "oro"
 
 
+def test_proyectos_filtra_por_score_inversion_y_dimension_debil():
+    diag = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="filtroscore", nombre_operacion="Mina Filtro"),
+    )
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    score = detalle["score_inversion"]
+    dims = detalle["dimensiones_inversion"]
+
+    # score_min/score_max acotan por el score total.
+    resp = client.get(f"/proyectos?score_min={score}")
+    assert any(p["operacion_id"] == diag["id"] for p in resp.json())
+    resp = client.get(f"/proyectos?score_min={score + 1}")
+    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
+    resp = client.get(f"/proyectos?score_max={score - 1}")
+    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
+
+    # dimension_debil: solo lista proyectos por debajo del umbral (<50/100)
+    # en esa dimensión. _crear_diagnostico no manda perfil informativo, así
+    # que escala_economica queda baja (sin señales) — debe aparecer ahí.
+    assert dims["escala_economica"]["puntaje"] < 50
+    resp = client.get("/proyectos?dimension_debil=escala_economica")
+    assert any(p["operacion_id"] == diag["id"] for p in resp.json())
+
+    # formalizacion en cambio queda alta (RESPUESTAS_COMPLETAS responde Sí
+    # a casi todo), así que NO debe listarse como "débil" en esa dimensión.
+    assert dims["formalizacion"]["puntaje"] >= 50
+    resp = client.get("/proyectos?dimension_debil=formalizacion")
+    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
+
+
 def test_proyectos_minerales_distintos():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="mineraldistinto"))

@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MapPin, Pickaxe } from "lucide-react";
+import { ArrowRight, MapPin, Pickaxe, SlidersHorizontal } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { OPCIONES_ELEMENTO_VALOR } from "../data/preguntasPerfil";
 import { BASE_URL, obtenerProyectos } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
+import { NOMBRES_DIMENSION_INVERSION, ORDEN_DIMENSION_INVERSION } from "../types/proyecto";
 import type { ProyectoPublico } from "../types/proyecto";
 
 const ELEMENTOS = OPCIONES_ELEMENTO_VALOR.map((o) => cap(o.valor));
@@ -14,19 +15,29 @@ export function Proyectos() {
   const [proyectos, setProyectos] = useState<ProyectoPublico[]>([]);
   const [mineral, setMineral] = useState("");
   const [region, setRegion] = useState("");
+  const [scoreMin, setScoreMin] = useState(0);
+  const [dimensionDebil, setDimensionDebil] = useState("");
+  const [mostrarFiltros, setMostrarFiltros] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setCargando(true);
-    obtenerProyectos(mineral, region)
+    obtenerProyectos({
+      mineral,
+      region,
+      scoreMin: scoreMin > 0 ? scoreMin : undefined,
+      dimensionDebil: dimensionDebil || undefined,
+    })
       .then((data) => {
         setProyectos(data);
         setError(null);
       })
       .catch(() => setError("No pudimos cargar los proyectos."))
       .finally(() => setCargando(false));
-  }, [mineral, region]);
+  }, [mineral, region, scoreMin, dimensionDebil]);
+
+  const hayFiltrosAvanzados = scoreMin > 0 || dimensionDebil !== "";
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
@@ -49,7 +60,69 @@ export function Proyectos() {
           onChange={setRegion}
           placeholder="Buscar departamento"
         />
+        <button
+          onClick={() => setMostrarFiltros((v) => !v)}
+          className={`inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-lg border px-4 text-sm font-semibold md:w-auto ${
+            hayFiltrosAvanzados
+              ? "border-acento bg-acento/10 text-acento"
+              : "border-black/10 dark:border-white/10"
+          }`}
+        >
+          <SlidersHorizontal size={16} strokeWidth={2.25} aria-hidden />
+          Filtros de inversión
+          {hayFiltrosAvanzados && (
+            <span className="rounded-full bg-acento px-1.5 text-xs text-white">•</span>
+          )}
+        </button>
       </div>
+
+      {mostrarFiltros && (
+        <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark md:flex-row md:items-center md:gap-6">
+          <div className="flex-1">
+            <label className="flex items-center justify-between text-xs text-texto-suave dark:text-texto-suave-dark">
+              Score de Atractivo de Inversión mínimo
+              <span className="font-semibold text-texto dark:text-texto-dark">{scoreMin}/100</span>
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={5}
+              value={scoreMin}
+              onChange={(e) => setScoreMin(Number(e.target.value))}
+              className="mt-1 w-full"
+            />
+          </div>
+          <div className="flex-1">
+            <label className="mb-1 block text-xs text-texto-suave dark:text-texto-suave-dark">
+              Solo proyectos débiles en...
+            </label>
+            <select
+              value={dimensionDebil}
+              onChange={(e) => setDimensionDebil(e.target.value)}
+              className="min-h-[40px] w-full rounded-lg border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
+            >
+              <option value="">Cualquiera</option>
+              {ORDEN_DIMENSION_INVERSION.map((dim) => (
+                <option key={dim} value={dim}>
+                  {NOMBRES_DIMENSION_INVERSION[dim]}
+                </option>
+              ))}
+            </select>
+          </div>
+          {hayFiltrosAvanzados && (
+            <button
+              onClick={() => {
+                setScoreMin(0);
+                setDimensionDebil("");
+              }}
+              className="self-start text-xs font-semibold text-acento underline md:self-end"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-red-500">{error}</p>}
       {cargando && <p>Buscando proyectos...</p>}

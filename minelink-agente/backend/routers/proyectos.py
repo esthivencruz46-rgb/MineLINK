@@ -25,6 +25,11 @@ CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
 # de fotos_mina, dejando invisibles públicamente fotos que el minero sí
 # había subido (julio 2026).
 CATEGORIAS_GALERIA = ["fotos_mina", *CATEGORIAS_FOTO_PERFIL]
+# Umbral para el filtro "dimensión débil" de /proyectos: un proyecto queda
+# por debajo del promedio (dimensiones_inversion van de 0 a 100) en esa
+# dimensión — pensado para que un inversionista descarte rápido proyectos
+# frágiles en el eje que más le importa (ej. riesgo ambiental/social).
+UMBRAL_DIMENSION_DEBIL = 50
 
 
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
@@ -96,6 +101,12 @@ def _fotos_portada(db: Session, operacion_ids: list[str]) -> dict[str, str]:
 def listar_proyectos(
     mineral: Optional[str] = None,
     region: Optional[str] = None,
+    score_min: Optional[int] = None,
+    score_max: Optional[int] = None,
+    # Una de las 6 claves de NombreDimensionInversion (ver types/proyecto.ts):
+    # formalizacion, escala_economica, viabilidad_tecnica,
+    # riesgo_ambiental_social, capacidad_equipo, claridad_oportunidad.
+    dimension_debil: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     filas = _proyectos_visibles(db)
@@ -106,6 +117,17 @@ def listar_proyectos(
             continue
         if region and operacion.region.lower() != region.strip().lower():
             continue
+        if score_min is not None or score_max is not None or dimension_debil:
+            seguimiento = estado_seguimiento(operacion)
+            score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
+            if score_min is not None and score_inversion["score_total"] < score_min:
+                continue
+            if score_max is not None and score_inversion["score_total"] > score_max:
+                continue
+            if dimension_debil:
+                info = score_inversion["dimensiones"].get(dimension_debil)
+                if info is None or info["puntaje"] >= UMBRAL_DIMENSION_DEBIL:
+                    continue
         visibles.append((lead, operacion))
 
     portadas = _fotos_portada(db, [o.id for _l, o in visibles])

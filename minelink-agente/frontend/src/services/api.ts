@@ -103,13 +103,24 @@ export async function enviarLead(payload: LeadRequest): Promise<LeadResponse> {
   return postJSON<LeadResponse>("/leads", payload);
 }
 
-export async function obtenerProyectos(
-  mineral: string,
-  region: string
-): Promise<ProyectoPublico[]> {
+export interface FiltrosProyectos {
+  mineral?: string;
+  region?: string;
+  /** Rango del Score de Atractivo de Inversión (0-100). */
+  scoreMin?: number;
+  scoreMax?: number;
+  /** Solo lista proyectos por debajo del promedio en esa dimensión — ver
+   * NombreDimensionInversion en types/proyecto.ts. */
+  dimensionDebil?: string;
+}
+
+export async function obtenerProyectos(filtros: FiltrosProyectos): Promise<ProyectoPublico[]> {
   const params = new URLSearchParams();
-  if (mineral) params.set("mineral", mineral);
-  if (region) params.set("region", region);
+  if (filtros.mineral) params.set("mineral", filtros.mineral);
+  if (filtros.region) params.set("region", filtros.region);
+  if (filtros.scoreMin !== undefined) params.set("score_min", String(filtros.scoreMin));
+  if (filtros.scoreMax !== undefined) params.set("score_max", String(filtros.scoreMax));
+  if (filtros.dimensionDebil) params.set("dimension_debil", filtros.dimensionDebil);
 
   const resp = await fetch(`${BASE_URL}/proyectos?${params.toString()}`);
   if (!resp.ok) throw new Error(`${resp.status}`);

@@ -20,6 +20,7 @@ import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
 import { calcularSemaforo } from "../utils/semaforo";
 import { formatearMonto } from "../utils/formato";
+import { generarPdfProyecto } from "../utils/pdfProyecto";
 import {
   COLOR_DIMENSION_INVERSION,
   NOMBRES_DIMENSION_INVERSION,
@@ -36,6 +37,7 @@ export function ProyectoDetalle() {
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);
   const [enlaceCopiado, setEnlaceCopiado] = useState(false);
   const [fotoAbierta, setFotoAbierta] = useState<{ url: string; etiqueta: string } | null>(null);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
 
   async function compartir() {
     if (!proyecto) return;
@@ -460,10 +462,18 @@ export function ProyectoDetalle() {
                 Me interesa este proyecto
               </button>
               <button
-                onClick={() => window.print()}
-                className="min-h-[44px] rounded-lg border border-black/10 font-semibold transition duration-200 dark:border-white/10"
+                onClick={async () => {
+                  setGenerandoPdf(true);
+                  try {
+                    await generarPdfProyecto(proyecto);
+                  } finally {
+                    setGenerandoPdf(false);
+                  }
+                }}
+                disabled={generandoPdf}
+                className="min-h-[44px] rounded-lg border border-black/10 font-semibold transition duration-200 disabled:opacity-50 dark:border-white/10"
               >
-                Descargar Información
+                {generandoPdf ? "Generando PDF..." : "Descargar Información (PDF)"}
               </button>
             </div>
           </div>
