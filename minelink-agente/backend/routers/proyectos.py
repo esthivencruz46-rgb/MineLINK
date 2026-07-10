@@ -9,8 +9,9 @@ import schemas
 import storage
 from auth import hash_password
 from database import get_db
+from routers.mineros import _es_titular_concesion
 from scoring import ESTUDIO_POR_PREGUNTA, calcular_score_inversion, estado_seguimiento, ids_esperados_para
-from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, categoria_equivalente
+from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_FOTO_PERFIL, categoria_equivalente
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
@@ -18,6 +19,12 @@ CATEGORIAS_LEGALES = [c for c in CATEGORIAS_DOCUMENTO if c != "fotos_mina"]
 # Categorías que se sirven vía /documentos/{id} (foto pública de respaldo):
 # los 5 documentos legales fijos + cualquier estudio del catálogo.
 CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
+# Categorías que forman la galería principal ("Fotos de tu operación" en la
+# cuenta del minero): fotos de la mina + las condicionadas al perfil
+# (mineral, camino de acceso, agua, energía) — antes solo se mostraban las
+# de fotos_mina, dejando invisibles públicamente fotos que el minero sí
+# había subido (julio 2026).
+CATEGORIAS_GALERIA = ["fotos_mina", *CATEGORIAS_FOTO_PERFIL]
 
 
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
@@ -185,7 +192,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     fotos = [
         schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/fotos/{d.id}")
         for d in documentos
-        if d.categoria == "fotos_mina"
+        if d.categoria in CATEGORIAS_GALERIA
     ]
     categorias_presentadas = {d.categoria for d in documentos}
     documentos_presentados = {c: c in categorias_presentadas for c in CATEGORIAS_LEGALES}
@@ -251,6 +258,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         brechas_verificadas=brechas_verificadas,
+        es_titular_concesion=_es_titular_concesion(operacion),
         dimensiones=seguimiento["dimensiones"],
         dimensiones_inversion=score_inversion["dimensiones"],
         ubicacion_maps=lead.ubicacion_maps,
@@ -356,7 +364,8 @@ def registrar_interes(
 
 @router.get("/{operacion_id}/fotos/{documento_id}")
 def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(get_db)):
-    """Sirve SOLO fotos de la mina (categoría fotos_mina)."""
+    """Sirve las fotos de la galería principal: fotos de la mina + las
+    condicionadas al perfil (mineral, camino de acceso, agua, energía)."""
     _lead_y_operacion_visibles(db, operacion_id)
 
     documento = (
@@ -364,7 +373,7 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
         .filter(
             models.DocumentoOperacion.id == documento_id,
             models.DocumentoOperacion.operacion_id == operacion_id,
-            models.DocumentoOperacion.categoria == "fotos_mina",
+            models.DocumentoOperacion.categoria.in_(CATEGORIAS_GALERIA),
         )
         .first()
     )

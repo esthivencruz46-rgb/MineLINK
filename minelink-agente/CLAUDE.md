@@ -83,11 +83,16 @@ Plataforma web donde un minero artesanal peruano:
    departamento — SIN nombre real, WhatsApp ni email (`GET /proyectos`,
    `GET /proyectos/minerales`). Al hacer clic en un proyecto se abre su
    detalle (`GET /proyectos/{operacion_id}`): perfil de inversión
-   completo, fotos de la mina (públicas, `GET /proyectos/{id}/fotos/{doc_id}`),
-   y las fotos reales de los documentos legales que presentó (RUC,
-   catastro, contrato, título, informe de leyes — `GET
-   /proyectos/{id}/documentos/{doc_id}`, público, sin login). Esto es la
-   base de una futura conexión con inversionistas, pero todavía NO hay match
+   completo, la galería pública (fotos de la mina + las condicionadas al
+   perfil — mineral/camino de acceso/agua/energía, mismas categorías que
+   se suben en "Fotos de tu operación" en `/mi-cuenta`, públicas vía `GET
+   /proyectos/{id}/fotos/{doc_id}`), y las fotos reales de los documentos
+   legales que presentó (RUC, catastro, informe de leyes, y SOLO el que
+   corresponda entre contrato de explotación / título de concesión según
+   `es_titular_concesion` — mismo filtro que en su propia cuenta, nunca se
+   muestran ambos — `GET /proyectos/{id}/documentos/{doc_id}`, público,
+   sin login). Esto es la base de una futura conexión con inversionistas,
+   pero todavía NO hay match
 8. El detalle del proyecto tiene un diseño premium (estilo Stripe/Linear/
    Notion) con MineScore por dimensión, checklist de formalización,
    factores de riesgo y oportunidades — todo DERIVADO de datos reales del

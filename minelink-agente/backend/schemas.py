@@ -569,6 +569,11 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # "sí" a todo sin sustento), así que el check ✓ en la ficha pública
     # solo se muestra para brechas en esta lista, no para brechas_resueltas.
     brechas_verificadas: list[str] = []
+    # True si declaró ser titular de la concesión, False si no, None si no
+    # aplica — el frontend usa esto para mostrar solo el documento legal que
+    # corresponde (Título de concesión O Contrato de explotación, nunca
+    # ambos), igual que en su propia cuenta (julio 2026).
+    es_titular_concesion: Optional[bool] = None
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

@@ -1934,6 +1934,47 @@ def test_mineros_me_expone_es_titular_concesion():
     assert resp2.json()["es_titular_concesion"] is False
 
 
+def test_proyectos_detalle_expone_titularidad_y_fotos_de_perfil():
+    # La ficha pública debe ser consistente con lo que el minero declara en
+    # su propia cuenta: mismo filtro de titularidad, y las fotos de
+    # mineral/acceso/agua/energía (no solo fotos_mina) deben verse.
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_COMPLETAS,
+            "region": "arequipa",
+            "mineral": "cobre",
+            "tipo_mina": "subterranea",
+            "situacion": "minero_artesanal",
+            "acceso_logistico": "trocha",
+            "acceso_agua": "limitado",
+            "acceso_energia": "generador_diesel",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="mineroproyectofotos", nombre_operacion="Mina Foto Pub"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "mineroproyectofotos", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    resp_subida = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "foto_mineral"},
+        files={"archivo": ("mineral.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp_subida.status_code == 201
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["es_titular_concesion"] is True
+    assert len(detalle["fotos"]) == 1
+
+    resp_foto = client.get(detalle["fotos"][0]["url"])
+    assert resp_foto.status_code == 200
+
+
 def test_diagnostico_guarda_y_expone_moneda_capital():
     diag = client.post(
         "/diagnostico",

@@ -107,6 +107,17 @@ export function ProyectoDetalle() {
 
   const estudiosTecnicos = estudiosDe("tecnico");
 
+  // Solo se muestra el documento legal que le aplica según si es titular o
+  // no de la concesión — mostrar los dos confundía (mismo criterio que en
+  // su propia cuenta, ver DocumentosMinero.tsx).
+  const documentosLegalesAplicables = Object.entries(ETIQUETAS_DOCUMENTO_LEGAL).filter(
+    ([categoria]) => {
+      if (proyecto.es_titular_concesion === true && categoria === "contrato_explotacion") return false;
+      if (proyecto.es_titular_concesion === false && categoria === "titulo_concesion") return false;
+      return true;
+    }
+  );
+
   const BLOQUES_FORMALIZACION: { dim: NombreDimension; conReinfo?: boolean }[] = [
     { dim: "legal", conReinfo: true },
     { dim: "ambiental" },
@@ -395,11 +406,11 @@ export function ProyectoDetalle() {
               })}
             </div>
 
-            {Object.keys(ETIQUETAS_DOCUMENTO_LEGAL).length > 0 && (
+            {documentosLegalesAplicables.length > 0 && (
               <>
                 <h3 className="mt-5 text-sm font-semibold">Documentos legales presentados</h3>
                 <div className="mt-2 flex flex-col gap-3">
-                  {Object.entries(ETIQUETAS_DOCUMENTO_LEGAL).map(([categoria, etiqueta]) => {
+                  {documentosLegalesAplicables.map(([categoria, etiqueta]) => {
                     const fotos = proyecto.documentos_legales[categoria] ?? [];
                     return (
                       <div key={categoria}>

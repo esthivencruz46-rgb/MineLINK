@@ -42,6 +42,10 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // diagnóstico es autodeclarado, así que el check ✓ público solo debe
   // mostrarse para brechas en esta lista, no para brechas_resueltas.
   brechas_verificadas: string[];
+  // True si declaró ser titular de la concesión, False si no, null si no
+  // aplica — solo se muestra el documento legal que corresponde (Título de
+  // concesión O Contrato de explotación, nunca ambos).
+  es_titular_concesion?: boolean | null;
   dimensiones: Record<string, DimensionScore> | null;
   // Desglose del score_inversion: formalizacion, escala_economica,
   // viabilidad_tecnica, riesgo_ambiental_social, capacidad_equipo,
