@@ -34,6 +34,7 @@ export function ProyectoDetalle() {
   const [error, setError] = useState<string | null>(null);
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);
   const [enlaceCopiado, setEnlaceCopiado] = useState(false);
+  const [fotoAbierta, setFotoAbierta] = useState<{ url: string; etiqueta: string } | null>(null);
 
   async function compartir() {
     if (!proyecto) return;
@@ -312,6 +313,7 @@ export function ProyectoDetalle() {
                           etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
                           foto={proyecto.documentos_estudios[estudio]?.[0]}
                           completo={verificadas.has(estudio)}
+                          onVer={(url, etiqueta) => setFotoAbierta({ url, etiqueta })}
                         />
                       ))}
                     </ul>
@@ -434,6 +436,26 @@ export function ProyectoDetalle() {
           onCerrar={() => setModalMensaje(null)}
         />
       )}
+
+      {fotoAbierta && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
+          onClick={() => setFotoAbierta(null)}
+        >
+          <button
+            onClick={() => setFotoAbierta(null)}
+            className="absolute right-4 top-4 min-h-[44px] rounded-lg bg-white/10 px-4 font-semibold text-white"
+          >
+            Cerrar
+          </button>
+          <img
+            src={fotoAbierta.url}
+            alt={fotoAbierta.etiqueta}
+            className="max-h-[85vh] max-w-full rounded-lg object-contain"
+          />
+          <p className="mt-3 text-sm text-white/80">{fotoAbierta.etiqueta}</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -462,23 +484,24 @@ function ItemChecklistFoto({
   etiqueta,
   foto,
   completo,
+  onVer,
 }: {
   etiqueta: string;
   foto?: FotoPublica;
   completo: boolean;
+  onVer: (url: string, etiqueta: string) => void;
 }) {
   return (
     <li className="flex items-center gap-2.5 text-sm">
       <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
         {foto ? (
-          <a
-            href={`${BASE_URL}${foto.url}`}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => onVer(`${BASE_URL}${foto.url}`, etiqueta)}
             className="block h-full w-full"
           >
             <img src={`${BASE_URL}${foto.url}`} alt={etiqueta} className="h-full w-full object-cover" />
-          </a>
+          </button>
         ) : (
           <ImageIcon
             size={14}
