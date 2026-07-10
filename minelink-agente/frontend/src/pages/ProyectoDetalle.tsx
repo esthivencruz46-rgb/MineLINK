@@ -6,7 +6,7 @@ import {
   Check,
   ChevronLeft,
   ImageIcon,
-  Map,
+  Map as MapIcon,
   MapPin,
   Minus,
   Star,
@@ -119,6 +119,42 @@ export function ProyectoDetalle() {
     { dim: "operativo" },
   ];
 
+  // Varios estudios del catálogo piden en la práctica LA MISMA foto (ej.
+  // "Plano georreferenciado" en Legal y "Levantamiento topográfico" en
+  // Técnico se respaldan ambos con el catastro) — sin fusionarlos, subir
+  // un solo archivo hacía que la misma imagen apareciera dos veces en el
+  // checklist, viéndose como un error/duplicado. Se detecta por el id de
+  // la foto (si dos ítems comparten exactamente la misma foto, es la misma
+  // evidencia) y se combinan en un solo ítem con las etiquetas juntas.
+  type ItemFormalizacion = {
+    dim: NombreDimension;
+    etiqueta: string;
+    foto?: FotoPublica;
+    completo: boolean;
+  };
+  const fotosYaMostradas = new Map<number, ItemFormalizacion>();
+  const itemsFormalizacion: ItemFormalizacion[] = [];
+  for (const { dim } of BLOQUES_FORMALIZACION) {
+    for (const estudio of estudiosDe(dim)) {
+      const item: ItemFormalizacion = {
+        dim,
+        etiqueta: INFO_BRECHA[estudio]?.texto ?? estudio,
+        foto: proyecto.documentos_estudios[estudio]?.[0],
+        completo: verificadas.has(estudio),
+      };
+      if (item.foto) {
+        const previo = fotosYaMostradas.get(item.foto.id);
+        if (previo) {
+          previo.etiqueta = `${previo.etiqueta} / ${item.etiqueta}`;
+          previo.completo = previo.completo || item.completo;
+          continue;
+        }
+        fotosYaMostradas.set(item.foto.id, item);
+      }
+      itemsFormalizacion.push(item);
+    }
+  }
+
   // Resumen ejecutivo: foco en el score y la oportunidad de inversión, con
   // los puntos a favor como chips cortos en vez de una lista/tarjeta aparte.
   const partesResumen: string[] = [
@@ -198,7 +234,7 @@ export function ProyectoDetalle() {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-full bg-acento/10 px-3 py-1 text-xs font-semibold text-acento hover:bg-acento/20"
           >
-            <Map size={14} strokeWidth={2.25} aria-hidden />
+            <MapIcon size={14} strokeWidth={2.25} aria-hidden />
             Ver ubicación en Google Maps
           </a>
         )}
@@ -267,8 +303,8 @@ export function ProyectoDetalle() {
             </p>
             <div className="mt-4 flex flex-col gap-5">
               {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
-                const estudios = estudiosDe(dim);
-                if (estudios.length === 0 && !conReinfo) return null;
+                const items = itemsFormalizacion.filter((item) => item.dim === dim);
+                if (items.length === 0 && !conReinfo) return null;
                 const info = dims?.[dim];
                 const porcentaje =
                   info && info.maximo > 0 ? Math.round((info.puntaje / info.maximo) * 100) : null;
@@ -308,12 +344,12 @@ export function ProyectoDetalle() {
                           )}
                         </li>
                       )}
-                      {estudios.map((estudio) => (
+                      {items.map((item) => (
                         <ItemChecklistFoto
-                          key={estudio}
-                          etiqueta={INFO_BRECHA[estudio]?.texto ?? estudio}
-                          foto={proyecto.documentos_estudios[estudio]?.[0]}
-                          completo={verificadas.has(estudio)}
+                          key={item.etiqueta}
+                          etiqueta={item.etiqueta}
+                          foto={item.foto}
+                          completo={item.completo}
                           onVer={(url, etiqueta) => setFotoAbierta({ url, etiqueta })}
                         />
                       ))}
