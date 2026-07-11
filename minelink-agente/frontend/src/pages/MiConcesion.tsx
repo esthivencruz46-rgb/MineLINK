@@ -187,6 +187,7 @@ export function MiConcesion() {
         esTitularConcesion={perfil.es_titular_concesion}
         ocultarFotosOperacion
         ocultarEncabezado
+        ocultarDocumentosLegales
       />
 
       {muestraEstudios && (

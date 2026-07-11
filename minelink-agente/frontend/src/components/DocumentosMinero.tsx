@@ -46,6 +46,10 @@ interface Props {
    * menciona inversionistas — por ahora fuera de /mi-concesion, ver
    * MiConcesion.tsx (esa ventana ya no habla de inversionistas). */
   ocultarEncabezado?: boolean;
+  /** Oculta "Documentos legales" (título, RUC, contrato, catastro, informe
+   * de leyes) — por ahora fuera de /mi-concesion, solo queda "Respalda tu
+   * declaración" (lo que sí salió del diagnóstico). */
+  ocultarDocumentosLegales?: boolean;
 }
 
 export function DocumentosMinero({
@@ -55,6 +59,7 @@ export function DocumentosMinero({
   esTitularConcesion,
   ocultarFotosOperacion,
   ocultarEncabezado,
+  ocultarDocumentosLegales,
 }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
@@ -295,7 +300,7 @@ export function DocumentosMinero({
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {cargando && <p className="mt-2 text-sm">Cargando...</p>}
 
-      {!cargando && (
+      {!cargando && (!ocultarFotosOperacion || !ocultarDocumentosLegales) && (
         <div className="mt-4 flex flex-col gap-6">
           {!ocultarFotosOperacion && (
             <div>
@@ -307,19 +312,27 @@ export function DocumentosMinero({
               </div>
             </div>
           )}
-          <div>
-            <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-              Documentos legales
-            </h3>
-            <div className="mt-2 flex flex-col gap-4">
-              {categoriasLegales.map(bloqueCategoria)}
+          {!ocultarDocumentosLegales && (
+            <div>
+              <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                Documentos legales
+              </h3>
+              <div className="mt-2 flex flex-col gap-4">
+                {categoriasLegales.map(bloqueCategoria)}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
 
       {!cargando && categoriasEstudioPorDimension.length > 0 && (
-        <div className="mt-6 border-t border-black/10 pt-4 dark:border-white/10">
+        <div
+          className={
+            ocultarFotosOperacion && ocultarDocumentosLegales
+              ? "mt-4"
+              : "mt-6 border-t border-black/10 pt-4 dark:border-white/10"
+          }
+        >
           <h2 className="font-semibold">Respalda tu declaración</h2>
           <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
             En el diagnóstico respondiste Sí/No sobre tu estado de
