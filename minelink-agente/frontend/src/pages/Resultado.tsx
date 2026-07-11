@@ -90,7 +90,7 @@ export function Resultado() {
 
       <UrgenciaYReloj urgencia={respuesta.urgencia} relojProduccion={respuesta.reloj_produccion} />
 
-      <SalidasList salidas={respuesta.salidas} />
+      <SalidasList salidas={respuesta.salidas} onBuscarAyuda={() => navigate("/empresas")} />
 
       {/* Código REINFO */}
       <div>

@@ -236,24 +236,49 @@ export const MODULO_B: PreguntaCatalogo[] = [
     ],
   },
   {
+    id: "B2_1",
+    tipo: "opcion",
+    texto: "¿Qué tipo de constancia ambiental tienes?",
+    ayuda:
+      "Es el permiso ambiental que necesitas para operar. PMA = Pequeña Minería Ambiental (hasta 1,000 ha). PPM = Producción Minera (hasta 2,000 ha). Si no tienes, hay que tramitarlo. Esto define el plazo que tienes para poner tu mina en producción.",
+    opciones: [
+      { valor: "pma", etiqueta: "PMA (Pequeña Minería Ambiental)" },
+      { valor: "ppm", etiqueta: "PPM (Producción Minera)" },
+      { valor: "no_tengo", etiqueta: "No tengo" },
+      { valor: "no_se", etiqueta: "No sé" },
+    ],
+  },
+  {
+    id: "B2_2",
+    tipo: "numero",
+    texto: "¿Cuántas hectáreas tiene tu concesión?",
+    ayuda:
+      "Es el tamaño de tu concesión en hectáreas. Lo encuentras en tu título o en GEOCATMIN. Si declaraste PMA pero tienes más de 1,000 ha, en la práctica te tratamos como PPM.",
+    placeholder: "Ej. 500",
+    min: 1,
+    max: 100000,
+  },
+  {
     id: "B1_2",
     tipo: "anio",
     texto: "¿En qué año sacaste tu título de concesión?",
     ayuda:
-      "Es el año en que INGEMMET te dio tu título oficial. Si no lo recuerdas, revisa tu documento.",
+      "Es el año en que INGEMMET te dio tu título oficial. Si no lo recuerdas, revisa tu documento. Con esto calculamos si tu plazo para producir (PMA: 10 años, PPM: 6 años) ya venció.",
     placeholder: "Ej. 2018",
     min: 1950,
   },
   {
     id: "B1_3",
     tipo: "opcion",
+    // Solo aparece si, con la clasificación y el año ya declarados, el
+    // reloj de producción mínima efectivamente venció (ver idsAplicables) —
+    // antes no hay ninguna penalidad que preguntar.
     texto: "¿Ya pagaste la penalidad por no haber producido a tiempo?",
     ayuda:
-      "Si tienes más de 6 años (PPM) o 10 años (PMA) sin producir, debes pagar una penalidad. Si no la pagaste, hay riesgo de caducidad.",
+      "Ya pasó tu plazo para poner la mina en producción sin haber empezado. Debes pagar una penalidad. Si no la pagaste, hay riesgo de caducidad.",
     opciones: [
       { valor: "pago", etiqueta: "Sí, ya pagué" },
       { valor: "no_pago", etiqueta: "No, no pagué" },
-      { valor: "aun_no_toca", etiqueta: "Aún no me toca" },
       { valor: "no_se", etiqueta: "No sé" },
     ],
   },
@@ -281,29 +306,6 @@ export const MODULO_B: PreguntaCatalogo[] = [
       { valor: "si", etiqueta: "Sí" },
       { valor: "no", etiqueta: "No" },
     ],
-  },
-  {
-    id: "B2_1",
-    tipo: "opcion",
-    texto: "¿Qué tipo de constancia ambiental tienes?",
-    ayuda:
-      "Es el permiso ambiental que necesitas para operar. PMA = Pequeña Minería Ambiental. PPM = Producción Minera. Si no tienes, hay que tramitarlo.",
-    opciones: [
-      { valor: "pma", etiqueta: "PMA (Pequeña Minería Ambiental)" },
-      { valor: "ppm", etiqueta: "PPM (Producción Minera)" },
-      { valor: "no_tengo", etiqueta: "No tengo" },
-      { valor: "no_se", etiqueta: "No sé" },
-    ],
-  },
-  {
-    id: "B2_2",
-    tipo: "numero",
-    texto: "¿Cuántas hectáreas tiene tu concesión?",
-    ayuda:
-      "Es el tamaño de tu concesión en hectáreas. Lo encuentras en tu título o en GEOCATMIN.",
-    placeholder: "Ej. 500",
-    min: 1,
-    max: 100000,
   },
   // ⏸️ EN PAUSA (julio 2026): B3_1/B3_2 son de inversión (estudios
   // geológicos/laboratorio), no de formalización — fuera de idsAplicables(),
@@ -724,6 +726,37 @@ export const POR_ID: Record<string, PreguntaCatalogo> = Object.fromEntries(
 // Routing: qué preguntas mostrar según el perfil (espejo del backend)
 // -------------------------------------------------------------------
 
+// Límites del reloj de producción mínima (Perfil B) — espejo de
+// backend/catalogo_diagnostico.py. Deciden si B1_3 (penalidad) aplica.
+const HECTAREAS_MAX_PMA = 1_000;
+const HECTAREAS_MAX_PPM = 2_000;
+const ANIO_PRODUCCION_MINIMA_PMA = 10;
+const ANIO_PRODUCCION_MINIMA_PPM = 6;
+
+function clasificacionB(respuestas: Record<string, string>): "pma" | "ppm" | "no_califica" | null {
+  const hectareas = Number(respuestas.B2_2);
+  const tieneHectareas = respuestas.B2_2 !== undefined && !Number.isNaN(hectareas);
+  const declarada = respuestas.B2_1;
+  if (tieneHectareas && hectareas > HECTAREAS_MAX_PPM) return "no_califica";
+  if (declarada === "pma") {
+    if (tieneHectareas && hectareas > HECTAREAS_MAX_PMA) return "ppm";
+    return "pma";
+  }
+  if (declarada === "ppm") return "ppm";
+  return null;
+}
+
+/** True si el reloj de producción mínima ya venció — solo entonces B1_3
+ *  (¿ya pagaste la penalidad?) tiene sentido preguntar. Espejo de
+ *  backend/catalogo_diagnostico._reloj_vencido(). */
+function relojVencido(respuestas: Record<string, string>): boolean {
+  const anioTitulo = Number(respuestas.B1_2);
+  if (respuestas.B1_2 === undefined || Number.isNaN(anioTitulo)) return false;
+  const limite =
+    clasificacionB(respuestas) === "pma" ? ANIO_PRODUCCION_MINIMA_PMA : ANIO_PRODUCCION_MINIMA_PPM;
+  return new Date().getFullYear() - anioTitulo >= limite;
+}
+
 /** Determina el set exacto de ids aplicables dadas las respuestas del
  *  Módulo 0. Espejo de backend/catalogo_diagnostico.ids_esperados(). */
 export function idsAplicables(respuestas: Record<string, string>): Set<string> {
@@ -764,17 +797,22 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
   }
 
   if (perfil === "B") {
-    // B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están en
-    // pausa — ver banner en MODULO_B/MODULO_INV más abajo.
+    // Orden con sentido: primero vigencia, LUEGO la clasificación PMA/PPM
+    // (B2_1/B2_2) y el año del título — B1_3 (penalidad) recién se
+    // pregunta si con esos datos el reloj de producción ya venció
+    // (B3_1/B3_2, estudios geológicos/laboratorio, y el Módulo INV están
+    // en pausa aparte, ver banner en MODULO_B/MODULO_INV más abajo).
     ids.add("B1_1");
+    ids.add("B2_1");
+    ids.add("B2_2");
     ids.add("B1_2");
-    ids.add("B1_3");
+    if (respuestas.B1_2 !== undefined && relojVencido(respuestas)) {
+      ids.add("B1_3");
+    }
     ids.add("B1_4");
     if (respuestas.B1_4 === "privado" || respuestas.B1_4 === "comunidad") {
       ids.add("B1_5");
     }
-    ids.add("B2_1");
-    ids.add("B2_2");
     ids.add("B4_1");
     if (respuestas.B4_1 === "operar_yo") {
       ids.add("B5_1");

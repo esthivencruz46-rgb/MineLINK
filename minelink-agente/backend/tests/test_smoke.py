@@ -87,9 +87,10 @@ RESPUESTAS_COMPLETAS = {
 # mineral). Semáforo legal verde si no hay bloqueantes, apta para
 # inversionistas. B4_1="buscar_inversionista" para evitar requisitos B5.
 # B3_1/B3_2 y el Módulo INV están en pausa (julio 2026) — fuera del fixture.
+# B1_2=2020 + pma (10 años) todavía no vence el reloj → B1_3 no aplica.
 RESPUESTAS_SIN_TRAMITE = {
     "M0_1": "concesion_no_operando",
-    "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago", "B1_4": "mio",
+    "B1_1": "al_dia", "B1_2": "2020", "B1_4": "mio",
     "B2_1": "pma", "B2_2": "500",
     "B4_1": "buscar_inversionista",
 }

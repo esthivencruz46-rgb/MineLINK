@@ -177,7 +177,7 @@ export function MiConcesion() {
 
       <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
 
-      <SalidasList salidas={perfil.salidas} />
+      <SalidasList salidas={perfil.salidas} onBuscarAyuda={() => navigate("/empresas")} />
 
       {muestraEstudios && (
         <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">

@@ -16,6 +16,16 @@ from datetime import date
 # cambia el plazo, actualizar aquí y en context/diagnostico_formalizacion.md.
 FECHA_LIMITE_REINFO = date(2026, 12, 31)
 
+# Límites legales de extensión y del reloj de producción mínima (Perfil B):
+# PMA corre desde el año 10 del título, PPM desde el año 6. Viven aquí (no
+# solo en scoring.py) porque ids_esperados() los necesita para decidir si
+# B1_3 (penalidad) tiene sentido preguntar — antes de saber si el reloj ya
+# venció no se le puede pedir que declare si pagó una penalidad.
+HECTAREAS_MAX_PMA = 1_000
+HECTAREAS_MAX_PPM = 2_000
+ANIO_PRODUCCION_MINIMA_PMA = 10
+ANIO_PRODUCCION_MINIMA_PPM = 6
+
 PERFILES = ("A", "A_avanzado", "B", "C", "D")
 
 TIPOS_PREGUNTA = ("opcion", "numero", "anio", "estado_doc")
@@ -53,7 +63,10 @@ PREGUNTAS: dict[str, tuple] = {
     # ---------- Módulo B: concesionario sin operar ----------
     "B1_1": ("opcion", ("al_dia", "debo_1", "debo_2_mas", "no_se")),
     "B1_2": ("anio", (1950, None)),                       # año del título (None = año actual)
-    "B1_3": ("opcion", ("pago", "no_pago", "aun_no_toca", "no_se")),
+    # Solo se pregunta si el reloj de producción (según B2_1/B2_2 + B1_2) ya
+    # venció — "aun_no_toca" ya no es una opción posible: si el reloj no
+    # venció, esta pregunta directamente no se incluye en ids_esperados().
+    "B1_3": ("opcion", ("pago", "no_pago", "no_se")),
     # Terreno superficial (subsuelo ≠ superficie, igual que A3_1/A3_2):
     # aplica a todos los de Perfil B, no solo a quien ya decidió operar él
     # mismo — sin esto resuelto no se puede empezar a operar de ninguna forma.
@@ -138,10 +151,51 @@ def clasificar_perfil(respuestas: dict[str, str]) -> str:
     raise ValueError("M0_4 es obligatorio cuando hay REINFO")
 
 
-def ids_esperados(respuestas: dict[str, str]) -> set[str]:
+def clasificacion_b(respuestas: dict[str, str]) -> str | None:
+    """PMA / PPM / no_califica del Perfil B según hectáreas declaradas
+    (B2_1/B2_2) — más de 2,000 ha no es válida (régimen general); más de
+    1,000 declarada como PMA en la práctica es PPM. También la usa
+    scoring.clasificacion_de para no duplicar la regla."""
+    try:
+        hectareas = int(respuestas.get("B2_2", ""))
+    except (TypeError, ValueError):
+        hectareas = None
+    declarada = respuestas.get("B2_1")
+    if hectareas is not None and hectareas > HECTAREAS_MAX_PPM:
+        return "no_califica"
+    if declarada == "pma":
+        if hectareas is not None and hectareas > HECTAREAS_MAX_PMA:
+            return "ppm"
+        return "pma"
+    if declarada == "ppm":
+        return "ppm"
+    return None
+
+
+def _reloj_vencido(respuestas: dict[str, str], hoy: date) -> bool:
+    """True si el reloj de producción mínima ya venció (año del título +
+    el límite de su clasificación ya pasó) — solo entonces B1_3 (¿ya
+    pagaste la penalidad?) tiene sentido preguntar. Sin clasificación
+    conocida se usa el límite más estricto (PPM, 6 años), igual que
+    scoring.reloj_produccion."""
+    try:
+        anio_titulo = int(respuestas.get("B1_2", ""))
+    except (TypeError, ValueError):
+        return False
+    limite = (
+        ANIO_PRODUCCION_MINIMA_PMA
+        if clasificacion_b(respuestas) == "pma"
+        else ANIO_PRODUCCION_MINIMA_PPM
+    )
+    return (hoy.year - anio_titulo) >= limite
+
+
+def ids_esperados(respuestas: dict[str, str], hoy: date | None = None) -> set[str]:
     """Set EXACTO de ids aplicables dadas las respuestas (los condicionales
-    dependen de respuestas ya presentes — determinista). Incluye el módulo 0.
-    Espejo conceptual de pantallasAplicables() en el frontend."""
+    dependen de respuestas ya presentes — determinista salvo B1_3, que
+    depende también de la fecha). Incluye el módulo 0. Espejo conceptual de
+    pantallasAplicables() en el frontend."""
+    hoy = hoy or date.today()
     perfil = clasificar_perfil(respuestas)
     ids = {"M0_1"}
     if respuestas.get("M0_1") == "concesion_propia":
@@ -171,9 +225,14 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
         return ids
 
     if perfil == "B":
-        # B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están
-        # en pausa — ver banner en PREGUNTAS arriba.
-        ids.update({"B1_1", "B1_2", "B1_3", "B1_4", "B2_1", "B2_2", "B4_1"})
+        # Orden con sentido: primero vigencia, LUEGO la clasificación PMA/PPM
+        # (B2_1/B2_2) y el año del título — B1_3 (penalidad) recién se
+        # pregunta si con esos datos el reloj de producción ya venció; antes
+        # de eso no hay penalidad posible que declarar (B3_1/B3_2, estudios
+        # geológicos/laboratorio, y el Módulo INV están en pausa aparte).
+        ids.update({"B1_1", "B2_1", "B2_2", "B1_2", "B1_4", "B4_1"})
+        if respuestas.get("B1_2") and _reloj_vencido(respuestas, hoy):
+            ids.add("B1_3")
         if respuestas.get("B1_4") in ("privado", "comunidad"):
             ids.add("B1_5")
         if respuestas.get("B4_1") == "operar_yo":
@@ -195,10 +254,11 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
     return ids
 
 
-def validar_respuestas(respuestas: dict[str, str]) -> str:
+def validar_respuestas(respuestas: dict[str, str], hoy: date | None = None) -> str:
     """Valida el diagnóstico completo: perfil resoluble, set exacto de ids,
     y cada valor dentro de su catálogo/rango. Devuelve el perfil.
     Lanza ValueError con mensaje legible si algo no calza."""
+    hoy = hoy or date.today()
     perfil = clasificar_perfil(respuestas)
     if perfil == "sin_ruta":
         raise ValueError(
@@ -206,14 +266,13 @@ def validar_respuestas(respuestas: dict[str, str]) -> str:
             "diagnóstico — el frontend muestra la página informativa"
         )
 
-    esperados = ids_esperados(respuestas)
+    esperados = ids_esperados(respuestas, hoy)
     if set(respuestas.keys()) != esperados:
         raise ValueError(
             f"Para el perfil {perfil} deben venir exactamente estos ids: "
             f"{sorted(esperados)}"
         )
 
-    hoy = date.today()
     for id_pregunta, valor in respuestas.items():
         tipo, regla = PREGUNTAS[id_pregunta]
         if tipo in ("opcion", "estado_doc"):
@@ -244,6 +303,11 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
     "A1_3": ({"no"}, "levantamiento_georreferenciado"),
     "A3_1": ({"no_se"}, "acreditacion_terreno"),
     "A3_2": ({"no"}, "acreditacion_terreno"),
+    # Documentos del petitorio incompletos — sobre todo relevante para
+    # A_avanzado (ya inició trámite ante INGEMMET, ver salidas_de en
+    # scoring.py: "completar_tramites_petitorio" en vez de repetirle el
+    # checklist desde cero).
+    "A4_1": ({"parcial", "no"}, "elaboracion_petitorio"),
     # Módulo B
     "B1_1": ({"debo_1", "debo_2_mas"}, "vigencia_concesion"),
     "B1_4": ({"no_se"}, "acreditacion_terreno"),
@@ -285,11 +349,8 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
 }
 
 # Estudios que puede generar el diagnóstico nuevo (slots de "Respalda tu
-# declaración" + matching). `elaboracion_petitorio` no nace de una brecha
-# sino de la salida verde del Módulo A (checklist del petitorio).
-ESTUDIOS_DIAGNOSTICO: set[str] = {e for _v, e in BRECHA_POR_PREGUNTA.values()} | {
-    "elaboracion_petitorio",
-}
+# declaración" + matching).
+ESTUDIOS_DIAGNOSTICO: set[str] = {e for _v, e in BRECHA_POR_PREGUNTA.values()}
 
 # Estudios del catálogo ANTERIOR que ya no nacen de ninguna pregunta pero
 # se conservan: las empresas pueden seguir ofreciéndolos y los documentos
@@ -314,6 +375,7 @@ VALOR_RESUELTO_POR_PREGUNTA: dict[str, str] = {
     "A1_3": "si",
     "A3_1": "mio",
     "A3_2": "si",
+    "A4_1": "completo",
     "B1_1": "al_dia",
     "B1_4": "mio",
     "B1_5": "si",

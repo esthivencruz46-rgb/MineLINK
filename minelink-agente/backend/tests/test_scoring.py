@@ -39,9 +39,11 @@ def _perfil_a_sin_area() -> dict[str, str]:
 def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
     # B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están en
     # pausa (julio 2026) — fuera de ids_esperados, no van en el fixture.
+    # B1_2=2020 + pma (10 años) todavía no vence el reloj de producción →
+    # B1_3 (penalidad) no aplica, no va en el fixture (ver ids_esperados).
     base = {
         "M0_1": "concesion_no_operando",
-        "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B1_1": "al_dia", "B1_2": "2020",
         "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
         "B4_1": "operar_yo",
@@ -55,7 +57,7 @@ def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
 def _perfil_b_sin_b5() -> dict[str, str]:
     return {
         "M0_1": "concesion_no_operando",
-        "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B1_1": "al_dia", "B1_2": "2020",
         "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
         "B4_1": "buscar_inversionista",
@@ -282,7 +284,9 @@ def test_reloj_b_no_vencido():
 
 
 def test_reloj_b_vencido_ppm():
-    r = _perfil_b({"B1_2": "2018", "B2_1": "ppm"})
+    # PPM vence a los 6 años — con B1_2=2018 el reloj ya venció, así que
+    # B1_3 (penalidad) pasa a ser obligatoria (ver ids_esperados).
+    r = _perfil_b({"B1_2": "2018", "B2_1": "ppm", "B1_3": "pago"})
     resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
     assert resultado["reloj_produccion"]["vencido"] is True
 

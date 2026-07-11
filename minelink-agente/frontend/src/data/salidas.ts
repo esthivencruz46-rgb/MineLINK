@@ -17,6 +17,11 @@ export const TEXTO_SALIDA: Record<string, { titulo: string; descripcion: string 
     descripcion:
       "Tu área parece viable. El siguiente paso es juntar los documentos para el petitorio ante INGEMMET.",
   },
+  completar_tramites_petitorio: {
+    titulo: "Te faltan trámites para tu petitorio",
+    descripcion:
+      "Todavía no tienes todos los documentos que pide INGEMMET para tu trámite. Busca una empresa o consultor que te ayude a completarlos.",
+  },
   ruta_inversionista: {
     titulo: "Busca un inversionista",
     descripcion:

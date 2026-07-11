@@ -13,10 +13,13 @@ anterior quedó congelado en scoring_legacy.py (⏸️ en pausa).
 from datetime import date
 
 from catalogo_diagnostico import (
+    ANIO_PRODUCCION_MINIMA_PMA,
+    ANIO_PRODUCCION_MINIMA_PPM,
     BRECHA_POR_PREGUNTA,
     FECHA_LIMITE_REINFO,
     PREGUNTAS_POR_ESTUDIO,
     VALOR_RESUELTO_POR_PREGUNTA,
+    clasificacion_b,
     clasificar_perfil,
     validar_respuestas,
 )
@@ -25,12 +28,6 @@ from catalogo_diagnostico import (
 # documento según su estado) — PENDIENTE DE CALIBRAR con Esthiven.
 DIAS_TRAMITE_DOC_NO_INICIADO = 60
 DIAS_EVALUACION_DOC_PRESENTADO = 30
-
-# Límites legales de extensión y del reloj de producción mínima
-HECTAREAS_MAX_PMA = 1_000
-HECTAREAS_MAX_PPM = 2_000
-ANIO_PRODUCCION_MINIMA_PMA = 10
-ANIO_PRODUCCION_MINIMA_PPM = 6
 
 IDS_DOCS_C2 = tuple(f"C2_{n}" for n in range(1, 8))
 
@@ -68,29 +65,15 @@ def semaforo_tecnico(madurez: int | None) -> str | None:
 
 def clasificacion_de(perfil: str, respuestas: dict[str, str]) -> str | None:
     """PMA / PPM / no_califica según el spec. B valida contra hectáreas
-    (PMA ≤ 1,000 ha; PPM ≤ 2,000; más → régimen general). C/D ya la tienen
-    fijada por su trámite → None (no se pregunta)."""
+    (PMA ≤ 1,000 ha; PPM ≤ 2,000; más → régimen general) — ver
+    catalogo_diagnostico.clasificacion_b (se necesita también en
+    ids_esperados para saber si B1_3 aplica, así que vive ahí). C/D ya la
+    tienen fijada por su trámite → None (no se pregunta)."""
     if perfil in ("A", "A_avanzado"):
         return {"manual": "pma", "maquinaria": "ppm"}.get(respuestas.get("A5_1"))
     if perfil != "B":
         return None
-
-    try:
-        hectareas = int(respuestas.get("B2_2", ""))
-    except ValueError:
-        hectareas = None
-    declarada = respuestas.get("B2_1")
-
-    if hectareas is not None and hectareas > HECTAREAS_MAX_PPM:
-        return "no_califica"
-    if declarada == "pma":
-        # Declaró PMA pero excede su límite → en la práctica es PPM
-        if hectareas is not None and hectareas > HECTAREAS_MAX_PMA:
-            return "ppm"
-        return "pma"
-    if declarada == "ppm":
-        return "ppm"
-    return None  # sin constancia / no sabe
+    return clasificacion_b(respuestas)
 
 
 def reloj_produccion(
@@ -253,8 +236,15 @@ def salidas_de(
             salidas.append("area_no_concesionable")
         elif color_legal == "amarillo":
             salidas.append("verificar_area")
-        else:
+        elif perfil == "A":
             salidas.append("checklist_petitorio")
+        elif r("A4_1") in ("parcial", "no"):
+            # A_avanzado ya inició el trámite ante INGEMMET — no tiene
+            # sentido decirle "arma tu petitorio" desde cero (ese mensaje es
+            # de Perfil A). Si le faltan documentos se lo decimos puntual;
+            # si ya tiene todo (A4_1="completo") no hay nada que agregar,
+            # su trámite sigue su curso normal.
+            salidas.append("completar_tramites_petitorio")
         if r("A4_1") in ("parcial", "no"):
             salidas.append("ruta_inversionista")
 
@@ -301,7 +291,7 @@ def calcular_diagnostico(respuestas: dict[str, str], hoy: date | None = None) ->
     set de ids no calza — ver catalogo_diagnostico.validar_respuestas) y
     devuelve todos los campos derivados del spec."""
     hoy = hoy or date.today()
-    perfil = validar_respuestas(respuestas)
+    perfil = validar_respuestas(respuestas, hoy)
 
     clasif = clasificacion_de(perfil, respuestas)
     color_legal, bloqueantes = semaforo_legal(perfil, respuestas, hoy)
