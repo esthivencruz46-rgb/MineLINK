@@ -52,24 +52,24 @@ export const MODULO_0: PreguntaCatalogo[] = [
   {
     id: "M0_3",
     tipo: "opcion",
-    texto: "¿Tu REINFO está vigente o suspendido?",
+    texto: "¿Estás formalizado o inscrito en REINFO?",
     ayuda:
-      "REINFO: tu registro como minero en proceso de formalización. Vigente = al día. Suspendedo = paralizado. Puedes verificarlo con tu DNI en la página del MINEM.",
+      "REINFO es el registro para quien está EN PROCESO de formalizarse — si ya tienes tu título, licencia y todos los permisos vigentes, ya eres formal y no necesitas REINFO. Si no tienes ninguno de los dos, tu operación no tiene amparo legal todavía.",
     opciones: [
-      { valor: "vigente", etiqueta: "Vigente" },
-      { valor: "suspendido", etiqueta: "Suspendido" },
-      { valor: "no", etiqueta: "No tengo REINFO" },
+      { valor: "formal", etiqueta: "Ya estoy formalizado", descripcion: "Tengo título, licencia y todos los permisos vigentes — no necesito REINFO" },
+      { valor: "reinfo", etiqueta: "Estoy inscrito en REINFO", descripcion: "Estoy en proceso de formalización" },
+      { valor: "no", etiqueta: "Ninguno de los dos" },
     ],
   },
   {
     id: "M0_4",
     tipo: "opcion",
-    texto: "¿Ya completaste tu REINFO y estás formalizado?",
+    texto: "¿Tu REINFO está vigente o suspendido?",
     ayuda:
-      "Formalizado = ya pasaste todos los trámites del REINFO y tu operación está legalmente habilitada. Si todavía estás en proceso, responde No.",
+      "Vigente = al día. Suspendido = paralizado. Puedes verificarlo con tu DNI en la página del MINEM.",
     opciones: [
-      { valor: "si", etiqueta: "Sí, ya estoy formalizado" },
-      { valor: "no", etiqueta: "No, todavía estoy en proceso" },
+      { valor: "vigente", etiqueta: "Vigente" },
+      { valor: "suspendido", etiqueta: "Suspendido" },
     ],
   },
 ];
@@ -765,7 +765,7 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
 
   if (m0_1 === "concesion_propia") {
     ids.add("M0_3");
-    if (respuestas.M0_3 === "vigente" || respuestas.M0_3 === "suspendido") {
+    if (respuestas.M0_3 === "reinfo") {
       ids.add("M0_4");
     }
   }
@@ -853,7 +853,7 @@ export function clasificarPerfil(respuestas: Record<string, string>): PerfilDiag
   if (m0_1 !== "concesion_propia") return "sin_ruta";
 
   if (respuestas.M0_3 === "no") return "sin_ruta";
-  if (respuestas.M0_4 === "si") return "D";
+  if (respuestas.M0_3 === "formal") return "D";
   return "C";
 }
 

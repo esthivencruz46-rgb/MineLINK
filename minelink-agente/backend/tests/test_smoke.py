@@ -76,7 +76,7 @@ PDF_VALIDO_DE_PRUEBA = (
 # todos los documentos de formalización aprobados). Semáforo legal verde,
 # sin brechas, apto para inversionistas.
 RESPUESTAS_COMPLETAS = {
-    "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+    "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
     "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
     "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
     "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
@@ -871,7 +871,7 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     # con incendio legal activo (semáforo rojo), ni perfiles sin proyecto
     # publicable (A). El minero con REINFO suspendido NO debe listarse.
     respuestas_suspendido = dict(RESPUESTAS_COMPLETAS)
-    respuestas_suspendido["M0_3"] = "suspendido"
+    respuestas_suspendido["M0_4"] = "suspendido"
     respuestas_suspendido["C1_1"] = "suspendida"
     diag_rojo = client.post(
         "/diagnostico",

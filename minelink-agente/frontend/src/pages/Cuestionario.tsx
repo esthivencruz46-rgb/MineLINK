@@ -24,7 +24,7 @@ const SIN_ESPECIFICAR = "no especificado";
 // prellenados hacia el Módulo INV (B3_1→INV_1, B3_2→INV_2, C4_2→INV_5)
 // quedaron en pausa junto con el módulo — ver data/preguntas.ts.
 const PRELLENADOS: Record<string, (valor: string) => Record<string, string>> = {
-  M0_3: (v): Record<string, string> => {
+  M0_4: (v): Record<string, string> => {
     if (v === "vigente") return { C1_1: "vigente" };
     if (v === "suspendido") return { C1_1: "suspendida" };
     return {};
@@ -47,7 +47,7 @@ const OPCIONES_MINERAL = [
 /** Una respuesta es prellenada (no la eligió el usuario en esa pantalla)
  *  si su pregunta origen está respondida — la navegación las salta. */
 function esPrellenada(respuestas: Respuestas, id: string): boolean {
-  if (id === "C1_1") return ["vigente", "suspendido"].includes(respuestas.M0_3 ?? "");
+  if (id === "C1_1") return ["vigente", "suspendido"].includes(respuestas.M0_4 ?? "");
   return false;
 }
 
@@ -119,7 +119,6 @@ export function Cuestionario() {
   // flujo normal.
   const actual =
     (idActual ? visibles.find((p) => p.id === idActual) : null) ?? primeraSinResponder;
-  const respondidas = visibles.filter((p) => respuestas[p.id]).length;
   // El perfil A declara su mineral en A5_2; B/C/D lo eligen en una
   // pantalla de contexto al final.
   const faltaMineral =
@@ -242,7 +241,7 @@ export function Cuestionario() {
     return (
       <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
         <BotonVolver onClick={volver} />
-        <ProgressBar actual={respondidas} total={visibles.length + 1} />
+        <ProgressBar actual={visibles.length + 1} total={visibles.length + 1} />
         <h2 className="text-xl font-semibold">
           ¿Cuál es el principal mineral de tu operación?
         </h2>
@@ -270,7 +269,7 @@ export function Cuestionario() {
     return (
       <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
         {indiceActual > 0 && <BotonVolver onClick={volver} />}
-        <ProgressBar actual={respondidas} total={visibles.length} />
+        <ProgressBar actual={indiceActual + 1} total={visibles.length} />
 
         <div className="flex flex-col gap-3">
           {perfil && perfil !== "sin_ruta" && actual.id !== "M0_1" && (

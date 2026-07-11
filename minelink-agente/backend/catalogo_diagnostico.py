@@ -42,10 +42,15 @@ PREGUNTAS: dict[str, tuple] = {
     # (propia o por contrato) pero todavía no opera → deriva directo a
     # Perfil B, sin pasar por REINFO (M0_3/M0_4 no le aplican).
     "M0_1": ("opcion", ("concesion_propia", "concesion_no_operando", "petitorio_tramite", "nada")),
-    # "no_se" en M0_3/M0_4 es SOLO de UI (dispara micro-guía de consulta en
-    # la web del MINEM y no avanza) — nunca se envía al backend.
-    "M0_3": ("opcion", ("vigente", "suspendido", "no")),
-    "M0_4": ("opcion", ("si", "no")),
+    # M0_3 pregunta la situación de formalización general PRIMERO — no todo
+    # el que opera necesita REINFO: quien ya es formal (título + permisos
+    # completos) nunca pasó ni necesita pasar por REINFO, ese registro es
+    # solo el paso intermedio para quien está formalizándose. Antes se
+    # preguntaba directo "¿tu REINFO está vigente/suspendido?" y "no tengo
+    # REINFO" caía en sin_ruta (ilegal) — eso clasificaba mal a un formal
+    # pleno. "no_se" en M0_4 es SOLO de UI (micro-guía MINEM), no se envía.
+    "M0_3": ("opcion", ("formal", "reinfo", "no")),
+    "M0_4": ("opcion", ("vigente", "suspendido")),          # solo si M0_3 == "reinfo"
 
     # ---------- Módulo A: desde cero (quiere concesión) ----------
     "A1_1": ("opcion", ("si", "no")),                     # ¿área identificada?
@@ -86,7 +91,7 @@ PREGUNTAS: dict[str, tuple] = {
     "B5_4": ("opcion", ("si", "no", "no_sabia")),                             # autorización DREM/GREM
 
     # ---------- Módulo C: REINFO (opera y formaliza) ----------
-    "C1_1": ("opcion", ("vigente", "suspendida")),        # prellenada de M0_3, no se repregunta
+    "C1_1": ("opcion", ("vigente", "suspendida")),        # prellenada de M0_4, no se repregunta
     "C1_2": ("opcion", ("si", "no", "no_se")),            # sinceramiento coordenadas Ley 32537
     # Ya no se deriva de M0_1 (que ahora solo distingue operando/no operando)
     # — se pregunta directo aquí porque solo aplica a quien opera con REINFO.
@@ -140,15 +145,15 @@ def clasificar_perfil(respuestas: dict[str, str]) -> str:
     m0_3 = respuestas.get("M0_3")
     if m0_3 == "no":
         return "sin_ruta"
-    if m0_3 not in ("vigente", "suspendido"):
+    if m0_3 == "formal":
+        return "D"
+    if m0_3 != "reinfo":
         raise ValueError("M0_3 es obligatorio cuando está operando")
 
     m0_4 = respuestas.get("M0_4")
-    if m0_4 == "si":
-        return "D"
-    if m0_4 == "no":
+    if m0_4 in ("vigente", "suspendido"):
         return "C"
-    raise ValueError("M0_4 es obligatorio cuando hay REINFO")
+    raise ValueError("M0_4 es obligatorio cuando está inscrito en REINFO")
 
 
 def clasificacion_b(respuestas: dict[str, str]) -> str | None:
@@ -200,7 +205,7 @@ def ids_esperados(respuestas: dict[str, str], hoy: date | None = None) -> set[st
     ids = {"M0_1"}
     if respuestas.get("M0_1") == "concesion_propia":
         ids.add("M0_3")
-        if respuestas.get("M0_3") in ("vigente", "suspendido"):
+        if respuestas.get("M0_3") == "reinfo":
             ids.add("M0_4")
 
     if perfil == "sin_ruta":

@@ -66,7 +66,7 @@ def _perfil_b_sin_b5() -> dict[str, str]:
 
 def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+        "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
         "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
@@ -79,7 +79,7 @@ def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
 
 def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+        "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
         "C1_1": "vigente", "C1_2": "si", "C1_3": "contrato",
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
@@ -92,8 +92,10 @@ def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str
 
 
 def _perfil_d(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    # Perfil D = ya formalizado (M0_3="formal") — no necesita REINFO, así
+    # que M0_4 no aplica (ver ids_esperados).
     base = {
-        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "si",
+        "M0_1": "concesion_propia", "M0_3": "formal",
         "D1_1": "si", "D1_2": "si", "D1_3": "si", "D1_4": "sin_observaciones",
         "D2_1": "ampliar", "D2_2": "autofinanciado",
     }
