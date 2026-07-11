@@ -115,6 +115,7 @@ def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
     return schemas.MineroPerfilOut(
+        operacion_id=operacion.id,
         nombre=lead.nombre,
         whatsapp=lead.whatsapp,
         email=lead.email,

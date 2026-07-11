@@ -1,4 +1,5 @@
 export interface MineroPerfil {
+  operacion_id: string;
   nombre: string;
   whatsapp: string;
   email?: string | null;

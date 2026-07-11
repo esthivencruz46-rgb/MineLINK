@@ -400,6 +400,11 @@ class EstudioAplicableOut(BaseModel):
 
 
 class MineroPerfilOut(BaseModel):
+    # El id de la Operacion (no el del Lead) — lo necesita el frontend para
+    # el flujo "Me interesa" de /empresas cuando llega desde una cuenta ya
+    # autenticada (antes solo existía justo después del diagnóstico, vía
+    # sessionStorage — un usuario que vuelve más tarde no lo tenía).
+    operacion_id: str
     nombre: str
     whatsapp: str
     email: Optional[str] = None

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { Building2, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
@@ -12,23 +12,45 @@ import type { EmpresaPublica } from "../types/empresa";
 
 const TODOS_LOS_ESTUDIOS = Object.keys(INFO_BRECHA);
 
+/** Llega aquí de dos formas: recién terminado el diagnóstico (sessionStorage,
+ * `leerDiagnostico()`) o desde una cuenta ya autenticada — MiConcesion.tsx
+ * manda esto por `navigate("/empresas", { state })` cuando el minero hace
+ * clic en un pendiente de "Lo que te falta" (sessionStorage ya se limpió
+ * al loguearse, ver useRegistroMinero). */
+interface EstadoDesdeCuenta {
+  region?: string;
+  estudios?: string[];
+  operacionId?: string;
+}
+
 export function Empresas() {
+  const location = useLocation();
+  const estadoCuenta = location.state as EstadoDesdeCuenta | null;
   const guardado = leerDiagnostico();
+  // Ya tiene cuenta (llegó desde /mi-concesion): no tiene sentido pedirle
+  // que se registre de nuevo.
+  const yaTieneCuenta = Boolean(estadoCuenta);
 
   // "no especificado" es el placeholder que guarda el diagnóstico cuando
   // el departamento aún no se preguntó (ver Cuestionario.tsx) — nunca es
   // un departamento real, así que debe tratarse como "sin filtro" (""),
   // igual que cuando el usuario elige "Todos los departamentos" a mano.
+  function regionValida(r: string | undefined): string {
+    return r && r !== "no especificado" ? r : "";
+  }
+
   const [region, setRegion] = useState(
-    guardado?.region && guardado.region !== "no especificado" ? guardado.region : ""
+    regionValida(estadoCuenta?.region) || regionValida(guardado?.region)
   );
   const [estudiosFiltro, setEstudiosFiltro] = useState<string[]>(
-    guardado?.respuesta.brechas ?? []
+    estadoCuenta?.estudios ?? guardado?.respuesta.brechas ?? []
   );
   const [empresas, setEmpresas] = useState<EmpresaPublica[]>([]);
   const [esDemo, setEsDemo] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
+  const operacionId = estadoCuenta?.operacionId ?? guardado?.respuesta.id;
+  const brechasMinero = estadoCuenta?.estudios ?? guardado?.respuesta.brechas ?? [];
   const {
     enviando: enviandoLead,
     error: errorLead,
@@ -44,7 +66,9 @@ export function Empresas() {
     });
   }, [region, estudiosFiltro]);
 
-  if (!guardado) {
+  // Sin diagnóstico reciente NI llegada desde una cuenta: no hay contexto
+  // (ej. alguien escribió la URL directo) — a la portada.
+  if (!guardado && !estadoCuenta) {
     return <Navigate to="/" replace />;
   }
 
@@ -106,12 +130,14 @@ export function Empresas() {
       {!cargando && empresas.length === 0 && (
         <div className="rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
           <p>Aún no tenemos empresas registradas para esto en tu departamento.</p>
-          <button
-            onClick={() => setMostrarModal(true)}
-            className="mt-4 min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
-          >
-            Avísenme cuando haya
-          </button>
+          {!yaTieneCuenta && (
+            <button
+              onClick={() => setMostrarModal(true)}
+              className="mt-4 min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
+            >
+              Avísenme cuando haya
+            </button>
+          )}
         </div>
       )}
 
@@ -144,8 +170,8 @@ export function Empresas() {
               <EmpresaCard
                 key={empresa.id}
                 empresa={empresa}
-                brechasMinero={guardado.respuesta.brechas}
-                operacionId={guardado.respuesta.id}
+                brechasMinero={brechasMinero}
+                operacionId={operacionId}
                 demo={esDemo}
               />
             ))}
@@ -153,7 +179,7 @@ export function Empresas() {
         );
       })}
 
-      {!cargando && empresas.length > 0 && (
+      {!yaTieneCuenta && !cargando && empresas.length > 0 && (
         <button
           onClick={() => setMostrarModal(true)}
           className="min-h-[44px] rounded-lg border border-acento px-6 font-semibold text-acento"
@@ -162,7 +188,7 @@ export function Empresas() {
         </button>
       )}
 
-      {mostrarModal && (
+      {mostrarModal && guardado && (
         <RegistroMineroModal
           situacion={guardado.situacion}
           codigoReinfoInicial={guardado.codigoReinfo}

@@ -162,7 +162,18 @@ export function MiConcesion() {
 
       <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
 
-      <SalidasList salidas={perfil.salidas} onBuscarAyuda={() => navigate("/empresas")} />
+      <SalidasList
+        salidas={perfil.salidas}
+        onBuscarAyuda={() =>
+          navigate("/empresas", {
+            state: {
+              region: perfil.region,
+              estudios: perfil.brechas_pendientes,
+              operacionId: perfil.operacion_id,
+            },
+          })
+        }
+      />
 
       {/* Orden pedido: tus datos → respaldo de declaración → lo que te falta */}
       <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
@@ -198,9 +209,27 @@ export function MiConcesion() {
               No tienes brechas pendientes.
             </p>
           ) : (
-            <ul className="mt-2 flex flex-col gap-1 text-sm">
+            <ul className="mt-2 flex flex-col gap-1">
               {perfil.brechas_pendientes.map((b) => (
-                <li key={b}>• {INFO_BRECHA[b]?.texto ?? b}</li>
+                <li key={b}>
+                  <button
+                    onClick={() =>
+                      navigate("/empresas", {
+                        state: {
+                          region: perfil.region,
+                          estudios: [b],
+                          operacionId: perfil.operacion_id,
+                        },
+                      })
+                    }
+                    className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                  >
+                    <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
+                    <span className="shrink-0 text-xs font-semibold text-acento">
+                      ¿Quién me ayuda? →
+                    </span>
+                  </button>
+                </li>
               ))}
             </ul>
           )}
