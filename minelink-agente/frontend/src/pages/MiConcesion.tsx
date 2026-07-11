@@ -164,6 +164,30 @@ export function MiConcesion() {
 
       <SalidasList salidas={perfil.salidas} onBuscarAyuda={() => navigate("/empresas")} />
 
+      {/* Orden pedido: tus datos → respaldo de declaración → lo que te falta */}
+      <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
+        <h2 className="font-semibold">Tus datos</h2>
+        <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
+          WhatsApp: {perfil.whatsapp}
+        </p>
+        {perfil.email && (
+          <p className="text-texto-suave dark:text-texto-suave-dark">
+            Email: {perfil.email}
+          </p>
+        )}
+        <p className="text-texto-suave dark:text-texto-suave-dark">
+          Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
+        </p>
+      </div>
+
+      <DocumentosMinero
+        onDocumentosChange={setDocumentos}
+        estudiosAplicables={perfil.estudios_aplicables}
+        fotosPerfilAplicables={perfil.fotos_perfil}
+        esTitularConcesion={perfil.es_titular_concesion}
+        ocultarFotosOperacion
+      />
+
       {muestraEstudios && (
         <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
           <h2 className="font-semibold">Lo que te falta</h2>
@@ -193,28 +217,6 @@ export function MiConcesion() {
           )}
         </div>
       )}
-
-      <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Tus datos</h2>
-        <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
-          WhatsApp: {perfil.whatsapp}
-        </p>
-        {perfil.email && (
-          <p className="text-texto-suave dark:text-texto-suave-dark">
-            Email: {perfil.email}
-          </p>
-        )}
-        <p className="text-texto-suave dark:text-texto-suave-dark">
-          Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
-        </p>
-      </div>
-
-      <DocumentosMinero
-        onDocumentosChange={setDocumentos}
-        estudiosAplicables={perfil.estudios_aplicables}
-        fotosPerfilAplicables={perfil.fotos_perfil}
-        esTitularConcesion={perfil.es_titular_concesion}
-      />
     </div>
   );
 }

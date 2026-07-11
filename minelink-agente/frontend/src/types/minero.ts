@@ -103,7 +103,10 @@ export interface MineroPerfil {
   motivo_capital?: string | null;
   produccion_objetivo?: string | null;
   uso_fondos_diagnostico?: string | null;
-  estudios_aplicables: string[];
+  // Cada estudio trae qué preguntó el diagnóstico (pregunta_id) y qué
+  // respondió el minero (valor crudo, ej. "en_tramite") — la UI lo
+  // traduce a su etiqueta legible con data/preguntas.ts.
+  estudios_aplicables: { codigo: string; pregunta_id: string; valor: string }[];
   fotos_perfil: { categoria: string; etiqueta: string }[];
   es_titular_concesion?: boolean | null;
 }

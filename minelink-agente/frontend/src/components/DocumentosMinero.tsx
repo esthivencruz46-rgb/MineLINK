@@ -5,17 +5,30 @@ import { CATEGORIAS_DOCUMENTO, type CategoriaInfo, type DocumentoOperacion } fro
 import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { ORDEN_DIMENSIONES } from "../data/estudiosPorDimension";
-import { NOMBRES_DIMENSION } from "../data/preguntas";
+import { NOMBRES_DIMENSION, POR_ID } from "../data/preguntas";
 
 const FORMATOS_FOTO_O_PDF = "Formato: PDF o una foto del documento (JPG, PNG, WEBP)";
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
 
+/** Traduce el valor crudo que el minero marcó (ej. "en_tramite") a su
+ *  etiqueta legible, buscando la pregunta de origen en el catálogo del
+ *  cuestionario — mismo texto que vio al responder. */
+function etiquetaDeclarada(preguntaId: string, valor: string): string | undefined {
+  return POR_ID[preguntaId]?.opciones?.find((o) => o.valor === valor)?.etiqueta;
+}
+
+interface EstudioAplicable {
+  codigo: string;
+  pregunta_id: string;
+  valor: string;
+}
+
 interface Props {
   onDocumentosChange?: (documentos: DocumentoOperacion[]) => void;
-  /** Códigos de estudio del catálogo (ver INFO_BRECHA) que aplican a la
-   * ruta de este minero — se muestran como categorías extra para que
-   * pueda respaldar con una foto lo que declaró en el diagnóstico. */
-  estudiosAplicables?: string[];
+  /** Estudios del catálogo (ver INFO_BRECHA) que aplican a la ruta de
+   * este minero, con lo que respondió — se muestran como categorías
+   * extra para que pueda respaldar con una foto lo que declaró. */
+  estudiosAplicables?: EstudioAplicable[];
   /** Fotos condicionadas al perfil informativo (mineral, camino de
    * acceso, agua, energía) — ya vienen con la etiqueta compuesta desde
    * el backend (incluye lo que el minero declaró, ej. "Foto del mineral
@@ -26,6 +39,9 @@ interface Props {
    * "Título de concesión" si es titular, "Contrato de explotación" si no
    * — mostrar ambos confundía (julio 2026). */
   esTitularConcesion?: boolean | null;
+  /** Oculta el bloque "Fotos de tu operación" (fotos_mina + condicionadas
+   * al perfil) — por ahora fuera de /mi-concesion, ver MiConcesion.tsx. */
+  ocultarFotosOperacion?: boolean;
 }
 
 export function DocumentosMinero({
@@ -33,6 +49,7 @@ export function DocumentosMinero({
   estudiosAplicables,
   fotosPerfilAplicables,
   esTitularConcesion,
+  ocultarFotosOperacion,
 }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
@@ -135,13 +152,16 @@ export function DocumentosMinero({
     setVistaTipo("");
   }
 
-  const categoriasEstudio: CategoriaInfo[] = (estudiosAplicables ?? []).map((codigo) => ({
-    categoria: codigo as CategoriaInfo["categoria"],
-    etiqueta: INFO_BRECHA[codigo]?.texto ?? codigo,
-    descripcion: INFO_BRECHA[codigo]?.resuelve ?? "",
-    accept: ACCEPT_FOTO_O_PDF,
-    formatos: FORMATOS_FOTO_O_PDF,
-  }));
+  const categoriasEstudio: CategoriaInfo[] = (estudiosAplicables ?? []).map(
+    ({ codigo, pregunta_id, valor }) => ({
+      categoria: codigo as CategoriaInfo["categoria"],
+      etiqueta: INFO_BRECHA[codigo]?.texto ?? codigo,
+      descripcion: INFO_BRECHA[codigo]?.resuelve ?? "",
+      accept: ACCEPT_FOTO_O_PDF,
+      formatos: FORMATOS_FOTO_O_PDF,
+      declarado: etiquetaDeclarada(pregunta_id, valor),
+    })
+  );
 
   // Agrupadas por dimensión (Legal/Ambiental/Operativo/Técnico/Seguridad/
   // Social) para que "Respalda tu declaración" no sea una lista larga sin
@@ -182,6 +202,11 @@ export function DocumentosMinero({
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-sm font-semibold">{cat.etiqueta}</p>
+            {cat.declarado && (
+              <p className="mt-0.5 text-xs font-semibold text-acento">
+                Marcaste: {cat.declarado}
+              </p>
+            )}
             <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
               {cat.descripcion}
             </p>
@@ -263,14 +288,16 @@ export function DocumentosMinero({
 
       {!cargando && (
         <div className="mt-4 flex flex-col gap-6">
-          <div>
-            <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-              Fotos de tu operación
-            </h3>
-            <div className="mt-2 flex flex-col gap-4">
-              {categoriaFotos.map(bloqueCategoria)}
+          {!ocultarFotosOperacion && (
+            <div>
+              <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                Fotos de tu operación
+              </h3>
+              <div className="mt-2 flex flex-col gap-4">
+                {categoriaFotos.map(bloqueCategoria)}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
               Documentos legales

@@ -390,6 +390,15 @@ class CategoriaFotoOut(BaseModel):
     etiqueta: str
 
 
+class EstudioAplicableOut(BaseModel):
+    """Un estudio que el minero puede respaldar con foto — incluye qué
+    respondió (pregunta_id + valor crudo) para que el frontend muestre su
+    propia declaración al lado del slot (ej. "Marcaste: En trámite")."""
+    codigo: str
+    pregunta_id: str
+    valor: str
+
+
 class MineroPerfilOut(BaseModel):
     nombre: str
     whatsapp: str
@@ -496,11 +505,11 @@ class MineroPerfilOut(BaseModel):
     motivo_capital: Optional[str] = None
     produccion_objetivo: Optional[str] = None
     uso_fondos_diagnostico: Optional[str] = None
-    # Códigos de estudio del catálogo que aplican a su tipo_mina/situación
-    # (ver scoring.ESTUDIO_POR_PREGUNTA) — para que pueda subir una foto de
-    # respaldo por cada uno desde /mi-cuenta o /mi-concesion, sin importar
-    # si respondió Sí o No en el diagnóstico.
-    estudios_aplicables: list[str] = []
+    # Estudios del catálogo que aplican a su tipo_mina/situación (ver
+    # routers.mineros._estudios_aplicables) — para que pueda subir una foto
+    # de respaldo por cada uno desde /mi-cuenta o /mi-concesion, junto con
+    # lo que declaró en el diagnóstico para ese estudio.
+    estudios_aplicables: list[EstudioAplicableOut] = []
     # Fotos condicionadas al PERFIL informativo (mineral que extrae, camino
     # de acceso, fuente de agua/energía) — solo si el minero declaró ese
     # dato, con su propia respuesta ya incluida en la etiqueta (ver

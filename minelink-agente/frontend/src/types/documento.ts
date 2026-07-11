@@ -12,6 +12,10 @@ export interface CategoriaInfo {
   descripcion: string;
   accept: string;
   formatos: string;
+  /** Lo que el minero marcó en el diagnóstico para este estudio, ya
+   *  traducido a su etiqueta legible (ej. "Marcaste: En trámite"). Solo
+   *  aplica a los estudios de "Respalda tu declaración". */
+  declarado?: string;
 }
 
 export const CATEGORIAS_DOCUMENTO: CategoriaInfo[] = [

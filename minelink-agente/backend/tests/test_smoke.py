@@ -697,9 +697,12 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     # estudios del catálogo que aplican a su perfil siguen disponibles
     # para subir respaldo.
     assert isinstance(aplicables, list)
+    codigos = {a["codigo"] for a in aplicables}
+    # Cada item trae la pregunta y el valor crudo que el minero declaró.
+    assert all({"codigo", "pregunta_id", "valor"} <= set(a) for a in aplicables)
     # No debe incluir estudios que equivalen a documentos legales fijos
     # (ver uploads_config.categoria_equivalente)
-    assert "contrato_explotacion" not in aplicables  # equivale a documento fijo
+    assert "contrato_explotacion" not in codigos  # equivale a documento fijo
 
 
 def test_mineros_perfil_b_expone_slots_pma_ppm_y_vigencia():
@@ -724,8 +727,13 @@ def test_mineros_perfil_b_expone_slots_pma_ppm_y_vigencia():
     ).json()["access_token"]
     resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
     aplicables = resp.json()["estudios_aplicables"]
-    assert "declaracion_bienal_pma_ppm" in aplicables
-    assert "vigencia_concesion" in aplicables
+    por_codigo = {a["codigo"]: a for a in aplicables}
+    assert "declaracion_bienal_pma_ppm" in por_codigo
+    assert por_codigo["declaracion_bienal_pma_ppm"] == {
+        "codigo": "declaracion_bienal_pma_ppm", "pregunta_id": "B2_1", "valor": "pma",
+    }
+    assert "vigencia_concesion" in por_codigo
+    assert por_codigo["vigencia_concesion"]["valor"] == "al_dia"
 
 
 def test_mineros_documento_pdf_se_convierte_a_foto():
