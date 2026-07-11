@@ -43,6 +43,24 @@ CATEGORIAS_DOCUMENTO = {
     "autorizacion_drem": (_PDF_O_IMAGEN, "Autorización de inicio de actividades (DREM/GREM)"),
 }
 
+# Documentos de sustento del Módulo INV (julio 2026) que NO existen ya
+# como estudio del diagnóstico — los que sí (informe_geologico,
+# analisis_laboratorio, estimacion_recursos, documentacion_operacion,
+# costos_opex, titulo_concesion) se reutilizan tal cual, sin duplicar aquí.
+# Ver catalogo_inversion.categorias_requeridas_inversion() para cuáles son
+# obligatorias por perfil; el resto son opcionales (suben el puntaje de
+# visibilidad pero no bloquean el visto bueno).
+CATEGORIAS_INVERSION = {
+    "muestreo_propio": (("image/jpeg", "image/png", "image/webp"), "Fotos de muestreo propio"),
+    "fotos_area_petitorio": (("image/jpeg", "image/png", "image/webp"), "Fotos del área"),
+    "liquidaciones_venta": (_PDF_O_IMAGEN, "Liquidaciones de venta"),
+    "estados_financieros_libros": (_PDF_O_IMAGEN, "Estados financieros o libros contables"),
+    "contratos_offtake": (_PDF_O_IMAGEN, "Contratos de venta / offtake"),
+    "plan_expansion_documentado": (_PDF_O_IMAGEN, "Plan de expansión documentado"),
+    "certificado_ley": (_PDF_O_IMAGEN, "Certificado de ley del mineral"),
+    "fotos_labores_antiguas": (("image/jpeg", "image/png", "image/webp"), "Fotos de labores antiguas"),
+}
+
 # El diagnóstico Sí/No declara el estado de formalización, pero esa
 # declaración por sí sola no se puede comprobar. Además de los documentos
 # fijos de arriba, el minero puede subir una foto de respaldo por cada

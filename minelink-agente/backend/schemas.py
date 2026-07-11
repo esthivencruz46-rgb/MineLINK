@@ -408,6 +408,57 @@ class VistoBuenoDocumentosRequest(BaseModel):
     visto_bueno: bool
 
 
+# ---------- Módulo INV (perfil de inversión) ----------
+
+class EnviarInversionRequest(BaseModel):
+    """Body de POST /mineros/inversion. Los valores son string para
+    preguntas de opción única, o list[str] para las multi-selección
+    (INV_0_2/INV_0_4) — ver catalogo_inversion.validar_respuestas_inversion."""
+
+    respuestas: dict[str, str | list[str]]
+
+
+class CategoriaRequeridaOut(BaseModel):
+    categoria: str
+    etiqueta: str
+    aprobado: bool
+
+
+class AlertaInversionOut(BaseModel):
+    codigo: str
+    texto: str
+
+
+class InversionEstadoOut(BaseModel):
+    """Respuesta de GET /mineros/inversion — todo lo que la cuenta del
+    minero necesita para decidir qué mostrar (bloqueado/wizard/en
+    revisión/aprobado)."""
+
+    ofrece: bool
+    prioridad: Optional[str] = None
+    motivo: Optional[str] = None
+    respuestas: dict[str, str | list[str]] = {}
+    enviado: bool = False
+    visto_bueno: bool = False
+    categorias_requeridas: list[CategoriaRequeridaOut] = []
+
+
+class InversionAdminOut(BaseModel):
+    """Respuesta de GET /admin/operaciones/{operacion_id}/inversion."""
+
+    respuestas: dict[str, str | list[str]] = {}
+    enviado: bool = False
+    visto_bueno: bool = False
+    alertas: list[AlertaInversionOut] = []
+    categorias_requeridas: list[CategoriaRequeridaOut] = []
+
+
+class VistoBuenoInversionRequest(BaseModel):
+    """Body de PUT /admin/operaciones/{operacion_id}/visto-bueno-inversion."""
+
+    visto_bueno: bool
+
+
 class CategoriaFotoOut(BaseModel):
     categoria: str
     etiqueta: str
@@ -557,6 +608,12 @@ class MineroPerfilOut(BaseModel):
     # que desbloquea Inversionista en el frontend.
     documentos_enviados: bool = False
     visto_bueno_documentos: bool = False
+    # Módulo INV (julio 2026) — si se ofrece a este minero y en qué estado
+    # está su envío, para que la cuenta muestre el botón correcto.
+    inversion_ofrecida: bool = False
+    inversion_prioridad: Optional[str] = None
+    inv_enviado: bool = False
+    inv_visto_bueno: bool = False
 
 
 class ProyectoPublicoOut(BaseModel):

@@ -24,7 +24,7 @@ from catalogo_diagnostico import (
     ids_esperados,
     validar_respuestas,
 )
-from uploads_config import categoria_equivalente
+from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_INVERSION, categoria_equivalente
 
 # Supuestos de negocio del cálculo de urgencia C5 (días que suele tomar un
 # documento según su estado) — PENDIENTE DE CALIBRAR con Esthiven.
@@ -422,6 +422,32 @@ def estudios_aplicables(operacion) -> list[dict]:
         vistos.add(estudio)
         resultado.append({"codigo": estudio, "pregunta_id": id_pregunta, "valor": valor})
     return sorted(resultado, key=lambda r: r["codigo"])
+
+
+def _etiqueta_categoria_documento(categoria: str) -> str:
+    if categoria in CATEGORIAS_DOCUMENTO:
+        return CATEGORIAS_DOCUMENTO[categoria][1]
+    if categoria in CATEGORIAS_INVERSION:
+        return CATEGORIAS_INVERSION[categoria][1]
+    return categoria
+
+
+def categorias_requeridas_out(operacion, categorias: list[str]) -> list[dict]:
+    """Para cada categoría requerida (formalización o Módulo INV), si ya
+    tiene un documento aprobado — misma forma que usan tanto
+    `visto-bueno-documentos` como `visto-bueno-inversion` para decidir si
+    el botón está listo."""
+    aprobadas = {
+        d.categoria for d in (operacion.documentos or []) if d.estado_revision == "aprobado"
+    }
+    return [
+        {
+            "categoria": c,
+            "etiqueta": _etiqueta_categoria_documento(c),
+            "aprobado": c in aprobadas,
+        }
+        for c in categorias
+    ]
 
 
 def score_formalizacion_para_inversion(seguimiento: dict) -> int:

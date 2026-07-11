@@ -1,10 +1,13 @@
 """Migración: revisión admin de documentos + desbloqueo de "Inversionista"
-(julio 2026). Agrega:
++ Módulo INV (julio 2026). Agrega:
   - documentos_operacion.estado_revision (VARCHAR NOT NULL DEFAULT 'pendiente')
   - documentos_operacion.motivo_rechazo (VARCHAR, nullable)
   - documentos_operacion.revisado_en (TIMESTAMP, nullable)
   - operaciones.documentos_enviados_en (TIMESTAMP, nullable)
   - operaciones.visto_bueno_documentos (BOOLEAN NOT NULL DEFAULT FALSE)
+  - operaciones.inv_respuestas_json (JSON, nullable)
+  - operaciones.inv_enviado_en (TIMESTAMP, nullable)
+  - operaciones.inv_visto_bueno (BOOLEAN NOT NULL DEFAULT FALSE)
 
 Funciona contra la base que diga DATABASE_URL (Supabase/Postgres) o la
 SQLite local si no hay .env — usa el mismo engine que la app. Filas
@@ -69,5 +72,25 @@ with engine.begin() as con:
         print("Columna operaciones.visto_bueno_documentos agregada.")
     else:
         print("operaciones.visto_bueno_documentos ya existía, no se tocó.")
+
+    if "inv_respuestas_json" not in columnas_operaciones:
+        con.execute(text("ALTER TABLE operaciones ADD COLUMN inv_respuestas_json JSON"))
+        print("Columna operaciones.inv_respuestas_json agregada.")
+    else:
+        print("operaciones.inv_respuestas_json ya existía, no se tocó.")
+
+    if "inv_enviado_en" not in columnas_operaciones:
+        con.execute(text("ALTER TABLE operaciones ADD COLUMN inv_enviado_en TIMESTAMP"))
+        print("Columna operaciones.inv_enviado_en agregada.")
+    else:
+        print("operaciones.inv_enviado_en ya existía, no se tocó.")
+
+    if "inv_visto_bueno" not in columnas_operaciones:
+        con.execute(
+            text("ALTER TABLE operaciones ADD COLUMN inv_visto_bueno BOOLEAN NOT NULL DEFAULT FALSE")
+        )
+        print("Columna operaciones.inv_visto_bueno agregada.")
+    else:
+        print("operaciones.inv_visto_bueno ya existía, no se tocó.")
 
 print(f"Listo en: {engine.url.render_as_string(hide_password=True)}")

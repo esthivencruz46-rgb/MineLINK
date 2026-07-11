@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Lock, Search, TrendingUp, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { SalidasList } from "../components/SalidasList";
+import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
 import { INFO_BRECHA } from "../data/brechas";
@@ -29,7 +30,6 @@ export function MiConcesion() {
   const [mostrarBienvenida, setMostrarBienvenida] = useState(
     Boolean((location.state as { bienvenida?: boolean } | null)?.bienvenida)
   );
-  const [mostrarInversionista, setMostrarInversionista] = useState(false);
 
   useEffect(() => {
     authFetch("/mineros/me")
@@ -251,52 +251,7 @@ export function MiConcesion() {
         </div>
       )}
 
-      {perfil.visto_bueno_documentos ? (
-        <button
-          onClick={() => setMostrarInversionista(true)}
-          className="flex items-center justify-between gap-3 rounded-lg bg-acento p-5 text-left text-white"
-        >
-          <div>
-            <h2 className="flex items-center gap-2 font-semibold">
-              <TrendingUp size={18} strokeWidth={2} /> Inversionista
-            </h2>
-            <p className="mt-1 text-sm text-white/85">
-              Esthiven ya validó tus documentos. Completa tu perfil para atraer inversionistas.
-            </p>
-          </div>
-        </button>
-      ) : (
-        <div className="flex items-start gap-3 rounded-lg bg-tarjeta p-5 opacity-70 dark:bg-tarjeta-dark">
-          <Lock size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-texto-suave dark:text-texto-suave-dark" />
-          <div>
-            <h2 className="font-semibold">Inversionista (bloqueado)</h2>
-            <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-              {perfil.documentos_enviados
-                ? "Esthiven está revisando los archivos que enviaste. Se desbloquea en cuanto los valide."
-                : "Se desbloquea cuando envíes tus archivos en \"Respalda tu declaración\" y Esthiven los valide."}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {mostrarInversionista && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
-            <TrendingUp size={28} strokeWidth={2} className="mx-auto text-acento" />
-            <h2 className="mt-3 font-semibold">Próximamente</h2>
-            <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
-              Estamos preparando el formulario de inversión para tu proyecto. Te avisaremos por
-              WhatsApp en cuanto esté disponible.
-            </p>
-            <button
-              onClick={() => setMostrarInversionista(false)}
-              className="mt-4 min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
-            >
-              Entendido
-            </button>
-          </div>
-        </div>
-      )}
+      <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
     </div>
   );
 }

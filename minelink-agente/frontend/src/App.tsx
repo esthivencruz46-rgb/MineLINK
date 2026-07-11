@@ -12,6 +12,7 @@ import { AdminLeads } from "./pages/admin/AdminLeads";
 import { AdminLogin } from "./pages/admin/AdminLogin";
 import { ComoFunciona } from "./pages/ComoFunciona";
 import { Cuestionario } from "./pages/Cuestionario";
+import { CuestionarioInversion } from "./pages/CuestionarioInversion";
 import { Empresas } from "./pages/Empresas";
 import { Gracias } from "./pages/Gracias";
 import { Inicio } from "./pages/Inicio";
@@ -79,6 +80,14 @@ export function App() {
               element={
                 <ProtectedRouteMinero>
                   <MiConcesion />
+                </ProtectedRouteMinero>
+              }
+            />
+            <Route
+              path="/mi-inversion"
+              element={
+                <ProtectedRouteMinero>
+                  <CuestionarioInversion />
                 </ProtectedRouteMinero>
               }
             />

@@ -12,7 +12,8 @@ import schemas
 from auth import authenticate_admin, create_access_token, get_current_admin, hash_password
 from database import get_db
 from security import limitar_intentos_login
-from scoring import estado_seguimiento, estudios_aplicables
+from scoring import categorias_requeridas_out, estado_seguimiento, estudios_aplicables
+from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
 import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -487,6 +488,83 @@ def actualizar_visto_bueno_documentos(
             )
 
     operacion.visto_bueno_documentos = payload.visto_bueno
+    db.commit()
+    db.refresh(operacion)
+
+    lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
+
+    from routers.mineros import _perfil_out
+
+    return _perfil_out(lead, operacion)
+
+
+@router.get(
+    "/operaciones/{operacion_id}/inversion",
+    response_model=schemas.InversionAdminOut,
+)
+def ver_inversion(
+    operacion_id: str,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Respuestas del Módulo INV + alertas de consistencia AL1-AL8 +
+    documentos de sustento requeridos, para que Esthiven decida el visto
+    bueno."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+
+    perfil = operacion.estado_formalizacion
+    respuestas_inv = operacion.inv_respuestas_json or {}
+    return schemas.InversionAdminOut(
+        respuestas=respuestas_inv,
+        enviado=operacion.inv_enviado_en is not None,
+        visto_bueno=operacion.inv_visto_bueno,
+        alertas=alertas_inversion(perfil, operacion.respuestas_json, respuestas_inv),
+        categorias_requeridas=categorias_requeridas_out(
+            operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
+        ),
+    )
+
+
+@router.put(
+    "/operaciones/{operacion_id}/visto-bueno-inversion",
+    response_model=schemas.MineroPerfilOut,
+)
+def actualizar_visto_bueno_inversion(
+    operacion_id: str,
+    payload: schemas.VistoBuenoInversionRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Marca el perfil de inversión como listo para el módulo
+    inversionista. Para desbloquear (visto_bueno=True), exige que todos
+    los documentos de sustento requeridos para el perfil estén aprobados."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+
+    if payload.visto_bueno:
+        perfil = operacion.estado_formalizacion
+        respuestas_inv = operacion.inv_respuestas_json or {}
+        faltantes = [
+            c["categoria"]
+            for c in categorias_requeridas_out(
+                operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
+            )
+            if not c["aprobado"]
+        ]
+        if faltantes:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Todavía faltan documentos aprobados para: " + ", ".join(faltantes)
+                ),
+            )
+
+    operacion.inv_visto_bueno = payload.visto_bueno
     db.commit()
     db.refresh(operacion)
 

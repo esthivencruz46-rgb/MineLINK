@@ -127,6 +127,14 @@ class Operacion(Base):
     documentos_enviados_en = Column(DateTime, nullable=True)
     visto_bueno_documentos = Column(Boolean, nullable=False, default=False)
 
+    # Módulo INV — perfil de inversión (julio 2026), ver catalogo_inversion.py.
+    # Solo se puede llenar cuando visto_bueno_documentos es True. Reenviar
+    # antes de que el admin dé su propio visto bueno SOBREESCRIBE (permite
+    # corregir sin crear versiones).
+    inv_respuestas_json = Column(JSON, nullable=True)
+    inv_enviado_en = Column(DateTime, nullable=True)
+    inv_visto_bueno = Column(Boolean, nullable=False, default=False)
+
     created_at = Column(DateTime, default=_now)
 
     leads = relationship("Lead", back_populates="operacion")

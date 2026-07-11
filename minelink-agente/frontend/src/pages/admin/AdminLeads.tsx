@@ -7,6 +7,7 @@ import { DEPARTAMENTOS } from "../../data/departamentos";
 import { INFO_BRECHA } from "../../data/brechas";
 import { CATEGORIAS_DOCUMENTO } from "../../types/documento";
 import type { DocumentoOperacion } from "../../types/documento";
+import { POR_ID_INV } from "../../data/preguntasInversion";
 import { calcularSemaforo } from "../../utils/semaforo";
 import { formatearMonto } from "../../utils/formato";
 import type { LeadConDiagnostico } from "../../types/admin";
@@ -42,6 +43,33 @@ function etiquetaCategoria(categoria: string): string {
     INFO_BRECHA[categoria]?.texto ??
     categoria
   );
+}
+
+interface CategoriaRequerida {
+  categoria: string;
+  etiqueta: string;
+  aprobado: boolean;
+}
+
+interface AlertaInversion {
+  codigo: string;
+  texto: string;
+}
+
+interface InversionAdmin {
+  respuestas: Record<string, string | string[]>;
+  enviado: boolean;
+  visto_bueno: boolean;
+  alertas: AlertaInversion[];
+  categorias_requeridas: CategoriaRequerida[];
+}
+
+/** Traduce una respuesta cruda del Módulo INV (string o lista de valores)
+ * a su etiqueta legible, usando el mismo catálogo que ve el minero. */
+function etiquetaRespuestaInv(id: string, valor: string | string[]): string {
+  const pregunta = POR_ID_INV[id];
+  const etiquetaDe = (v: string) => pregunta?.opciones?.find((o) => o.valor === v)?.etiqueta ?? v;
+  return Array.isArray(valor) ? valor.map(etiquetaDe).join(", ") : etiquetaDe(valor);
 }
 
 /** Perfil informativo del diagnóstico (bloques 1-8 del cuestionario): se
@@ -165,6 +193,11 @@ export function AdminLeads() {
   const [motivoRechazo, setMotivoRechazo] = useState("");
   const [actualizandoVistoBueno, setActualizandoVistoBueno] = useState(false);
   const [errorVistoBueno, setErrorVistoBueno] = useState<string | null>(null);
+  const [leadInversion, setLeadInversion] = useState<LeadConDiagnostico | null>(null);
+  const [inversion, setInversion] = useState<InversionAdmin | null>(null);
+  const [cargandoInversion, setCargandoInversion] = useState(false);
+  const [actualizandoVistoBuenoInv, setActualizandoVistoBuenoInv] = useState(false);
+  const [errorVistoBuenoInv, setErrorVistoBuenoInv] = useState<string | null>(null);
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
@@ -402,6 +435,46 @@ export function AdminLeads() {
       );
     } finally {
       setActualizandoVistoBueno(false);
+    }
+  }
+
+  function verInversion(lead: LeadConDiagnostico) {
+    setLeadInversion(lead);
+    setErrorVistoBuenoInv(null);
+    setCargandoInversion(true);
+    authFetch(`/admin/operaciones/${lead.operacion_id}/inversion`)
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then(setInversion)
+      .catch(() => setError("No pudimos cargar el perfil de inversión."))
+      .finally(() => setCargandoInversion(false));
+  }
+
+  async function darVistoBuenoInversion(lead: LeadConDiagnostico, visto_bueno: boolean) {
+    setActualizandoVistoBuenoInv(true);
+    setErrorVistoBuenoInv(null);
+    try {
+      const resp = await authFetch(
+        `/admin/operaciones/${lead.operacion_id}/visto-bueno-inversion`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visto_bueno }),
+        }
+      );
+      if (!resp.ok) {
+        const detalle = await resp.json().catch(() => null);
+        setErrorVistoBuenoInv(detalle?.detail ?? "No pudimos actualizar el visto bueno.");
+        return;
+      }
+      const actualizado = await resp.json();
+      setInversion((actual) =>
+        actual ? { ...actual, visto_bueno: actualizado.inv_visto_bueno } : actual
+      );
+    } finally {
+      setActualizandoVistoBuenoInv(false);
     }
   }
 
@@ -672,6 +745,12 @@ export function AdminLeads() {
                         Documentos
                       </button>
                       <button
+                        onClick={() => verInversion(lead)}
+                        className="min-h-[32px] rounded border border-secundario/30 px-2 text-xs font-semibold text-secundario"
+                      >
+                        Inversión
+                      </button>
+                      <button
                         onClick={() => verInversionistas(lead)}
                         className="min-h-[32px] rounded border border-secundario/30 px-2 text-xs font-semibold text-secundario"
                       >
@@ -890,6 +969,112 @@ export function AdminLeads() {
                   </button>
                 )}
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {leadInversion && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-bold">Perfil de inversión</h2>
+              <button
+                onClick={() => setLeadInversion(null)}
+                className="text-sm font-semibold text-acento underline"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {cargandoInversion && <p className="text-sm">Cargando...</p>}
+
+            {!cargandoInversion && inversion && !inversion.enviado && (
+              <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                Este minero todavía no envió su Módulo INV.
+              </p>
+            )}
+
+            {!cargandoInversion && inversion && inversion.enviado && (
+              <>
+                {inversion.alertas.length > 0 && (
+                  <div className="mb-4 flex flex-col gap-1 rounded-lg bg-amber-500/10 p-3">
+                    <p className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
+                      Alertas
+                    </p>
+                    {inversion.alertas.map((a) => (
+                      <p key={a.codigo} className="text-xs text-amber-700 dark:text-amber-400">
+                        <span className="font-semibold">{a.codigo}:</span> {a.texto}
+                      </p>
+                    ))}
+                  </div>
+                )}
+
+                <p className="mb-2 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                  Respuestas
+                </p>
+                <ul className="mb-4 flex flex-col gap-1 text-sm">
+                  {Object.entries(inversion.respuestas).map(([id, valor]) => (
+                    <li key={id}>
+                      <span className="text-texto-suave dark:text-texto-suave-dark">
+                        {POR_ID_INV[id]?.texto ?? id}:
+                      </span>{" "}
+                      {etiquetaRespuestaInv(id, valor)}
+                    </li>
+                  ))}
+                </ul>
+
+                {inversion.categorias_requeridas.length > 0 && (
+                  <>
+                    <p className="mb-2 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                      Documentos de sustento requeridos
+                    </p>
+                    <ul className="mb-4 flex flex-col gap-1 text-sm">
+                      {inversion.categorias_requeridas.map((c) => (
+                        <li key={c.categoria} className="flex items-center justify-between">
+                          <span>{c.etiqueta}</span>
+                          <span
+                            className={`text-xs font-semibold ${
+                              c.aprobado ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"
+                            }`}
+                          >
+                            {c.aprobado ? "Aprobado" : "Pendiente"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mb-4 text-xs text-texto-suave dark:text-texto-suave-dark">
+                      Aprueba estos documentos desde el botón "Documentos" de este mismo lead.
+                    </p>
+                  </>
+                )}
+
+                <div className="border-t border-black/10 pt-3 dark:border-white/10">
+                  {errorVistoBuenoInv && (
+                    <p className="mb-2 text-xs text-red-500">{errorVistoBuenoInv}</p>
+                  )}
+                  {inversion.visto_bueno ? (
+                    <button
+                      disabled={actualizandoVistoBuenoInv}
+                      onClick={() => darVistoBuenoInversion(leadInversion, false)}
+                      className="min-h-[40px] w-full rounded-lg border border-emerald-500/30 text-sm font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
+                    >
+                      Visto bueno dado — revocar
+                    </button>
+                  ) : (
+                    <button
+                      disabled={
+                        actualizandoVistoBuenoInv ||
+                        inversion.categorias_requeridas.some((c) => !c.aprobado)
+                      }
+                      onClick={() => darVistoBuenoInversion(leadInversion, true)}
+                      className="min-h-[40px] w-full rounded-lg bg-acento text-sm font-semibold text-white disabled:opacity-50"
+                    >
+                      {actualizandoVistoBuenoInv ? "Guardando..." : "Dar visto bueno"}
+                    </button>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </div>

@@ -114,6 +114,12 @@ export interface MineroPerfil {
   // "Inversionista" en /mi-cuenta y /mi-concesion.
   documentos_enviados: boolean;
   visto_bueno_documentos: boolean;
+  // Módulo INV (julio 2026) — si se ofrece a este minero y en qué estado
+  // está su envío.
+  inversion_ofrecida: boolean;
+  inversion_prioridad?: string | null;
+  inv_enviado: boolean;
+  inv_visto_bueno: boolean;
 }
 
 export interface PerfilInversionRequest {

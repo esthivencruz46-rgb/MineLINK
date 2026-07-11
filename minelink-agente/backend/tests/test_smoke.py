@@ -873,6 +873,202 @@ def test_admin_visto_bueno_exige_todos_los_documentos_aprobados():
     assert resp.json()["visto_bueno_documentos"] is True
 
 
+def _minero_con_visto_bueno(username: str, respuestas=None) -> tuple[str, dict, dict]:
+    """Crea un minero, sube+aprueba un documento por cada estudio aplicable
+    y le da el visto bueno de documentos — atajo para los tests del
+    Módulo INV, que exigen ese gate. Devuelve (operacion_id, headers,
+    admin_headers)."""
+    respuestas = respuestas or RESPUESTAS_COMPLETAS
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post("/leads", json=_lead_payload(diag["id"], username=username, password="clave123"))
+    token = client.post(
+        "/mineros/login", json={"username": username, "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    for e in perfil["estudios_aplicables"]:
+        doc = client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": e["codigo"]},
+            files={"archivo": (f"{e['codigo']}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        ).json()
+        client.put(
+            f"/admin/documentos/{doc['id']}/revision",
+            json={"estado_revision": "aprobado"},
+            headers=admin_headers,
+        )
+    resp = client.put(
+        f"/admin/operaciones/{diag['id']}/visto-bueno-documentos",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    return diag["id"], headers, admin_headers
+
+
+RESPUESTAS_INV_C = {
+    "INV_0_1": "100k_500k",
+    "INV_0_2": ["tramites", "equipo"],
+    "INV_0_3": "participacion",
+    "INV_0_4": ["operacion", "conocimiento"],
+    "INV_0_5": "1_2a",
+    "INV_0_6": "nunca",
+    "INV_C1": "planta_formal",
+    "INV_C2": "completas",
+    "INV_C3": "lab_certificado",
+    "INV_C4": "detallado",
+    "INV_C5": "50_100",
+}
+
+
+def test_inversion_no_disponible_sin_visto_bueno_documentos():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="invsindocs", password="clave123"))
+    token = client.post(
+        "/mineros/login", json={"username": "invsindocs", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.get("/mineros/inversion", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["ofrece"] is True  # perfil C siempre se ofrece
+    assert resp.json()["enviado"] is False
+
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    assert resp.status_code == 422
+
+
+def test_inversion_perfil_a_con_a4_2_no_no_se_ofrece():
+    respuestas_a = {
+        "M0_1": "nada",
+        "A1_1": "no",
+        "A3_1": "no_se",
+        "A4_1": "no", "A4_2": "no",
+        "A5_1": "manual", "A5_2": "oro",
+    }
+    _operacion_id, headers, _admin_headers = _minero_con_visto_bueno("invperfila", respuestas_a)
+
+    resp = client.get("/mineros/inversion", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["ofrece"] is False
+
+    resp = client.post("/mineros/inversion", json={"respuestas": {}}, headers=headers)
+    assert resp.status_code == 422
+
+
+def test_inversion_envio_completo_perfil_c():
+    operacion_id, headers, admin_headers = _minero_con_visto_bueno("invperfilc")
+
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["enviado"] is True
+    assert body["visto_bueno"] is False
+    assert body["respuestas"]["INV_C2"] == "completas"
+
+    resp = client.get("/mineros/me", headers=headers)
+    assert resp.json()["inv_enviado"] is True
+    assert resp.json()["inversion_ofrecida"] is True
+
+    # El admin ve las mismas respuestas + alertas (ninguna debería saltar
+    # con estas respuestas "limpias")
+    resp = client.get(f"/admin/operaciones/{operacion_id}/inversion", headers=admin_headers)
+    assert resp.status_code == 200
+    assert resp.json()["respuestas"]["INV_C1"] == "planta_formal"
+
+
+def test_inversion_multi_opcion_respeta_maximo():
+    _operacion_id, headers, _admin_headers = _minero_con_visto_bueno("invmulti")
+    respuestas = dict(RESPUESTAS_INV_C)
+    respuestas["INV_0_2"] = ["tramites", "exploracion", "equipo", "planta"]  # 4 > máximo 3
+
+    resp = client.post("/mineros/inversion", json={"respuestas": respuestas}, headers=headers)
+    assert resp.status_code == 422
+
+
+def test_inversion_condicional_negociando_exige_inv_0_7():
+    _operacion_id, headers, _admin_headers = _minero_con_visto_bueno("invcondicional")
+    respuestas = dict(RESPUESTAS_INV_C)
+    respuestas["INV_0_6"] = "negociando"  # ahora exige INV_0_7
+
+    resp = client.post("/mineros/inversion", json={"respuestas": respuestas}, headers=headers)
+    assert resp.status_code == 422
+
+    respuestas["INV_0_7"] = "no"
+    resp = client.post("/mineros/inversion", json={"respuestas": respuestas}, headers=headers)
+    assert resp.status_code == 200
+
+
+def test_admin_visto_bueno_inversion_exige_documentos_de_sustento():
+    operacion_id, headers, admin_headers = _minero_con_visto_bueno(
+        "invvistobueno", RESPUESTAS_SIN_TRAMITE
+    )  # perfil B → requiere titulo_concesion
+    respuestas_inv_b = {
+        "INV_0_1": "25k_100k",
+        "INV_0_2": ["equipo"],
+        "INV_0_3": "regalia",
+        "INV_0_4": ["concesion"],
+        "INV_0_5": "2_5a",
+        "INV_0_6": "nunca",
+        "INV_B1a": "no_tengo",
+        "INV_B1b": "no_tengo",
+        "INV_B1c": "no_tengo",
+        "INV_B2": "nunca",
+        "INV_B3": "capital",
+        "INV_B4": "si_titularidad",
+    }
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": respuestas_inv_b}, headers=headers
+    )
+    assert resp.status_code == 200
+
+    # Sin título de concesión aprobado todavía → 400
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 400
+    assert "titulo_concesion" in resp.json()["detail"]
+
+    doc = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "titulo_concesion"},
+        files={"archivo": ("titulo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
+    )
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["inv_visto_bueno"] is True
+
+    resp = client.get("/mineros/me", headers=headers)
+    assert resp.json()["inv_visto_bueno"] is True
+
+
 def test_mineros_documento_pdf_se_convierte_a_foto():
     # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
     # hoja del PDF se convierte a JPEG al subirse.

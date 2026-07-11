@@ -12,7 +12,12 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from scoring import estado_seguimiento, estudios_aplicables
+from scoring import categorias_requeridas_out, estado_seguimiento, estudios_aplicables
+from catalogo_inversion import (
+    activacion_inversion,
+    categorias_requeridas_inversion,
+    validar_respuestas_inversion,
+)
 from security import (
     contenido_coincide_con_tipo,
     intentos_recuperacion_restantes,
@@ -25,6 +30,7 @@ from uploads_config import (
     CATEGORIAS_DOCUMENTO,
     CATEGORIAS_ESTUDIO,
     CATEGORIAS_FOTO_PERFIL,
+    CATEGORIAS_INVERSION,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
     FOTOS_MINA_MAXIMO,
     TIPOS_PDF_O_IMAGEN,
@@ -156,6 +162,14 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         es_titular_concesion=_es_titular_concesion(operacion),
         documentos_enviados=operacion.documentos_enviados_en is not None,
         visto_bueno_documentos=operacion.visto_bueno_documentos,
+        inversion_ofrecida=activacion_inversion(
+            operacion.estado_formalizacion, operacion.respuestas_json
+        )["ofrece"],
+        inversion_prioridad=activacion_inversion(
+            operacion.estado_formalizacion, operacion.respuestas_json
+        )["prioridad"],
+        inv_enviado=operacion.inv_enviado_en is not None,
+        inv_visto_bueno=operacion.inv_visto_bueno,
         **estado_seguimiento(operacion),
     )
 
@@ -319,6 +333,72 @@ def enviar_documentos(
     return _perfil_out(lead, operacion)
 
 
+@router.get("/inversion", response_model=schemas.InversionEstadoOut)
+def estado_inversion(
+    db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
+):
+    """Todo lo que la cuenta necesita para decidir qué mostrar en el botón
+    "Inversionista": si el módulo se ofrece, si ya lo llenó, si el admin
+    ya lo aprobó, y qué documentos de sustento le faltan."""
+    _lead, operacion = _operacion_del_lead(db, lead_id)
+    perfil = operacion.estado_formalizacion
+    activacion = activacion_inversion(perfil, operacion.respuestas_json)
+    respuestas_inv = operacion.inv_respuestas_json or {}
+    return schemas.InversionEstadoOut(
+        ofrece=activacion["ofrece"],
+        prioridad=activacion["prioridad"],
+        motivo=activacion["motivo"],
+        respuestas=respuestas_inv,
+        enviado=operacion.inv_enviado_en is not None,
+        visto_bueno=operacion.inv_visto_bueno,
+        categorias_requeridas=categorias_requeridas_out(
+            operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
+        ),
+    )
+
+
+@router.post("/inversion", response_model=schemas.InversionEstadoOut)
+def enviar_inversion(
+    payload: schemas.EnviarInversionRequest,
+    db: Session = Depends(get_db),
+    lead_id: int = Depends(get_current_lead_id),
+):
+    """Guarda las respuestas del Módulo INV. Reenviar antes de que el
+    admin dé su propio visto bueno sobreescribe (permite corregir)."""
+    lead, operacion = _operacion_del_lead(db, lead_id)
+    perfil = operacion.estado_formalizacion
+    if not activacion_inversion(perfil, operacion.respuestas_json)["ofrece"]:
+        raise HTTPException(422, "El Módulo INV no está disponible para tu perfil.")
+    if not operacion.visto_bueno_documentos:
+        raise HTTPException(
+            422, "Primero necesitas el visto bueno de tus documentos de formalización."
+        )
+
+    try:
+        validar_respuestas_inversion(perfil, operacion.respuestas_json, payload.respuestas)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+    operacion.inv_respuestas_json = payload.respuestas
+    operacion.inv_enviado_en = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(operacion)
+
+    activacion = activacion_inversion(perfil, operacion.respuestas_json)
+    return schemas.InversionEstadoOut(
+        ofrece=activacion["ofrece"],
+        prioridad=activacion["prioridad"],
+        motivo=activacion["motivo"],
+        respuestas=operacion.inv_respuestas_json,
+        enviado=True,
+        visto_bueno=operacion.inv_visto_bueno,
+        categorias_requeridas=categorias_requeridas_out(
+            operacion,
+            categorias_requeridas_inversion(perfil, operacion.inv_respuestas_json),
+        ),
+    )
+
+
 @router.post(
     "/documentos", response_model=schemas.DocumentoOperacionOut, status_code=201
 )
@@ -343,11 +423,13 @@ async def subir_documento(
         tipos_aceptados = TIPOS_PDF_O_IMAGEN
     elif categoria in CATEGORIAS_FOTO_PERFIL:
         tipos_aceptados, _etiqueta = CATEGORIAS_FOTO_PERFIL[categoria]
+    elif categoria in CATEGORIAS_INVERSION:
+        tipos_aceptados, _etiqueta = CATEGORIAS_INVERSION[categoria]
     else:
         raise HTTPException(
             422,
             "Categoría inválida. Debe ser una de: "
-            f"{sorted(set(CATEGORIAS_DOCUMENTO) | CATEGORIAS_ESTUDIO | set(CATEGORIAS_FOTO_PERFIL))}",
+            f"{sorted(set(CATEGORIAS_DOCUMENTO) | CATEGORIAS_ESTUDIO | set(CATEGORIAS_FOTO_PERFIL) | set(CATEGORIAS_INVERSION))}",
         )
 
     if archivo.content_type not in tipos_aceptados:
