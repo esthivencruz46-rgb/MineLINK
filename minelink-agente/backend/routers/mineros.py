@@ -79,15 +79,21 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
 
 def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
     """True si es titular de su concesión, False si trabaja en concesión
-    ajena, None si no se puede determinar (perfil A todavía no tiene
-    concesión; filas del modelo viejo). Con el Módulo 0 esto es directo:
-    M0_1 = concesion_propia → titular; concesion_contrato → no titular."""
+    ajena, None si no se puede determinar (perfiles A/B, que todavía no
+    fijan titularidad; filas del modelo viejo). Perfil C pregunta la
+    titularidad aparte (C1_3, porque ahí M0_1 ya no distingue propia/
+    contrato, solo si opera o no); Perfil D siempre es M0_1=concesion_propia
+    (no tiene C1_3) así que se deriva directo de ahí."""
     respuestas = operacion.respuestas_json or {}
-    m0_1 = respuestas.get("M0_1") if isinstance(respuestas, dict) else None
-    if m0_1 == "concesion_propia":
+    if not isinstance(respuestas, dict):
+        return None
+    c1_3 = respuestas.get("C1_3")
+    if c1_3 == "titular":
         return True
-    if m0_1 == "concesion_contrato":
+    if c1_3 == "contrato":
         return False
+    if respuestas.get("M0_1") == "concesion_propia":
+        return True
     return None
 
 

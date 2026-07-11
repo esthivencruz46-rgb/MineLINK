@@ -38,12 +38,13 @@ def _perfil_a_sin_area() -> dict[str, str]:
 
 def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_propia", "M0_2": "no",
+        "M0_1": "concesion_no_operando",
         "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
         "B3_1": "estudios_formales", "B3_2": "laboratorio",
         "B4_1": "operar_yo",
-        "B5_1": "aprobado", "B5_2": "si", "B5_3": "si", "B5_4": "si",
+        "B5_1": "aprobado", "B5_3": "si", "B5_4": "si",
         "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
     if overrides:
@@ -53,8 +54,9 @@ def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
 
 def _perfil_b_sin_b5() -> dict[str, str]:
     return {
-        "M0_1": "concesion_propia", "M0_2": "no",
+        "M0_1": "concesion_no_operando",
         "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
         "B3_1": "estudios_formales", "B3_2": "laboratorio",
         "B4_1": "buscar_inversionista",
@@ -64,8 +66,8 @@ def _perfil_b_sin_b5() -> dict[str, str]:
 
 def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
-        "C1_1": "vigente", "C1_2": "si",
+        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+        "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
         "C4_1": "50_100t", "C4_2": "siempre",
@@ -78,8 +80,8 @@ def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
 
 def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_contrato", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
-        "C1_1": "vigente", "C1_2": "si",
+        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+        "C1_1": "vigente", "C1_2": "si", "C1_3": "contrato",
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
         "C3_1": "firmado_inscrito",
@@ -93,7 +95,7 @@ def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str
 
 def _perfil_d(overrides: dict[str, str] | None = None) -> dict[str, str]:
     base = {
-        "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "si",
+        "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "si",
         "D1_1": "si", "D1_2": "si", "D1_3": "si", "D1_4": "sin_observaciones",
         "D2_1": "ampliar", "D2_2": "autofinanciado",
         "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
@@ -138,7 +140,7 @@ def test_perfil_d():
 
 
 def test_sin_ruta_rechaza():
-    r = {"M0_1": "concesion_propia", "M0_2": "si", "M0_3": "no"}
+    r = {"M0_1": "concesion_propia", "M0_3": "no"}
     with pytest.raises(ValueError, match="Sin ruta legal"):
         validar_respuestas(r)
 
@@ -306,9 +308,10 @@ def test_brechas_perfil_a_area_no_georreferenciada():
     assert "levantamiento_georreferenciado" in brechas_de(r)
 
 
-def test_brechas_perfil_b_terreno_negociacion():
+def test_brechas_perfil_b_terreno_sin_acuerdo():
     r = _perfil_b()
-    r["B5_2"] = "en_negociacion"
+    r["B1_4"] = "privado"
+    r["B1_5"] = "no"
     assert "acreditacion_terreno" in brechas_de(r)
 
 

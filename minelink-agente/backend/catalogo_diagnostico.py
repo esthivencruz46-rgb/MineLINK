@@ -27,8 +27,11 @@ ESTADOS_DOC = ("aprobado", "presentado", "no_iniciado", "no_se")
 # (min, max). Los textos visibles viven en el frontend (data/modulos.ts).
 PREGUNTAS: dict[str, tuple] = {
     # ---------- Módulo 0: ubicación ----------
-    "M0_1": ("opcion", ("concesion_propia", "concesion_contrato", "petitorio_tramite", "nada")),
-    "M0_2": ("opcion", ("si", "no")),
+    # M0_1 ya define si opera o no (no se vuelve a preguntar): concesion_propia
+    # = tiene concesión y opera; concesion_no_operando = tiene concesión
+    # (propia o por contrato) pero todavía no opera → deriva directo a
+    # Perfil B, sin pasar por REINFO (M0_3/M0_4 no le aplican).
+    "M0_1": ("opcion", ("concesion_propia", "concesion_no_operando", "petitorio_tramite", "nada")),
     # "no_se" en M0_3/M0_4 es SOLO de UI (dispara micro-guía de consulta en
     # la web del MINEM y no avanza) — nunca se envía al backend.
     "M0_3": ("opcion", ("vigente", "suspendido", "no")),
@@ -51,19 +54,26 @@ PREGUNTAS: dict[str, tuple] = {
     "B1_1": ("opcion", ("al_dia", "debo_1", "debo_2_mas", "no_se")),
     "B1_2": ("anio", (1950, None)),                       # año del título (None = año actual)
     "B1_3": ("opcion", ("pago", "no_pago", "aun_no_toca", "no_se")),
+    # Terreno superficial (subsuelo ≠ superficie, igual que A3_1/A3_2):
+    # aplica a todos los de Perfil B, no solo a quien ya decidió operar él
+    # mismo — sin esto resuelto no se puede empezar a operar de ninguna forma.
+    "B1_4": ("opcion", ("mio", "privado", "comunidad", "estado", "no_se")),
+    "B1_5": ("opcion", ("si", "no")),                     # ¿ya conversaste con el dueño?
     "B2_1": ("opcion", ("pma", "ppm", "no_tengo", "no_se")),
     "B2_2": ("numero", (1, 100000)),                      # hectáreas
     "B3_1": ("opcion", ("estudios_formales", "referencias", "no")),
     "B3_2": ("opcion", ("laboratorio", "artesanal", "no")),
     "B4_1": ("opcion", ("operar_yo", "ceder_contrato", "buscar_inversionista", "no_se")),
     "B5_1": ("opcion", ("aprobado", "en_tramite", "no_iniciado", "no_se")),   # DIA / EIA-sd
-    "B5_2": ("opcion", ("si", "en_negociacion", "no", "terreno_mio")),        # terreno superficial
     "B5_3": ("opcion", ("si", "en_tramite", "no", "no_usa_agua")),            # licencia agua ANA
     "B5_4": ("opcion", ("si", "no", "no_sabia")),                             # autorización DREM/GREM
 
     # ---------- Módulo C: REINFO (opera y formaliza) ----------
     "C1_1": ("opcion", ("vigente", "suspendida")),        # prellenada de M0_3, no se repregunta
     "C1_2": ("opcion", ("si", "no", "no_se")),            # sinceramiento coordenadas Ley 32537
+    # Ya no se deriva de M0_1 (que ahora solo distingue operando/no operando)
+    # — se pregunta directo aquí porque solo aplica a quien opera con REINFO.
+    "C1_3": ("opcion", ("titular", "contrato")),          # ¿titular o por contrato/cesión?
     "C2_1": ("estado_doc", ESTADOS_DOC),                  # IGAFOM/IGAC
     "C2_2": ("estado_doc", ESTADOS_DOC),                  # terreno superficial
     "C2_3": ("estado_doc", ESTADOS_DOC),                  # titularidad/cesión/contrato SUNARP
@@ -100,20 +110,16 @@ def clasificar_perfil(respuestas: dict[str, str]) -> str:
         return "A"
     if m0_1 == "petitorio_tramite":
         return "A_avanzado"
-    if m0_1 not in ("concesion_propia", "concesion_contrato"):
-        raise ValueError("M0_1 es obligatorio y debe ser una opción válida")
-
-    m0_2 = respuestas.get("M0_2")
-    if m0_2 == "no":
+    if m0_1 == "concesion_no_operando":
         return "B"
-    if m0_2 != "si":
-        raise ValueError("M0_2 es obligatorio cuando hay concesión/contrato")
+    if m0_1 != "concesion_propia":
+        raise ValueError("M0_1 es obligatorio y debe ser una opción válida")
 
     m0_3 = respuestas.get("M0_3")
     if m0_3 == "no":
         return "sin_ruta"
     if m0_3 not in ("vigente", "suspendido"):
-        raise ValueError("M0_3 es obligatorio cuando está extrayendo mineral")
+        raise ValueError("M0_3 es obligatorio cuando está operando")
 
     m0_4 = respuestas.get("M0_4")
     if m0_4 == "si":
@@ -129,12 +135,10 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
     Espejo conceptual de pantallasAplicables() en el frontend."""
     perfil = clasificar_perfil(respuestas)
     ids = {"M0_1"}
-    if respuestas.get("M0_1") in ("concesion_propia", "concesion_contrato"):
-        ids.add("M0_2")
-        if respuestas.get("M0_2") == "si":
-            ids.add("M0_3")
-            if respuestas.get("M0_3") in ("vigente", "suspendido"):
-                ids.add("M0_4")
+    if respuestas.get("M0_1") == "concesion_propia":
+        ids.add("M0_3")
+        if respuestas.get("M0_3") in ("vigente", "suspendido"):
+            ids.add("M0_4")
 
     if perfil == "sin_ruta":
         return ids
@@ -158,20 +162,22 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
         return ids
 
     if perfil == "B":
-        ids.update({"B1_1", "B1_2", "B1_3", "B2_1", "B2_2", "B3_1", "B3_2", "B4_1"})
+        ids.update({"B1_1", "B1_2", "B1_3", "B1_4", "B2_1", "B2_2", "B3_1", "B3_2", "B4_1"})
+        if respuestas.get("B1_4") in ("privado", "comunidad"):
+            ids.add("B1_5")
         if respuestas.get("B4_1") == "operar_yo":
-            ids.update({"B5_1", "B5_2", "B5_3", "B5_4"})
+            ids.update({"B5_1", "B5_3", "B5_4"})
         # INV_1/INV_2 se PRELLENAN desde B3_1/B3_2 en el frontend (el spec
         # dice que B3 es la base del índice de madurez) — igual viajan.
         ids.update({"INV_1", "INV_2", "INV_3", "INV_4", "INV_5"})
         return ids
 
     if perfil == "C":
-        ids.update({"C1_1", "C1_2"})
+        ids.update({"C1_1", "C1_2", "C1_3"})
         ids.update({f"C2_{n}" for n in range(1, 8)})
-        # C3 solo si opera en concesión ajena (por contrato); el titular
-        # de su propia concesión no necesita contrato consigo mismo.
-        if respuestas.get("M0_1") == "concesion_contrato":
+        # C3 solo si opera en concesión ajena (por contrato/cesión); el
+        # titular de su propia concesión no necesita contrato consigo mismo.
+        if respuestas.get("C1_3") == "contrato":
             ids.add("C3_1")
         ids.update({"C4_1", "C4_2"})
         # INV_5 se prellena desde C4_2 (siempre → si) en el frontend.
@@ -235,10 +241,11 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
     "A3_2": ({"no"}, "acreditacion_terreno"),
     # Módulo B
     "B1_1": ({"debo_1", "debo_2_mas"}, "vigencia_concesion"),
+    "B1_4": ({"no_se"}, "acreditacion_terreno"),
+    "B1_5": ({"no"}, "acreditacion_terreno"),
     "B3_1": ({"referencias", "no"}, "informe_geologico"),
     "B3_2": ({"artesanal", "no"}, "analisis_laboratorio"),
     "B5_1": ({"en_tramite", "no_iniciado", "no_se"}, "instrumento_ambiental_dia_eia"),
-    "B5_2": ({"en_negociacion", "no"}, "acreditacion_terreno"),
     "B5_3": ({"en_tramite", "no"}, "licencia_agua_ana"),
     "B5_4": ({"no", "no_sabia"}, "autorizacion_inicio_actividades"),
     # Módulo C
@@ -299,10 +306,11 @@ VALOR_RESUELTO_POR_PREGUNTA: dict[str, str] = {
     "A3_1": "mio",
     "A3_2": "si",
     "B1_1": "al_dia",
+    "B1_4": "mio",
+    "B1_5": "si",
     "B3_1": "estudios_formales",
     "B3_2": "laboratorio",
     "B5_1": "aprobado",
-    "B5_2": "si",
     "B5_3": "si",
     "B5_4": "si",
     "C1_1": "vigente",

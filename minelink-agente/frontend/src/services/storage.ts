@@ -15,7 +15,7 @@ export interface EstadoWizard {
 export interface DiagnosticoGuardado {
   respuesta: DiagnosticoResponse;
   region: string;
-  /** Situación del M0 (concesion_propia, concesion_contrato, etc.) —
+  /** Situación del M0 (concesion_propia, concesion_no_operando, etc.) —
    * guardada del wizard porque la response del backend no la incluye. */
   situacion: string;
   codigoReinfo?: string;

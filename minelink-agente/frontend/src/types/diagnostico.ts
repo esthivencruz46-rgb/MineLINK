@@ -2,18 +2,18 @@
  *  Espejo EXACTO de backend/catalogo_diagnostico.py — cualquier desfase
  *  produce 422 en POST /diagnostico. */
 export type IdPregunta =
-  | "M0_1" | "M0_2" | "M0_3" | "M0_4"
+  | "M0_1" | "M0_3" | "M0_4"
   | "A1_1" | "A1_2" | "A1_3"
   | "A2_1" | "A2_2"
   | "A3_1" | "A3_2"
   | "A4_1" | "A4_2"
   | "A5_1" | "A5_2"
-  | "B1_1" | "B1_2" | "B1_3"
+  | "B1_1" | "B1_2" | "B1_3" | "B1_4" | "B1_5"
   | "B2_1" | "B2_2"
   | "B3_1" | "B3_2"
   | "B4_1"
-  | "B5_1" | "B5_2" | "B5_3" | "B5_4"
-  | "C1_1" | "C1_2"
+  | "B5_1" | "B5_3" | "B5_4"
+  | "C1_1" | "C1_2" | "C1_3"
   | "C2_1" | "C2_2" | "C2_3" | "C2_4" | "C2_5" | "C2_6" | "C2_7"
   | "C3_1"
   | "C4_1" | "C4_2"

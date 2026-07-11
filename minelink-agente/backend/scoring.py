@@ -177,16 +177,22 @@ def semaforo_legal(
             bloqueantes.append("riesgo_caducidad_vigencia")
         if r("B1_3") == "no_pago":
             bloqueantes.append("penalidad_impaga")
+        # Terreno superficial: aplica a todo Perfil B (no solo a quien ya
+        # decidió operar él mismo) — sin acuerdo no se puede empezar a
+        # operar de ninguna forma (ni solo, ni cediendo, ni con inversionista).
+        terreno_pendiente = r("B1_4") == "no_se" or (
+            r("B1_4") in ("privado", "comunidad") and r("B1_5") == "no"
+        )
         amarillo = (
             r("B1_1") in ("debo_1", "no_se")
             or r("B2_1") in ("no_tengo", "no_se")
             or clasif == "no_califica"
             or (reloj is not None and reloj["vencido"] and r("B1_3") != "pago")
+            or terreno_pendiente
             or (
                 r("B4_1") == "operar_yo"
                 and (
                     r("B5_1") != "aprobado"
-                    or r("B5_2") in ("en_negociacion", "no")
                     or r("B5_3") in ("en_tramite", "no")
                     or r("B5_4") in ("no", "no_sabia")
                 )

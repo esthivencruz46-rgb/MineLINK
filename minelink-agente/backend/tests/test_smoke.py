@@ -76,8 +76,8 @@ PDF_VALIDO_DE_PRUEBA = (
 # todos los documentos de formalización aprobados). Semáforo legal verde,
 # sin brechas, apto para inversionistas.
 RESPUESTAS_COMPLETAS = {
-    "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
-    "C1_1": "vigente", "C1_2": "si",
+    "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "no",
+    "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
     "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
     "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
     "C4_1": "50_100t", "C4_2": "siempre",
@@ -88,8 +88,8 @@ RESPUESTAS_COMPLETAS = {
 # mineral). Semáforo legal verde si no hay bloqueantes, apta para
 # inversionistas. B4_1="buscar_inversionista" para evitar requisitos B5.
 RESPUESTAS_SIN_TRAMITE = {
-    "M0_1": "concesion_propia", "M0_2": "no",
-    "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+    "M0_1": "concesion_no_operando",
+    "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago", "B1_4": "mio",
     "B2_1": "pma", "B2_2": "500",
     "B3_1": "estudios_formales", "B3_2": "laboratorio",
     "B4_1": "buscar_inversionista",
@@ -134,7 +134,7 @@ def test_post_diagnostico_tajo_abierto():
     })
     # Quitar ids de perfil C que no aplican a perfil A
     for k in list(respuestas.keys()):
-        if k.startswith("C") or k.startswith("INV") or k == "M0_2" or k == "M0_3" or k == "M0_4":
+        if k.startswith("C") or k.startswith("INV") or k == "M0_3" or k == "M0_4":
             del respuestas[k]
     resp = client.post(
         "/diagnostico",
@@ -2062,9 +2062,9 @@ def test_mineros_me_expone_es_titular_concesion():
     assert resp.status_code == 200
     assert resp.json()["es_titular_concesion"] is True
 
-    # Quien opera en concesión ajena (M0_1=concesion_contrato) → False.
+    # Quien opera en concesión ajena (C1_3=contrato) → False.
     respuestas_contrato = dict(RESPUESTAS_COMPLETAS)
-    respuestas_contrato["M0_1"] = "concesion_contrato"
+    respuestas_contrato["C1_3"] = "contrato"
     respuestas_contrato["C3_1"] = "firmado_inscrito"
     diag = client.post(
         "/diagnostico",
@@ -2373,7 +2373,7 @@ def test_rating_fuera_de_rango_rechazado():
 
 
 # Ruta 2 (concesionario): en el nuevo sistema, el perfil se determina por
-# M0_* (concesion_propia + M0_2=no = perfil B). La situación "concesionario"
+# M0_1 (concesion_no_operando = perfil B). La situación "concesionario"
 # es solo metadata, no afecta el routing.
 RESPUESTAS_CONCESIONARIO = dict(RESPUESTAS_SIN_TRAMITE)
 

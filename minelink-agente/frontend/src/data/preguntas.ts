@@ -43,21 +43,10 @@ export const MODULO_0: PreguntaCatalogo[] = [
     ayuda:
       "Esta pregunta nos ayuda a mostrarte solo lo que te corresponde. No te preocupes si no sabes exactamente: elige la que más se parezca a tu caso.",
     opciones: [
-      { valor: "concesion_propia", etiqueta: "Tengo una concesión y estoy operando", descripcion: "Ya tengo título y estoy sacando mineral" },
-      { valor: "concesion_contrato", etiqueta: "Tengo una concesión por contrato y estoy operando", descripcion: "Trabajo en una concesión de otra persona con contrato" },
+      { valor: "concesion_propia", etiqueta: "Tengo una concesión y estoy operando", descripcion: "Ya tengo título (propio o por contrato) y estoy sacando mineral" },
+      { valor: "concesion_no_operando", etiqueta: "Tengo una concesión y no estoy operando", descripcion: "Tengo el título (propio o por contrato) pero todavía no empecé a sacar mineral" },
       { valor: "petitorio_tramite", etiqueta: "Estoy en trámite de petitorio (quiere concesión)", descripcion: "Ya inicié el proceso ante INGEMMET pero todavía no tengo título" },
       { valor: "nada", etiqueta: "No tengo nada todavía", descripcion: "Quiero empezar desde cero" },
-    ],
-  },
-  {
-    id: "M0_2",
-    tipo: "opcion",
-    texto: "¿Estás extrayendo mineral actualmente?",
-    ayuda:
-      "Responde Sí si hoy estás sacando mineral de tu labor, aunque sea poco. Si estás explorando o parado, responde No.",
-    opciones: [
-      { valor: "si", etiqueta: "Sí" },
-      { valor: "no", etiqueta: "No" },
     ],
   },
   {
@@ -269,6 +258,31 @@ export const MODULO_B: PreguntaCatalogo[] = [
     ],
   },
   {
+    id: "B1_4",
+    tipo: "opcion",
+    texto: "¿Quién es el dueño del terreno superficial?",
+    ayuda:
+      "La concesión minera es del subsuelo (lo que está debajo), pero si el terreno es de alguien más, necesitas su acuerdo para trabajar. El terreno puede ser tuyo, de un particular, de una comunidad o del Estado.",
+    opciones: [
+      { valor: "mio", etiqueta: "Es mío" },
+      { valor: "privado", etiqueta: "Es de otra persona" },
+      { valor: "comunidad", etiqueta: "Es de una comunidad" },
+      { valor: "estado", etiqueta: "Es del Estado" },
+      { valor: "no_se", etiqueta: "No sé" },
+    ],
+  },
+  {
+    id: "B1_5",
+    tipo: "opcion",
+    texto: "¿Ya conversaste con el dueño del terreno?",
+    ayuda:
+      "Si el terreno es de otra persona o comunidad, necesitas llegar a un acuerdo con ellos antes de empezar a operar.",
+    opciones: [
+      { valor: "si", etiqueta: "Sí" },
+      { valor: "no", etiqueta: "No" },
+    ],
+  },
+  {
     id: "B2_1",
     tipo: "opcion",
     texto: "¿Qué tipo de constancia ambiental tienes?",
@@ -342,19 +356,6 @@ export const MODULO_B: PreguntaCatalogo[] = [
     ],
   },
   {
-    id: "B5_2",
-    tipo: "opcion",
-    texto: "¿Ya tienes acuerdo con el dueño del terreno superficial?",
-    ayuda:
-      "Si el terreno es de otra persona, necesitas un acuerdo o contrato para trabajar. Si el terreno es tuyo, elige 'Sí'.",
-    opciones: [
-      { valor: "si", etiqueta: "Sí, ya tengo acuerdo" },
-      { valor: "en_negociacion", etiqueta: "Estamos negociando" },
-      { valor: "no", etiqueta: "No, todavía no" },
-      { valor: "terreno_mio", etiqueta: "El terreno es mío" },
-    ],
-  },
-  {
     id: "B5_3",
     tipo: "opcion",
     texto: "¿Tienes la licencia de agua de la ANA?",
@@ -406,6 +407,17 @@ export const MODULO_C: PreguntaCatalogo[] = [
       { valor: "si", etiqueta: "Sí, ya lo hice" },
       { valor: "no", etiqueta: "No, todavía no" },
       { valor: "no_se", etiqueta: "No sé qué es eso" },
+    ],
+  },
+  {
+    id: "C1_3",
+    tipo: "opcion",
+    texto: "¿Eres el titular de esta concesión o la operas por contrato/cesión?",
+    ayuda:
+      "Si la concesión es tuya (tienes el título a tu nombre), eres el titular. Si trabajas en la concesión de otra persona con un contrato o cesión, no eres el titular.",
+    opciones: [
+      { valor: "titular", etiqueta: "Soy el titular" },
+      { valor: "contrato", etiqueta: "La opero por contrato/cesión" },
     ],
   },
   {
@@ -711,13 +723,10 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
   const m0_1 = respuestas.M0_1;
   const ids = new Set<string>(["M0_1"]);
 
-  if (m0_1 === "concesion_propia" || m0_1 === "concesion_contrato") {
-    ids.add("M0_2");
-    if (respuestas.M0_2 === "si") {
-      ids.add("M0_3");
-      if (respuestas.M0_3 === "vigente" || respuestas.M0_3 === "suspendido") {
-        ids.add("M0_4");
-      }
+  if (m0_1 === "concesion_propia") {
+    ids.add("M0_3");
+    if (respuestas.M0_3 === "vigente" || respuestas.M0_3 === "suspendido") {
+      ids.add("M0_4");
     }
   }
 
@@ -751,6 +760,10 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     ids.add("B1_1");
     ids.add("B1_2");
     ids.add("B1_3");
+    ids.add("B1_4");
+    if (respuestas.B1_4 === "privado" || respuestas.B1_4 === "comunidad") {
+      ids.add("B1_5");
+    }
     ids.add("B2_1");
     ids.add("B2_2");
     ids.add("B3_1");
@@ -758,7 +771,6 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     ids.add("B4_1");
     if (respuestas.B4_1 === "operar_yo") {
       ids.add("B5_1");
-      ids.add("B5_2");
       ids.add("B5_3");
       ids.add("B5_4");
     }
@@ -769,8 +781,9 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
   if (perfil === "C") {
     ids.add("C1_1");
     ids.add("C1_2");
+    ids.add("C1_3");
     for (let i = 1; i <= 7; i++) ids.add(`C2_${i}`);
-    if (m0_1 === "concesion_contrato") ids.add("C3_1");
+    if (respuestas.C1_3 === "contrato") ids.add("C3_1");
     ids.add("C4_1");
     ids.add("C4_2");
     for (let i = 1; i <= 5; i++) ids.add(`INV_${i}`);
@@ -794,9 +807,9 @@ export function clasificarPerfil(respuestas: Record<string, string>): PerfilDiag
   const m0_1 = respuestas.M0_1;
   if (m0_1 === "nada") return "A";
   if (m0_1 === "petitorio_tramite") return "A_avanzado";
-  if (m0_1 !== "concesion_propia" && m0_1 !== "concesion_contrato") return "sin_ruta";
+  if (m0_1 === "concesion_no_operando") return "B";
+  if (m0_1 !== "concesion_propia") return "sin_ruta";
 
-  if (respuestas.M0_2 === "no") return "B";
   if (respuestas.M0_3 === "no") return "sin_ruta";
   if (respuestas.M0_4 === "si") return "D";
   return "C";
