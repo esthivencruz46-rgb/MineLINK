@@ -160,6 +160,11 @@ export function AdminLeads() {
   const [leadDetalle, setLeadDetalle] = useState<LeadConDiagnostico | null>(null);
   const [docs, setDocs] = useState<DocumentoOperacion[]>([]);
   const [cargandoDocs, setCargandoDocs] = useState(false);
+  const [actualizandoDoc, setActualizandoDoc] = useState<number | null>(null);
+  const [rechazandoDoc, setRechazandoDoc] = useState<number | null>(null);
+  const [motivoRechazo, setMotivoRechazo] = useState("");
+  const [actualizandoVistoBueno, setActualizandoVistoBueno] = useState(false);
+  const [errorVistoBueno, setErrorVistoBueno] = useState<string | null>(null);
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
@@ -287,6 +292,9 @@ export function AdminLeads() {
 
   function verDocumentos(lead: LeadConDiagnostico) {
     setLeadDetalle(lead);
+    setRechazandoDoc(null);
+    setMotivoRechazo("");
+    setErrorVistoBueno(null);
     setCargandoDocs(true);
     authFetch(`/admin/operaciones/${lead.operacion_id}/documentos`)
       .then((r) => {
@@ -334,6 +342,67 @@ export function AdminLeads() {
     setInteresesEmpresas((actuales) =>
       actuales.map((i) => (i.id === interes.id ? { ...i, estado_contacto: estado } : i))
     );
+  }
+
+  async function revisarDocumento(
+    doc: DocumentoOperacion,
+    estado_revision: "aprobado" | "rechazado",
+    motivo_rechazo?: string
+  ) {
+    setActualizandoDoc(doc.id);
+    try {
+      const resp = await authFetch(`/admin/documentos/${doc.id}/revision`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ estado_revision, motivo_rechazo }),
+      });
+      if (!resp.ok) {
+        setError("No pudimos actualizar la revisión de ese documento.");
+        return;
+      }
+      const actualizado = await resp.json();
+      setDocs((actuales) => actuales.map((d) => (d.id === doc.id ? actualizado : d)));
+      setRechazandoDoc(null);
+      setMotivoRechazo("");
+    } finally {
+      setActualizandoDoc(null);
+    }
+  }
+
+  const todosLosDocumentosAprobados =
+    docs.length > 0 && docs.every((d) => d.estado_revision === "aprobado");
+
+  async function darVistoBueno(lead: LeadConDiagnostico, visto_bueno: boolean) {
+    setActualizandoVistoBueno(true);
+    setErrorVistoBueno(null);
+    try {
+      const resp = await authFetch(
+        `/admin/operaciones/${lead.operacion_id}/visto-bueno-documentos`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visto_bueno }),
+        }
+      );
+      if (!resp.ok) {
+        const detalle = await resp.json().catch(() => null);
+        setErrorVistoBueno(detalle?.detail ?? "No pudimos actualizar el visto bueno.");
+        return;
+      }
+      const actualizado = await resp.json();
+      setLeadDetalle((actual) =>
+        actual ? { ...actual, visto_bueno_documentos: actualizado.visto_bueno_documentos } : actual
+      );
+      setLeads((actuales) =>
+        actuales.map((l) =>
+          l.operacion_id === lead.operacion_id
+            ? { ...l, visto_bueno_documentos: actualizado.visto_bueno_documentos }
+            : l
+        )
+      );
+    } finally {
+      setActualizandoVistoBueno(false);
+    }
   }
 
   async function verArchivo(doc: DocumentoOperacion) {
@@ -714,24 +783,113 @@ export function AdminLeads() {
               </p>
             )}
             {!cargandoDocs && docs.length > 0 && (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-3">
                 {docs.map((doc) => (
-                  <li key={doc.id} className="flex items-center justify-between gap-2 text-sm">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{doc.nombre_original}</p>
-                      <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                        {etiquetaCategoria(doc.categoria)}
-                      </p>
+                  <li key={doc.id} className="rounded-lg border border-black/10 p-2 text-sm dark:border-white/10">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{doc.nombre_original}</p>
+                        <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          {etiquetaCategoria(doc.categoria)}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => verArchivo(doc)}
+                        className="shrink-0 rounded border border-acento/30 px-2 py-1 text-xs font-semibold text-acento"
+                      >
+                        Ver
+                      </button>
                     </div>
-                    <button
-                      onClick={() => verArchivo(doc)}
-                      className="shrink-0 rounded border border-acento/30 px-2 py-1 text-xs font-semibold text-acento"
-                    >
-                      Ver
-                    </button>
+
+                    <div className="mt-2 flex items-center gap-2">
+                      {doc.estado_revision === "aprobado" && (
+                        <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          Aprobado
+                        </span>
+                      )}
+                      {doc.estado_revision === "pendiente" && (
+                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          Pendiente
+                        </span>
+                      )}
+                      {doc.estado_revision === "rechazado" && (
+                        <span className="rounded bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-500">
+                          Rechazado{doc.motivo_rechazo ? `: ${doc.motivo_rechazo}` : ""}
+                        </span>
+                      )}
+                      {doc.estado_revision !== "aprobado" && (
+                        <button
+                          disabled={actualizandoDoc === doc.id}
+                          onClick={() => revisarDocumento(doc, "aprobado")}
+                          className="rounded border border-emerald-500/30 px-2 py-0.5 text-xs font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
+                        >
+                          Aprobar
+                        </button>
+                      )}
+                      {doc.estado_revision !== "rechazado" && (
+                        <button
+                          disabled={actualizandoDoc === doc.id}
+                          onClick={() => {
+                            setRechazandoDoc(doc.id);
+                            setMotivoRechazo("");
+                          }}
+                          className="rounded border border-red-500/30 px-2 py-0.5 text-xs font-semibold text-red-500 disabled:opacity-50"
+                        >
+                          Rechazar
+                        </button>
+                      )}
+                    </div>
+
+                    {rechazandoDoc === doc.id && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={motivoRechazo}
+                          onChange={(e) => setMotivoRechazo(e.target.value)}
+                          placeholder="Motivo del rechazo (ej. foto borrosa)"
+                          className="min-h-[36px] flex-1 rounded border border-black/10 bg-tarjeta px-2 text-xs dark:border-white/10 dark:bg-tarjeta-dark"
+                        />
+                        <button
+                          disabled={!motivoRechazo.trim() || actualizandoDoc === doc.id}
+                          onClick={() => revisarDocumento(doc, "rechazado", motivoRechazo.trim())}
+                          className="shrink-0 rounded bg-red-500 px-2 text-xs font-semibold text-white disabled:opacity-50"
+                        >
+                          Confirmar
+                        </button>
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
+            )}
+
+            {!cargandoDocs && docs.length > 0 && (
+              <div className="mt-4 border-t border-black/10 pt-3 dark:border-white/10">
+                {errorVistoBueno && <p className="mb-2 text-xs text-red-500">{errorVistoBueno}</p>}
+                {leadDetalle.visto_bueno_documentos ? (
+                  <button
+                    disabled={actualizandoVistoBueno}
+                    onClick={() => darVistoBueno(leadDetalle, false)}
+                    className="min-h-[40px] w-full rounded-lg border border-emerald-500/30 text-sm font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
+                  >
+                    Visto bueno dado — revocar
+                  </button>
+                ) : (
+                  <button
+                    disabled={!todosLosDocumentosAprobados || actualizandoVistoBueno}
+                    onClick={() => darVistoBueno(leadDetalle, true)}
+                    title={
+                      todosLosDocumentosAprobados
+                        ? undefined
+                        : "Aprueba todos los documentos primero"
+                    }
+                    className="min-h-[40px] w-full rounded-lg bg-acento text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {actualizandoVistoBueno ? "Guardando..." : "Dar visto bueno"}
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>

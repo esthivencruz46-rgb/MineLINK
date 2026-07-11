@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
@@ -11,8 +12,7 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from scoring import estado_seguimiento
-from catalogo_diagnostico import BRECHA_POR_PREGUNTA, ids_esperados
+from scoring import estado_seguimiento, estudios_aplicables
 from security import (
     contenido_coincide_con_tipo,
     intentos_recuperacion_restantes,
@@ -49,48 +49,6 @@ def _operacion_del_lead(db: Session, lead_id: int) -> tuple[models.Lead, models.
         raise HTTPException(status_code=404, detail="Diagnóstico no encontrado")
 
     return lead, operacion
-
-
-def _estudios_aplicables(operacion: models.Operacion) -> list[dict]:
-    """Estudios que el minero declaró SÍ tener (respondió Sí, o el admin
-    marcó la brecha como resuelta después) — para que "Respalda tu
-    declaración" solo le pida foto de lo que realmente tiene, no de todo
-    el catálogo de su ruta. Pedirle que suba prueba de algo que ya dijo
-    que NO tiene no tiene sentido y solo lo satura de archivos.
-
-    Devuelve además `pregunta_id` y `valor` (la respuesta cruda, ej.
-    "en_tramite") para que la UI muestre justo al lado del slot lo que el
-    minero marcó en el diagnóstico — el frontend traduce ese valor a su
-    etiqueta legible con el mismo catálogo del cuestionario (data/preguntas.ts).
-
-    Tampoco se listan los estudios que en la práctica piden la MISMA foto
-    que ya se pide en "Documentos legales" u otro estudio (ver
-    `uploads_config.categoria_equivalente`) — evita pedir la misma foto
-    dos veces con nombres distintos."""
-    situacion = operacion.situacion or "minero_artesanal"
-    respuestas = operacion.respuestas_json or {}
-    try:
-        ids = ids_esperados(respuestas)
-    except (ValueError, TypeError):
-        # Diagnóstico del modelo anterior: sin catálogo con que cruzar.
-        return []
-    pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
-    vistos: set[str] = set()
-    resultado: list[dict] = []
-    for id_pregunta in sorted(ids):
-        if id_pregunta not in BRECHA_POR_PREGUNTA:
-            continue
-        _valores_malos, estudio = BRECHA_POR_PREGUNTA[id_pregunta]
-        if estudio in vistos or estudio in pendientes:
-            continue
-        if categoria_equivalente(estudio, situacion) is not None:
-            continue
-        valor = respuestas.get(id_pregunta)
-        if valor is None:
-            continue
-        vistos.add(estudio)
-        resultado.append({"codigo": estudio, "pregunta_id": id_pregunta, "valor": valor})
-    return sorted(resultado, key=lambda r: r["codigo"])
 
 
 def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
@@ -190,12 +148,14 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         motivo_capital=operacion.motivo_capital,
         produccion_objetivo=operacion.produccion_objetivo,
         uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,
-        estudios_aplicables=_estudios_aplicables(operacion),
+        estudios_aplicables=estudios_aplicables(operacion),
         fotos_perfil=[
             schemas.CategoriaFotoOut(categoria=c, etiqueta=e)
             for c, e in categorias_perfil_foto_aplicables(operacion)
         ],
         es_titular_concesion=_es_titular_concesion(operacion),
+        documentos_enviados=operacion.documentos_enviados_en is not None,
+        visto_bueno_documentos=operacion.visto_bueno_documentos,
         **estado_seguimiento(operacion),
     )
 
@@ -324,6 +284,39 @@ def listar_documentos(
         .order_by(models.DocumentoOperacion.created_at.desc())
         .all()
     )
+
+
+@router.post("/documentos/enviar", response_model=schemas.MineroPerfilOut)
+def enviar_documentos(
+    db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
+):
+    """Botón "Guardar archivos": el minero avisa que ya subió todo lo que
+    declaró tener en "Respalda tu declaración" y pide revisión al admin.
+    Exige al menos un archivo por cada estudio aplicable (cualquier estado
+    de revisión) — no exige que ya estén aprobados, eso lo decide el admin
+    después vía el visto bueno. Reenviar es idempotente: solo actualiza el
+    timestamp (útil tras corregir un documento rechazado)."""
+    lead, operacion = _operacion_del_lead(db, lead_id)
+
+    subidas = {
+        c
+        for (c,) in db.query(models.DocumentoOperacion.categoria)
+        .filter(models.DocumentoOperacion.operacion_id == operacion.id)
+        .distinct()
+    }
+    faltantes = [
+        e["codigo"] for e in estudios_aplicables(operacion) if e["codigo"] not in subidas
+    ]
+    if faltantes:
+        raise HTTPException(
+            422,
+            "Todavía te falta subir al menos un archivo para: " + ", ".join(faltantes),
+        )
+
+    operacion.documentos_enviados_en = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(operacion)
+    return _perfil_out(lead, operacion)
 
 
 @router.post(

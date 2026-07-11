@@ -383,6 +383,29 @@ class DocumentoOperacionOut(BaseModel):
     nombre_original: str
     content_type: str
     created_at: datetime
+    # Revisión del admin (julio 2026): "pendiente" | "aprobado" | "rechazado".
+    estado_revision: str = "pendiente"
+    motivo_rechazo: Optional[str] = None
+
+
+class RevisarDocumentoRequest(BaseModel):
+    """Body de PUT /admin/documentos/{id}/revision."""
+
+    estado_revision: Literal["aprobado", "rechazado"]
+    motivo_rechazo: Optional[str] = None
+
+    @field_validator("motivo_rechazo")
+    @classmethod
+    def exigir_motivo_si_rechaza(cls, v, info):
+        if info.data.get("estado_revision") == "rechazado" and not (v and v.strip()):
+            raise ValueError("Indica el motivo del rechazo")
+        return v
+
+
+class VistoBuenoDocumentosRequest(BaseModel):
+    """Body de PUT /admin/operaciones/{operacion_id}/visto-bueno-documentos."""
+
+    visto_bueno: bool
 
 
 class CategoriaFotoOut(BaseModel):
@@ -526,6 +549,14 @@ class MineroPerfilOut(BaseModel):
     # concesión" si es titular, "Contrato de explotación" si no) en vez de
     # los dos, que confundía (julio 2026).
     es_titular_concesion: Optional[bool] = None
+    # Revisión de documentos por el admin (julio 2026) — gate del botón
+    # "Inversionista". documentos_enviados: el minero ya pulsó "Guardar
+    # archivos" (puede seguir sin visto_bueno_documentos mientras se
+    # revisa/corrige). visto_bueno_documentos: TODOS los documentos que
+    # declaró tener fueron aprobados por el admin — única fuente de verdad
+    # que desbloquea Inversionista en el frontend.
+    documentos_enviados: bool = False
+    visto_bueno_documentos: bool = False
 
 
 class ProyectoPublicoOut(BaseModel):
@@ -956,6 +987,9 @@ class LeadConDiagnostico(BaseModel):
     motivo_capital: Optional[str] = None
     produccion_objetivo: Optional[str] = None
     uso_fondos_diagnostico: Optional[str] = None
+    # Revisión de documentos por el admin (julio 2026) — ver MineroPerfilOut
+    documentos_enviados: bool = False
+    visto_bueno_documentos: bool = False
 
 
 class ActualizarEstadoContactoRequest(BaseModel):

@@ -21,8 +21,10 @@ from catalogo_diagnostico import (
     VALOR_RESUELTO_POR_PREGUNTA,
     clasificacion_b,
     clasificar_perfil,
+    ids_esperados,
     validar_respuestas,
 )
+from uploads_config import categoria_equivalente
 
 # Supuestos de negocio del cálculo de urgencia C5 (días que suele tomar un
 # documento según su estado) — PENDIENTE DE CALIBRAR con Esthiven.
@@ -374,6 +376,52 @@ def estado_seguimiento(operacion, hoy: date | None = None) -> dict:
         }
     resultado.pop("brechas", None)  # las brechas vigentes son `pendientes`
     return {**base, **resultado}
+
+
+def estudios_aplicables(operacion) -> list[dict]:
+    """Estudios que el minero declaró SÍ tener (respondió Sí, o el admin
+    marcó la brecha como resuelta después) — para que "Respalda tu
+    declaración" solo le pida foto de lo que realmente tiene, no de todo
+    el catálogo de su ruta. Pedirle que suba prueba de algo que ya dijo
+    que NO tiene no tiene sentido y solo lo satura de archivos.
+
+    Devuelve además `pregunta_id` y `valor` (la respuesta cruda, ej.
+    "en_tramite") para que la UI muestre justo al lado del slot lo que el
+    minero marcó en el diagnóstico — el frontend traduce ese valor a su
+    etiqueta legible con el mismo catálogo del cuestionario (data/preguntas.ts).
+
+    Tampoco se listan los estudios que en la práctica piden la MISMA foto
+    que ya se pide en "Documentos legales" u otro estudio (ver
+    `uploads_config.categoria_equivalente`) — evita pedir la misma foto
+    dos veces con nombres distintos.
+
+    Vive en scoring.py (no en routers/mineros.py) porque routers/admin.py
+    también la necesita, para validar el visto bueno de documentos, y un
+    router nunca debe importar de otro router."""
+    situacion = operacion.situacion or "minero_artesanal"
+    respuestas = operacion.respuestas_json or {}
+    try:
+        ids = ids_esperados(respuestas)
+    except (ValueError, TypeError):
+        # Diagnóstico del modelo anterior: sin catálogo con que cruzar.
+        return []
+    pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
+    vistos: set[str] = set()
+    resultado: list[dict] = []
+    for id_pregunta in sorted(ids):
+        if id_pregunta not in BRECHA_POR_PREGUNTA:
+            continue
+        _valores_malos, estudio = BRECHA_POR_PREGUNTA[id_pregunta]
+        if estudio in vistos or estudio in pendientes:
+            continue
+        if categoria_equivalente(estudio, situacion) is not None:
+            continue
+        valor = respuestas.get(id_pregunta)
+        if valor is None:
+            continue
+        vistos.add(estudio)
+        resultado.append({"codigo": estudio, "pregunta_id": id_pregunta, "valor": valor})
+    return sorted(resultado, key=lambda r: r["codigo"])
 
 
 def score_formalizacion_para_inversion(seguimiento: dict) -> int:

@@ -736,6 +736,143 @@ def test_mineros_perfil_b_expone_slots_pma_ppm_y_vigencia():
     assert por_codigo["vigencia_concesion"]["valor"] == "al_dia"
 
 
+def _minero_con_estudios(username: str) -> tuple[str, dict, list[str]]:
+    """Crea un minero (diagnóstico + lead + login) y devuelve
+    (operacion_id, headers, codigos de estudios_aplicables) — atajo para
+    los tests de revisión de documentos, que necesitan un minero con al
+    menos un estudio declarado para poder enviar/aprobar/dar visto bueno."""
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username=username, password="clave123"))
+    token = client.post(
+        "/mineros/login", json={"username": username, "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    perfil = client.get("/mineros/me", headers=headers).json()
+    codigos = [e["codigo"] for e in perfil["estudios_aplicables"]]
+    return diag["id"], headers, codigos
+
+
+def test_mineros_enviar_documentos_exige_todos_los_slots():
+    _operacion_id, headers, codigos = _minero_con_estudios("enviodocs1")
+    assert codigos, "el fixture del diagnóstico debe declarar al menos un estudio"
+
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
+    assert resp.status_code == 422
+    assert codigos[0] in resp.json()["detail"]
+
+
+def test_mineros_enviar_documentos_completo():
+    _operacion_id, headers, codigos = _minero_con_estudios("enviodocs2")
+    for codigo in codigos:
+        resp = client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": codigo},
+            files={"archivo": (f"{codigo}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        )
+        assert resp.status_code == 201
+
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["documentos_enviados"] is True
+    assert resp.json()["visto_bueno_documentos"] is False
+
+
+def test_admin_revisa_documento_aprobado_y_rechazado():
+    _operacion_id, headers, codigos = _minero_con_estudios("revisadocs1")
+    doc = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": codigos[0]},
+        files={"archivo": ("a.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    resp = client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": "Foto borrosa"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["estado_revision"] == "rechazado"
+    assert resp.json()["motivo_rechazo"] == "Foto borrosa"
+
+    # Rechazar sin motivo → 422 (el schema lo exige)
+    resp = client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": ""},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 422
+
+    resp = client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["estado_revision"] == "aprobado"
+    assert resp.json()["motivo_rechazo"] is None
+
+
+def test_admin_visto_bueno_exige_todos_los_documentos_aprobados():
+    operacion_id, headers, codigos = _minero_con_estudios("vistobueno1")
+    assert len(codigos) >= 1
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    docs = []
+    for codigo in codigos:
+        doc = client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": codigo},
+            files={"archivo": (f"{codigo}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        ).json()
+        docs.append(doc)
+
+    # Ninguno aprobado todavía → 400
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 400
+    assert codigos[0] in resp.json()["detail"]
+
+    # Aprobar todos menos el último
+    for doc in docs[:-1]:
+        client.put(
+            f"/admin/documentos/{doc['id']}/revision",
+            json={"estado_revision": "aprobado"},
+            headers=admin_headers,
+        )
+    if len(docs) > 1:
+        resp = client.put(
+            f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
+            json={"visto_bueno": True},
+            headers=admin_headers,
+        )
+        assert resp.status_code == 400
+
+    # Aprobar el último también
+    client.put(
+        f"/admin/documentos/{docs[-1]['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
+    )
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["visto_bueno_documentos"] is True
+
+    # GET /mineros/me también lo refleja
+    resp = client.get("/mineros/me", headers=headers)
+    assert resp.json()["visto_bueno_documentos"] is True
+
+
 def test_mineros_documento_pdf_se_convierte_a_foto():
     # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
     # hoja del PDF se convierte a JPEG al subirse.

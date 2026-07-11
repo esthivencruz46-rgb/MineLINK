@@ -117,6 +117,16 @@ class Operacion(Base):
     produccion_objetivo = Column(String, nullable=True)
     uso_fondos_diagnostico = Column(String, nullable=True)  # copiado a Lead.uso_fondos al registrarse
 
+    # Revisión de documentos por el admin (julio 2026) — gate para desbloquear
+    # el botón "Inversionista" en la cuenta del minero. documentos_enviados_en
+    # lo pone el minero al pulsar "Guardar archivos" (null = aún subiendo, sin
+    # enviar a revisión); visto_bueno_documentos lo pone el admin y es la
+    # ÚNICA fuente de verdad que desbloquea Inversionista en el frontend — ver
+    # `_todos_documentos_aprobados` en routers/admin.py para la validación que
+    # exige antes de dejarlo poner en True.
+    documentos_enviados_en = Column(DateTime, nullable=True)
+    visto_bueno_documentos = Column(Boolean, nullable=False, default=False)
+
     created_at = Column(DateTime, default=_now)
 
     leads = relationship("Lead", back_populates="operacion")
@@ -206,6 +216,11 @@ class DocumentoOperacion(Base):
     filename = Column(String, nullable=False)
     nombre_original = Column(String, nullable=False)
     content_type = Column(String, nullable=False)
+    # Revisión del admin (julio 2026): "pendiente" | "aprobado" | "rechazado".
+    # motivo_rechazo solo tiene sentido cuando estado_revision == "rechazado".
+    estado_revision = Column(String, nullable=False, default="pendiente")
+    motivo_rechazo = Column(String, nullable=True)
+    revisado_en = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=_now)
 
     operacion = relationship("Operacion", back_populates="documentos")

@@ -50,6 +50,10 @@ interface Props {
    * de leyes) — por ahora fuera de /mi-concesion, solo queda "Respalda tu
    * declaración" (lo que sí salió del diagnóstico). */
   ocultarDocumentosLegales?: boolean;
+  /** True si el minero ya pulsó "Guardar archivos" (ver
+   * MineroPerfil.documentos_enviados) — cambia el botón a "Enviado, en
+   * revisión" en vez de "Guardar archivos". */
+  documentosEnviados?: boolean;
 }
 
 export function DocumentosMinero({
@@ -60,6 +64,7 @@ export function DocumentosMinero({
   ocultarFotosOperacion,
   ocultarEncabezado,
   ocultarDocumentosLegales,
+  documentosEnviados,
 }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
@@ -69,7 +74,11 @@ export function DocumentosMinero({
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [vistaUrl, setVistaUrl] = useState<string | null>(null);
   const [vistaTipo, setVistaTipo] = useState<string>("");
+  const [enviado, setEnviado] = useState(Boolean(documentosEnviados));
+  const [enviando, setEnviando] = useState(false);
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
+
+  useEffect(() => setEnviado(Boolean(documentosEnviados)), [documentosEnviados]);
 
   function cargar() {
     setCargando(true);
@@ -132,6 +141,23 @@ export function DocumentosMinero({
       setError(e instanceof Error ? e.message : "No se pudo subir el archivo");
     } finally {
       setSubiendo(null);
+    }
+  }
+
+  async function enviarDocumentos() {
+    setEnviando(true);
+    setError(null);
+    try {
+      const resp = await authFetch("/mineros/documentos/enviar", { method: "POST" });
+      if (!resp.ok) {
+        const detalle = await resp.json().catch(() => null);
+        throw new Error(detalle?.detail ?? "No pudimos enviar tus archivos a revisión");
+      }
+      setEnviado(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No pudimos enviar tus archivos a revisión");
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -249,7 +275,7 @@ export function DocumentosMinero({
         {archivos.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-3">
             {archivos.map((doc) => (
-              <div key={doc.id} className="flex w-20 flex-col items-center gap-1">
+              <div key={doc.id} className="flex w-24 flex-col items-center gap-1">
                 <button
                   onClick={() => ver(doc)}
                   title={doc.nombre_original}
@@ -270,12 +296,32 @@ export function DocumentosMinero({
                     />
                   )}
                 </button>
-                <button
-                  onClick={() => eliminar(doc)}
-                  className="text-xs font-semibold text-red-500"
-                >
-                  Eliminar
-                </button>
+                {doc.estado_revision === "aprobado" && (
+                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                    Aprobado
+                  </span>
+                )}
+                {doc.estado_revision === "pendiente" && (
+                  <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    En revisión
+                  </span>
+                )}
+                {doc.estado_revision === "rechazado" && (
+                  <span
+                    className="text-center text-xs font-semibold text-red-500"
+                    title={doc.motivo_rechazo ?? undefined}
+                  >
+                    Rechazado{doc.motivo_rechazo ? `: ${doc.motivo_rechazo}` : ""}
+                  </span>
+                )}
+                {doc.estado_revision !== "aprobado" && (
+                  <button
+                    onClick={() => eliminar(doc)}
+                    className="text-xs font-semibold text-red-500"
+                  >
+                    Eliminar
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -352,6 +398,36 @@ export function DocumentosMinero({
               </div>
             ))}
           </div>
+
+          {(() => {
+            const faltantes = categoriasEstudio.filter(
+              (c) => !documentos.some((d) => d.categoria === c.categoria)
+            );
+            if (enviado) {
+              return (
+                <p className="mt-4 rounded-lg bg-acento/10 p-3 text-sm font-semibold text-acento">
+                  Enviado — Esthiven está revisando tus archivos.
+                </p>
+              );
+            }
+            return (
+              <div className="mt-4">
+                {faltantes.length > 0 && (
+                  <p className="mb-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Sube al menos un archivo para cada categoría antes de guardar (
+                    {faltantes.length} pendiente{faltantes.length !== 1 ? "s" : ""}).
+                  </p>
+                )}
+                <button
+                  onClick={enviarDocumentos}
+                  disabled={faltantes.length > 0 || enviando}
+                  className="min-h-[44px] w-full rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+                >
+                  {enviando ? "Guardando..." : "Guardar archivos"}
+                </button>
+              </div>
+            );
+          })()}
         </div>
       )}
 

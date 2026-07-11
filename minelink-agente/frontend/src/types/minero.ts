@@ -110,6 +110,10 @@ export interface MineroPerfil {
   estudios_aplicables: { codigo: string; pregunta_id: string; valor: string }[];
   fotos_perfil: { categoria: string; etiqueta: string }[];
   es_titular_concesion?: boolean | null;
+  // Revisión de documentos por el admin (julio 2026) — gate del botón
+  // "Inversionista" en /mi-cuenta y /mi-concesion.
+  documentos_enviados: boolean;
+  visto_bueno_documentos: boolean;
 }
 
 export interface PerfilInversionRequest {

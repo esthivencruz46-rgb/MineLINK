@@ -63,10 +63,14 @@ export const CATEGORIAS_DOCUMENTO: CategoriaInfo[] = [
   },
 ];
 
+export type EstadoRevisionDocumento = "pendiente" | "aprobado" | "rechazado";
+
 export interface DocumentoOperacion {
   id: number;
   categoria: CategoriaDocumento;
   nombre_original: string;
   content_type: string;
   created_at: string;
+  estado_revision: EstadoRevisionDocumento;
+  motivo_rechazo?: string | null;
 }

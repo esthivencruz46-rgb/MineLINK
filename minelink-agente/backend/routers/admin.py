@@ -12,7 +12,7 @@ import schemas
 from auth import authenticate_admin, create_access_token, get_current_admin, hash_password
 from database import get_db
 from security import limitar_intentos_login
-from scoring import estado_seguimiento
+from scoring import estado_seguimiento, estudios_aplicables
 import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -126,6 +126,8 @@ def listar_leads(
             motivo_capital=operacion.motivo_capital,
             produccion_objetivo=operacion.produccion_objetivo,
             uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,
+            documentos_enviados=operacion.documentos_enviados_en is not None,
+            visto_bueno_documentos=operacion.visto_bueno_documentos,
             **estado_seguimiento(operacion),
         )
         for lead, operacion in filas
@@ -405,6 +407,96 @@ def descargar_documento_operacion(
             )
         },
     )
+
+
+@router.put(
+    "/documentos/{documento_id}/revision",
+    response_model=schemas.DocumentoOperacionOut,
+)
+def revisar_documento(
+    documento_id: int,
+    payload: schemas.RevisarDocumentoRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Esthiven aprueba o rechaza (con motivo) un documento puntual que el
+    minero subió. Un rechazo NO borra el archivo — el minero lo ve con el
+    motivo en su cuenta y decide si lo elimina y sube uno corregido."""
+    documento = (
+        db.query(models.DocumentoOperacion)
+        .filter(models.DocumentoOperacion.id == documento_id)
+        .first()
+    )
+    if documento is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    documento.estado_revision = payload.estado_revision
+    documento.motivo_rechazo = (
+        payload.motivo_rechazo if payload.estado_revision == "rechazado" else None
+    )
+    documento.revisado_en = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(documento)
+    return documento
+
+
+def _documentos_estudios_faltantes(db: Session, operacion: models.Operacion) -> list[str]:
+    """Estudios que el minero declaró tener pero que todavía NO tienen un
+    documento aprobado — lo que le falta al admin para poder dar el visto
+    bueno. Vacío = ya se puede dar el visto bueno."""
+    aprobados = {
+        c
+        for (c,) in db.query(models.DocumentoOperacion.categoria)
+        .filter(
+            models.DocumentoOperacion.operacion_id == operacion.id,
+            models.DocumentoOperacion.estado_revision == "aprobado",
+        )
+        .distinct()
+    }
+    return [
+        e["codigo"] for e in estudios_aplicables(operacion) if e["codigo"] not in aprobados
+    ]
+
+
+@router.put(
+    "/operaciones/{operacion_id}/visto-bueno-documentos",
+    response_model=schemas.MineroPerfilOut,
+)
+def actualizar_visto_bueno_documentos(
+    operacion_id: str,
+    payload: schemas.VistoBuenoDocumentosRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Desbloquea (o revoca) el botón "Inversionista" en la cuenta del
+    minero. Para desbloquear (visto_bueno=True), exige que CADA estudio
+    que el minero declaró tener ya tenga un documento aprobado — si falta
+    alguno, 400 con el detalle de qué falta."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+
+    if payload.visto_bueno:
+        faltantes = _documentos_estudios_faltantes(db, operacion)
+        if faltantes:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Todavía faltan documentos aprobados para: " + ", ".join(faltantes)
+                ),
+            )
+
+    operacion.visto_bueno_documentos = payload.visto_bueno
+    db.commit()
+    db.refresh(operacion)
+
+    lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
+
+    from routers.mineros import _perfil_out
+
+    return _perfil_out(lead, operacion)
 
 
 @router.get(
