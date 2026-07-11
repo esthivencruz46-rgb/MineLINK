@@ -305,6 +305,9 @@ export const MODULO_B: PreguntaCatalogo[] = [
     min: 1,
     max: 100000,
   },
+  // ⏸️ EN PAUSA (julio 2026): B3_1/B3_2 son de inversión (estudios
+  // geológicos/laboratorio), no de formalización — fuera de idsAplicables(),
+  // no se muestran. No borrar: van a un grupo aparte más adelante.
   {
     id: "B3_1",
     tipo: "opcion",
@@ -636,6 +639,10 @@ export const MODULO_D: PreguntaCatalogo[] = [
 
 // -------------------------------------------------------------------
 // Módulo INV: índice de madurez (transversal B/C/D)
+// ⏸️ EN PAUSA (julio 2026): preguntas de inversión, no de formalización —
+// fuera de idsAplicables(), nunca se piden. No borrar: Esthiven las
+// agrupará aparte más adelante. indice_madurez() en el backend siempre
+// devuelve None mientras tanto (Track Técnico no se muestra).
 // -------------------------------------------------------------------
 
 export const MODULO_INV: PreguntaCatalogo[] = [
@@ -757,6 +764,8 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
   }
 
   if (perfil === "B") {
+    // B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están en
+    // pausa — ver banner en MODULO_B/MODULO_INV más abajo.
     ids.add("B1_1");
     ids.add("B1_2");
     ids.add("B1_3");
@@ -766,15 +775,12 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     }
     ids.add("B2_1");
     ids.add("B2_2");
-    ids.add("B3_1");
-    ids.add("B3_2");
     ids.add("B4_1");
     if (respuestas.B4_1 === "operar_yo") {
       ids.add("B5_1");
       ids.add("B5_3");
       ids.add("B5_4");
     }
-    for (let i = 1; i <= 5; i++) ids.add(`INV_${i}`);
     return ids;
   }
 
@@ -786,7 +792,6 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     if (respuestas.C1_3 === "contrato") ids.add("C3_1");
     ids.add("C4_1");
     ids.add("C4_2");
-    for (let i = 1; i <= 5; i++) ids.add(`INV_${i}`);
     return ids;
   }
 
@@ -797,7 +802,6 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
   ids.add("D1_4");
   ids.add("D2_1");
   ids.add("D2_2");
-  for (let i = 1; i <= 5; i++) ids.add(`INV_${i}`);
   return ids;
 }
 

@@ -48,11 +48,12 @@ ETIQUETA_BLOQUEANTE = {
 def indice_madurez(perfil: str, respuestas: dict[str, str]) -> int | None:
     """Índice de Madurez para Inversión 0-5 (Módulo INV): un nivel por cada
     "sí" en mapeo geológico, muestreo con laboratorio, estimación de
-    recursos, OPEX documentado y producción con liquidaciones. Perfil A no
-    tiene operación que medir → None (nunca un rojo castigador)."""
-    if perfil in ("A", "A_avanzado"):
-        return None
-    return sum(1 for n in range(1, 6) if respuestas.get(f"INV_{n}") == "si")
+    recursos, OPEX documentado y producción con liquidaciones.
+
+    ⏸️ Módulo INV en pausa (julio 2026, ver catalogo_diagnostico.PREGUNTAS):
+    ya no se pregunta, así que devuelve None para TODOS los perfiles — sumar
+    "no" por ausencia daría un 0 (rojo) engañoso en vez de "sin dato"."""
+    return None
 
 
 def semaforo_tecnico(madurez: int | None) -> str | None:

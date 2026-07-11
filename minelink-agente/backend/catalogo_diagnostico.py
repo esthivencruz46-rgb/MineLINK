@@ -61,6 +61,10 @@ PREGUNTAS: dict[str, tuple] = {
     "B1_5": ("opcion", ("si", "no")),                     # ¿ya conversaste con el dueño?
     "B2_1": ("opcion", ("pma", "ppm", "no_tengo", "no_se")),
     "B2_2": ("numero", (1, 100000)),                      # hectáreas
+    # ⏸️ EN PAUSA (julio 2026): B3_1/B3_2 son de inversión (estudios
+    # geológicos/laboratorio), no de formalización — Esthiven pidió sacarlas
+    # del formulario actual; van a un grupo aparte que definirá más adelante.
+    # No borrar: quedan fuera de ids_esperados() pero el catálogo se conserva.
     "B3_1": ("opcion", ("estudios_formales", "referencias", "no")),
     "B3_2": ("opcion", ("laboratorio", "artesanal", "no")),
     "B4_1": ("opcion", ("operar_yo", "ceder_contrato", "buscar_inversionista", "no_se")),
@@ -94,6 +98,11 @@ PREGUNTAS: dict[str, tuple] = {
     "D2_2": ("opcion", ("autofinanciado", "inversion", "credito", "no_pensado")),
 
     # ---------- Módulo INV: índice de madurez (transversal B/C/D) ----------
+    # ⏸️ EN PAUSA (julio 2026): preguntas de inversión (estudios/reservas/
+    # OPEX), no de formalización — Esthiven pidió sacarlas del formulario
+    # actual y las agrupará aparte más adelante. No borrar: fuera de
+    # ids_esperados() (nunca se piden ni se aceptan), indice_madurez()
+    # devuelve None para todos los perfiles mientras tanto.
     "INV_1": ("opcion", ("si", "no")),                    # mapeo geológico
     "INV_2": ("opcion", ("si", "no")),                    # muestreo con laboratorio
     "INV_3": ("opcion", ("si", "no")),                    # estimación de recursos
@@ -162,14 +171,13 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
         return ids
 
     if perfil == "B":
-        ids.update({"B1_1", "B1_2", "B1_3", "B1_4", "B2_1", "B2_2", "B3_1", "B3_2", "B4_1"})
+        # B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están
+        # en pausa — ver banner en PREGUNTAS arriba.
+        ids.update({"B1_1", "B1_2", "B1_3", "B1_4", "B2_1", "B2_2", "B4_1"})
         if respuestas.get("B1_4") in ("privado", "comunidad"):
             ids.add("B1_5")
         if respuestas.get("B4_1") == "operar_yo":
             ids.update({"B5_1", "B5_3", "B5_4"})
-        # INV_1/INV_2 se PRELLENAN desde B3_1/B3_2 en el frontend (el spec
-        # dice que B3 es la base del índice de madurez) — igual viajan.
-        ids.update({"INV_1", "INV_2", "INV_3", "INV_4", "INV_5"})
         return ids
 
     if perfil == "C":
@@ -180,13 +188,10 @@ def ids_esperados(respuestas: dict[str, str]) -> set[str]:
         if respuestas.get("C1_3") == "contrato":
             ids.add("C3_1")
         ids.update({"C4_1", "C4_2"})
-        # INV_5 se prellena desde C4_2 (siempre → si) en el frontend.
-        ids.update({"INV_1", "INV_2", "INV_3", "INV_4", "INV_5"})
         return ids
 
     # Perfil D
     ids.update({"D1_1", "D1_2", "D1_3", "D1_4", "D2_1", "D2_2"})
-    ids.update({"INV_1", "INV_2", "INV_3", "INV_4", "INV_5"})
     return ids
 
 
@@ -243,6 +248,9 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
     "B1_1": ({"debo_1", "debo_2_mas"}, "vigencia_concesion"),
     "B1_4": ({"no_se"}, "acreditacion_terreno"),
     "B1_5": ({"no"}, "acreditacion_terreno"),
+    # B3_1/B3_2 ⏸️ en pausa (fuera de ids_esperados, ver PREGUNTAS arriba) —
+    # se dejan aquí solo para que informe_geologico/analisis_laboratorio
+    # sigan siendo categorías válidas de estudio/empresa; nunca disparan.
     "B3_1": ({"referencias", "no"}, "informe_geologico"),
     "B3_2": ({"artesanal", "no"}, "analisis_laboratorio"),
     "B5_1": ({"en_tramite", "no_iniciado", "no_se"}, "instrumento_ambiental_dia_eia"),
@@ -267,7 +275,8 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
     "D1_2": ({"pago_penalidad"}, "puesta_en_produccion"),
     "D1_3": ({"no", "no_se"}, "declaracion_anual_consolidada"),
     "D1_4": ({"con_observaciones", "con_multas"}, "subsanacion_fiscalizacion"),
-    # Módulo INV
+    # Módulo INV ⏸️ en pausa (idem B3_1/B3_2): se conservan solo para que
+    # sus estudios sigan siendo categorías válidas, nunca disparan.
     "INV_1": ({"no"}, "informe_geologico"),
     "INV_2": ({"no"}, "analisis_laboratorio"),
     "INV_3": ({"no"}, "estimacion_recursos"),

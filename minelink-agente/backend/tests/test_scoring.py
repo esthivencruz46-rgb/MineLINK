@@ -37,15 +37,15 @@ def _perfil_a_sin_area() -> dict[str, str]:
 
 
 def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    # B3_1/B3_2 (estudios geológicos/laboratorio) y el Módulo INV están en
+    # pausa (julio 2026) — fuera de ids_esperados, no van en el fixture.
     base = {
         "M0_1": "concesion_no_operando",
         "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
         "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
-        "B3_1": "estudios_formales", "B3_2": "laboratorio",
         "B4_1": "operar_yo",
         "B5_1": "aprobado", "B5_3": "si", "B5_4": "si",
-        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
     if overrides:
         base.update(overrides)
@@ -58,9 +58,7 @@ def _perfil_b_sin_b5() -> dict[str, str]:
         "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
         "B1_4": "mio",
         "B2_1": "pma", "B2_2": "500",
-        "B3_1": "estudios_formales", "B3_2": "laboratorio",
         "B4_1": "buscar_inversionista",
-        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
 
 
@@ -71,7 +69,6 @@ def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
         "C4_1": "50_100t", "C4_2": "siempre",
-        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
     if overrides:
         base.update(overrides)
@@ -86,7 +83,6 @@ def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
         "C3_1": "firmado_inscrito",
         "C4_1": "50_100t", "C4_2": "siempre",
-        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
     if overrides:
         base.update(overrides)
@@ -98,7 +94,6 @@ def _perfil_d(overrides: dict[str, str] | None = None) -> dict[str, str]:
         "M0_1": "concesion_propia", "M0_3": "vigente", "M0_4": "si",
         "D1_1": "si", "D1_2": "si", "D1_3": "si", "D1_4": "sin_observaciones",
         "D2_1": "ampliar", "D2_2": "autofinanciado",
-        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
     }
     if overrides:
         base.update(overrides)
@@ -370,8 +365,9 @@ def test_perfil_b_verde():
     assert res["semaforo_legal"] == "verde"
     assert res["apto_inversionistas"] is True
     assert res["brechas"] == []
-    assert res["indice_madurez"] == 5
-    assert res["semaforo_tecnico"] == "verde"
+    # Módulo INV en pausa: madurez/semáforo técnico no se calculan.
+    assert res["indice_madurez"] is None
+    assert res["semaforo_tecnico"] is None
 
 
 def test_perfil_b_rojo_bloquea():
@@ -381,11 +377,14 @@ def test_perfil_b_rojo_bloquea():
     assert res["apto_inversionistas"] is False
 
 
-def test_perfil_b_brechas():
-    r = _perfil_b({"B3_1": "no", "B3_2": "no"})
-    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
-    assert "informe_geologico" in res["brechas"]
-    assert "analisis_laboratorio" in res["brechas"]
+def test_brechas_b3_en_pausa_siguen_reconociendose():
+    """B3_1/B3_2 están fuera del formulario activo (ver ids_esperados), pero
+    brechas_de() es una función pura: si llegaran presentes (diagnósticos
+    de antes de la pausa) el matching con empresas se sigue calculando."""
+    r = {"B3_1": "no", "B3_2": "no"}
+    b = brechas_de(r)
+    assert "informe_geologico" in b
+    assert "analisis_laboratorio" in b
 
 
 def test_perfil_c_verde_docs_completos():
@@ -454,17 +453,14 @@ def test_clasificacion_none_para_perfil_a_no_se():
 
 
 # ---------------------------------------------------------------------------
-# Tests: índice de madurez
+# Tests: índice de madurez (Módulo INV en pausa julio 2026 — ver
+# catalogo_diagnostico.PREGUNTAS: siempre None para todos los perfiles,
+# aunque lleguen respuestas INV_* de datos anteriores a la pausa)
 # ---------------------------------------------------------------------------
 
-def test_madurez_5_todos_si():
-    r = _perfil_b()
-    assert indice_madurez("B", r) == 5
-
-
-def test_madurez_0_todos_no():
-    r = _perfil_b({"INV_1": "no", "INV_2": "no", "INV_3": "no", "INV_4": "no", "INV_5": "no"})
-    assert indice_madurez("B", r) == 0
+def test_madurez_none_aunque_haya_respuestas_inv():
+    r = _perfil_b({"INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si"})
+    assert indice_madurez("B", r) is None
 
 
 def test_madurez_none_para_perfil_a():
@@ -472,9 +468,9 @@ def test_madurez_none_para_perfil_a():
     assert indice_madurez("A", r) is None
 
 
-def test_madurez_parcial():
-    r = _perfil_b({"INV_1": "si", "INV_2": "si", "INV_3": "no", "INV_4": "no", "INV_5": "no"})
-    assert indice_madurez("B", r) == 2
+def test_madurez_none_para_todos_los_perfiles():
+    for perfil in ("A", "A_avanzado", "B", "C", "D"):
+        assert indice_madurez(perfil, {}) is None
 
 
 # ---------------------------------------------------------------------------

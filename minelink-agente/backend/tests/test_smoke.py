@@ -81,19 +81,17 @@ RESPUESTAS_COMPLETAS = {
     "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
     "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
     "C4_1": "50_100t", "C4_2": "siempre",
-    "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
 }
 
 # Perfil B: concesionaria sin operar (tiene concesión pero no extrae
 # mineral). Semáforo legal verde si no hay bloqueantes, apta para
 # inversionistas. B4_1="buscar_inversionista" para evitar requisitos B5.
+# B3_1/B3_2 y el Módulo INV están en pausa (julio 2026) — fuera del fixture.
 RESPUESTAS_SIN_TRAMITE = {
     "M0_1": "concesion_no_operando",
     "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago", "B1_4": "mio",
     "B2_1": "pma", "B2_2": "500",
-    "B3_1": "estudios_formales", "B3_2": "laboratorio",
     "B4_1": "buscar_inversionista",
-    "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
 }
 
 
@@ -920,7 +918,7 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     tarjeta = next(p for p in proyectos if p["operacion_id"] == diag_ok["id"])
     assert tarjeta["perfil"] == "C"
     assert tarjeta["semaforo_legal"] == "verde"
-    assert tarjeta["indice_madurez"] == 5
+    assert tarjeta["indice_madurez"] is None  # Módulo INV en pausa
     assert tarjeta["docs_completados"] == 7
     assert tarjeta["docs_totales"] == 7
     assert tarjeta["vende_liquidacion"] is True
@@ -1283,10 +1281,11 @@ def test_admin_leads_con_jwt():
 def test_marcar_brecha_resuelta_no_altera_declaracion_original():
     token = _admin_token()
     headers = {"Authorization": f"Bearer {token}"}
-    # Crear un diagnóstico con brechas (perfil B con docs pendientes)
+    # Crear un diagnóstico con brechas (perfil B con vigencia/terreno pendientes)
     respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
-    respuestas_b["B3_1"] = "no"
-    respuestas_b["B3_2"] = "no"
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
     diag = client.post(
         "/diagnostico",
         json={
@@ -1296,17 +1295,17 @@ def test_marcar_brecha_resuelta_no_altera_declaracion_original():
             "tipo_mina": "subterranea",
         },
     ).json()
-    assert "informe_geologico" in diag["brechas"]
+    assert "vigencia_concesion" in diag["brechas"]
 
     resp = client.put(
         f"/admin/operaciones/{diag['id']}/brechas-resueltas",
-        json={"brechas_resueltas": ["informe_geologico"]},
+        json={"brechas_resueltas": ["vigencia_concesion"]},
         headers=headers,
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["brechas_resueltas"] == ["informe_geologico"]
-    assert body["brechas_pendientes"] == ["analisis_laboratorio"]
+    assert body["brechas_resueltas"] == ["vigencia_concesion"]
+    assert body["brechas_pendientes"] == ["acreditacion_terreno"]
 
     # Se puede desmarcar enviando una lista más corta (vacía)
     resp = client.put(
@@ -1354,10 +1353,11 @@ def test_marcar_brecha_resuelta_operacion_inexistente():
 def test_dashboard_top_brechas_excluye_las_ya_resueltas():
     token = _admin_token()
     headers = {"Authorization": f"Bearer {token}"}
-    # Crear diagnóstico con brechas reales (perfil B con documentos pendientes)
+    # Crear diagnóstico con brechas reales (perfil B con vigencia/terreno pendientes)
     respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
-    respuestas_b["B3_1"] = "no"
-    respuestas_b["B3_2"] = "no"
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
     diag = client.post(
         "/diagnostico",
         json={
@@ -1844,8 +1844,8 @@ def test_proyectos_ya_no_expone_scores_0_100():
     proyecto = proyectos[0]
     assert "score_inversion" not in proyecto
     assert proyecto["semaforo_legal"] == "verde"
-    assert proyecto["semaforo_tecnico"] == "verde"
-    assert proyecto["indice_madurez"] == 5
+    assert proyecto["semaforo_tecnico"] is None  # Módulo INV en pausa
+    assert proyecto["indice_madurez"] is None
 
     detalle = client.get(f"/proyectos/{proyecto['operacion_id']}").json()
     assert detalle["semaforo_legal"] == "verde"
@@ -1887,8 +1887,9 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     # hay una foto de respaldo subida para ese estudio.
     # Usamos perfil B con documentos pendientes para tener brechas reales.
     respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
-    respuestas_b["B3_1"] = "no"
-    respuestas_b["B3_2"] = "no"
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
     diag = client.post(
         "/diagnostico",
         json={
@@ -1943,8 +1944,9 @@ def test_proyectos_check_publico_acepta_categoria_equivalente():
     # legal fijo (ver uploads_config.categoria_equivalente) — subir la
     # categoría equivalente también debe verificar el estudio.
     respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
-    respuestas_b["B3_1"] = "no"
-    respuestas_b["B3_2"] = "no"
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
     diag = client.post(
         "/diagnostico",
         json={

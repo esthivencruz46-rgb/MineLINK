@@ -8,7 +8,6 @@ import {
   MODULO_B,
   MODULO_C,
   MODULO_D,
-  MODULO_INV,
   NOMBRE_PERFIL,
   clasificarPerfil,
   idsAplicables,
@@ -21,17 +20,15 @@ import type { DiagnosticoRequest, Respuestas } from "../types/diagnostico";
 const SIN_ESPECIFICAR = "no especificado";
 
 // Prellenados silenciosos: responder la pregunta origen fija también la
-// pregunta destino (el spec dice que B3/C4 son la base del índice de
-// madurez y que C1_1 no se repregunta — viene del Módulo 0).
+// pregunta destino (C1_1 no se repregunta — viene del Módulo 0). Los
+// prellenados hacia el Módulo INV (B3_1→INV_1, B3_2→INV_2, C4_2→INV_5)
+// quedaron en pausa junto con el módulo — ver data/preguntas.ts.
 const PRELLENADOS: Record<string, (valor: string) => Record<string, string>> = {
   M0_3: (v): Record<string, string> => {
     if (v === "vigente") return { C1_1: "vigente" };
     if (v === "suspendido") return { C1_1: "suspendida" };
     return {};
   },
-  B3_1: (v) => ({ INV_1: v === "estudios_formales" ? "si" : "no" }),
-  B3_2: (v) => ({ INV_2: v === "laboratorio" ? "si" : "no" }),
-  C4_2: (v) => ({ INV_5: v === "siempre" ? "si" : "no" }),
 };
 
 // Mineral principal — pantalla de contexto para B/C/D (el perfil A lo
@@ -51,9 +48,6 @@ const OPCIONES_MINERAL = [
  *  si su pregunta origen está respondida — la navegación las salta. */
 function esPrellenada(respuestas: Respuestas, id: string): boolean {
   if (id === "C1_1") return ["vigente", "suspendido"].includes(respuestas.M0_3 ?? "");
-  if (id === "INV_1") return Boolean(respuestas.B3_1);
-  if (id === "INV_2") return Boolean(respuestas.B3_2);
-  if (id === "INV_5") return Boolean(respuestas.C4_2);
   return false;
 }
 
@@ -73,7 +67,7 @@ function preguntasVisibles(respuestas: Respuestas): PreguntaCatalogo[] {
           : perfil === "D"
             ? MODULO_D
             : [];
-  return [...MODULO_0, ...modulo, ...MODULO_INV].filter((p) => ids.has(p.id));
+  return [...MODULO_0, ...modulo].filter((p) => ids.has(p.id));
 }
 
 /** Última pregunta respondida POR EL USUARIO (saltando prellenadas) —
