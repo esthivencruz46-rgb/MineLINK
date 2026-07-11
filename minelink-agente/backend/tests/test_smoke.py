@@ -534,6 +534,13 @@ def test_mineros_login_y_perfil():
     assert body["capacidad_produccion"] is None
     assert body["capital_buscado"] is None
     assert body["uso_fondos"] is None
+    # Track Legal/Técnico del nuevo modelo — recalculados en cada lectura
+    # (mismo mecanismo de estado_seguimiento que usa /proyectos).
+    assert body["perfil"] == diag["perfil"]
+    assert body["semaforo_legal"] == diag["semaforo_legal"]
+    assert body["apto_inversionistas"] == diag["apto_inversionistas"]
+    assert body["semaforo_tecnico"] is None  # Módulo INV en pausa
+    assert body["indice_madurez"] is None
 
 
 def test_mineros_actualiza_perfil_inversion():

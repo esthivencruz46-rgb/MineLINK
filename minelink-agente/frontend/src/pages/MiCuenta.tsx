@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Check, CheckCircle2, Circle, Search } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Circle, Search } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
+import { SemaforoCard } from "../components/SemaforoCard";
 import { INFO_BRECHA } from "../data/brechas";
+import { NOMBRE_PERFIL } from "../data/preguntas";
 import { useMineroAuth } from "../context/MineroAuthContext";
-import { calcularSemaforo } from "../utils/semaforo";
+import { semaforoDesdeColor } from "../utils/semaforo";
 import type { DocumentoOperacion } from "../types/documento";
 import type { MineroPerfil } from "../types/minero";
 
@@ -58,8 +60,7 @@ export function MiCuenta() {
     return <Navigate to="/mi-concesion" replace />;
   }
 
-  const semaforo = calcularSemaforo(perfil.score_actual, perfil.bloqueado_actual);
-  const hayCambios = perfil.score_actual !== perfil.score_total;
+  const semLegal = semaforoDesdeColor(perfil.semaforo_legal);
 
   const fotos = documentos.filter((d) => d.categoria === "fotos_mina");
   const requisitos: { texto: string; cumplido: boolean }[] = [
@@ -123,20 +124,31 @@ export function MiCuenta() {
         </div>
       )}
 
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-        <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-          Tu puntaje
-        </p>
-        <p className={`font-mono text-3xl font-bold ${semaforo.claseTexto}`}>
-          {perfil.score_actual}
-          {hayCambios && (
-            <span className="ml-2 text-lg text-texto-suave line-through dark:text-texto-suave-dark">
-              {perfil.score_total}
-            </span>
-          )}
-        </p>
-        <p className={`text-sm font-semibold ${semaforo.claseTexto}`}>{semaforo.etiqueta}</p>
-      </div>
+      {perfil.perfil && (
+        <div className="text-center">
+          <span className="rounded-full bg-acento/15 px-4 py-1 text-sm font-semibold text-acento">
+            {NOMBRE_PERFIL[perfil.perfil] ?? perfil.perfil}
+          </span>
+        </div>
+      )}
+
+      <SemaforoCard titulo="Track Legal" semaforo={semLegal} grande />
+
+      {perfil.etiquetas_bloqueantes.length > 0 && (
+        <div className="rounded-lg bg-red-900/10 p-4">
+          <h3 className="mb-2 flex items-center gap-2 font-semibold text-red-600">
+            <AlertTriangle size={18} /> Primero resolvamos esto
+          </h3>
+          <ul className="flex flex-col gap-1 text-sm">
+            {perfil.etiquetas_bloqueantes.map((b, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                {b}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
         <h2 className="font-semibold">Lo que te falta</h2>

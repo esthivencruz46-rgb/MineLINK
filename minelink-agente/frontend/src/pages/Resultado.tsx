@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Clock, AlertTriangle, ChevronRight } from "lucide-react";
 import { ListaBrechas } from "../components/ListaBrechas";
+import { SemaforoCard } from "../components/SemaforoCard";
 import { guardarDiagnostico, leerDiagnostico } from "../services/storage";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import { NOMBRE_PERFIL } from "../data/preguntas";
@@ -108,11 +109,15 @@ export function Resultado() {
         )}
       </div>
 
-      {/* Semáforos */}
-      <div className="grid grid-cols-2 gap-4">
+      {/* Semáforos: Track Técnico está en pausa (no se pregunta), así que
+          Track Legal ocupa todo el ancho en vez de verse apachurrado en
+          media grilla. Si algún día Track Técnico vuelve, aquí se parte
+          en dos columnas otra vez. */}
+      <div className={respuesta.semaforo_tecnico ? "grid grid-cols-2 gap-4" : ""}>
         <SemaforoCard
           titulo="Track Legal"
           semaforo={semLegal}
+          grande={!respuesta.semaforo_tecnico}
         />
         {respuesta.semaforo_tecnico && (
           <SemaforoCard
@@ -244,47 +249,6 @@ export function Resultado() {
           Registrarme
         </button>
       </div>
-    </div>
-  );
-}
-
-// -------------------------------------------------------------------
-// Sub-componentes
-// -------------------------------------------------------------------
-
-function SemaforoCard({
-  titulo,
-  semaforo,
-  subtitulo,
-}: {
-  titulo: string;
-  semaforo: { color: string; etiqueta: string; claseTexto: string };
-  subtitulo?: string;
-}) {
-  return (
-    <div className="rounded-lg bg-tarjeta p-4 text-center dark:bg-tarjeta-dark">
-      <p className="mb-2 text-xs font-medium text-texto-suave dark:text-texto-suave-dark">
-        {titulo}
-      </p>
-      <div
-        className={`mx-auto mb-2 h-3 w-3 rounded-full ${
-          semaforo.color === "verde"
-            ? "bg-emerald-500"
-            : semaforo.color === "ambar"
-              ? "bg-amber-500"
-              : semaforo.color === "rojo"
-                ? "bg-red-500"
-                : "bg-gray-400"
-        }`}
-      />
-      <p className={`text-sm font-bold ${semaforo.claseTexto}`}>
-        {semaforo.etiqueta}
-      </p>
-      {subtitulo && (
-        <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-          {subtitulo}
-        </p>
-      )}
     </div>
   );
 }

@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { enviarLead } from "../services/api";
+import { useMineroAuth } from "../context/MineroAuthContext";
+import { limpiarDiagnostico } from "../services/storage";
 import type { DatosRegistroMinero } from "../components/RegistroMineroForm";
 
 /** Envío del registro del minero (POST /leads) con el mapeo de errores en
- * lenguaje simple. Lo comparten la página /registro y el modal de /empresas. */
+ * lenguaje simple. Lo comparten la página /registro y el modal de /empresas.
+ * Tras registrarse, entra directo a su cuenta (auto-login) en vez de una
+ * pantalla de agradecimiento — ahí es donde sube sus fotos de respaldo. */
 export function useRegistroMinero(operacionId: string | undefined) {
   const navigate = useNavigate();
+  const { login } = useMineroAuth();
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
@@ -28,7 +33,18 @@ export function useRegistroMinero(operacionId: string | undefined) {
         nombre_operacion: datos.nombreOperacion || undefined,
         codigo_reinfo: datos.codigoReinfo || undefined,
       });
-      navigate("/gracias");
+      // El registro ya se guardó — si el auto-login falla por lo que sea,
+      // no lo mostramos como error: lo mandamos a /ingresar en vez de
+      // romper con un mensaje falso de "no pudimos enviar tus datos".
+      try {
+        await login(datos.username, datos.password);
+        limpiarDiagnostico();
+        // MiCuenta redirige sola a /mi-concesion si la situación es
+        // "concesionario" — no hace falta decidir la ruta aquí.
+        navigate("/mi-cuenta");
+      } catch {
+        navigate("/ingresar");
+      }
     } catch (e) {
       const mensaje = e instanceof Error ? e.message : "";
       if (mensaje.includes("409") && mensaje.toLowerCase().includes("usuario")) {

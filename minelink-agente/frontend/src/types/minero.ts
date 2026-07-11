@@ -16,6 +16,32 @@ export interface MineroPerfil {
   brechas_pendientes: string[];
   score_actual: number;
   bloqueado_actual: boolean;
+  // Track Legal / Track Técnico (julio 2026) — reemplazan score_actual/
+  // bloqueado_actual en la UI. null en diagnósticos del modelo anterior.
+  perfil?: string | null;
+  clasificacion?: string | null;
+  semaforo_legal?: string | null;
+  bloqueantes: string[];
+  etiquetas_bloqueantes: string[];
+  semaforo_tecnico?: string | null;
+  indice_madurez?: number | null;
+  riesgo_caducidad: boolean;
+  apto_inversionistas: boolean;
+  urgencia?: {
+    dias_restantes: number;
+    docs_completados: number;
+    docs_totales: number;
+    docs_pendientes: number;
+    dias_necesarios: number;
+    alerta_roja: boolean;
+  } | null;
+  reloj_produccion?: {
+    anios_titulo: number;
+    limite_anios: number;
+    vencido: boolean;
+    anios_restantes: number;
+  } | null;
+  salidas: string[];
   descripcion_operacion?: string | null;
   capacidad_produccion?: string | null;
   capital_buscado?: string | null;

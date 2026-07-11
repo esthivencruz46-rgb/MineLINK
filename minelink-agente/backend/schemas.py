@@ -414,6 +414,22 @@ class MineroPerfilOut(BaseModel):
     brechas_pendientes: list[str]
     score_actual: int = 0
     bloqueado_actual: bool = False
+    # Track Legal / Track Técnico del nuevo modelo (julio 2026), recalculados
+    # en cada lectura vía scoring.estado_seguimiento — reemplazan score_actual/
+    # bloqueado_actual en la UI (esos dos siguen aquí por compatibilidad).
+    # None en diagnósticos del modelo anterior (sin catálogo con que cruzar).
+    perfil: Optional[str] = None
+    clasificacion: Optional[str] = None
+    semaforo_legal: Optional[str] = None
+    bloqueantes: list[str] = []
+    etiquetas_bloqueantes: list[str] = []
+    semaforo_tecnico: Optional[str] = None
+    indice_madurez: Optional[int] = None
+    riesgo_caducidad: bool = False
+    apto_inversionistas: bool = False
+    urgencia: Optional[dict] = None
+    reloj_produccion: Optional[dict] = None
+    salidas: list[str] = []
     # Perfil de inversión (opcional, ver PerfilInversionUpdate)
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
