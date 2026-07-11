@@ -186,6 +186,7 @@ export function MiConcesion() {
         fotosPerfilAplicables={perfil.fotos_perfil}
         esTitularConcesion={perfil.es_titular_concesion}
         ocultarFotosOperacion
+        ocultarEncabezado
       />
 
       {muestraEstudios && (

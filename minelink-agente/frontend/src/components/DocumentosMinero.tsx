@@ -42,6 +42,10 @@ interface Props {
   /** Oculta el bloque "Fotos de tu operación" (fotos_mina + condicionadas
    * al perfil) — por ahora fuera de /mi-concesion, ver MiConcesion.tsx. */
   ocultarFotosOperacion?: boolean;
+  /** Oculta el título "Documentos de tu operación" y el párrafo que
+   * menciona inversionistas — por ahora fuera de /mi-concesion, ver
+   * MiConcesion.tsx (esa ventana ya no habla de inversionistas). */
+  ocultarEncabezado?: boolean;
 }
 
 export function DocumentosMinero({
@@ -50,6 +54,7 @@ export function DocumentosMinero({
   fotosPerfilAplicables,
   esTitularConcesion,
   ocultarFotosOperacion,
+  ocultarEncabezado,
 }: Props = {}) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
@@ -276,12 +281,16 @@ export function DocumentosMinero({
 
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-      <h2 className="font-semibold">Documentos de tu operación</h2>
-      <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-        Súbelos para estar listo cuando conectemos con inversionistas
-        interesados en operaciones formalizadas. Por ahora solo los guardamos
-        para ti — Esthiven los revisará más adelante.
-      </p>
+      {!ocultarEncabezado && (
+        <>
+          <h2 className="font-semibold">Documentos de tu operación</h2>
+          <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
+            Súbelos para estar listo cuando conectemos con inversionistas
+            interesados en operaciones formalizadas. Por ahora solo los guardamos
+            para ti — Esthiven los revisará más adelante.
+          </p>
+        </>
+      )}
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {cargando && <p className="mt-2 text-sm">Cargando...</p>}
