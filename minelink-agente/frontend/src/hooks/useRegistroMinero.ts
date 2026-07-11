@@ -40,8 +40,10 @@ export function useRegistroMinero(operacionId: string | undefined) {
         await login(datos.username, datos.password);
         limpiarDiagnostico();
         // MiCuenta redirige sola a /mi-concesion si la situación es
-        // "concesionario" — no hace falta decidir la ruta aquí.
-        navigate("/mi-cuenta");
+        // "concesionario" — no hace falta decidir la ruta aquí. El state
+        // "bienvenida" solo vive en esta navegación (se pierde si recarga
+        // o vuelve más tarde) — exactamente el efecto de "primera vez".
+        navigate("/mi-cuenta", { state: { bienvenida: true } });
       } catch {
         navigate("/ingresar");
       }

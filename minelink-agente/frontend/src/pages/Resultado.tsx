@@ -1,74 +1,13 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Clock, AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { ListaBrechas } from "../components/ListaBrechas";
+import { SalidasList } from "../components/SalidasList";
 import { SemaforoCard } from "../components/SemaforoCard";
+import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
 import { guardarDiagnostico, leerDiagnostico } from "../services/storage";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import { NOMBRE_PERFIL } from "../data/preguntas";
-
-const TEXTO_SALIDA: Record<string, { titulo: string; descripcion: string }> = {
-  area_no_concesionable: {
-    titulo: "Tu área no se puede concesionar",
-    descripcion:
-      "El área que elegiste tiene una restricción que impide obtener una concesión minera. Revisa otras zonas o busca asesoría.",
-  },
-  verificar_area: {
-    titulo: "Verifica tu área antes de avanzar",
-    descripcion:
-      "Hay información pendiente sobre tu área (frontera, disponibilidad, etc.). Confirma que no tiene restricciones.",
-  },
-  checklist_petitorio: {
-    titulo: "Arma tu petitorio",
-    descripcion:
-      "Tu área parece viable. El siguiente paso es juntar los documentos para el petitorio ante INGEMMET.",
-  },
-  ruta_inversionista: {
-    titulo: "Busca un inversionista",
-    descripcion:
-      "Un inversionista puede financiar los trámites y estudios que necesitas para formalizarte.",
-  },
-  alerta_caducidad: {
-    titulo: "⚠️ Riesgo de caducidad",
-    descripcion:
-      "Debes 2 o más años de vigencia. Si no regularizas, puedes perder tu concesión.",
-  },
-  alerta_produccion_minima: {
-    titulo: "⚠️ Debes poner tu mina en producción",
-    descripcion:
-      "Tu plazo para cumplir con la producción mínima ya venció. Paga la penalidad y pon tu operación en marcha.",
-  },
-  checklist_permisos: {
-    titulo: "Checklist de permisos para operar",
-    descripcion:
-      "Necesitas varios permisos antes de empezar a sacar mineral. Te mostramos cuáles.",
-  },
-  guia_cesion: {
-    titulo: "Guía para ceder tu contrato",
-    descripcion:
-      "Si quieres ceder tu concesión a alguien más, aquí te explicamos los pasos.",
-  },
-  subsanar_suspension: {
-    titulo: "Subsana la suspensión de tu REINFO",
-    descripcion:
-      "Tu REINFO está suspendido. Debes atender la observación para reactivarlo.",
-  },
-  ruta_critica_documentos: {
-    titulo: "Ruta crítica de documentos",
-    descripcion:
-      "Tienes documentos pendientes que debes completar antes del 31/12/2026. Prioriza los más urgentes.",
-  },
-  asesoria_legal_titular: {
-    titulo: "Busca asesoría legal",
-    descripcion:
-      "El titular de la concesión no coopera. Necesitas un abogado que te ayude a resolver la situación.",
-  },
-  alertas_cumplimiento: {
-    titulo: "Atiende tus alertas de cumplimiento",
-    descripcion:
-      "Hay observaciones o multas pendientes en tu fiscalización. Subsana antes de seguir avanzando.",
-  },
-};
 
 export function Resultado() {
   const navigate = useNavigate();
@@ -145,69 +84,9 @@ export function Resultado() {
         </div>
       )}
 
-      {/* Urgencia REINFO (Perfil C) */}
-      {respuesta.urgencia && (
-        <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
-          <h3 className="mb-2 flex items-center gap-2 font-semibold">
-            <Clock size={18} /> Reloj REINFO
-          </h3>
-          <p className="text-sm">
-            Quedan <strong>{respuesta.urgencia.dias_restantes}</strong> días al
-            31/12/2026. Tienes {respuesta.urgencia.docs_completados}/
-            {respuesta.urgencia.docs_totales} documentos listos.
-          </p>
-          {respuesta.urgencia.alerta_roja && (
-            <p className="mt-2 text-sm font-semibold text-red-600">
-              ¡No alcanzas al ritmo actual! Necesitas{" "}
-              {respuesta.urgencia.dias_necesarios} días y solo quedan{" "}
-              {respuesta.urgencia.dias_restantes}.
-            </p>
-          )}
-        </div>
-      )}
+      <UrgenciaYReloj urgencia={respuesta.urgencia} relojProduccion={respuesta.reloj_produccion} />
 
-      {/* Reloj de producción (Perfil B) */}
-      {respuesta.reloj_produccion && (
-        <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
-          <h3 className="mb-2 flex items-center gap-2 font-semibold">
-            <Clock size={18} /> Reloj de producción mínima
-          </h3>
-          <p className="text-sm">
-            Tu título tiene {respuesta.reloj_produccion.anios_titulo} años.{" "}
-            {respuesta.reloj_produccion.vencido
-              ? "El plazo ya venció — debes poner tu mina en producción o pagar la penalidad."
-              : `Te quedan ${respuesta.reloj_produccion.anios_restantes} años para cumplir la producción mínima.`}
-          </p>
-        </div>
-      )}
-
-      {/* Salidas */}
-      {respuesta.salidas.length > 0 && (
-        <div>
-          <h3 className="mb-3 text-lg font-bold">¿Qué sigue?</h3>
-          <div className="flex flex-col gap-2">
-            {respuesta.salidas.map((codigo) => {
-              const info = TEXTO_SALIDA[codigo];
-              return (
-                <div
-                  key={codigo}
-                  className="flex items-center justify-between rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark"
-                >
-                  <div>
-                    <p className="font-semibold">{info?.titulo ?? codigo}</p>
-                    {info?.descripcion && (
-                      <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-                        {info.descripcion}
-                      </p>
-                    )}
-                  </div>
-                  <ChevronRight size={18} className="shrink-0 text-texto-suave" />
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <SalidasList salidas={respuesta.salidas} />
 
       {/* Código REINFO */}
       <div>

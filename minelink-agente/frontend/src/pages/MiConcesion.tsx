@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
-import { AlertTriangle, Check, CheckCircle2, Circle, Search } from "lucide-react";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { AlertTriangle, Check, CheckCircle2, Circle, Search, X } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
+import { SalidasList } from "../components/SalidasList";
 import { SemaforoCard } from "../components/SemaforoCard";
+import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
 import { INFO_BRECHA } from "../data/brechas";
 import { NOMBRE_PERFIL } from "../data/preguntas";
 import { useMineroAuth } from "../context/MineroAuthContext";
@@ -18,10 +20,14 @@ import type { MineroPerfil } from "../types/minero";
 export function MiConcesion() {
   const { authFetch, logout } = useMineroAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [perfil, setPerfil] = useState<MineroPerfil | null>(null);
   const [, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mostrarBienvenida, setMostrarBienvenida] = useState(
+    Boolean((location.state as { bienvenida?: boolean } | null)?.bienvenida)
+  );
 
   useEffect(() => {
     authFetch("/mineros/me")
@@ -59,7 +65,7 @@ export function MiConcesion() {
 
   // Un minero artesanal (Ruta 1) no tiene nada que ver aquí
   if (perfil.situacion !== "concesionario") {
-    return <Navigate to="/mi-cuenta" replace />;
+    return <Navigate to="/mi-cuenta" state={location.state} replace />;
   }
 
   const semLegal = semaforoDesdeColor(perfil.semaforo_legal);
@@ -96,6 +102,25 @@ export function MiConcesion() {
         <p className="text-texto-suave dark:text-texto-suave-dark">
           {perfil.nombre_operacion} · {perfil.region}
         </p>
+      )}
+
+      {mostrarBienvenida && (
+        <div className="flex items-start justify-between gap-3 rounded-lg bg-acento/10 p-4 text-sm text-acento">
+          <p>
+            <span className="font-semibold">¡Ya estás dentro! </span>
+            Esta es tu cuenta: aquí puedes subir tus fotos y documentos ahora
+            mismo, o dejarlo para después — no se pierde nada. Cuando quieras
+            volver, entra con tu usuario y contraseña desde{" "}
+            <span className="font-semibold">Ingresar</span>.
+          </p>
+          <button
+            onClick={() => setMostrarBienvenida(false)}
+            aria-label="Cerrar"
+            className="shrink-0 text-acento/70 hover:text-acento"
+          >
+            <X size={18} strokeWidth={2} />
+          </button>
+        </div>
       )}
 
       {perfil.brechas_pendientes.length > 0 && (
@@ -146,6 +171,10 @@ export function MiConcesion() {
           </ul>
         </div>
       )}
+
+      <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
+
+      <SalidasList salidas={perfil.salidas} />
 
       <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
         <h2 className="font-semibold">Lo que te falta</h2>
