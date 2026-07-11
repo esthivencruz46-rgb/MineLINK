@@ -315,6 +315,10 @@ BRECHA_POR_PREGUNTA: dict[str, tuple[set[str], str]] = {
     "A4_1": ({"parcial", "no"}, "elaboracion_petitorio"),
     # Módulo B
     "B1_1": ({"debo_1", "debo_2_mas"}, "vigencia_concesion"),
+    # B2_1 (PMA/PPM) no tenía estudio asociado — sin él, nadie podía
+    # respaldar su clasificación con la Declaración Bienal ante la
+    # autoridad minera regional que la acredita.
+    "B2_1": ({"no_tengo", "no_se"}, "declaracion_bienal_pma_ppm"),
     "B1_4": ({"no_se"}, "acreditacion_terreno"),
     "B1_5": ({"no"}, "acreditacion_terreno"),
     # B3_1/B3_2 ⏸️ en pausa (fuera de ids_esperados, ver PREGUNTAS arriba) —
@@ -382,6 +386,12 @@ VALOR_RESUELTO_POR_PREGUNTA: dict[str, str] = {
     "A3_2": "si",
     "A4_1": "completo",
     "B1_1": "al_dia",
+    # "pma" es un placeholder (podría ser "ppm"): al resolver esta brecha
+    # el admin ya vio el documento real, pero VALOR_RESUELTO_POR_PREGUNTA
+    # solo admite un valor fijo por pregunta. Sí afecta el reloj de
+    # producción (10 años PMA vs 6 PPM) — ajustar a mano si el admin sabe
+    # que el caso real es PPM.
+    "B2_1": "pma",
     "B1_4": "mio",
     "B1_5": "si",
     "B3_1": "estudios_formales",

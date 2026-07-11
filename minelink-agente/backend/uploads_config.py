@@ -68,7 +68,9 @@ CATEGORIAS_ESTUDIO: set[str] = ESTUDIOS_DIAGNOSTICO | ESTUDIOS_LEGACY
 # (ver `brechas_verificadas` en routers/proyectos.py).
 _EQUIVALENCIAS_ESTUDIO: dict[str, str] = {
     "titularidad_concesion": "titulo_concesion",  # L2: mismo papel que el título
-    "vigencia_concesion": "titulo_concesion",  # L6: la vigencia consta en el mismo título
+    # vigencia_concesion tiene slot PROPIO (no equivale al título): el
+    # comprobante de pago de vigencia es un recibo/constancia que se
+    # renueva cada año, distinto del título que se emite una sola vez.
     "tramite_sunat": "ruc",  # L4: activar el RUC = el mismo RUC escaneado
     "levantamiento_georreferenciado": "catastro",  # L5: mismo plano/GPS que el catastro
     "puesta_en_produccion": "fotos_mina",  # O1: foto de la mina operando = fotos de la mina

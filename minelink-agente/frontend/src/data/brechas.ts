@@ -24,6 +24,10 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
     texto: "Renovar la vigencia de tu concesión",
     resuelve: "Una concesión vencida no te da derechos legales sobre la zona.",
   },
+  declaracion_bienal_pma_ppm: {
+    texto: "Declaración Bienal (clasificación PMA/PPM)",
+    resuelve: "Acredita ante la autoridad minera regional tu condición de Pequeño Productor Minero (PPM) o Productor Minero Artesanal (PMA).",
+  },
   informe_geologico: {
     texto: "Informe geológico de tu veta",
     resuelve: "Certifica la estructura mineral de tu labor.",

@@ -702,6 +702,32 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     assert "contrato_explotacion" not in aplicables  # equivale a documento fijo
 
 
+def test_mineros_perfil_b_expone_slots_pma_ppm_y_vigencia():
+    # Perfil B declarando "al día" + "pma": ambos deben tener slot propio
+    # para subir respaldo — antes vigencia_concesion se fusionaba con el
+    # título y no existía ningún slot para acreditar PMA/PPM.
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_SIN_TRAMITE,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="minerobpmappm", nombre_operacion="Concesion PMA"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "minerobpmappm", "password": "clave123"}
+    ).json()["access_token"]
+    resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
+    aplicables = resp.json()["estudios_aplicables"]
+    assert "declaracion_bienal_pma_ppm" in aplicables
+    assert "vigencia_concesion" in aplicables
+
+
 def test_mineros_documento_pdf_se_convierte_a_foto():
     # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
     # hoja del PDF se convierte a JPEG al subirse.

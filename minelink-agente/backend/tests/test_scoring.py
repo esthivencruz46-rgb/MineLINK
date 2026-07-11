@@ -316,6 +316,16 @@ def test_brechas_perfil_b_terreno_sin_acuerdo():
     assert "acreditacion_terreno" in brechas_de(r)
 
 
+def test_brechas_perfil_b_sin_clasificacion_pma_ppm():
+    r = _perfil_b({"B2_1": "no_tengo"})
+    assert "declaracion_bienal_pma_ppm" in brechas_de(r)
+
+
+def test_brechas_perfil_b_con_pma_no_es_brecha():
+    r = _perfil_b({"B2_1": "pma"})
+    assert "declaracion_bienal_pma_ppm" not in brechas_de(r)
+
+
 def test_brechas_perfil_c_docs_no_iniciados():
     r = _perfil_c()
     r["C2_1"] = "no_iniciado"

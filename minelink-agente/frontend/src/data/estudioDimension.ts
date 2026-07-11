@@ -9,6 +9,7 @@ export const DIMENSION_POR_ESTUDIO: Record<string, NombreDimension> = {
   levantamiento_georreferenciado: "legal",
   acreditacion_terreno: "legal",
   vigencia_concesion: "legal",
+  declaracion_bienal_pma_ppm: "legal",
   contrato_explotacion: "legal",
   tramite_sunat: "legal",
   dj_arqueologica: "legal",
