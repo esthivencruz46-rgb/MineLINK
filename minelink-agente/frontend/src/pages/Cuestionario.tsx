@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Lightbulb } from "lucide-react";
+import { Check, Lightbulb } from "lucide-react";
 import { ProgressBar } from "../components/ProgressBar";
 import {
   MODULO_0,
@@ -34,16 +34,6 @@ const PRELLENADOS: Record<string, (valor: string) => Record<string, string>> = {
   C4_2: (v) => ({ INV_5: v === "siempre" ? "si" : "no" }),
 };
 
-// Qué ids borra `volver()` al des-responder la pregunta origen (no se puede
-// derivar de PRELLENADOS("") porque algunas funciones devuelven {} para
-// valores no reconocidos).
-const OBJETIVOS_PRELLENADO: Record<string, string[]> = {
-  M0_3: ["C1_1"],
-  B3_1: ["INV_1"],
-  B3_2: ["INV_2"],
-  C4_2: ["INV_5"],
-};
-
 // Mineral principal — pantalla de contexto para B/C/D (el perfil A lo
 // declara en A5_2). Alimenta la búsqueda de /proyectos, no el diagnóstico.
 const OPCIONES_MINERAL = [
@@ -56,6 +46,16 @@ const OPCIONES_MINERAL = [
   { valor: "polimetálico", etiqueta: "Polimetálico" },
   { valor: SIN_ESPECIFICAR, etiqueta: "Prefiero no decir" },
 ];
+
+/** Una respuesta es prellenada (no la eligió el usuario en esa pantalla)
+ *  si su pregunta origen está respondida — la navegación las salta. */
+function esPrellenada(respuestas: Respuestas, id: string): boolean {
+  if (id === "C1_1") return ["vigente", "suspendido"].includes(respuestas.M0_3 ?? "");
+  if (id === "INV_1") return Boolean(respuestas.B3_1);
+  if (id === "INV_2") return Boolean(respuestas.B3_2);
+  if (id === "INV_5") return Boolean(respuestas.C4_2);
+  return false;
+}
 
 /** Lista ORDENADA de preguntas visibles dadas las respuestas actuales —
  *  derivada en cada render (regla dura anti-wizard-trabado: cero índices
@@ -76,6 +76,15 @@ function preguntasVisibles(respuestas: Respuestas): PreguntaCatalogo[] {
   return [...MODULO_0, ...modulo, ...MODULO_INV].filter((p) => ids.has(p.id));
 }
 
+/** Última pregunta respondida POR EL USUARIO (saltando prellenadas) —
+ *  el destino natural de "Volver" cuando ya se respondió todo. */
+function ultimaRespondida(respuestas: Respuestas): string | null {
+  const contestadas = preguntasVisibles(respuestas).filter(
+    (p) => respuestas[p.id] && !esPrellenada(respuestas, p.id)
+  );
+  return contestadas.length > 0 ? contestadas[contestadas.length - 1].id : null;
+}
+
 /** El payload solo puede llevar los ids aplicables A LA RAMA FINAL — si el
  *  usuario retrocedió y cambió de rama, pueden quedar respuestas huérfanas
  *  de la rama anterior que el backend rechazaría. */
@@ -92,17 +101,17 @@ export function Cuestionario() {
   const vuelveDeResultado = Boolean((location.state as { volver?: boolean } | null)?.volver);
   const guardado = vuelveDeResultado ? leerDiagnostico() : null;
 
-  // "Volver" desde /resultado: retomar con la última pregunta respondida
-  // abierta (se borra su respuesta para que vuelva a mostrarse).
+  // "Volver" desde /resultado: se conservan TODAS las respuestas y se abre
+  // la última pregunta respondida, con su elección marcada en verde.
   const respuestasIniciales: Respuestas = { ...(guardado?.estadoWizard?.respuestas ?? {}) };
-  if (vuelveDeResultado && Object.keys(respuestasIniciales).length > 0) {
-    const visibles = preguntasVisibles(respuestasIniciales);
-    const respondidas = visibles.filter((p) => respuestasIniciales[p.id]);
-    const ultima = respondidas[respondidas.length - 1];
-    if (ultima) delete respuestasIniciales[ultima.id];
-  }
 
   const [respuestas, setRespuestas] = useState<Respuestas>(respuestasIniciales);
+  // Pregunta que se está VIENDO. null = la primera sin responder (flujo
+  // normal hacia adelante). Un id concreto = modo revisión (el usuario
+  // retrocedió); la pregunta se muestra con su respuesta marcada.
+  const [idActual, setIdActual] = useState<string | null>(() =>
+    vuelveDeResultado ? ultimaRespondida(respuestasIniciales) : null
+  );
   const [mineral, setMineral] = useState<string>("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +120,11 @@ export function Cuestionario() {
   // --- Derivados (nunca estado) ---
   const perfil = respuestas.M0_1 ? clasificarPerfil(respuestas) : null;
   const visibles = preguntasVisibles(respuestas);
-  const actual = visibles.find((p) => !respuestas[p.id]) ?? null;
+  const primeraSinResponder = visibles.find((p) => !respuestas[p.id]) ?? null;
+  // Si la pregunta en revisión dejó de existir (cambió la rama), se cae al
+  // flujo normal.
+  const actual =
+    (idActual ? visibles.find((p) => p.id === idActual) : null) ?? primeraSinResponder;
   const respondidas = visibles.filter((p) => respuestas[p.id]).length;
   // El perfil A declara su mineral en A5_2; B/C/D lo eligen en una
   // pantalla de contexto al final.
@@ -140,6 +153,26 @@ export function Cuestionario() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listoParaEnviar]);
 
+  /** Avanza a la siguiente pregunta después de `id` (saltando prellenadas).
+   *  Si la siguiente ya está respondida se abre en modo revisión (para
+   *  poder repasar hacia adelante); si no, se vuelve al flujo normal. */
+  function avanzarDesde(id: string, conRespuestas: Respuestas) {
+    const lista = preguntasVisibles(conRespuestas);
+    const idx = lista.findIndex((p) => p.id === id);
+    let siguiente: PreguntaCatalogo | null = null;
+    for (let i = idx + 1; i < lista.length; i++) {
+      if (!esPrellenada(conRespuestas, lista[i].id)) {
+        siguiente = lista[i];
+        break;
+      }
+    }
+    if (siguiente && conRespuestas[siguiente.id]) {
+      setIdActual(siguiente.id);
+    } else {
+      setIdActual(null);
+    }
+  }
+
   function responder(valor: string) {
     if (!actual) return;
     if (!inicioRegistrado.current) {
@@ -147,34 +180,28 @@ export function Cuestionario() {
       inicioRegistrado.current = true;
     }
     const extra = PRELLENADOS[actual.id]?.(valor) ?? {};
-    setRespuestas({ ...respuestas, [actual.id]: valor, ...extra });
+    const nuevas = { ...respuestas, [actual.id]: valor, ...extra };
+    setRespuestas(nuevas);
     setError(null);
-  }
-
-  function esPrellenada(id: string): boolean {
-    // Una respuesta es prellenada (no la tecleó el usuario) si su pregunta
-    // origen está respondida — volver() debe saltarlas, no reabrirlas.
-    if (id === "C1_1") return ["vigente", "suspendido"].includes(respuestas.M0_3 ?? "");
-    if (id === "INV_1") return Boolean(respuestas.B3_1);
-    if (id === "INV_2") return Boolean(respuestas.B3_2);
-    if (id === "INV_5") return Boolean(respuestas.C4_2);
-    return false;
+    avanzarDesde(actual.id, nuevas);
   }
 
   function volver() {
-    // Borra la respuesta de la última pregunta respondida POR EL USUARIO
-    // (saltando prellenadas) — la pregunta reaparece; si el cambio de
-    // respuesta cambia la rama, todo el flujo se re-deriva solo.
-    const contestadas = visibles.filter((p) => respuestas[p.id] && !esPrellenada(p.id));
-    const ultima = contestadas[contestadas.length - 1];
-    if (!ultima) return;
-    const nuevas = { ...respuestas };
-    delete nuevas[ultima.id];
-    for (const idPrellenado of OBJETIVOS_PRELLENADO[ultima.id] ?? []) {
-      delete nuevas[idPrellenado];
-    }
-    setRespuestas(nuevas);
+    // Retrocede a la pregunta anterior SIN borrar nada — la respuesta que
+    // diste se muestra marcada en verde y puedes cambiarla o continuar.
     setError(null);
+    if (!actual) {
+      const ultima = ultimaRespondida(respuestas);
+      if (ultima) setIdActual(ultima);
+      return;
+    }
+    const idx = visibles.findIndex((p) => p.id === actual.id);
+    for (let i = idx - 1; i >= 0; i--) {
+      if (!esPrellenada(respuestas, visibles[i].id)) {
+        setIdActual(visibles[i].id);
+        return;
+      }
+    }
   }
 
   async function terminar() {
@@ -229,17 +256,12 @@ export function Cuestionario() {
           Sirve para que los inversionistas encuentren tu proyecto por mineral.
         </p>
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <div className="flex flex-col gap-3">
-          {OPCIONES_MINERAL.map((op) => (
-            <button
-              key={op.valor}
-              onClick={() => setMineral(op.valor)}
-              className="min-h-[44px] rounded-lg border border-black/10 px-4 py-3 text-left font-medium transition-colors hover:bg-acento/10 dark:border-white/10"
-            >
-              {op.etiqueta}
-            </button>
-          ))}
-        </div>
+        <OpcionesSeleccionables
+          opciones={OPCIONES_MINERAL}
+          valorActual={mineral}
+          disabled={enviando}
+          onSeleccionar={setMineral}
+        />
       </div>
     );
   }
@@ -249,10 +271,11 @@ export function Cuestionario() {
   // -------------------------------------------------------------------
 
   if (actual) {
-    const esPrimera = respondidas === 0;
+    const indiceActual = visibles.findIndex((p) => p.id === actual.id);
+    const yaRespondida = Boolean(respuestas[actual.id]);
     return (
       <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
-        {!esPrimera && <BotonVolver onClick={volver} />}
+        {indiceActual > 0 && <BotonVolver onClick={volver} />}
         <ProgressBar actual={respondidas} total={visibles.length} />
 
         <div className="flex flex-col gap-3">
@@ -276,13 +299,28 @@ export function Cuestionario() {
         {error && <p className="text-sm text-red-500">{error}</p>}
 
         {actual.tipo === "numero" || actual.tipo === "anio" ? (
-          <NumeroInput key={actual.id} pregunta={actual} onResponder={responder} />
-        ) : (
-          <OpcionInput
-            opciones={actual.opciones ?? []}
-            disabled={enviando}
+          <NumeroInput
+            key={actual.id}
+            pregunta={actual}
+            valorActual={respuestas[actual.id] ?? ""}
             onResponder={responder}
           />
+        ) : (
+          <OpcionesSeleccionables
+            opciones={actual.opciones ?? []}
+            valorActual={respuestas[actual.id]}
+            disabled={enviando}
+            onSeleccionar={responder}
+          />
+        )}
+
+        {yaRespondida && actual.tipo !== "numero" && actual.tipo !== "anio" && (
+          <button
+            onClick={() => avanzarDesde(actual.id, respuestas)}
+            className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white"
+          >
+            Continuar →
+          </button>
         )}
       </div>
     );
@@ -334,44 +372,68 @@ function BotonVolver({ onClick }: { onClick: () => void }) {
   );
 }
 
-function OpcionInput({
+/** Botones de opción con selección visible: la elegida queda en verde (y
+ * se mantiene así al volver); elegir otra mueve la marca. */
+function OpcionesSeleccionables({
   opciones,
+  valorActual,
   disabled,
-  onResponder,
+  onSeleccionar,
 }: {
   opciones: { valor: string; etiqueta: string; descripcion?: string }[];
+  valorActual?: string;
   disabled: boolean;
-  onResponder: (valor: string) => void;
+  onSeleccionar: (valor: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
-      {opciones.map((op) => (
-        <button
-          key={op.valor}
-          disabled={disabled}
-          onClick={() => onResponder(op.valor)}
-          className="min-h-[44px] rounded-lg border border-black/10 px-4 py-3 text-left font-medium transition-colors hover:bg-acento/10 dark:border-white/10"
-        >
-          {op.etiqueta}
-          {op.descripcion && (
-            <span className="block text-xs font-normal text-texto-suave dark:text-texto-suave-dark">
-              {op.descripcion}
+      {opciones.map((op) => {
+        const seleccionada = op.valor === valorActual;
+        return (
+          <button
+            key={op.valor}
+            disabled={disabled}
+            onClick={() => onSeleccionar(op.valor)}
+            className={`flex min-h-[44px] items-center justify-between gap-3 rounded-lg border px-4 py-3 text-left font-medium transition-colors ${
+              seleccionada
+                ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "border-black/10 hover:bg-acento/10 dark:border-white/10"
+            }`}
+          >
+            <span>
+              {op.etiqueta}
+              {op.descripcion && (
+                <span
+                  className={`block text-xs font-normal ${
+                    seleccionada
+                      ? "text-emerald-600/80 dark:text-emerald-400/80"
+                      : "text-texto-suave dark:text-texto-suave-dark"
+                  }`}
+                >
+                  {op.descripcion}
+                </span>
+              )}
             </span>
-          )}
-        </button>
-      ))}
+            {seleccionada && (
+              <Check size={18} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
 function NumeroInput({
   pregunta,
+  valorActual,
   onResponder,
 }: {
   pregunta: PreguntaCatalogo;
+  valorActual: string;
   onResponder: (valor: string) => void;
 }) {
-  const [valor, setValor] = useState("");
+  const [valor, setValor] = useState(valorActual);
 
   return (
     <div className="flex flex-col gap-3">
