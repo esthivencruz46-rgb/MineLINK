@@ -69,6 +69,9 @@ export function MiConcesion() {
   }
 
   const semLegal = semaforoDesdeColor(perfil.semaforo_legal);
+  // Perfil A/A_avanzado todavía no tiene concesión — no tiene sentido
+  // decirle "no tienes brechas pendientes": no hay nada que medir todavía.
+  const muestraEstudios = perfil.perfil !== "A" && perfil.perfil !== "A_avanzado";
 
   const requisitos: { texto: string; cumplido: boolean }[] = [
     {
@@ -176,33 +179,35 @@ export function MiConcesion() {
 
       <SalidasList salidas={perfil.salidas} />
 
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Lo que te falta</h2>
-        {perfil.brechas_pendientes.length === 0 ? (
-          <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
-            No tienes brechas pendientes.
-          </p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-1 text-sm">
-            {perfil.brechas_pendientes.map((b) => (
-              <li key={b}>• {INFO_BRECHA[b]?.texto ?? b}</li>
-            ))}
-          </ul>
-        )}
-
-        {perfil.brechas_resueltas.length > 0 && (
-          <>
-            <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
-              Ya resuelto
-            </h3>
-            <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
-              {perfil.brechas_resueltas.map((b) => (
-                <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
+      {muestraEstudios && (
+        <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+          <h2 className="font-semibold">Lo que te falta</h2>
+          {perfil.brechas_pendientes.length === 0 ? (
+            <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
+              No tienes brechas pendientes.
+            </p>
+          ) : (
+            <ul className="mt-2 flex flex-col gap-1 text-sm">
+              {perfil.brechas_pendientes.map((b) => (
+                <li key={b}>• {INFO_BRECHA[b]?.texto ?? b}</li>
               ))}
             </ul>
-          </>
-        )}
-      </div>
+          )}
+
+          {perfil.brechas_resueltas.length > 0 && (
+            <>
+              <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
+                Ya resuelto
+              </h3>
+              <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
+                {perfil.brechas_resueltas.map((b) => (
+                  <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
         <h2 className="font-semibold">Tus datos</h2>

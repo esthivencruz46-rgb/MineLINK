@@ -21,6 +21,10 @@ export function Resultado() {
   const { respuesta } = guardado;
   const semLegal = semaforoDesdeColor(respuesta.semaforo_legal);
   const semTecnico = semaforoDesdeColor(respuesta.semaforo_tecnico);
+  // Perfil A/A_avanzado todavía no tiene concesión — no tiene sentido
+  // decirle "no te falta ningún estudio, vas muy bien": no hay nada que
+  // medir todavía. Esa sección solo aplica desde que ya tiene concesión.
+  const muestraEstudios = respuesta.perfil !== "A" && respuesta.perfil !== "A_avanzado";
 
   return (
     <div className="mx-auto flex max-w-md flex-col gap-6 px-4 py-8">
@@ -105,14 +109,16 @@ export function Resultado() {
       </div>
 
       {/* Brechas */}
-      <div>
-        <h2 className="mb-3 text-lg font-bold">Estudios que te faltan</h2>
-        <ListaBrechas
-          brechas={respuesta.brechas}
-          dimensiones={{}}
-          onBuscarAyuda={() => navigate("/empresas")}
-        />
-      </div>
+      {muestraEstudios && (
+        <div>
+          <h2 className="mb-3 text-lg font-bold">Estudios que te faltan</h2>
+          <ListaBrechas
+            brechas={respuesta.brechas}
+            dimensiones={{}}
+            onBuscarAyuda={() => navigate("/empresas")}
+          />
+        </div>
+      )}
 
       {/* Registro */}
       <div className="rounded-lg bg-acento/5 p-4 text-center dark:bg-acento/10">
