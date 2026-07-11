@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, Check, CheckCircle2, Circle, Search, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
-import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { SalidasList } from "../components/SalidasList";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
@@ -14,9 +13,11 @@ import type { DocumentoOperacion } from "../types/documento";
 import type { MineroPerfil } from "../types/minero";
 
 /** Ventana exclusiva de la Ruta 2 (concesionario que recién inicia) —
- * paralela a MiCuenta.tsx (Ruta 1), pero con su propio encabezado, su
- * propio "score de preparación" y el resumen del perfil de la concesión
- * capturado en el diagnóstico (declaración original, no editable aquí). */
+ * paralela a MiCuenta.tsx (Ruta 1). Enfocada en lo esencial por ahora: su
+ * Track Legal y entregar los documentos que declaró tener en el
+ * diagnóstico (DocumentosMinero) — la parte de perfil de inversión
+ * (PerfilInversionForm, "proyecto ante los inversionistas") queda fuera
+ * de esta ventana hasta que se retome esa función. */
 export function MiConcesion() {
   const { authFetch, logout } = useMineroAuth();
   const navigate = useNavigate();
@@ -72,22 +73,6 @@ export function MiConcesion() {
   // Perfil A/A_avanzado todavía no tiene concesión — no tiene sentido
   // decirle "no tienes brechas pendientes": no hay nada que medir todavía.
   const muestraEstudios = perfil.perfil !== "A" && perfil.perfil !== "A_avanzado";
-
-  const requisitos: { texto: string; cumplido: boolean }[] = [
-    {
-      texto: "Ubicación de tu concesión (enlace de Google Maps)",
-      cumplido: Boolean(perfil.ubicacion_maps),
-    },
-    {
-      texto: "Para qué buscas el apoyo (motivo)",
-      cumplido: Boolean(perfil.uso_fondos?.trim()),
-    },
-    {
-      texto: "Cuánto capital buscas",
-      cumplido: Boolean(perfil.capital_buscado?.trim()),
-    },
-  ];
-  const pendientesRequisitos = requisitos.filter((r) => !r.cumplido).length;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
@@ -223,43 +208,6 @@ export function MiConcesion() {
           Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
         </p>
       </div>
-
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">
-          Tu proyecto ante los inversionistas{" "}
-          {pendientesRequisitos === 0 ? (
-            <span className="ml-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-500">
-              Completo
-            </span>
-          ) : (
-            <span className="ml-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-500">
-              {pendientesRequisitos} pendiente{pendientesRequisitos !== 1 && "s"}
-            </span>
-          )}
-        </h2>
-        <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-          Para que tu proyecto se vea completo y confiable en la sección
-          Proyectos, necesitas entregar esto:
-        </p>
-        <ul className="mt-3 flex flex-col gap-2 text-sm">
-          {requisitos.map((r) => (
-            <li key={r.texto} className="flex items-start gap-2">
-              <span className={r.cumplido ? "text-emerald-500" : "text-amber-500"}>
-                {r.cumplido ? (
-                  <Check size={16} strokeWidth={2.5} aria-hidden />
-                ) : (
-                  <Circle size={16} strokeWidth={2} aria-hidden />
-                )}
-              </span>
-              <span className={r.cumplido ? "text-texto-suave line-through dark:text-texto-suave-dark" : ""}>
-                {r.texto}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} ocultarCapacidadProduccion />
 
       <DocumentosMinero
         onDocumentosChange={setDocumentos}
