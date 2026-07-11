@@ -1,3 +1,11 @@
+/** ⏸️ CONJUNTO EN PAUSA (julio 2026) — perfil informativo del diagnóstico
+ * ANTERIOR (~35 preguntas por ruta). El rediseño a perfiles A/B/C/D (ver
+ * context/diagnostico_formalizacion.md) las sacó del cuestionario; Esthiven
+ * pidió CONSERVARLAS para decidir más adelante si se reincorporan (p. ej.
+ * como bloque opcional para enriquecer la ficha del inversionista).
+ * NO BORRAR. Solo se siguen usando etiquetas sueltas (OPCIONES_TIPO_APOYO,
+ * OPCIONES_UNIDAD_PRODUCCION) para mostrar datos ya guardados. */
+
 /** Perfil informativo previo al cuestionario Sí/No de formalización — NUNCA
  * puntúa el MineScore. Dos arrays completamente distintos (Ruta 1: ya
  * opera / Ruta 2: recién inicia), ver context/criterios_score.md. */

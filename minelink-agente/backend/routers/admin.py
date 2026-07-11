@@ -69,6 +69,7 @@ def listar_leads(
             ubicacion_maps=lead.ubicacion_maps,
             estado_contacto=lead.estado_contacto or "buscando",
             situacion=operacion.situacion or "minero_artesanal",
+            estado_formalizacion=operacion.estado_formalizacion,
             estado_operacion=operacion.estado_operacion,
             tipo_explotacion=operacion.tipo_explotacion,
             material_comercializado=operacion.material_comercializado,

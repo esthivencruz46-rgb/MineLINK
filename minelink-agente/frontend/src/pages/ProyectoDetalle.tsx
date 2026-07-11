@@ -18,14 +18,9 @@ import { INFO_BRECHA } from "../data/brechas";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
-import { calcularSemaforo } from "../utils/semaforo";
+import { semaforoDesdeColor } from "../utils/semaforo";
 import { formatearMonto } from "../utils/formato";
 import { generarPdfProyecto } from "../utils/pdfProyecto";
-import {
-  COLOR_DIMENSION_INVERSION,
-  NOMBRES_DIMENSION_INVERSION,
-  ORDEN_DIMENSION_INVERSION,
-} from "../types/proyecto";
 import type { FotoPublica, ProyectoDetalle as ProyectoDetalleType } from "../types/proyecto";
 import type { NombreDimension } from "../types/diagnostico";
 
@@ -42,7 +37,7 @@ export function ProyectoDetalle() {
   async function compartir() {
     if (!proyecto) return;
     const url = window.location.href;
-    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region}) — Score de inversión ${proyecto.score_inversion}/100`;
+    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region})`;
     // En celular abre el menú nativo de compartir (WhatsApp, etc.);
     // en PC copia el enlace al portapapeles.
     if (navigator.share) {
@@ -86,9 +81,19 @@ export function ProyectoDetalle() {
     );
   }
 
-  const semaforo = calcularSemaforo(proyecto.score_actual, false);
-  const semaforoInversion = calcularSemaforo(proyecto.score_inversion, false);
-  const destacado = proyecto.score_actual >= 85;
+  const semLegal = semaforoDesdeColor(proyecto.semaforo_legal);
+  const semTecnico = semaforoDesdeColor(proyecto.semaforo_tecnico);
+  const madurez = proyecto.indice_madurez;
+  const destacado = proyecto.semaforo_legal === "verde" && (madurez ?? 0) >= 4;
+  const TRACK_LEGAL_TEXTO: Record<string, string> = {
+    B: "Concesión titulada al día",
+    C:
+      proyecto.docs_completados != null && proyecto.docs_totales != null
+        ? `REINFO vigente · ${proyecto.docs_completados}/${proyecto.docs_totales} documentos`
+        : "REINFO vigente",
+    D: "Formal — autorización DREM/GREM",
+  };
+  const trackLegalTexto = TRACK_LEGAL_TEXTO[proyecto.perfil ?? ""] ?? "En evaluación";
 
   const dims = proyecto.dimensiones;
   // El diagnóstico es autodeclarado — el minero puede responder "sí" a
@@ -164,7 +169,9 @@ export function ProyectoDetalle() {
   // Resumen ejecutivo: foco en el score y la oportunidad de inversión, con
   // los puntos a favor como chips cortos en vez de una lista/tarjeta aparte.
   const partesResumen: string[] = [
-    `${proyecto.nombre_proyecto} tiene un Score de Atractivo de Inversión de ${proyecto.score_inversion}/100 (${semaforoInversion.etiqueta}).`,
+    `${proyecto.nombre_proyecto}: ${trackLegalTexto.toLowerCase()}${
+      madurez != null ? `, con madurez técnica ${madurez}/5` : ""
+    }.`,
   ];
   if (proyecto.brechas_pendientes.length === 0) {
     partesResumen.push("Completó todos los requisitos del diagnóstico de formalización.");
@@ -184,13 +191,11 @@ export function ProyectoDetalle() {
   }
 
   const puntosAFavor: string[] = [];
-  if (!proyecto.bloqueado_actual) puntosAFavor.push("REINFO vigente");
-  if (dims?.legal && dims.legal.puntaje / dims.legal.maximo >= 0.8) puntosAFavor.push("Alto avance legal");
-  if (dims?.ambiental && dims.ambiental.puntaje / dims.ambiental.maximo >= 0.8) {
-    puntosAFavor.push("Buen desempeño ambiental");
-  }
+  if (proyecto.semaforo_legal === "verde") puntosAFavor.push("Sin pendientes legales en su etapa");
+  if (proyecto.vende_liquidacion) puntosAFavor.push("Vende con liquidación formal");
+  if ((madurez ?? 0) >= 4) puntosAFavor.push("Madurez técnica alta");
   if (proyecto.brechas_resueltas.length > 0) {
-    puntosAFavor.push(`${proyecto.brechas_resueltas.length} estudio(s) resuelto(s)`);
+    puntosAFavor.push(`${proyecto.brechas_resueltas.length} trámite(s) resuelto(s)`);
   }
   if (proyecto.capital_buscado) puntosAFavor.push("Busca capital activamente");
 
@@ -207,8 +212,8 @@ export function ProyectoDetalle() {
           <BadgeCheck size={14} strokeWidth={2.25} aria-hidden />
           Proyecto Verificado
         </span>
-        <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
-          {semaforo.etiqueta}
+        <span className={`rounded-full bg-black/5 px-3 py-1 text-xs font-semibold dark:bg-white/10 ${semLegal.claseTexto}`}>
+          {trackLegalTexto}
         </span>
         <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
           {proyecto.tipo_mina === "subterranea" ? "Subterránea" : "Tajo abierto"}
@@ -298,8 +303,8 @@ export function ProyectoDetalle() {
           <Card>
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Formalización</h2>
-              <span className="text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
-                {proyecto.score_actual}/100
+              <span className={`text-sm font-semibold ${semLegal.claseTexto}`}>
+                {trackLegalTexto}
               </span>
             </div>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -371,7 +376,6 @@ export function ProyectoDetalle() {
               una tarjeta por dimensión, mismo orden que el panel lateral. */}
           <PerfilInformativoAgrupado
             datos={proyecto as unknown as Record<string, unknown>}
-            dimensiones={proyecto.dimensiones_inversion}
           />
 
           {/* MAPA */}
@@ -416,42 +420,60 @@ export function ProyectoDetalle() {
         {/* SIDEBAR */}
         <div className="h-fit md:sticky md:top-6">
           <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col gap-4">
               <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Score de Atractivo de Inversión
+                  Track Legal
                 </p>
-                <p className="text-4xl font-bold">{proyecto.score_inversion}</p>
-                <p className="text-xs text-texto-suave dark:text-texto-suave-dark">de 100 puntos</p>
+                <p className={`text-lg font-bold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
               </div>
-              <span className={`rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold ${semaforoInversion.claseTexto}`}>
-                {semaforoInversion.etiqueta.toUpperCase()}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              {ORDEN_DIMENSION_INVERSION.map((dim) => {
-                const info = proyecto.dimensiones_inversion[dim];
-                if (!info) return null;
-                const { puntaje, maximo } = info;
-                const porcentaje = maximo > 0 ? Math.round((puntaje / maximo) * 100) : 0;
-                return (
-                  <div key={dim}>
-                    <div className="flex justify-between text-xs text-texto-suave dark:text-texto-suave-dark">
-                      <span>{NOMBRES_DIMENSION_INVERSION[dim]}</span>
-                      <span className="font-semibold text-texto dark:text-texto-dark">
-                        {porcentaje}
-                      </span>
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Madurez técnica
+                </p>
+                {madurez != null ? (
+                  <>
+                    <div className="mt-1 flex items-center gap-1.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <span
+                          key={n}
+                          className={`h-2.5 w-6 rounded-full ${
+                            n <= madurez ? semTecnico.claseBarra : "bg-black/10 dark:bg-white/10"
+                          }`}
+                        />
+                      ))}
                     </div>
-                    <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
-                      <div
-                        className={`h-full rounded-full transition-all duration-[250ms] ${COLOR_DIMENSION_INVERSION[dim]}`}
-                        style={{ width: `${porcentaje}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+                    <p className={`mt-1 text-sm font-semibold ${semTecnico.claseTexto}`}>
+                      Nivel {madurez}/5
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                    Aún sin operación que medir
+                  </p>
+                )}
+              </div>
+              {proyecto.vende_liquidacion != null && (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Producción con liquidación
+                  </p>
+                  <p className={`text-sm font-semibold ${proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}`}>
+                    {proyecto.vende_liquidacion ? "Sí, vende con liquidación" : "Sin liquidación formal"}
+                  </p>
+                </div>
+              )}
+              {proyecto.capital_buscado && (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Busca
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {formatearMonto(proyecto.capital_buscado)}
+                    {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mt-2 flex flex-col gap-2.5">

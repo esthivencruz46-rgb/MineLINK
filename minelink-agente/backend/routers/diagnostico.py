@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 import models
@@ -13,10 +13,10 @@ router = APIRouter(tags=["diagnostico"])
 def crear_diagnostico(
     payload: schemas.DiagnosticoRequest, db: Session = Depends(get_db)
 ):
-    perfil = {"sustancias_toxicas": payload.sustancias_toxicas}
-    resultado = calcular_diagnostico(
-        payload.respuestas, payload.tipo_mina, payload.situacion, perfil
-    )
+    try:
+        resultado = calcular_diagnostico(payload.respuestas)
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
 
     operacion = models.Operacion(
         nombre_minero=payload.nombre_minero,
@@ -25,8 +25,12 @@ def crear_diagnostico(
         mineral=payload.mineral,
         tipo_mina=payload.tipo_mina,
         situacion=payload.situacion,
-        score_total=resultado["score_total"],
-        bloqueado=resultado["bloqueado"],
+        # El perfil (A/A_avanzado/B/C/D) se deriva SIEMPRE en el servidor a
+        # partir de las respuestas del Módulo 0 — nunca se confía en el
+        # cliente (evita desfases catálogo frontend/backend).
+        estado_formalizacion=resultado["perfil"],
+        score_total=0,
+        bloqueado=not resultado["apto_inversionistas"],
         respuestas_json=payload.respuestas,
         brechas_json=resultado["brechas"],
         produccion_mensual=payload.produccion_mensual,
@@ -93,9 +97,17 @@ def crear_diagnostico(
 
     return schemas.DiagnosticoResponse(
         id=operacion.id,
-        score_total=resultado["score_total"],
-        dimensiones=resultado["dimensiones"],
-        bloqueado=resultado["bloqueado"],
+        perfil=resultado["perfil"],
+        clasificacion=resultado["clasificacion"],
+        semaforo_legal=resultado["semaforo_legal"],
+        bloqueantes=resultado["bloqueantes"],
+        etiquetas_bloqueantes=resultado["etiquetas_bloqueantes"],
+        semaforo_tecnico=resultado["semaforo_tecnico"],
+        indice_madurez=resultado["indice_madurez"],
+        riesgo_caducidad=resultado["riesgo_caducidad"],
+        apto_inversionistas=resultado["apto_inversionistas"],
+        urgencia=resultado["urgencia"],
+        reloj_produccion=resultado["reloj_produccion"],
         brechas=resultado["brechas"],
-        situacion=payload.situacion,
+        salidas=resultado["salidas"],
     )

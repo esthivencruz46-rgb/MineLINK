@@ -5,11 +5,18 @@ export interface ProyectoPublico {
   mineral: string;
   tipo_mina: string;
   situacion: string;
-  score_actual: number;
-  // Score de Atractivo de Inversión (Fase 2): el número principal para el
-  // inversionista y el que ordena /proyectos. score_actual (MineScore de
-  // formalización) sigue existiendo como uno de sus ingredientes.
-  score_inversion: number;
+  // Tarjeta del spec (julio 2026): perfil del pipeline + dos semáforos
+  // independientes + Índice de Madurez 0-5 — reemplazan a los scores 0-100.
+  estado_formalizacion?: string | null;
+  perfil?: string | null;
+  semaforo_legal?: string | null;
+  semaforo_tecnico?: string | null;
+  indice_madurez?: number | null;
+  // Avance documentario del perfil C ("5/7 documentos")
+  docs_completados?: number | null;
+  docs_totales?: number | null;
+  // ¿Vende con liquidación formal? (evidencia de flujo de caja, perfil C)
+  vende_liquidacion?: boolean | null;
   bloqueado_actual: boolean;
   descripcion_operacion?: string | null;
   capacidad_produccion?: string | null;
@@ -46,11 +53,10 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // aplica — solo se muestra el documento legal que corresponde (Título de
   // concesión O Contrato de explotación, nunca ambos).
   es_titular_concesion?: boolean | null;
+  // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
+  // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;
-  // Desglose del score_inversion: formalizacion, escala_economica,
-  // viabilidad_tecnica, riesgo_ambiental_social, capacidad_equipo,
-  // claridad_oportunidad.
-  dimensiones_inversion: Record<string, DimensionScore>;
+  dimensiones_inversion?: Record<string, DimensionScore>;
   ubicacion_maps?: string | null;
   ubicacion_coords?: string | null;
   descripcion_generada?: string | null;

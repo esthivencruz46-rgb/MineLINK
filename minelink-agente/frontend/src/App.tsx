@@ -22,6 +22,7 @@ import { MiConcesion } from "./pages/MiConcesion";
 import { MiCuentaInversionista } from "./pages/MiCuentaInversionista";
 import { Postular } from "./pages/Postular";
 import { Proyectos } from "./pages/Proyectos";
+import { SinRuta } from "./pages/SinRuta";
 import { ProyectoDetalle } from "./pages/ProyectoDetalle";
 import { RecuperarPasswordMinero } from "./pages/RecuperarPasswordMinero";
 import { RecuperarPasswordInversionista } from "./pages/RecuperarPasswordInversionista";
@@ -55,6 +56,7 @@ export function App() {
             <Route path="/como-funciona" element={<ComoFunciona />} />
             <Route path="/diagnostico" element={<Cuestionario />} />
             <Route path="/resultado" element={<Resultado />} />
+            <Route path="/sin-ruta" element={<SinRuta />} />
             <Route path="/empresas" element={<Empresas />} />
             <Route path="/postular" element={<Postular />} />
             <Route path="/gracias" element={<Gracias />} />

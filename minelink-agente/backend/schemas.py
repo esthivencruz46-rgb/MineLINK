@@ -3,7 +3,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
-from scoring import ids_esperados_para
+from catalogo_diagnostico import validar_respuestas
 
 TIPOS_MINA = ("subterranea", "tajo_abierto")
 
@@ -39,22 +39,17 @@ def normalizar_colegiatura(v: str) -> str:
 # ---------- Diagnostico ----------
 
 class DiagnosticoRequest(BaseModel):
-    respuestas: dict[str, bool]
+    respuestas: dict[str, str]
     region: str
     mineral: str
     tipo_mina: Literal["subterranea", "tajo_abierto"]
-    # Formulario dinámico: la situación decide qué preguntas aplican
-    # (default = comportamiento original)
     situacion: Literal["minero_artesanal", "concesionario"] = "minero_artesanal"
+    estado_formalizacion: Optional[str] = None
     nombre_minero: Optional[str] = None
     codigo_reinfo: Optional[str] = None
-    # Informativas de Operativo — nunca puntúan, texto libre o ausentes
-    # ("prefiero no decirlo" = None/omitido)
     produccion_mensual: Optional[str] = None
     maquinaria: Optional[str] = None
     num_trabajadores: Optional[str] = None
-
-    # Perfil de la operación (Ruta 1) — informativo, nunca puntúa
     estado_operacion: Optional[str] = None
     tipo_explotacion: Optional[str] = None
     material_comercializado: Optional[str] = None
@@ -62,10 +57,7 @@ class DiagnosticoRequest(BaseModel):
     tiempo_operacion: Optional[str] = None
     ley_promedio: Optional[str] = None
     ley_como_obtenida: Optional[str] = None
-    # Especie mineralógica declarada por elemento (ej. "Cobre: Calcopirita,
-    # Malaquita"), no solo el elemento económico — ver criterios_score.md.
     especie_mineral: Optional[str] = None
-    # "No" / "Sí, algunos" / "Sí, completos" (antes booleano)
     tiene_resultados_laboratorio: Optional[str] = None
     modalidad_trabajadores: Optional[str] = None
     provincia: Optional[str] = None
@@ -79,8 +71,6 @@ class DiagnosticoRequest(BaseModel):
     documentacion_disponible: Optional[str] = None
     plan_formalizacion: Optional[str] = None
     prioridad_crecimiento: Optional[str] = None
-
-    # Perfil de la concesión (Ruta 2) — informativo, nunca puntúa
     concesion_vigente: Optional[str] = None
     tipo_deposito: Optional[str] = None
     etapa_proyecto: Optional[str] = None
@@ -101,8 +91,6 @@ class DiagnosticoRequest(BaseModel):
     siguiente_hito: Optional[str] = None
     timeline_operacion: Optional[str] = None
     motivo_inicio: Optional[str] = None
-
-    # Compartidos por ambas rutas
     documento_autorizacion: Optional[str] = None
     tipo_apoyo_json: Optional[list[str]] = None
     tipo_apoyo: Optional[str] = None
@@ -117,30 +105,22 @@ class DiagnosticoRequest(BaseModel):
     produccion_objetivo: Optional[str] = None
     uso_fondos_diagnostico: Optional[str] = None
 
-    @model_validator(mode="after")
-    def validar_ids_segun_tipo_mina(self) -> "DiagnosticoRequest":
-        perfil = {"sustancias_toxicas": self.sustancias_toxicas}
-        esperados = ids_esperados_para(self.tipo_mina, self.situacion, perfil)
-        if set(self.respuestas.keys()) != esperados:
-            raise ValueError(
-                f"Para tipo_mina={self.tipo_mina} y situacion={self.situacion} "
-                f"deben venir exactamente estos ids: {sorted(esperados)}"
-            )
-        return self
-
-
-class DimensionOut(BaseModel):
-    puntaje: int
-    maximo: int
-
 
 class DiagnosticoResponse(BaseModel):
     id: str
-    score_total: int
-    dimensiones: dict[str, DimensionOut]
-    bloqueado: bool
+    perfil: str
+    clasificacion: Optional[str] = None
+    semaforo_legal: str
+    bloqueantes: list[str]
+    etiquetas_bloqueantes: list[str]
+    semaforo_tecnico: Optional[str] = None
+    indice_madurez: Optional[int] = None
+    riesgo_caducidad: bool
+    apto_inversionistas: bool
+    urgencia: Optional[dict] = None
+    reloj_produccion: Optional[dict] = None
     brechas: list[str]
-    situacion: str
+    salidas: list[str]
 
 
 # ---------- Empresa / Consultor ----------
@@ -423,6 +403,8 @@ class MineroPerfilOut(BaseModel):
     # Ruta 1 (minero_artesanal) vs Ruta 2 (concesionario) — decide qué
     # ventana ve el usuario: /mi-cuenta o /mi-concesion
     situacion: str = "minero_artesanal"
+    # Estado en el pipeline de formalización (None = diagnóstico viejo)
+    estado_formalizacion: Optional[str] = None
     # Declaración original del diagnóstico
     score_total: int
     bloqueado: bool
@@ -430,8 +412,8 @@ class MineroPerfilOut(BaseModel):
     # Seguimiento del admin (progreso desde el diagnóstico original)
     brechas_resueltas: list[str]
     brechas_pendientes: list[str]
-    score_actual: int
-    bloqueado_actual: bool
+    score_actual: int = 0
+    bloqueado_actual: bool = False
     # Perfil de inversión (opcional, ver PerfilInversionUpdate)
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
@@ -527,14 +509,22 @@ class ProyectoPublicoOut(BaseModel):
     mineral: str
     tipo_mina: str
     situacion: str
-    score_actual: int
-    # Score de Atractivo de Inversión (Fase 2) — el número que se muestra
-    # como principal al inversionista y decide el orden de /proyectos.
-    # `score_actual` (MineScore de formalización) sigue existiendo como un
-    # ingrediente más, no como el resultado final.
-    score_inversion: int = 0
-    # Informativo, ya no filtra el listado (ver context/criterios_score.md):
-    # true = todavía no inició REINFO/proceso de formalización.
+    # Perfil del pipeline (A/A_avanzado/B/C/D; guardado en la columna
+    # estado_formalizacion). None = fila del modelo anterior.
+    estado_formalizacion: Optional[str] = None
+    perfil: Optional[str] = None
+    # Tarjeta del spec (julio 2026): dos semáforos independientes + Índice
+    # de Madurez 0-5 — reemplazan a los scores 0-100 retirados.
+    semaforo_legal: Optional[str] = None
+    semaforo_tecnico: Optional[str] = None
+    indice_madurez: Optional[int] = None
+    # Avance documentario del perfil C ("5/7 documentos")
+    docs_completados: Optional[int] = None
+    docs_totales: Optional[int] = None
+    # ¿Vende con liquidación formal? (evidencia de flujo de caja, perfil C)
+    vende_liquidacion: Optional[bool] = None
+    # Informativo (true = tiene un bloqueante legal activo); el listado ya
+    # viene filtrado por la regla de bloqueo del spec.
     bloqueado_actual: bool = False
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
@@ -548,6 +538,11 @@ class ProyectoPublicoOut(BaseModel):
 class FotoPublicaOut(BaseModel):
     id: int
     url: str
+
+
+class DimensionOut(BaseModel):
+    puntaje: int
+    maximo: int
 
 
 class ProyectoDetalleOut(ProyectoPublicoOut):
@@ -861,8 +856,8 @@ class LeadConDiagnostico(BaseModel):
     # sin tocar lo de arriba
     brechas_resueltas: list[str]
     brechas_pendientes: list[str]
-    score_actual: int
-    bloqueado_actual: bool
+    score_actual: int = 0
+    bloqueado_actual: bool = False
     # Perfil de inversión que el minero llenó desde /mi-cuenta (opcional)
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
@@ -871,6 +866,7 @@ class LeadConDiagnostico(BaseModel):
     ubicacion_maps: Optional[str] = None
     estado_contacto: str = "buscando"
     situacion: str = "minero_artesanal"
+    estado_formalizacion: Optional[str] = None
     # Perfil de la operación (Ruta 1) / concesión (Ruta 2) — informativo
     estado_operacion: Optional[str] = None
     tipo_explotacion: Optional[str] = None
@@ -953,8 +949,8 @@ class OperacionSeguimientoOut(BaseModel):
     brechas: list[str]
     brechas_resueltas: list[str]
     brechas_pendientes: list[str]
-    score_actual: int
-    bloqueado_actual: bool
+    score_actual: int = 0
+    bloqueado_actual: bool = False
 
 
 class TopBrecha(BaseModel):

@@ -1,34 +1,55 @@
+/** IDs del catálogo del diagnóstico de formalización (perfiles A/B/C/D).
+ *  Espejo EXACTO de backend/catalogo_diagnostico.py — cualquier desfase
+ *  produce 422 en POST /diagnostico. */
 export type IdPregunta =
-  | "L1" | "L2" | "L3" | "L4" | "L5" | "L6"
-  | "A1" | "A2" | "A3" | "A4"
-  | "O1"
-  | "T1" | "T2" | "T3" | "T4" | "T5" | "T6" | "T7"
-  | "S1" | "S2" | "S3" | "S4" | "S5"
-  | "R1";
+  | "M0_1" | "M0_2" | "M0_3" | "M0_4"
+  | "A1_1" | "A1_2" | "A1_3"
+  | "A2_1" | "A2_2"
+  | "A3_1" | "A3_2"
+  | "A4_1" | "A4_2"
+  | "A5_1" | "A5_2"
+  | "B1_1" | "B1_2" | "B1_3"
+  | "B2_1" | "B2_2"
+  | "B3_1" | "B3_2"
+  | "B4_1"
+  | "B5_1" | "B5_2" | "B5_3" | "B5_4"
+  | "C1_1" | "C1_2"
+  | "C2_1" | "C2_2" | "C2_3" | "C2_4" | "C2_5" | "C2_6" | "C2_7"
+  | "C3_1"
+  | "C4_1" | "C4_2"
+  | "D1_1" | "D1_2" | "D1_3" | "D1_4"
+  | "D2_1" | "D2_2"
+  | "INV_1" | "INV_2" | "INV_3" | "INV_4" | "INV_5";
 
-// Record<string, ...> y no Record<IdPregunta, ...>: S5 es condicional
-// (solo minería subterránea), así que el set de ids varía según tipo_mina.
-export type Respuestas = Record<string, boolean>;
+/** El backend acepta cualquier string como valor — los ids condicionales
+ *  pueden no estar presentes. Record<string, string> es el contrato exacto
+ *  de DiagnosticoRequest.respuestas. */
+export type Respuestas = Record<string, string>;
 
 export type TipoMina = "subterranea" | "tajo_abierto";
 
-// Formulario dinámico: "primero se identifica la situación del usuario y
-// luego se construye un formulario con solo lo que corresponde a su caso"
-export type Situacion = "minero_artesanal" | "concesionario";
+/** Perfil que clasifica el Módulo 0. */
+export type PerfilDiagnostico = "A" | "A_avanzado" | "B" | "C" | "D";
+
+/** Colores del semáforo de formalización (Track Legal / Track Técnico). */
+export type ColorSemaforo = "verde" | "amarillo" | "rojo";
+
+// -------------------------------------------------------------------
+// Request
+// -------------------------------------------------------------------
 
 export interface DiagnosticoRequest {
-  respuestas: Respuestas;
+  respuestas: Record<string, string>;
   region: string;
   mineral: string;
   tipo_mina: TipoMina;
-  situacion: Situacion;
+  situacion: "minero_artesanal" | "concesionario";
+  estado_formalizacion?: string;
   nombre_minero?: string;
   codigo_reinfo?: string;
   produccion_mensual?: string;
   maquinaria?: string;
   num_trabajadores?: string;
-
-  // Perfil de la operación (Ruta 1) — informativo, nunca puntúa
   estado_operacion?: string;
   tipo_explotacion?: string;
   material_comercializado?: string;
@@ -50,8 +71,6 @@ export interface DiagnosticoRequest {
   documentacion_disponible?: string;
   plan_formalizacion?: string;
   prioridad_crecimiento?: string;
-
-  // Perfil de la concesión (Ruta 2) — informativo, nunca puntúa
   concesion_vigente?: string;
   tipo_deposito?: string;
   etapa_proyecto?: string;
@@ -72,8 +91,6 @@ export interface DiagnosticoRequest {
   siguiente_hito?: string;
   timeline_operacion?: string;
   motivo_inicio?: string;
-
-  // Compartidos por ambas rutas
   documento_autorizacion?: string;
   tipo_apoyo_json?: string[];
   tipo_apoyo?: string;
@@ -89,6 +106,44 @@ export interface DiagnosticoRequest {
   uso_fondos_diagnostico?: string;
 }
 
+// -------------------------------------------------------------------
+// Response
+// -------------------------------------------------------------------
+
+export interface DiagnosticoResponse {
+  id: string;
+  perfil: PerfilDiagnostico;
+  clasificacion: string | null;
+  semaforo_legal: ColorSemaforo;
+  bloqueantes: string[];
+  etiquetas_bloqueantes: string[];
+  semaforo_tecnico: ColorSemaforo | null;
+  indice_madurez: number | null;
+  riesgo_caducidad: boolean;
+  apto_inversionistas: boolean;
+  urgencia: {
+    dias_restantes: number;
+    docs_completados: number;
+    docs_totales: number;
+    docs_pendientes: number;
+    dias_necesarios: number;
+    alerta_roja: boolean;
+  } | null;
+  reloj_produccion: {
+    anios_titulo: number;
+    limite_anios: number;
+    vencido: boolean;
+    anios_restantes: number;
+  } | null;
+  brechas: string[];
+  salidas: string[];
+}
+
+// -------------------------------------------------------------------
+// Tipos legacy que siguen usados por admin/proyectos/cuenta
+// (dimensiones de inversión, etc.)
+// -------------------------------------------------------------------
+
 export interface Dimension {
   puntaje: number;
   maximo: number;
@@ -101,14 +156,3 @@ export type NombreDimension =
   | "tecnico"
   | "seguridad"
   | "social";
-
-export interface DiagnosticoResponse {
-  id: string;
-  score_total: number;
-  // Partial: concesionario (Ruta 2) solo trae "legal" y "tecnico", nunca
-  // las 5 dimensiones — ver DimensionBars.tsx (filtra por las presentes).
-  dimensiones: Partial<Record<NombreDimension, Dimension>>;
-  bloqueado: boolean;
-  brechas: string[];
-  situacion: Situacion;
-}

@@ -10,7 +10,8 @@ import storage
 from auth import hash_password
 from database import get_db
 from routers.mineros import _es_titular_concesion
-from scoring import ESTUDIO_POR_PREGUNTA, calcular_score_inversion, estado_seguimiento, ids_esperados_para
+from scoring import estado_seguimiento
+from catalogo_diagnostico import ids_esperados, BRECHA_POR_PREGUNTA
 from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_FOTO_PERFIL, categoria_equivalente
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
@@ -25,13 +26,6 @@ CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
 # de fotos_mina, dejando invisibles públicamente fotos que el minero sí
 # había subido (julio 2026).
 CATEGORIAS_GALERIA = ["fotos_mina", *CATEGORIAS_FOTO_PERFIL]
-# Umbral para el filtro "dimensión débil" de /proyectos: un proyecto queda
-# por debajo del promedio (dimensiones_inversion van de 0 a 100) en esa
-# dimensión — pensado para que un inversionista descarte rápido proyectos
-# frágiles en el eje que más le importa (ej. riesgo ambiental/social).
-UMBRAL_DIMENSION_DEBIL = 50
-
-
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
     return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"
 
@@ -53,10 +47,14 @@ def _proyectos_visibles(db: Session):
 def _proyecto_publico_out(
     lead: models.Lead,
     operacion: models.Operacion,
+    seguimiento: dict,
     foto_portada_url: Optional[str] = None,
 ) -> schemas.ProyectoPublicoOut:
-    seguimiento = estado_seguimiento(operacion)
-    score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
+    """Tarjeta pública del proyecto según el spec: Track Legal (semáforo),
+    Madurez técnica 0-5, avance documentario (perfil C) y si vende con
+    liquidación — SIN scores 0-100 (retirados en julio 2026)."""
+    respuestas = operacion.respuestas_json or {}
+    urgencia = seguimiento.get("urgencia")
     return schemas.ProyectoPublicoOut(
         operacion_id=operacion.id,
         nombre_proyecto=_nombre_proyecto(lead, operacion),
@@ -64,9 +62,15 @@ def _proyecto_publico_out(
         mineral=operacion.mineral,
         tipo_mina=operacion.tipo_mina,
         situacion=operacion.situacion,
-        score_actual=seguimiento["score_actual"],
-        score_inversion=score_inversion["score_total"],
-        bloqueado_actual=seguimiento["bloqueado_actual"],
+        estado_formalizacion=operacion.estado_formalizacion,
+        perfil=seguimiento.get("perfil"),
+        semaforo_legal=seguimiento.get("semaforo_legal"),
+        semaforo_tecnico=seguimiento.get("semaforo_tecnico"),
+        indice_madurez=seguimiento.get("indice_madurez"),
+        docs_completados=urgencia.get("docs_completados") if urgencia else None,
+        docs_totales=urgencia.get("docs_totales") if urgencia else None,
+        vende_liquidacion=(respuestas.get("C4_2") == "siempre") if respuestas.get("C4_2") else None,
+        bloqueado_actual=not seguimiento.get("apto_inversionistas", False),
         descripcion_operacion=lead.descripcion_operacion,
         capacidad_produccion=lead.capacidad_produccion,
         capital_buscado=lead.capital_buscado,
@@ -101,14 +105,14 @@ def _fotos_portada(db: Session, operacion_ids: list[str]) -> dict[str, str]:
 def listar_proyectos(
     mineral: Optional[str] = None,
     region: Optional[str] = None,
-    score_min: Optional[int] = None,
-    score_max: Optional[int] = None,
-    # Una de las 6 claves de NombreDimensionInversion (ver types/proyecto.ts):
-    # formalizacion, escala_economica, viabilidad_tecnica,
-    # riesgo_ambiental_social, capacidad_equipo, claridad_oportunidad.
-    dimension_debil: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
+    """Vitrina pública. REGLA DE BLOQUEO del spec (prioridad de experto):
+    nunca mostrar a inversionistas un proyecto con incendio legal activo
+    (semáforo rojo: caducidad, REINFO suspendido, plazo crítico), ni
+    perfiles sin proyecto publicable (A / sin clasificar / modelo viejo).
+    Se recalcula al vuelo porque la urgencia del plazo REINFO cambia con
+    el paso del tiempo."""
     filas = _proyectos_visibles(db)
 
     visibles = []
@@ -117,23 +121,15 @@ def listar_proyectos(
             continue
         if region and operacion.region.lower() != region.strip().lower():
             continue
-        if score_min is not None or score_max is not None or dimension_debil:
-            seguimiento = estado_seguimiento(operacion)
-            score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
-            if score_min is not None and score_inversion["score_total"] < score_min:
-                continue
-            if score_max is not None and score_inversion["score_total"] > score_max:
-                continue
-            if dimension_debil:
-                info = score_inversion["dimensiones"].get(dimension_debil)
-                if info is None or info["puntaje"] >= UMBRAL_DIMENSION_DEBIL:
-                    continue
-        visibles.append((lead, operacion))
+        seguimiento = estado_seguimiento(operacion)
+        if not seguimiento.get("apto_inversionistas"):
+            continue
+        visibles.append((lead, operacion, seguimiento))
 
-    portadas = _fotos_portada(db, [o.id for _l, o in visibles])
+    portadas = _fotos_portada(db, [o.id for _l, o, _s in visibles])
     return [
-        _proyecto_publico_out(lead, operacion, portadas.get(operacion.id))
-        for lead, operacion in visibles
+        _proyecto_publico_out(lead, operacion, seguimiento, portadas.get(operacion.id))
+        for lead, operacion, seguimiento in visibles
     ]
 
 
@@ -155,17 +151,28 @@ def _generar_descripcion(
     cifras, y nunca repite lo que ya se muestra en el "Resumen Ejecutivo"
     (MineScore, capital buscado, uso de fondos: ver `_resumen_ejecutivo`).
     Si un dato no existe, simplemente no se menciona."""
-    if operacion.situacion == "concesionario":
+    # `estado_formalizacion` guarda el perfil del pipeline (B/C/D — A y
+    # A_avanzado nunca llegan a la vitrina).
+    perfil = operacion.estado_formalizacion or ""
+    if perfil == "B":
         partes = [
-            f"Proyecto minero de {operacion.mineral.lower()} en etapa de "
-            f"concesión, ubicado en {operacion.region.title()}."
+            f"Proyecto minero de {operacion.mineral.lower()} con concesión "
+            f"titulada, en preparación para operar, ubicado en {operacion.region.title()}."
+        ]
+    elif perfil == "D":
+        partes = [
+            f"Operación minera de {operacion.mineral.lower()} formalizada con "
+            f"autorización de la DREM/GREM, ubicada en {operacion.region.title()}."
+        ]
+    elif perfil == "C":
+        partes = [
+            f"Operación minera de {operacion.mineral.lower()} con REINFO, en "
+            f"proceso de formalización, ubicada en {operacion.region.title()}."
         ]
     else:
-        tipo_legible = "subterránea" if operacion.tipo_mina == "subterranea" else "a tajo abierto"
         partes = [
-            f"Operación minera de {operacion.mineral.lower()} {tipo_legible} "
-            f"ubicada en {operacion.region.title()}"
-            + (", registrada en REINFO." if not operacion.bloqueado else ".")
+            f"Proyecto minero de {operacion.mineral.lower()} ubicado en "
+            f"{operacion.region.title()}."
         ]
 
     if operacion.tiempo_operacion:
@@ -204,7 +211,8 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
 def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
-    base = _proyecto_publico_out(lead, operacion)
+    seguimiento = estado_seguimiento(operacion)
+    base = _proyecto_publico_out(lead, operacion, seguimiento)
 
     documentos = (
         db.query(models.DocumentoOperacion)
@@ -244,9 +252,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
             documentos_legales.get(equivalente) or documentos_estudios.get(equivalente) or []
         )
 
-    seguimiento = estado_seguimiento(operacion)
     n_docs_legales = sum(1 for presentado in documentos_presentados.values() if presentado)
-    score_inversion = calcular_score_inversion(operacion, seguimiento["score_actual"])
     # El diagnóstico es autodeclarado — el minero puede responder "sí" a
     # todo sin sustento, y eso NUNCA queda en brechas_json/brechas_resueltas
     # (solo las respuestas "no" originales generan una brecha ahí). Para
@@ -255,10 +261,16 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     # (o sea: se respondió "sí", o un "no" que el admin marcó resuelto) —
     # y de esos, solo cuentan como verificados (check ✓ público) los que
     # además tienen foto de respaldo subida.
-    perfil_situacion = {"sustancias_toxicas": operacion.sustancias_toxicas}
     situacion = operacion.situacion or "minero_artesanal"
-    ids_aplicables = ids_esperados_para(operacion.tipo_mina, situacion, perfil_situacion)
-    estudios_aplicables = {ESTUDIO_POR_PREGUNTA[i] for i in ids_aplicables}
+    respuestas = operacion.respuestas_json or {}
+    try:
+        ids_aplicables = ids_esperados(respuestas)
+    except Exception:
+        # Diagnóstico del modelo anterior: sin catálogo con que cruzar.
+        ids_aplicables = set()
+    estudios_aplicables: set[str] = {
+        BRECHA_POR_PREGUNTA[i][1] for i in ids_aplicables if i in BRECHA_POR_PREGUNTA
+    }
     pendientes = set(seguimiento["brechas_pendientes"])
 
     def _tiene_respaldo(estudio: str) -> bool:
@@ -281,8 +293,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_resueltas=seguimiento["brechas_resueltas"],
         brechas_verificadas=brechas_verificadas,
         es_titular_concesion=_es_titular_concesion(operacion),
-        dimensiones=seguimiento["dimensiones"],
-        dimensiones_inversion=score_inversion["dimensiones"],
+        dimensiones=None,
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(

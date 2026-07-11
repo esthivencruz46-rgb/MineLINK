@@ -189,7 +189,7 @@ export async function postularConsultor(payload: PostulacionConsultor): Promise<
 
 /** Evento anónimo de uso para las métricas del embudo del admin.
  * Fire-and-forget: si falla, no debe romper la experiencia del usuario. */
-export function registrarEvento(tipo: "diagnostico_iniciado"): void {
+export function registrarEvento(tipo: "diagnostico_iniciado" | "sin_ruta_mostrado"): void {
   fetch(`${BASE_URL}/eventos`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

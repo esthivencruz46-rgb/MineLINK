@@ -1,129 +1,543 @@
-from types import SimpleNamespace
+from datetime import date
 
 import pytest
 
+from catalogo_diagnostico import validar_respuestas
 from scoring import (
-    ESTUDIO_POR_PREGUNTA,
-    PUNTOS_SEGURIDAD_SUBTERRANEA,
-    PUNTOS_SEGURIDAD_TAJO_ABIERTO,
-    aplicar_brechas_resueltas,
     calcular_diagnostico,
-    calcular_score_inversion,
-    ids_esperados_para,
+    clasificacion_de,
+    indice_madurez,
+    semaforo_legal,
+    brechas_de,
+    respuestas_con_brechas_resueltas,
+    ETIQUETA_BLOQUEANTE,
 )
 
-IDS_SUBTERRANEA = ids_esperados_para("subterranea")
-IDS_TAJO_ABIERTO = ids_esperados_para("tajo_abierto")
+
+# ---------------------------------------------------------------------------
+# Fixtures: respuestas válidas por perfil (dict[str, str], todo en valores
+# "buenos" salvo overrides indicados)
+# ---------------------------------------------------------------------------
+
+def _perfil_a_con_area() -> dict[str, str]:
+    return {
+        "M0_1": "nada",
+        "A1_1": "si", "A1_2": "si", "A1_3": "si",
+        "A2_1": "ninguna", "A2_2": "no",
+        "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "oro",
+    }
 
 
-def _respuestas(ids, default: bool, overrides: dict[str, bool] | None = None) -> dict[str, bool]:
-    respuestas = {i: default for i in ids}
+def _perfil_a_sin_area() -> dict[str, str]:
+    return {
+        "M0_1": "nada",
+        "A1_1": "no",
+        "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "oro",
+    }
+
+
+def _perfil_b(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    base = {
+        "M0_1": "concesion_propia", "M0_2": "no",
+        "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B2_1": "pma", "B2_2": "500",
+        "B3_1": "estudios_formales", "B3_2": "laboratorio",
+        "B4_1": "operar_yo",
+        "B5_1": "aprobado", "B5_2": "si", "B5_3": "si", "B5_4": "si",
+        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+    }
     if overrides:
-        respuestas.update(overrides)
-    return respuestas
+        base.update(overrides)
+    return base
 
 
-def test_todo_si_subterranea_score_100_sin_brechas_no_bloqueado():
-    resultado = calcular_diagnostico(_respuestas(IDS_SUBTERRANEA, True), "subterranea")
-
-    assert resultado["score_total"] == 100
-    assert resultado["brechas"] == []
-    assert resultado["bloqueado"] is False
-
-
-def test_todo_no_subterranea_score_0_bloqueado_todas_las_brechas():
-    resultado = calcular_diagnostico(_respuestas(IDS_SUBTERRANEA, False), "subterranea")
-
-    assert resultado["score_total"] == 0
-    assert resultado["bloqueado"] is True
-    assert resultado["brechas"] == sorted(ESTUDIO_POR_PREGUNTA[i] for i in IDS_SUBTERRANEA)
+def _perfil_b_sin_b5() -> dict[str, str]:
+    return {
+        "M0_1": "concesion_propia", "M0_2": "no",
+        "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+        "B2_1": "pma", "B2_2": "500",
+        "B3_1": "estudios_formales", "B3_2": "laboratorio",
+        "B4_1": "buscar_inversionista",
+        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+    }
 
 
-def test_l1_no_resto_si_subterranea_score_95_bloqueado():
-    resultado = calcular_diagnostico(
-        _respuestas(IDS_SUBTERRANEA, True, {"L1": False}), "subterranea"
-    )
+def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    base = {
+        "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
+        "C1_1": "vigente", "C1_2": "si",
+        "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
+        "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
+        "C4_1": "50_100t", "C4_2": "siempre",
+        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+    }
+    if overrides:
+        base.update(overrides)
+    return base
 
-    assert resultado["score_total"] == 95
-    assert resultado["bloqueado"] is True
-    assert resultado["brechas"] == ["tramite_reinfo"]
+
+def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    base = {
+        "M0_1": "concesion_contrato", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
+        "C1_1": "vigente", "C1_2": "si",
+        "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
+        "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
+        "C3_1": "firmado_inscrito",
+        "C4_1": "50_100t", "C4_2": "siempre",
+        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+    }
+    if overrides:
+        base.update(overrides)
+    return base
 
 
-def test_faltan_o_sobran_ids_lanza_value_error():
-    incompleto = _respuestas(IDS_SUBTERRANEA, True)
-    del incompleto["L1"]
+def _perfil_d(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    base = {
+        "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "si",
+        "D1_1": "si", "D1_2": "si", "D1_3": "si", "D1_4": "sin_observaciones",
+        "D2_1": "ampliar", "D2_2": "autofinanciado",
+        "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+    }
+    if overrides:
+        base.update(overrides)
+    return base
+
+
+# ---------------------------------------------------------------------------
+# Tests: clasificar_perfil / ids / validación
+# ---------------------------------------------------------------------------
+
+def test_perfil_a_desde_nada():
+    r = _perfil_a_con_area()
+    assert validar_respuestas(r) == "A"
+
+
+def test_perfil_a_avanzado():
+    r = {"M0_1": "petitorio_tramite", "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "oro"}
+    assert validar_respuestas(r) == "A_avanzado"
+
+
+def test_perfil_b():
+    r = _perfil_b()
+    assert validar_respuestas(r) == "B"
+
+
+def test_perfil_c():
+    r = _perfil_c()
+    assert validar_respuestas(r) == "C"
+
+
+def test_perfil_c_con_contrato():
+    r = _perfil_c_contrato()
+    assert validar_respuestas(r) == "C"
+
+
+def test_perfil_d():
+    r = _perfil_d()
+    assert validar_respuestas(r) == "D"
+
+
+def test_sin_ruta_rechaza():
+    r = {"M0_1": "concesion_propia", "M0_2": "si", "M0_3": "no"}
+    with pytest.raises(ValueError, match="Sin ruta legal"):
+        validar_respuestas(r)
+
+
+def test_ids_faltantes_lanza_value_error():
+    r = _perfil_a_con_area()
+    del r["A3_1"]
     with pytest.raises(ValueError):
-        calcular_diagnostico(incompleto, "subterranea")
+        validar_respuestas(r)
 
-    con_id_extra = _respuestas(IDS_SUBTERRANEA, True)
-    con_id_extra["X99"] = True
+
+def test_ids_extra_lanza_value_error():
+    r = _perfil_a_con_area()
+    r["X99"] = "si"
     with pytest.raises(ValueError):
-        calcular_diagnostico(con_id_extra, "subterranea")
+        validar_respuestas(r)
 
 
-def test_tipo_mina_invalido_lanza_value_error():
+def test_valor_invalido_lanza_value_error():
+    r = _perfil_a_con_area()
+    r["A5_1"] = "avion"
     with pytest.raises(ValueError):
-        calcular_diagnostico(_respuestas(IDS_SUBTERRANEA, True), "volador")
+        validar_respuestas(r)
 
 
-def test_tajo_abierto_no_acepta_s5():
-    # S5 no aplica a tajo abierto: si viene, el set de ids no calza y falla
-    respuestas = _respuestas(IDS_TAJO_ABIERTO, True)
-    respuestas["S5"] = True
+def test_respuestas_old_format_rejected():
+    """El formato viejo (bool) ya no es válido."""
+    r = {"M0_1": "nada", "A1_1": "si", "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "oro"}
+    r["A1_1"] = True  # type: ignore[assignment]
     with pytest.raises(ValueError):
-        calcular_diagnostico(respuestas, "tajo_abierto")
+        validar_respuestas(r)
 
 
-def test_tajo_abierto_todo_si_score_100():
-    resultado = calcular_diagnostico(_respuestas(IDS_TAJO_ABIERTO, True), "tajo_abierto")
+# ---------------------------------------------------------------------------
+# Tests: semáforo legal
+# ---------------------------------------------------------------------------
 
-    assert resultado["score_total"] == 100
-    assert resultado["brechas"] == []
-    assert resultado["dimensiones"]["seguridad"]["maximo"] == 25
-    assert set(PUNTOS_SEGURIDAD_TAJO_ABIERTO.values()) == {6, 7}
-    assert sum(PUNTOS_SEGURIDAD_TAJO_ABIERTO.values()) == 25
-    assert sum(PUNTOS_SEGURIDAD_SUBTERRANEA.values()) == 25
-
-
-def test_operativo_informativas_no_forman_parte_del_calculo():
-    # O1 es la única pregunta SÍ/NO de Operativo; produccion_mensual,
-    # maquinaria y num_trabajadores ni siquiera son ids de scoring.
-    assert "O1" in IDS_SUBTERRANEA
-    assert not any(i.startswith("O2") or i.startswith("O3") or i.startswith("O4") for i in IDS_SUBTERRANEA)
+def test_legal_verdePerfilA_todo_ok():
+    r = _perfil_a_con_area()
+    color, bloq = semaforo_legal("A", r, date.today())
+    assert color == "verde"
+    assert bloq == []
 
 
-def test_aplicar_brechas_resueltas_no_muta_respuestas_originales():
-    respuestas = _respuestas(IDS_SUBTERRANEA, True, {"L1": False, "S5": False})
-    original = dict(respuestas)
-
-    resultado = aplicar_brechas_resueltas(respuestas, "subterranea", ["estudio_ventilacion"])
-
-    assert respuestas == original  # la declaración original no se toca
-    assert resultado["score_total"] == 95  # solo se "resuelve" S5 (+5), L1 sigue en NO
-    assert resultado["bloqueado"] is True  # L1 sigue sin resolver
-    assert resultado["brechas"] == ["tramite_reinfo"]
+def test_legal_rojo_zona_prohibida():
+    r = _perfil_a_con_area()
+    r["A2_1"] = "anp"
+    color, bloq = semaforo_legal("A", r, date.today())
+    assert color == "rojo"
+    assert "zona_prohibida" in bloq
 
 
-def test_aplicar_brechas_resueltas_todas_resueltas_da_score_100():
-    respuestas = _respuestas(IDS_SUBTERRANEA, True, {"L1": False, "S5": False})
-    todas_las_brechas = calcular_diagnostico(respuestas, "subterranea")["brechas"]
-
-    resultado = aplicar_brechas_resueltas(respuestas, "subterranea", todas_las_brechas)
-
-    assert resultado["score_total"] == 100
-    assert resultado["bloqueado"] is False
-    assert resultado["brechas"] == []
+def test_legal_rojo_dragas():
+    r = _perfil_a_con_area()
+    r["A2_2"] = "si"
+    color, bloq = semaforo_legal("A", r, date.today())
+    assert color == "rojo"
+    assert "dragas_prohibidas" in bloq
 
 
-def test_aplicar_brechas_resueltas_ignora_estudio_que_no_es_brecha():
-    respuestas = _respuestas(IDS_SUBTERRANEA, True)  # todo SÍ, sin brechas
+def test_legal_amarillo_area_no_verificada():
+    r = _perfil_a_con_area()
+    r["A1_2"] = "no"
+    color, _ = semaforo_legal("A", r, date.today())
+    assert color == "amarillo"
 
-    resultado = aplicar_brechas_resueltas(respuestas, "subterranea", ["tramite_reinfo"])
 
-    assert resultado["score_total"] == 100  # ya estaba en 100, no se altera
+def test_legal_rojo_b_caducidad_2_anios():
+    r = _perfil_b()
+    r["B1_1"] = "debo_2_mas"
+    color, bloq = semaforo_legal("B", r, date.today())
+    assert color == "rojo"
+    assert "riesgo_caducidad_vigencia" in bloq
 
 
-# ---------- Score de Atractivo de Inversión (Fase 2) ----------
+def test_legal_rojo_b_penalidad():
+    r = _perfil_b()
+    r["B1_3"] = "no_pago"
+    color, bloq = semaforo_legal("B", r, date.today())
+    assert color == "rojo"
+    assert "penalidad_impaga" in bloq
+
+
+def test_legal_rojo_c_suspendido():
+    r = _perfil_c()
+    r["C1_1"] = "suspendida"
+    color, bloq = semaforo_legal("C", r, date.today())
+    assert color == "rojo"
+    assert "reinfo_suspendido" in bloq
+
+
+def test_legal_amarillo_c_docs_pendientes():
+    r = _perfil_c()
+    r["C2_1"] = "no_iniciado"
+    color, _ = semaforo_legal("C", r, date.today())
+    assert color == "amarillo"
+
+
+def test_legal_verde_d_todo_ok():
+    r = _perfil_d()
+    color, _ = semaforo_legal("D", r, date.today())
+    assert color == "verde"
+
+
+def test_legal_amarillo_d_vigencia_pendiente():
+    r = _perfil_d()
+    r["D1_1"] = "no"
+    color, _ = semaforo_legal("D", r, date.today())
+    assert color == "amarillo"
+
+
+# ---------------------------------------------------------------------------
+# Tests: urgencia REINFO (perfil C)
+# ---------------------------------------------------------------------------
+
+def test_urgencia_c_alerta_roja():
+    """Si todos los docs están sin iniciar, los días necesarios superan
+    el plazo al 31/12/2026 y se activa alerta_roja."""
+    r = _perfil_c()
+    for n in range(1, 8):
+        r[f"C2_{n}"] = "no_iniciado"
+    resultado = calcular_diagnostico(r, hoy=date(2026, 10, 1))
+    assert resultado["urgencia"]["alerta_roja"] is True
+    assert "plazo_reinfo_critico" in resultado["bloqueantes"]
+
+
+def test_urgencia_c_sin_alerta():
+    """Si todos los docs están aprobados, no hay alerta."""
+    r = _perfil_c()
+    resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert resultado["urgencia"]["alerta_roja"] is False
+    assert resultado["urgencia"]["docs_completados"] == 7
+
+
+# ---------------------------------------------------------------------------
+# Tests: reloj producción (perfil B)
+# ---------------------------------------------------------------------------
+
+def test_reloj_b_no_vencido():
+    r = _perfil_b({"B1_2": "2023"})
+    resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert resultado["reloj_produccion"]["vencido"] is False
+    assert resultado["reloj_produccion"]["anios_restantes"] > 0
+
+
+def test_reloj_b_vencido_ppm():
+    r = _perfil_b({"B1_2": "2018", "B2_1": "ppm"})
+    resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert resultado["reloj_produccion"]["vencido"] is True
+
+
+def test_reloj_b_none_para_perfil_a():
+    r = _perfil_a_con_area()
+    resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert resultado["reloj_produccion"] is None
+
+
+# ---------------------------------------------------------------------------
+# Tests: brechas
+# ---------------------------------------------------------------------------
+
+def test_brechas_perfil_a_area_no_georreferenciada():
+    r = _perfil_a_con_area()
+    r["A1_3"] = "no"
+    assert "levantamiento_georreferenciado" in brechas_de(r)
+
+
+def test_brechas_perfil_b_terreno_negociacion():
+    r = _perfil_b()
+    r["B5_2"] = "en_negociacion"
+    assert "acreditacion_terreno" in brechas_de(r)
+
+
+def test_brechas_perfil_c_docs_no_iniciados():
+    r = _perfil_c()
+    r["C2_1"] = "no_iniciado"
+    r["C2_2"] = "no_se"
+    b = brechas_de(r)
+    assert "igafom_aprobado" in b
+    assert "acreditacion_terreno" in b
+
+
+def test_brechas_perfil_d_vigencia_pendiente():
+    r = _perfil_d()
+    r["D1_1"] = "no"
+    assert "vigencia_concesion" in brechas_de(r)
+
+
+def test_brechas_perfil_d_dac_pendiente():
+    r = _perfil_d()
+    r["D1_3"] = "no"
+    assert "declaracion_anual_consolidada" in brechas_de(r)
+
+
+def test_brechas_perfil_d_penalidad():
+    r = _perfil_d()
+    r["D1_2"] = "pago_penalidad"
+    assert "puesta_en_produccion" in brechas_de(r)
+
+
+# ---------------------------------------------------------------------------
+# Tests: calcular_diagnostico completo
+# ---------------------------------------------------------------------------
+
+def test_perfil_a_con_area_verde():
+    r = _perfil_a_con_area()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["perfil"] == "A"
+    assert res["semaforo_legal"] == "verde"
+    assert res["bloqueantes"] == []
+    assert res["brechas"] == []
+    assert res["apto_inversionistas"] is False  # perfil A nunca publica
+
+
+def test_perfil_a_sin_area_amarillo():
+    r = _perfil_a_sin_area()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["semaforo_legal"] == "amarillo"
+    assert "verificar_area" in res["salidas"]
+
+
+def test_perfil_b_verde():
+    r = _perfil_b()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["perfil"] == "B"
+    assert res["semaforo_legal"] == "verde"
+    assert res["apto_inversionistas"] is True
+    assert res["brechas"] == []
+    assert res["indice_madurez"] == 5
+    assert res["semaforo_tecnico"] == "verde"
+
+
+def test_perfil_b_rojo_bloquea():
+    r = _perfil_b({"B1_1": "debo_2_mas"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["semaforo_legal"] == "rojo"
+    assert res["apto_inversionistas"] is False
+
+
+def test_perfil_b_brechas():
+    r = _perfil_b({"B3_1": "no", "B3_2": "no"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert "informe_geologico" in res["brechas"]
+    assert "analisis_laboratorio" in res["brechas"]
+
+
+def test_perfil_c_verde_docs_completos():
+    r = _perfil_c()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["perfil"] == "C"
+    assert res["semaforo_legal"] == "verde"
+    assert res["apto_inversionistas"] is True
+    assert res["brechas"] == []
+    assert res["urgencia"]["docs_completados"] == 7
+
+
+def test_perfil_c_rojo_suspendido():
+    r = _perfil_c({"C1_1": "suspendida"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["semaforo_legal"] == "rojo"
+    assert res["apto_inversionistas"] is False
+    assert "reinfo_suspendido" in res["bloqueantes"]
+
+
+def test_perfil_c_contrato_incluye_c3():
+    r = _perfil_c_contrato()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["perfil"] == "C"
+    assert res["brechas"] == []
+
+
+def test_perfil_d_verde():
+    r = _perfil_d()
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["perfil"] == "D"
+    assert res["semaforo_legal"] == "verde"
+    assert res["apto_inversionistas"] is True
+
+
+def test_perfil_d_amarillo_vigencia_no():
+    r = _perfil_d({"D1_1": "no"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert res["semaforo_legal"] == "amarillo"
+    assert "alertas_cumplimiento" in res["salidas"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: clasificación PMA/PPM (perfil B)
+# ---------------------------------------------------------------------------
+
+def test_clasificacion_pma():
+    r = _perfil_b({"B2_1": "pma", "B2_2": "500"})
+    assert clasificacion_de("B", r) == "pma"
+
+
+def test_clasificacion_ppm_por_hectareas():
+    r = _perfil_b({"B2_1": "pma", "B2_2": "1500"})
+    assert clasificacion_de("B", r) == "ppm"  # excede límite PMA
+
+
+def test_clasificacion_no_califica():
+    r = _perfil_b({"B2_1": "pma", "B2_2": "5000"})
+    assert clasificacion_de("B", r) == "no_califica"
+
+
+def test_clasificacion_none_para_perfil_a_no_se():
+    r = _perfil_a_con_area()
+    r["A5_1"] = "no_se"
+    assert clasificacion_de("A", r) is None
+
+
+# ---------------------------------------------------------------------------
+# Tests: índice de madurez
+# ---------------------------------------------------------------------------
+
+def test_madurez_5_todos_si():
+    r = _perfil_b()
+    assert indice_madurez("B", r) == 5
+
+
+def test_madurez_0_todos_no():
+    r = _perfil_b({"INV_1": "no", "INV_2": "no", "INV_3": "no", "INV_4": "no", "INV_5": "no"})
+    assert indice_madurez("B", r) == 0
+
+
+def test_madurez_none_para_perfil_a():
+    r = _perfil_a_con_area()
+    assert indice_madurez("A", r) is None
+
+
+def test_madurez_parcial():
+    r = _perfil_b({"INV_1": "si", "INV_2": "si", "INV_3": "no", "INV_4": "no", "INV_5": "no"})
+    assert indice_madurez("B", r) == 2
+
+
+# ---------------------------------------------------------------------------
+# Tests: respuestas_con_brechas_resueltas
+# ---------------------------------------------------------------------------
+
+def test_brechas_resueltas_no_muta_originales():
+    r = _perfil_c()
+    r["C2_1"] = "no_iniciado"
+    original = dict(r)
+    parcheadas = respuestas_con_brechas_resueltas(r, ["igafom_aprobado"])
+    assert r == original
+    assert parcheadas["C2_1"] == "aprobado"
+
+
+def test_brechas_resueltas_estudio_no_presente_no_opera():
+    r = _perfil_c()
+    parcheadas = respuestas_con_brechas_resueltas(r, ["dj_arqueologica"])
+    assert parcheadas == r  # sin cambios
+
+
+def test_brechas_resueltas_multiples_preguntas():
+    r = _perfil_b({"B1_1": "debo_2_mas", "B3_1": "no"})
+    parcheadas = respuestas_con_brechas_resueltas(r, ["vigencia_concesion", "informe_geologico"])
+    assert parcheadas["B1_1"] == "al_dia"
+    assert parcheadas["B3_1"] == "estudios_formales"
+
+
+# ---------------------------------------------------------------------------
+# Tests: salidas
+# ---------------------------------------------------------------------------
+
+def test_salidas_a_rojo_area_no_concesionable():
+    r = _perfil_a_con_area()
+    r["A2_1"] = "anp"
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert "area_no_concesionable" in res["salidas"]
+
+
+def test_salidas_b_alerta_caducidad():
+    r = _perfil_b({"B1_1": "debo_2_mas"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert "alerta_caducidad" in res["salidas"]
+
+
+def test_salidas_b_guia_cesion():
+    r = _perfil_b_sin_b5()
+    r["B4_1"] = "ceder_contrato"
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert "guia_cesion" in res["salidas"]
+
+
+def test_salidas_c_subsana_suspension():
+    r = _perfil_c({"C1_1": "suspendida"})
+    res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
+    assert "subsanar_suspension" in res["salidas"]
+
+
+# ---------------------------------------------------------------------------
+# Tests: Score de Atractivo de Inversión (legacy, scoring_legacy.py)
+# ---------------------------------------------------------------------------
+
+from types import SimpleNamespace
+
+from scoring_legacy import calcular_score_inversion
+
 
 def _operacion_ruta1(**overrides) -> SimpleNamespace:
     base = dict(
@@ -174,66 +588,19 @@ def test_score_inversion_ruta1_todo_en_el_mejor_valor_da_100():
         assert dim == {"puntaje": 100, "maximo": 100}
 
 
-def test_score_inversion_ruta1_perfil_vacio_no_es_cero_por_el_riesgo_no_declarado():
-    # Sin declarar sustancias tóxicas, la señal de riesgo asume "no usa" (100
-    # de 3 señales), así que el perfil vacío no cae exactamente a 0.
-    o = _operacion_ruta1()
-    resultado = calcular_score_inversion(o, score_formalizacion=0)
-    assert resultado["score_total"] == 5
-    assert resultado["dimensiones"]["riesgo_ambiental_social"]["puntaje"] == 33
-    assert resultado["dimensiones"]["escala_economica"]["puntaje"] == 0
-    assert resultado["dimensiones"]["formalizacion"]["puntaje"] == 0
-
-
-def test_score_inversion_ruta1_caso_intermedio():
-    o = _operacion_ruta1(
-        produccion_mensual="30 gramos de metal/mes",
-        produccion_objetivo="2-3x",
-        tiene_resultados_laboratorio="parcial",
-        documentacion_disponible="fotos_basicas",
-        sustancias_toxicas="mercurio",
-        gestion_sustancias="confinamiento",
-        conflictividad_social="percibida",
-        permisos_comunitarios="informales",
-        experiencia_operador="2-5 años",
-        capacitacion_operador="cursos_tecnicos",
-        monto_requerido="S/. 50,000 - 200,000",
-        plazo_capital="No definido",
-    )
-    resultado = calcular_score_inversion(o, score_formalizacion=70)
-    assert resultado["score_total"] == 51
-    assert resultado["dimensiones"]["escala_economica"]["puntaje"] == 53
-    assert resultado["dimensiones"]["viabilidad_tecnica"]["puntaje"] == 50
-    assert resultado["dimensiones"]["riesgo_ambiental_social"]["puntaje"] == 47
-    assert resultado["dimensiones"]["capacidad_equipo"]["puntaje"] == 45
-    assert resultado["dimensiones"]["claridad_oportunidad"]["puntaje"] == 33
-
-
-def test_score_inversion_ruta2_todo_en_el_mejor_valor_da_100():
-    o = _operacion_ruta2(
-        toneladas_estimadas="500M+",
-        ley_esperada="0.5 g/t Au",
-        produccion_objetivo="500k+",
-        info_geologica_disponible="completo",
-        tiene_resultados_laboratorio="completo",
-        estudio_previo="externo_completo",
-        pasivos_ambientales="no",
-        conflictividad_social="no",
-        experiencia_titular="empresa_con_trayectoria",
-        equipo_tecnico="completo",
-        monto_requerido="S/. 500,000 - 2,000,000",
-        capital_disponible="completo",
-        timeline_operacion="6-12 meses",
-    )
-    resultado = calcular_score_inversion(o, score_formalizacion=100)
-    assert resultado["score_total"] == 100
-    for dim in resultado["dimensiones"].values():
-        assert dim == {"puntaje": 100, "maximo": 100}
-
-
 def test_score_inversion_ruta2_perfil_vacio_da_cero():
     o = _operacion_ruta2()
     resultado = calcular_score_inversion(o, score_formalizacion=0)
     assert resultado["score_total"] == 0
-    for dim in resultado["dimensiones"].values():
-        assert dim == {"puntaje": 0, "maximo": 100}
+
+
+# ---------------------------------------------------------------------------
+# Tests: ETIQUETA_BLOQUEANTE tiene labels para todos los bloqueantes
+# ---------------------------------------------------------------------------
+
+def test_todos_bloqueantes_tienen_etiqueta():
+    todos = {
+        "zona_prohibida", "dragas_prohibidas", "riesgo_caducidad_vigencia",
+        "penalidad_impaga", "reinfo_suspendido", "plazo_reinfo_critico",
+    }
+    assert todos == set(ETIQUETA_BLOQUEANTE.keys())

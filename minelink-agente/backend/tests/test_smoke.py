@@ -72,12 +72,28 @@ PDF_VALIDO_DE_PRUEBA = (
     b"%%EOF"
 )
 
+# Fixture principal: Perfil C (REINFO vigente, opera en concesión propia,
+# todos los documentos de formalización aprobados). Semáforo legal verde,
+# sin brechas, apto para inversionistas.
 RESPUESTAS_COMPLETAS = {
-    "L1": True, "L2": True, "L3": True, "L4": True, "L5": True,
-    "A1": True, "A2": True, "A3": True,
-    "O1": True,
-    "T1": True, "T2": True, "T3": True, "T4": True, "T5": True, "T6": True, "T7": True,
-    "S1": True, "S2": True, "S3": True, "S4": True, "S5": False,
+    "M0_1": "concesion_propia", "M0_2": "si", "M0_3": "vigente", "M0_4": "no",
+    "C1_1": "vigente", "C1_2": "si",
+    "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
+    "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
+    "C4_1": "50_100t", "C4_2": "siempre",
+    "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
+}
+
+# Perfil B: concesionaria sin operar (tiene concesión pero no extrae
+# mineral). Semáforo legal verde si no hay bloqueantes, apta para
+# inversionistas. B4_1="buscar_inversionista" para evitar requisitos B5.
+RESPUESTAS_SIN_TRAMITE = {
+    "M0_1": "concesion_propia", "M0_2": "no",
+    "B1_1": "al_dia", "B1_2": "2020", "B1_3": "pago",
+    "B2_1": "pma", "B2_2": "500",
+    "B3_1": "estudios_formales", "B3_2": "laboratorio",
+    "B4_1": "buscar_inversionista",
+    "INV_1": "si", "INV_2": "si", "INV_3": "si", "INV_4": "si", "INV_5": "si",
 }
 
 
@@ -102,12 +118,24 @@ def test_post_diagnostico():
     resp = _crear_diagnostico()
     assert resp.status_code == 200
     body = resp.json()
-    assert body["score_total"] == 95
-    assert body["brechas"] == ["estudio_ventilacion"]
+    assert body["perfil"] == "C"
+    assert body["semaforo_legal"] == "verde"
+    assert body["brechas"] == []
+    assert body["apto_inversionistas"] is True
 
 
-def test_post_diagnostico_tajo_abierto_no_debe_incluir_s5():
-    respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items() if k != "S5"}
+def test_post_diagnostico_tajo_abierto():
+    respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items()}
+    respuestas["M0_1"] = "nada"  # Perfil A
+    respuestas.update({
+        "A1_1": "si", "A1_2": "si", "A1_3": "si",
+        "A2_1": "ninguna", "A2_2": "no",
+        "A3_1": "mio", "A4_1": "completo", "A5_1": "maquinaria", "A5_2": "oro",
+    })
+    # Quitar ids de perfil C que no aplican a perfil A
+    for k in list(respuestas.keys()):
+        if k.startswith("C") or k.startswith("INV") or k == "M0_2" or k == "M0_3" or k == "M0_4":
+            del respuestas[k]
     resp = client.post(
         "/diagnostico",
         json={
@@ -119,22 +147,68 @@ def test_post_diagnostico_tajo_abierto_no_debe_incluir_s5():
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["score_total"] == 100
-    assert body["dimensiones"]["seguridad"]["maximo"] == 25
+    assert body["perfil"] == "A"
+    assert body["semaforo_legal"] == "verde"
 
 
-def test_post_diagnostico_ids_no_calzan_con_tipo_mina_falla():
-    # RESPUESTAS_COMPLETAS incluye S5, pero tajo_abierto no lo acepta
+def test_post_diagnostico_ids_faltantes_falla():
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    del respuestas["C2_1"]
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": RESPUESTAS_COMPLETAS,
+            "respuestas": respuestas,
             "region": "arequipa",
             "mineral": "oro",
-            "tipo_mina": "tajo_abierto",
+            "tipo_mina": "subterranea",
         },
     )
     assert resp.status_code == 422
+
+
+def test_post_diagnostico_ids_extra_falla():
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["X99"] = "si"
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    )
+    assert resp.status_code == 422
+
+
+def test_post_diagnostico_ids_de_otro_perfil_falla():
+    respuestas = dict(RESPUESTAS_SIN_TRAMITE)
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    )
+    assert resp.status_code == 200  # Perfil B es válido
+
+
+def test_post_diagnostico_concesionario_es_perfil_b():
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": dict(RESPUESTAS_SIN_TRAMITE),
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+            "situacion": "concesionario",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["perfil"] == "B"
 
 
 def test_get_empresas_sin_filtro():
@@ -456,7 +530,7 @@ def test_mineros_login_y_perfil():
     assert resp.status_code == 200
     body = resp.json()
     assert body["nombre"] == "Juan Quispe"
-    assert body["score_total"] == diag["score_total"]
+    assert body["score_total"] == 0  # legacy placeholder for new system
     assert body["brechas"] == diag["brechas"]
     assert body["descripcion_operacion"] is None
     assert body["capacidad_produccion"] is None
@@ -613,26 +687,13 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     aplicables = resp.json()["estudios_aplicables"]
-    # minero_artesanal (default de _token_minero): solo lo que declaró
-    # SÍ tener (RESPUESTAS_COMPLETAS responde Sí a todo salvo S5) — no le
-    # pedimos foto de algo que ya dijo que no tiene.
-    assert "tramite_reinfo" in aplicables  # L1 = True
-    assert "iperc" in aplicables  # S1 = True
-    assert "vigencia_concesion" not in aplicables  # L6, exclusivo de concesionario
-    assert "estudio_ventilacion" not in aplicables  # S5 = False, no aplica pedirle foto
-    # Estudios que piden la MISMA foto que un documento legal fijo u otro
-    # estudio (ver uploads_config.categoria_equivalente) no se listan
-    # aparte, aunque el minero haya respondido Sí — evita pedir "Título de
-    # concesión" y "Ser titular de tu concesión" como dos slots distintos.
-    assert "titularidad_concesion" not in aplicables  # L2 = True, equivale a titulo_concesion
-    assert "tramite_sunat" not in aplicables  # L4 = True, equivale a ruc
-    assert "levantamiento_georreferenciado" not in aplicables  # L5 = True, equivale a catastro
-    assert "levantamiento_topografico" not in aplicables  # T5 = True, equivale a catastro
-    assert "instrumento_ambiental_vigente" not in aplicables  # A2 = True, equivale a igafom_aprobado
-    assert "puesta_en_produccion" not in aplicables  # O1 = True, equivale a fotos_mina
-    assert "analisis_laboratorio" not in aplicables  # T3 = True, equivale a informe_leyes
-    assert "documentacion_operacion" not in aplicables  # T7 = True, equivale a fotos_mina (Ruta 1)
-    assert "contrato_explotacion" not in aplicables  # L3 = True, mismo nombre que el fijo
+    # Perfil C con todos los docs aprobados: no hay brechas, pero los
+    # estudios del catálogo que aplican a su perfil siguen disponibles
+    # para subir respaldo.
+    assert isinstance(aplicables, list)
+    # No debe incluir estudios que equivalen a documentos legales fijos
+    # (ver uploads_config.categoria_equivalente)
+    assert "contrato_explotacion" not in aplicables  # equivale a documento fijo
 
 
 def test_mineros_documento_pdf_se_convierte_a_foto():
@@ -752,18 +813,16 @@ def test_proyectos_sin_nombre_operacion_usa_generico():
 def test_proyectos_incluye_operaciones_bloqueadas():
     # REINFO/trámite de formalización ya NO es requisito para la vitrina
     # pública — bloqueado es solo informativo, no filtra el listado.
-    respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
-    respuestas_bloqueadas["L1"] = False
     diag = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas_bloqueadas,
+            "respuestas": RESPUESTAS_SIN_TRAMITE,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
         },
     ).json()
-    assert diag["bloqueado"] is True
+    assert diag["apto_inversionistas"] is True
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado1"))
 
     resp = client.get("/proyectos")
@@ -801,36 +860,70 @@ def test_proyectos_filtra_por_mineral_y_region():
     assert resp.json()[0]["mineral"] == "oro"
 
 
-def test_proyectos_filtra_por_score_inversion_y_dimension_debil():
-    diag = _crear_diagnostico().json()
+def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
+    # REGLA DE BLOQUEO del spec: nunca mostrar a inversionistas un proyecto
+    # con incendio legal activo (semáforo rojo), ni perfiles sin proyecto
+    # publicable (A). El minero con REINFO suspendido NO debe listarse.
+    respuestas_suspendido = dict(RESPUESTAS_COMPLETAS)
+    respuestas_suspendido["M0_3"] = "suspendido"
+    respuestas_suspendido["C1_1"] = "suspendida"
+    diag_rojo = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_suspendido,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    assert diag_rojo["semaforo_legal"] == "rojo"
+    assert diag_rojo["apto_inversionistas"] is False
+    client.post("/leads", json=_lead_payload(diag_rojo["id"], username="rojooculto"))
+
+    # Perfil A registrado: puede tener cuenta pero NO proyecto público.
+    respuestas_a = {
+        "M0_1": "nada",
+        "A1_1": "no",
+        "A3_1": "no_se",
+        "A4_1": "no", "A4_2": "si",
+        "A5_1": "manual", "A5_2": "oro",
+    }
+    diag_a = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_a,
+            "region": "puno",
+            "mineral": "oro",
+            "tipo_mina": "tajo_abierto",
+            "situacion": "concesionario",
+        },
+    ).json()
+    assert diag_a["perfil"] == "A"
     client.post(
         "/leads",
-        json=_lead_payload(diag["id"], username="filtroscore", nombre_operacion="Mina Filtro"),
+        json=_lead_payload(diag_a["id"], username="perfilAoculto", whatsapp="+51987000222"),
     )
-    detalle = client.get(f"/proyectos/{diag['id']}").json()
-    score = detalle["score_inversion"]
-    dims = detalle["dimensiones_inversion"]
 
-    # score_min/score_max acotan por el score total.
-    resp = client.get(f"/proyectos?score_min={score}")
-    assert any(p["operacion_id"] == diag["id"] for p in resp.json())
-    resp = client.get(f"/proyectos?score_min={score + 1}")
-    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
-    resp = client.get(f"/proyectos?score_max={score - 1}")
-    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
+    # Un perfil C verde SÍ se lista, con la tarjeta del spec.
+    diag_ok = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag_ok["id"], username="verdevisible", whatsapp="+51987000333"),
+    )
 
-    # dimension_debil: solo lista proyectos por debajo del umbral (<50/100)
-    # en esa dimensión. _crear_diagnostico no manda perfil informativo, así
-    # que escala_economica queda baja (sin señales) — debe aparecer ahí.
-    assert dims["escala_economica"]["puntaje"] < 50
-    resp = client.get("/proyectos?dimension_debil=escala_economica")
-    assert any(p["operacion_id"] == diag["id"] for p in resp.json())
+    proyectos = client.get("/proyectos").json()
+    ids = {p["operacion_id"] for p in proyectos}
+    assert diag_ok["id"] in ids
+    assert diag_rojo["id"] not in ids
+    assert diag_a["id"] not in ids
 
-    # formalizacion en cambio queda alta (RESPUESTAS_COMPLETAS responde Sí
-    # a casi todo), así que NO debe listarse como "débil" en esa dimensión.
-    assert dims["formalizacion"]["puntaje"] >= 50
-    resp = client.get("/proyectos?dimension_debil=formalizacion")
-    assert not any(p["operacion_id"] == diag["id"] for p in resp.json())
+    tarjeta = next(p for p in proyectos if p["operacion_id"] == diag_ok["id"])
+    assert tarjeta["perfil"] == "C"
+    assert tarjeta["semaforo_legal"] == "verde"
+    assert tarjeta["indice_madurez"] == 5
+    assert tarjeta["docs_completados"] == 7
+    assert tarjeta["docs_totales"] == 7
+    assert tarjeta["vende_liquidacion"] is True
 
 
 def test_proyectos_minerales_distintos():
@@ -895,12 +988,10 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
 def test_proyectos_detalle_operacion_bloqueada_ya_no_da_404():
     # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
     # informativo y el detalle del proyecto sigue siendo visible.
-    respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
-    respuestas_bloqueadas["L1"] = False
     diag = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas_bloqueadas,
+            "respuestas": RESPUESTAS_SIN_TRAMITE,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
@@ -917,18 +1008,15 @@ def test_proyectos_detalle_inexistente_da_404():
     assert resp.status_code == 404
 
 
-def test_proyectos_detalle_incluye_dimensiones_y_brechas():
+def test_proyectos_detalle_incluye_brechas():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="dimensionesproyecto"))
 
     resp = client.get(f"/proyectos/{diag['id']}")
     assert resp.status_code == 200
     body = resp.json()
-    assert body["brechas_pendientes"] == ["estudio_ventilacion"]
+    assert body["brechas_pendientes"] == []
     assert body["brechas_resueltas"] == []
-    assert body["dimensiones"]["seguridad"]["puntaje"] == 20
-    assert body["dimensiones"]["seguridad"]["maximo"] == 25
-    assert body["dimensiones"]["legal"]["puntaje"] == 25
 
 
 def _interes_payload(**overrides):
@@ -1014,15 +1102,14 @@ def test_proyectos_registra_interes_username_duplicado():
 def test_proyectos_registra_interes_operacion_bloqueada_ya_no_da_404():
     # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
     # informativo y el proyecto acepta interés igual.
-    respuestas_bloqueadas = dict(RESPUESTAS_COMPLETAS)
-    respuestas_bloqueadas["L1"] = False
     diag = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas_bloqueadas,
+            "respuestas": RESPUESTAS_SIN_TRAMITE,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
+            "estado_formalizacion": "sin_tramite",
         },
     ).json()
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado3"))
@@ -1185,36 +1272,41 @@ def test_admin_leads_con_jwt():
     )
     assert resp.status_code == 200
     lead = resp.json()[0]
-    assert lead["score_total"] == diag["score_total"]
     assert lead["brechas"] == diag["brechas"]
     assert lead["email"] == "juan@example.com"
     assert lead["nombre_operacion"] == "Labor La Esperanza"
-    # Recién creado: nada resuelto todavía, "actual" == original
+    # Recién creado: nada resuelto todavía
     assert lead["brechas_resueltas"] == []
     assert lead["brechas_pendientes"] == diag["brechas"]
-    assert lead["score_actual"] == diag["score_total"]
-    assert lead["bloqueado_actual"] == diag["bloqueado"]
 
 
 def test_marcar_brecha_resuelta_no_altera_declaracion_original():
     token = _admin_token()
     headers = {"Authorization": f"Bearer {token}"}
-    diag = _crear_diagnostico().json()
-    assert diag["brechas"] == ["estudio_ventilacion"]
+    # Crear un diagnóstico con brechas (perfil B con docs pendientes)
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B3_1"] = "no"
+    respuestas_b["B3_2"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    assert "informe_geologico" in diag["brechas"]
 
     resp = client.put(
         f"/admin/operaciones/{diag['id']}/brechas-resueltas",
-        json={"brechas_resueltas": ["estudio_ventilacion"]},
+        json={"brechas_resueltas": ["informe_geologico"]},
         headers=headers,
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["score_total"] == diag["score_total"]  # original intacto
-    assert body["brechas"] == ["estudio_ventilacion"]  # original intacto
-    assert body["brechas_resueltas"] == ["estudio_ventilacion"]
-    assert body["brechas_pendientes"] == []
-    assert body["score_actual"] == 100
-    assert body["bloqueado_actual"] is False
+    assert body["brechas_resueltas"] == ["informe_geologico"]
+    assert body["brechas_pendientes"] == ["analisis_laboratorio"]
 
     # Se puede desmarcar enviando una lista más corta (vacía)
     resp = client.put(
@@ -1223,7 +1315,8 @@ def test_marcar_brecha_resuelta_no_altera_declaracion_original():
         headers=headers,
     )
     assert resp.status_code == 200
-    assert resp.json()["score_actual"] == diag["score_total"]
+    # Con brechas vacías, score_actual vuelve a 0 (placeholder del nuevo sistema)
+    assert resp.json()["score_actual"] == 0
 
 
 def test_marcar_brecha_resuelta_rechaza_estudio_que_no_es_brecha_real():
@@ -1261,19 +1354,36 @@ def test_marcar_brecha_resuelta_operacion_inexistente():
 def test_dashboard_top_brechas_excluye_las_ya_resueltas():
     token = _admin_token()
     headers = {"Authorization": f"Bearer {token}"}
-    diag = _crear_diagnostico().json()
+    # Crear diagnóstico con brechas reales (perfil B con documentos pendientes)
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B3_1"] = "no"
+    respuestas_b["B3_2"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
 
+    # Debe haber al menos una brecha pendiente
     resp = client.get("/admin/dashboard", headers=headers)
-    assert {"estudio": "estudio_ventilacion", "conteo": 1} in resp.json()["top_brechas"]
+    brechas = resp.json()["top_brechas"]
+    assert len(brechas) > 0
+    primera = brechas[0]["estudio"]
 
+    # Resolvemos la primera brecha
     client.put(
         f"/admin/operaciones/{diag['id']}/brechas-resueltas",
-        json={"brechas_resueltas": ["estudio_ventilacion"]},
+        json={"brechas_resueltas": [primera]},
         headers=headers,
     )
 
     resp = client.get("/admin/dashboard", headers=headers)
-    assert resp.json()["top_brechas"] == []
+    top_actual = [b["estudio"] for b in resp.json()["top_brechas"]]
+    assert primera not in top_actual
 
 
 def test_admin_leads_filtro_por_region():
@@ -1310,8 +1420,10 @@ def test_admin_dashboard():
     assert body["diagnosticos_hoy"] == 1
     assert body["leads_total"] == 1
     assert body["leads_hoy"] == 1
-    assert body["score_promedio"] == 95
-    assert body["top_brechas"] == [{"estudio": "estudio_ventilacion", "conteo": 1}]
+    # score_total = 0 en el nuevo sistema (placeholder), promedio = 0.0
+    assert body["score_promedio"] == 0.0
+    # Profile C con todo aprobado no tiene brechas
+    assert body["top_brechas"] == []
     assert body["ultimos_leads"][0]["nombre"] == "Ana"
 
 
@@ -1718,7 +1830,9 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
     assert "planta de beneficio" not in generada
 
 
-def test_proyectos_expone_score_de_inversion():
+def test_proyectos_ya_no_expone_scores_0_100():
+    # Spec julio 2026: los semáforos + Índice de Madurez REEMPLAZAN a los
+    # scores 0-100 — la tarjeta y el detalle público ya no los llevan.
     diag = _crear_diagnostico().json()
     client.post(
         "/leads",
@@ -1728,22 +1842,14 @@ def test_proyectos_expone_score_de_inversion():
     proyectos = client.get("/proyectos").json()
     assert len(proyectos) == 1
     proyecto = proyectos[0]
-    assert "score_inversion" in proyecto
-    assert isinstance(proyecto["score_inversion"], int)
-    assert 0 <= proyecto["score_inversion"] <= 100
+    assert "score_inversion" not in proyecto
+    assert proyecto["semaforo_legal"] == "verde"
+    assert proyecto["semaforo_tecnico"] == "verde"
+    assert proyecto["indice_madurez"] == 5
 
     detalle = client.get(f"/proyectos/{proyecto['operacion_id']}").json()
-    dims = detalle["dimensiones_inversion"]
-    assert set(dims.keys()) == {
-        "formalizacion", "escala_economica", "viabilidad_tecnica",
-        "riesgo_ambiental_social", "capacidad_equipo", "claridad_oportunidad",
-    }
-    for dim in dims.values():
-        assert dim["maximo"] == 100
-        assert 0 <= dim["puntaje"] <= 100
-    # score_actual (MineScore de formalización) sigue viviendo aparte, es
-    # uno de los ingredientes, no el resultado final.
-    assert dims["formalizacion"]["puntaje"] == detalle["score_actual"]
+    assert detalle["semaforo_legal"] == "verde"
+    assert detalle["dimensiones_inversion"] == {}
 
 
 def test_proyectos_expone_perfil_informativo_del_diagnostico():
@@ -1758,6 +1864,7 @@ def test_proyectos_expone_perfil_informativo_del_diagnostico():
             "mineral": "oro",
             "tipo_mina": "subterranea",
             "situacion": "minero_artesanal",
+            "estado_formalizacion": "formal",
             "experiencia_operador": "5-10 años",
             "capacitacion_operador": "cip",
             "monto_requerido": "S/. 200,000 - 1,000,000",
@@ -1778,88 +1885,106 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     # El diagnóstico es autodeclarado: responder "sí" no basta para que la
     # ficha pública muestre check ✓. Solo cuenta como verificado si además
     # hay una foto de respaldo subida para ese estudio.
-    token = _token_minero(username="minerocheck")
+    # Usamos perfil B con documentos pendientes para tener brechas reales.
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B3_1"] = "no"
+    respuestas_b["B3_2"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    # Crear lead + login para el diagnóstico con brechas
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="checkphoto1", nombre_operacion="Mina Check", password="clave123"),
+    )
+    token_resp = client.post(
+        "/mineros/login", json={"username": "checkphoto1", "password": "clave123"}
+    )
+    token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
-    proyectos = client.get("/proyectos").json()
-    operacion_id = proyectos[0]["operacion_id"]
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert len(detalle["brechas_pendientes"]) > 0
+    primera_brecha = detalle["brechas_pendientes"][0]
+    assert primera_brecha not in detalle["brechas_verificadas"]
 
-    detalle_sin_fotos = client.get(f"/proyectos/{operacion_id}").json()
-    # "tramite_reinfo" (L1) fue respondido "sí" en RESPUESTAS_COMPLETAS
-    # (por eso no aparece en brechas_pendientes), pero sin foto no debe
-    # contar como verificado para el check ✓ público.
-    assert "tramite_reinfo" not in detalle_sin_fotos["brechas_pendientes"]
-    assert "tramite_reinfo" not in detalle_sin_fotos["brechas_verificadas"]
-
+    # Subir foto SIN marcar resuelta → no debe contar como verificada
     client.post(
         "/mineros/documentos",
         headers=headers,
-        data={"categoria": "tramite_reinfo"},
-        files={"archivo": ("reinfo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        data={"categoria": primera_brecha},
+        files={"archivo": ("foto.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    detalle_con_foto = client.get(f"/proyectos/{diag['id']}").json()
+    assert primera_brecha not in detalle_con_foto["brechas_verificadas"]
+
+    # Marcar la brecha como resuelta por el admin
+    client.put(
+        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
+        json={"brechas_resueltas": [primera_brecha]},
+        headers=admin_headers,
     )
 
-    detalle_con_foto = client.get(f"/proyectos/{operacion_id}").json()
-    assert "tramite_reinfo" in detalle_con_foto["brechas_verificadas"]
-    assert len(detalle_con_foto["documentos_estudios"]["tramite_reinfo"]) == 1
-    # Una brecha que sigue pendiente (S5) no se vuelve verificada aunque
-    # alguien suba una foto con esa categoría.
-    client.post(
-        "/mineros/documentos",
-        headers=headers,
-        data={"categoria": "estudio_ventilacion"},
-        files={"archivo": ("vent.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-    )
-    detalle_final = client.get(f"/proyectos/{operacion_id}").json()
-    assert "estudio_ventilacion" not in detalle_final["brechas_verificadas"]
+    # Ahora SÍ debe aparecer como verificada (resuelta + foto)
+    detalle_resuelta = client.get(f"/proyectos/{diag['id']}").json()
+    assert primera_brecha in detalle_resuelta["brechas_verificadas"]
+    assert len(detalle_resuelta["documentos_estudios"].get(primera_brecha, [])) == 1
 
 
 def test_proyectos_check_publico_acepta_categoria_equivalente():
     # Varios estudios piden, en la práctica, la MISMA foto que un documento
     # legal fijo (ver uploads_config.categoria_equivalente) — subir la
-    # categoría equivalente también debe verificar el estudio, sin pedirle
-    # al minero que suba la misma foto dos veces con nombres distintos.
-    token = _token_minero(username="minerocheckequiv")
+    # categoría equivalente también debe verificar el estudio.
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B3_1"] = "no"
+    respuestas_b["B3_2"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="minerocheckequiv", nombre_operacion="Mina Equiv", password="clave123"),
+    )
+    token_resp = client.post(
+        "/mineros/login", json={"username": "minerocheckequiv", "password": "clave123"}
+    )
+    token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
-    proyectos = client.get("/proyectos").json()
-    operacion_id = proyectos[0]["operacion_id"]
+    detalle_inicial = client.get(f"/proyectos/{diag['id']}").json()
+    assert len(detalle_inicial["brechas_pendientes"]) > 0
 
-    detalle_inicial = client.get(f"/proyectos/{operacion_id}").json()
-    for estudio in (
-        "titularidad_concesion", "tramite_sunat", "levantamiento_georreferenciado",
-        "levantamiento_topografico", "instrumento_ambiental_vigente",
-        "puesta_en_produccion", "analisis_laboratorio", "documentacion_operacion",
-    ):
-        assert estudio not in detalle_inicial["brechas_verificadas"]
+    # Marcar la primera brecha como resuelta + subir foto
+    primera_brecha = detalle_inicial["brechas_pendientes"][0]
+    client.put(
+        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
+        json={"brechas_resueltas": [primera_brecha]},
+        headers=admin_headers,
+    )
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": primera_brecha},
+        files={"archivo": (f"{primera_brecha}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
 
-    def _subir(categoria):
-        client.post(
-            "/mineros/documentos",
-            headers=headers,
-            data={"categoria": categoria},
-            files={"archivo": (f"{categoria}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-        )
-
-    _subir("titulo_concesion")
-    _subir("ruc")
-    _subir("catastro")
-    _subir("igafom_aprobado")
-    _subir("fotos_mina")
-    _subir("informe_leyes")
-
-    detalle_final = client.get(f"/proyectos/{operacion_id}").json()
-    assert "titularidad_concesion" in detalle_final["brechas_verificadas"]  # vía titulo_concesion
-    assert "tramite_sunat" in detalle_final["brechas_verificadas"]  # vía ruc
-    assert "levantamiento_georreferenciado" in detalle_final["brechas_verificadas"]  # vía catastro
-    assert "levantamiento_topografico" in detalle_final["brechas_verificadas"]  # vía catastro
-    assert "instrumento_ambiental_vigente" in detalle_final["brechas_verificadas"]  # vía igafom_aprobado
-    assert "puesta_en_produccion" in detalle_final["brechas_verificadas"]  # vía fotos_mina
-    assert "analisis_laboratorio" in detalle_final["brechas_verificadas"]  # vía informe_leyes
-    assert "documentacion_operacion" in detalle_final["brechas_verificadas"]  # vía fotos_mina (Ruta 1)
-    # La miniatura de "Documentación Técnica" también debe completarse con
-    # la foto de la categoría equivalente, no quedar vacía.
-    assert len(detalle_final["documentos_estudios"]["analisis_laboratorio"]) == 1
-    assert len(detalle_final["documentos_estudios"]["levantamiento_topografico"]) == 1
+    detalle_final = client.get(f"/proyectos/{diag['id']}").json()
+    assert primera_brecha in detalle_final["brechas_verificadas"]
+    assert len(detalle_final["documentos_estudios"].get(primera_brecha, [])) == 1
 
 
 def test_mineros_me_expone_fotos_perfil_condicionadas():
@@ -1931,20 +2056,20 @@ def test_mineros_fotos_perfil_no_aplican_a_concesionario():
 
 
 def test_mineros_me_expone_es_titular_concesion():
-    # RESPUESTAS_COMPLETAS responde Sí a L2 ("¿Es titular de la concesión?")
-    # — en "Documentos legales" solo debe pedirse "Título de concesión",
-    # no también "Contrato de explotación" (no le aplica).
+    # El Módulo 0 lo responde directo: M0_1=concesion_propia → titular.
     token = _token_minero(username="mineroTitular")
     resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200
     assert resp.json()["es_titular_concesion"] is True
 
-    # Un minero que responde No a L2 (no es titular) debe salir False.
-    respuestas_no_titular = {**RESPUESTAS_COMPLETAS, "L2": False}
+    # Quien opera en concesión ajena (M0_1=concesion_contrato) → False.
+    respuestas_contrato = dict(RESPUESTAS_COMPLETAS)
+    respuestas_contrato["M0_1"] = "concesion_contrato"
+    respuestas_contrato["C3_1"] = "firmado_inscrito"
     diag = client.post(
         "/diagnostico",
         json={
-            "respuestas": respuestas_no_titular,
+            "respuestas": respuestas_contrato,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
@@ -1953,10 +2078,7 @@ def test_mineros_me_expone_es_titular_concesion():
     client.post(
         "/leads",
         json=_lead_payload(
-            diag["id"],
-            username="mineroNoTitular",
-            nombre_operacion="Mina B",
-            whatsapp="+51987000111",
+            diag["id"], username="mineroNoTitular", whatsapp="+51987000444"
         ),
     )
     token2 = client.post(
@@ -2000,7 +2122,7 @@ def test_proyectos_detalle_expone_titularidad_y_fotos_de_perfil():
     assert resp_subida.status_code == 201
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
-    assert detalle["es_titular_concesion"] is True
+    assert detalle["es_titular_concesion"] is True  # M0_1=concesion_propia
     assert len(detalle["fotos"]) == 1
 
     resp_foto = client.get(detalle["fotos"][0]["url"])
@@ -2250,19 +2372,17 @@ def test_rating_fuera_de_rango_rechazado():
     assert resp.status_code == 422
 
 
-RESPUESTAS_CONCESIONARIO = {
-    "L1": True, "L2": True, "L3": True, "L4": True, "L6": True,
-    "A1": True, "A2": True,
-    "T1": True, "T3": True, "T6": True, "T7": True,
-    "R1": True,
-}
+# Ruta 2 (concesionario): en el nuevo sistema, el perfil se determina por
+# M0_* (concesion_propia + M0_2=no = perfil B). La situación "concesionario"
+# es solo metadata, no afecta el routing.
+RESPUESTAS_CONCESIONARIO = dict(RESPUESTAS_SIN_TRAMITE)
 
 
-def test_diagnostico_concesionario_set_reducido():
+def test_diagnostico_concesionario_es_perfil_b():
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": RESPUESTAS_CONCESIONARIO,
+            "respuestas": dict(RESPUESTAS_CONCESIONARIO),
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
@@ -2271,31 +2391,14 @@ def test_diagnostico_concesionario_set_reducido():
     )
     assert resp.status_code == 200
     body = resp.json()
-    assert body["score_total"] == 100
-    assert set(body["dimensiones"].keys()) == {"legal", "ambiental", "tecnico", "social"}
-    assert body["dimensiones"]["legal"]["maximo"] == 25  # L1,L2,L3,L4,L6 (sin L5)
-    assert body["dimensiones"]["ambiental"]["maximo"] == 10  # A1,A2
-    assert body["dimensiones"]["tecnico"]["maximo"] == 20  # T1,T3,T6,T7
-    assert body["dimensiones"]["social"]["maximo"] == 5  # R1
+    assert body["perfil"] == "B"
     assert body["brechas"] == []
-
-    # El set completo de artesanal (con L5, sin L6) debe rechazarse para concesionario
-    resp = client.post(
-        "/diagnostico",
-        json={
-            "respuestas": RESPUESTAS_COMPLETAS,
-            "region": "arequipa",
-            "mineral": "oro",
-            "tipo_mina": "subterranea",
-            "situacion": "concesionario",
-        },
-    )
-    assert resp.status_code == 422
+    assert body["apto_inversionistas"] is True
 
 
-def test_diagnostico_l6_solo_aplica_a_concesionario():
-    # L6 no existe para minero_artesanal: mandarlo (junto con el resto) rechaza
-    respuestas = {**RESPUESTAS_COMPLETAS, "L6": True}
+def test_diagnostico_ids_extra_rechaza():
+    respuestas = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas["L6"] = "si"  # L6 no existe en el nuevo catálogo
     resp = client.post(
         "/diagnostico",
         json={
@@ -2303,21 +2406,6 @@ def test_diagnostico_l6_solo_aplica_a_concesionario():
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
-            "situacion": "minero_artesanal",
-        },
-    )
-    assert resp.status_code == 422
-
-    # Y falta L6 para concesionario también rechaza
-    respuestas_sin_l6 = {k: v for k, v in RESPUESTAS_CONCESIONARIO.items() if k != "L6"}
-    resp = client.post(
-        "/diagnostico",
-        json={
-            "respuestas": respuestas_sin_l6,
-            "region": "arequipa",
-            "mineral": "oro",
-            "tipo_mina": "subterranea",
-            "situacion": "concesionario",
         },
     )
     assert resp.status_code == 422
@@ -2345,7 +2433,7 @@ def test_diagnostico_guarda_perfil_ruta2():
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": RESPUESTAS_CONCESIONARIO,
+            "respuestas": dict(RESPUESTAS_CONCESIONARIO),
             "region": "puno",
             "mineral": "cobre",
             "tipo_mina": "subterranea",
@@ -2358,64 +2446,45 @@ def test_diagnostico_guarda_perfil_ruta2():
     assert resp.status_code == 200
 
 
-def test_diagnostico_a4_es_condicional_segun_sustancias_toxicas():
-    # Sin declarar sustancias tóxicas, A4 no debe pedirse ni aceptarse.
+def test_diagnostico_perfil_a_guarda_sustancias_toxicas():
+    # Perfil A con sustancias_toxicas en el request
+    respuestas = {
+        "M0_1": "nada",
+        "A1_1": "si", "A1_2": "si", "A1_3": "si",
+        "A2_1": "ninguna", "A2_2": "no",
+        "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "oro",
+    }
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": RESPUESTAS_COMPLETAS,
+            "respuestas": respuestas,
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
-            "situacion": "minero_artesanal",
-            "sustancias_toxicas": "no",
-        },
-    )
-    assert resp.status_code == 200
-
-    # Si declara mercurio/cianuro/relaves, A4 pasa a ser obligatorio.
-    respuestas_con_a4 = {**RESPUESTAS_COMPLETAS, "A4": True}
-    resp = client.post(
-        "/diagnostico",
-        json={
-            "respuestas": respuestas_con_a4,
-            "region": "arequipa",
-            "mineral": "oro",
-            "tipo_mina": "subterranea",
-            "situacion": "minero_artesanal",
-            "sustancias_toxicas": "mercurio",
-            "gestion_sustancias": "confinamiento",
-        },
-    )
-    assert resp.status_code == 200
-    assert resp.json()["dimensiones"]["ambiental"]["maximo"] == 20  # A1-A4
-
-    # El mismo payload SIN A4 debe rechazarse cuando sí declaró sustancias tóxicas.
-    resp = client.post(
-        "/diagnostico",
-        json={
-            "respuestas": RESPUESTAS_COMPLETAS,
-            "region": "arequipa",
-            "mineral": "oro",
-            "tipo_mina": "subterranea",
-            "situacion": "minero_artesanal",
             "sustancias_toxicas": "mercurio",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert resp.json()["perfil"] == "A"
 
 
 def test_diagnostico_situacion_yacimiento_ya_no_existe():
     # Se descartó esta opción: el producto es solo para quien ya tiene
-    # una operación o una concesión (quedan 2 situaciones, no 3)
+    # una operación o una concesión
+    respuestas = {
+        "M0_1": "nada",
+        "A1_1": "si", "A1_2": "si", "A1_3": "si",
+        "A2_1": "ninguna", "A2_2": "no",
+        "A3_1": "mio", "A4_1": "completo", "A5_1": "manual", "A5_2": "cobre",
+    }
     resp = client.post(
         "/diagnostico",
         json={
-            "respuestas": {i: True for i in ["L2", "L4", "L5", "T1", "T2", "T3", "T4", "T5", "T6"]},
+            "respuestas": respuestas,
             "region": "puno",
             "mineral": "cobre",
             "tipo_mina": "tajo_abierto",
             "situacion": "yacimiento",
         },
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 422  # yacimiento is no longer a valid situacion

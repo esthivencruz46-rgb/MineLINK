@@ -1,4 +1,3 @@
-import { NOMBRES_DIMENSION_INVERSION, ORDEN_DIMENSION_INVERSION } from "../types/proyecto";
 import { formatearMonto } from "./formato";
 import type { ProyectoDetalle } from "../types/proyecto";
 
@@ -45,55 +44,61 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   doc.setFontSize(11);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(...COLOR_SUAVE);
-  const tipoMina = proyecto.situacion === "minero_artesanal"
-    ? (proyecto.tipo_mina === "subterranea" ? "Subterránea" : "Tajo abierto")
-    : "En etapa de concesión";
-  doc.text(`${cap(proyecto.mineral)} · ${cap(proyecto.region)}, Perú · ${tipoMina}`, margen, y);
+  doc.text(`${cap(proyecto.mineral)} · ${cap(proyecto.region)}, Perú`, margen, y);
   y += 10;
 
-  // Score de Atractivo de Inversión
+  // Los dos tracks del spec: semáforo legal + madurez técnica (0-5).
+  const COLOR_SEMAFORO: Record<string, [number, number, number]> = {
+    verde: [16, 158, 92],
+    amarillo: [217, 156, 14],
+    rojo: [220, 56, 46],
+  };
+  const ETIQUETA_SEMAFORO: Record<string, string> = {
+    verde: "EN ORDEN",
+    amarillo: "CON PENDIENTES",
+    rojo: "BLOQUEADO",
+  };
+  const TRACK_LEGAL: Record<string, string> = {
+    B: "Concesión titulada",
+    C:
+      proyecto.docs_completados != null && proyecto.docs_totales != null
+        ? `REINFO vigente · ${proyecto.docs_completados}/${proyecto.docs_totales} documentos`
+        : "REINFO vigente",
+    D: "Formal — autorización DREM/GREM",
+  };
+  const colorLegal = COLOR_SEMAFORO[proyecto.semaforo_legal ?? ""] ?? COLOR_SUAVE;
+
   doc.setDrawColor(...COLOR_BARRA_FONDO);
   doc.setFillColor(248, 248, 248);
-  doc.roundedRect(margen, y, anchoUtil, 24, 2, 2, "F");
+  doc.roundedRect(margen, y, anchoUtil, 30, 2, 2, "F");
   doc.setFontSize(9);
   doc.setTextColor(...COLOR_SUAVE);
-  doc.text("SCORE DE ATRACTIVO DE INVERSIÓN", margen + 5, y + 8);
-  doc.setFontSize(22);
-  doc.setTextColor(...COLOR_ACENTO);
+  doc.text("TRACK LEGAL", margen + 5, y + 8);
+  doc.setFontSize(13);
+  doc.setTextColor(...colorLegal);
   doc.setFont("helvetica", "bold");
-  doc.text(`${proyecto.score_inversion}`, margen + 5, y + 19);
-  doc.setFontSize(10);
+  doc.text(
+    `${ETIQUETA_SEMAFORO[proyecto.semaforo_legal ?? ""] ?? "SIN DATO"} — ${
+      TRACK_LEGAL[proyecto.perfil ?? ""] ?? "En evaluación"
+    }`,
+    margen + 5,
+    y + 15
+  );
+  doc.setFontSize(9);
   doc.setTextColor(...COLOR_SUAVE);
   doc.setFont("helvetica", "normal");
-  doc.text("/ 100", margen + 22, y + 19);
-  doc.setFontSize(9);
-  doc.text(`MineScore de formalización: ${proyecto.score_actual}/100`, margen + 60, y + 14);
-  y += 32;
-
-  // 6 dimensiones
-  doc.setFontSize(11);
+  doc.text("MADUREZ TÉCNICA", margen + 5, y + 22);
   doc.setTextColor(...COLOR_TEXTO);
   doc.setFont("helvetica", "bold");
-  doc.text("Desglose por dimensión", margen, y);
-  y += 6;
-  for (const dim of ORDEN_DIMENSION_INVERSION) {
-    const info = proyecto.dimensiones_inversion[dim];
-    if (!info) continue;
-    const porcentaje = info.maximo > 0 ? Math.round((info.puntaje / info.maximo) * 100) : 0;
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(...COLOR_TEXTO);
-    doc.text(NOMBRES_DIMENSION_INVERSION[dim], margen, y + 3);
-    doc.setTextColor(...COLOR_SUAVE);
-    doc.text(`${porcentaje}`, margen + anchoUtil, y + 3, { align: "right" });
-    doc.setFillColor(...COLOR_BARRA_FONDO);
-    doc.roundedRect(margen + 55, y, anchoUtil - 55 - 10, 2.5, 1, 1, "F");
-    doc.setFillColor(...COLOR_ACENTO);
-    const anchoBarra = ((anchoUtil - 55 - 10) * porcentaje) / 100;
-    if (anchoBarra > 0) doc.roundedRect(margen + 55, y, anchoBarra, 2.5, 1, 1, "F");
-    y += 7;
-  }
-  y += 4;
+  doc.text(
+    proyecto.indice_madurez != null
+      ? `Nivel ${proyecto.indice_madurez}/5${proyecto.vende_liquidacion ? " · vende con liquidación formal" : ""}`
+      : "Aún sin operación que medir",
+    margen + 42,
+    y + 22
+  );
+  doc.setFont("helvetica", "normal");
+  y += 38;
 
   // Resumen ejecutivo
   doc.setFontSize(11);
@@ -103,9 +108,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   y += 6;
   doc.setFontSize(9.5);
   doc.setFont("helvetica", "normal");
-  const partes: string[] = [
-    `${proyecto.nombre_proyecto} tiene un Score de Atractivo de Inversión de ${proyecto.score_inversion}/100.`,
-  ];
+  const partes: string[] = [];
   if (proyecto.brechas_pendientes.length === 0) {
     partes.push("Completó todos los requisitos del diagnóstico de formalización.");
   } else {

@@ -1,3 +1,8 @@
+/** ⏸️ EN PAUSA (julio 2026) — agrupación del perfil informativo anterior.
+ * Solo la usa la ficha pública para mostrar datos de diagnósticos viejos;
+ * los nuevos ya no recogen estos campos. NO BORRAR (decisión de Esthiven:
+ * evaluar reincorporación más adelante). */
+
 import type { NombreDimensionInversion } from "../types/proyecto";
 
 /** Perfil informativo del diagnóstico (Fase 1, ~40 campos según ruta):

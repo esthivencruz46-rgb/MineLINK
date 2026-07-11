@@ -29,6 +29,11 @@ class Operacion(Base):
     situacion = Column(
         String, nullable=False, default="minero_artesanal", server_default="minero_artesanal"
     )
+    # Estado en el pipeline real de formalización (pregunta de apertura del
+    # diagnóstico, ver scoring.ESTADOS_FORMALIZACION): sin_tramite |
+    # reinfo_en_tramite | reinfo_vigente | en_formalizacion | formal.
+    # NULL = diagnóstico anterior a la reestructura de julio 2026.
+    estado_formalizacion = Column(String, nullable=True, index=True)
     score_total = Column(Integer, nullable=False)
     bloqueado = Column(Boolean, nullable=False, default=False, index=True)
     respuestas_json = Column(JSON, nullable=False)

@@ -20,15 +20,19 @@ export function ListaBrechas({ brechas, dimensiones, onBuscarAyuda }: Props) {
     );
   }
 
-  const porcentajeDimension = (etiqueta: string) => {
-    const dim = DIMENSION_POR_ESTUDIO[etiqueta];
-    const info = dimensiones[dim];
-    return info ? info.puntaje / info.maximo : 0;
-  };
+  const tieneDimensiones = Object.keys(dimensiones).length > 0;
 
-  const ordenadas = [...brechas].sort(
-    (a, b) => porcentajeDimension(a) - porcentajeDimension(b)
-  );
+  const ordenadas = tieneDimensiones
+    ? [...brechas].sort((a, b) => {
+        const dimA = DIMENSION_POR_ESTUDIO[a];
+        const dimB = DIMENSION_POR_ESTUDIO[b];
+        const infoA = dimA ? dimensiones[dimA] : undefined;
+        const infoB = dimB ? dimensiones[dimB] : undefined;
+        const pctA = infoA ? infoA.puntaje / infoA.maximo : 0;
+        const pctB = infoB ? infoB.puntaje / infoB.maximo : 0;
+        return pctA - pctB;
+      })
+    : [...brechas];
 
   return (
     <div className="flex flex-col gap-3">

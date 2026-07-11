@@ -3,7 +3,8 @@
     "allow": [
       "Bash(python -m seeds.migrar_tipo_mina)",
       "Bash(wmic process *)",
-      "Read(//c/Users/ESTHIVEN/Downloads/**)"
+      "Read(//c/Users/ESTHIVEN/Downloads/**)",
+      "Bash(python -m pytest -q)"
     ]
   }
 }

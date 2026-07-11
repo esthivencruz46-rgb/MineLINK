@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from scoring import ESTUDIO_POR_PREGUNTA
+from catalogo_diagnostico import ESTUDIOS_DIAGNOSTICO, ESTUDIOS_LEGACY
 
 UPLOADS_DIR = Path(__file__).parent / "uploads" / "cvs"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -36,6 +36,11 @@ CATEGORIAS_DOCUMENTO = {
     "ruc": (_PDF_O_IMAGEN, "RUC escaneado"),
     "contrato_explotacion": (_PDF_O_IMAGEN, "Contrato de explotación"),
     "titulo_concesion": (_PDF_O_IMAGEN, "Título de concesión"),
+    # Solo para mineros con estado_formalizacion == "formal": la foto de su
+    # autorización de inicio/reinicio de actividades es EL respaldo de la
+    # insignia "Formal" en la vitrina (el gate se valida al subir, ver
+    # routers/mineros.py).
+    "autorizacion_drem": (_PDF_O_IMAGEN, "Autorización de inicio de actividades (DREM/GREM)"),
 }
 
 # El diagnóstico Sí/No declara el estado de formalización, pero esa
@@ -46,7 +51,10 @@ CATEGORIAS_DOCUMENTO = {
 # tipos aceptados que los documentos legales (PDF o foto, se convierte a
 # foto al subir — ver imagenes.convertir_pdf_a_imagen).
 TIPOS_PDF_O_IMAGEN = _PDF_O_IMAGEN
-CATEGORIAS_ESTUDIO: set[str] = set(ESTUDIO_POR_PREGUNTA.values())
+# Estudios del catálogo nuevo (perfiles A/B/C/D) + los del modelo anterior
+# (se conservan para seguir sirviendo documentos ya subidos y porque las
+# empresas pueden seguir ofreciéndolos).
+CATEGORIAS_ESTUDIO: set[str] = ESTUDIOS_DIAGNOSTICO | ESTUDIOS_LEGACY
 
 # Varios estudios del catálogo piden, en la práctica, LA MISMA foto/documento
 # que ya se pide en "Documentos legales" (los 5 fijos) u otro estudio —
@@ -63,11 +71,12 @@ _EQUIVALENCIAS_ESTUDIO: dict[str, str] = {
     "vigencia_concesion": "titulo_concesion",  # L6: la vigencia consta en el mismo título
     "tramite_sunat": "ruc",  # L4: activar el RUC = el mismo RUC escaneado
     "levantamiento_georreferenciado": "catastro",  # L5: mismo plano/GPS que el catastro
-    "levantamiento_topografico": "catastro",  # T5: topografía = plano de ubicación
-    "instrumento_ambiental_vigente": "igafom_aprobado",  # A2: vigencia consta en el mismo IGAFOM
     "puesta_en_produccion": "fotos_mina",  # O1: foto de la mina operando = fotos de la mina
     "analisis_laboratorio": "informe_leyes",  # T3: análisis de laboratorio = informe de leyes/ensayes
     "contrato_explotacion": "contrato_explotacion",  # L3: mismo nombre en ambos catálogos
+    # Los estudios nuevos del pipeline (acreditacion_terreno, dj_arqueologica,
+    # expediente_tecnico, declaracion_produccion_semestral) tienen slot
+    # propio — no equivalen a ningún documento fijo.
 }
 
 

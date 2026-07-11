@@ -11,7 +11,8 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from scoring import ESTUDIO_POR_PREGUNTA, estado_seguimiento, ids_esperados_para
+from scoring import estado_seguimiento
+from catalogo_diagnostico import BRECHA_POR_PREGUNTA, ids_esperados
 from security import (
     contenido_coincide_con_tipo,
     intentos_recuperacion_restantes,
@@ -59,13 +60,16 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
 
     Tampoco se listan los estudios que en la práctica piden la MISMA foto
     que ya se pide en "Documentos legales" u otro estudio (ver
-    `uploads_config.categoria_equivalente`) — evita pedir "Título de
-    concesión" y "Ser titular de tu concesión" como dos slots separados
-    cuando es un solo papel."""
+    `uploads_config.categoria_equivalente`) — evita pedir la misma foto
+    dos veces con nombres distintos."""
     situacion = operacion.situacion or "minero_artesanal"
-    perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
-    ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
-    todos = {ESTUDIO_POR_PREGUNTA[i] for i in ids}
+    respuestas = operacion.respuestas_json or {}
+    try:
+        ids = ids_esperados(respuestas)
+    except (ValueError, TypeError):
+        # Diagnóstico del modelo anterior: sin catálogo con que cruzar.
+        return []
+    todos = {BRECHA_POR_PREGUNTA[i][1] for i in ids if i in BRECHA_POR_PREGUNTA}
     pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
     return sorted(
         e for e in todos
@@ -74,16 +78,17 @@ def _estudios_aplicables(operacion: models.Operacion) -> list[str]:
 
 
 def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
-    """True si declaró ser titular de la concesión (L2 no está pendiente:
-    respondió Sí, o el admin marcó la brecha como resuelta), False si no,
-    None si L2 no aplica a esta ruta (no debería pasar en la práctica)."""
-    situacion = operacion.situacion or "minero_artesanal"
-    perfil = {"sustancias_toxicas": operacion.sustancias_toxicas}
-    ids = ids_esperados_para(operacion.tipo_mina, situacion, perfil)
-    if "L2" not in ids:
-        return None
-    pendientes = set(estado_seguimiento(operacion)["brechas_pendientes"])
-    return "titularidad_concesion" not in pendientes
+    """True si es titular de su concesión, False si trabaja en concesión
+    ajena, None si no se puede determinar (perfil A todavía no tiene
+    concesión; filas del modelo viejo). Con el Módulo 0 esto es directo:
+    M0_1 = concesion_propia → titular; concesion_contrato → no titular."""
+    respuestas = operacion.respuestas_json or {}
+    m0_1 = respuestas.get("M0_1") if isinstance(respuestas, dict) else None
+    if m0_1 == "concesion_propia":
+        return True
+    if m0_1 == "concesion_contrato":
+        return False
+    return None
 
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
@@ -98,6 +103,7 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         codigo_reinfo=lead.codigo_reinfo,
         created_at=lead.created_at,
         situacion=operacion.situacion or "minero_artesanal",
+        estado_formalizacion=operacion.estado_formalizacion,
         score_total=operacion.score_total,
         bloqueado=operacion.bloqueado,
         brechas=operacion.brechas_json,
@@ -331,6 +337,16 @@ async def subir_documento(
     if archivo.content_type not in tipos_aceptados:
         raise HTTPException(
             422, f"Para '{categoria}' el archivo debe ser: {', '.join(tipos_aceptados)}"
+        )
+
+    # La autorización DREM/GREM solo tiene sentido para quien declaró ser
+    # formal — es el respaldo de la insignia "Formal" en la vitrina.
+    # La autorización DREM/GREM es el respaldo del perfil D (formal pleno).
+    if categoria == "autorizacion_drem" and operacion.estado_formalizacion != "D":
+        raise HTTPException(
+            422,
+            "La autorización DREM/GREM solo aplica si declaraste que ya eres "
+            "formal en tu diagnóstico.",
         )
 
     if categoria == "fotos_mina":

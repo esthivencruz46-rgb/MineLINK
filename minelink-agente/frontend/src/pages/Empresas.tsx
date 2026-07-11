@@ -208,7 +208,7 @@ export function Empresas() {
 
       {mostrarModal && (
         <RegistroMineroModal
-          situacion={guardado.respuesta.situacion}
+          situacion={guardado.situacion}
           codigoReinfoInicial={guardado.codigoReinfo}
           enviando={enviandoLead}
           error={errorLead}
