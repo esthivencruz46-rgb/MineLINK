@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { Building2, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
 import { obtenerEmpresas } from "../services/api";
-import { enviarLead } from "../services/api";
 import { leerDiagnostico } from "../services/storage";
+import { useRegistroMinero } from "../hooks/useRegistroMinero";
 import type { EmpresaPublica } from "../types/empresa";
 
 const TODOS_LOS_ESTUDIOS = Object.keys(INFO_BRECHA);
 
 export function Empresas() {
-  const navigate = useNavigate();
   const guardado = leerDiagnostico();
 
   // "no especificado" es el placeholder que guarda el diagnóstico cuando
@@ -30,8 +29,11 @@ export function Empresas() {
   const [esDemo, setEsDemo] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [mostrarModal, setMostrarModal] = useState(false);
-  const [enviandoLead, setEnviandoLead] = useState(false);
-  const [errorLead, setErrorLead] = useState<string | undefined>();
+  const {
+    enviando: enviandoLead,
+    error: errorLead,
+    enviar: enviarRegistro,
+  } = useRegistroMinero(guardado?.respuesta.id);
 
   useEffect(() => {
     setCargando(true);
@@ -52,52 +54,6 @@ export function Empresas() {
         ? actuales.filter((e) => e !== estudio)
         : [...actuales, estudio]
     );
-  }
-
-  async function enviarRegistro(datos: {
-    nombre: string;
-    whatsapp: string;
-    region: string;
-    email: string;
-    nombreOperacion: string;
-    codigoReinfo: string;
-    username: string;
-    password: string;
-    preguntaSeguridad: string;
-    respuestaSeguridad: string;
-  }) {
-    if (!guardado) return;
-    setEnviandoLead(true);
-    setErrorLead(undefined);
-    try {
-      await enviarLead({
-        nombre: datos.nombre,
-        whatsapp: datos.whatsapp,
-        region: datos.region,
-        operacion_id: guardado.respuesta.id,
-        username: datos.username,
-        password: datos.password,
-        pregunta_seguridad: datos.preguntaSeguridad,
-        respuesta_seguridad: datos.respuestaSeguridad,
-        email: datos.email || undefined,
-        nombre_operacion: datos.nombreOperacion || undefined,
-        codigo_reinfo: datos.codigoReinfo || undefined,
-      });
-      navigate("/gracias");
-    } catch (e) {
-      const mensaje = e instanceof Error ? e.message : "";
-      if (mensaje.includes("409") && mensaje.toLowerCase().includes("usuario")) {
-        setErrorLead("Ese nombre de usuario ya está en uso, elige otro.");
-      } else if (mensaje.includes("409") && mensaje.toLowerCase().includes("whatsapp")) {
-        setErrorLead("Ese número de WhatsApp ya está registrado.");
-      } else if (mensaje.includes("409")) {
-        setErrorLead("Ese código REINFO ya está registrado.");
-      } else {
-        setErrorLead("No pudimos enviar tus datos. Intenta de nuevo.");
-      }
-    } finally {
-      setEnviandoLead(false);
-    }
   }
 
   return (

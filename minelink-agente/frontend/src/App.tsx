@@ -24,6 +24,7 @@ import { Postular } from "./pages/Postular";
 import { Proyectos } from "./pages/Proyectos";
 import { SinRuta } from "./pages/SinRuta";
 import { ProyectoDetalle } from "./pages/ProyectoDetalle";
+import { Registro } from "./pages/Registro";
 import { RecuperarPasswordMinero } from "./pages/RecuperarPasswordMinero";
 import { RecuperarPasswordInversionista } from "./pages/RecuperarPasswordInversionista";
 import { Resultado } from "./pages/Resultado";
@@ -58,6 +59,7 @@ export function App() {
             <Route path="/resultado" element={<Resultado />} />
             <Route path="/sin-ruta" element={<SinRuta />} />
             <Route path="/empresas" element={<Empresas />} />
+            <Route path="/registro" element={<Registro />} />
             <Route path="/postular" element={<Postular />} />
             <Route path="/gracias" element={<Gracias />} />
             <Route path="/proyectos" element={<Proyectos />} />

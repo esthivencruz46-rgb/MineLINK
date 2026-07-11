@@ -233,7 +233,9 @@ export function Resultado() {
       {/* Registro */}
       <div className="rounded-lg bg-acento/5 p-4 text-center dark:bg-acento/10">
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-          ¿Quieres guardar tu diagnóstico y acceder a más opciones?
+          {respuesta.perfil === "A" || respuesta.perfil === "A_avanzado"
+            ? "Guarda tu avance con una cuenta: cuando tengas tu concesión, ya estarás dentro."
+            : "¿Quieres guardar tu diagnóstico y acceder a más opciones?"}
         </p>
         <button
           onClick={() => navigate("/registro")}
