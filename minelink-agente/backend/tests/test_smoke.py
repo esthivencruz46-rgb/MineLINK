@@ -541,7 +541,12 @@ def test_mineros_login_y_perfil():
     # (mismo mecanismo de estado_seguimiento que usa /proyectos).
     assert body["perfil"] == diag["perfil"]
     assert body["semaforo_legal"] == diag["semaforo_legal"]
-    assert body["apto_inversionistas"] == diag["apto_inversionistas"]
+    # apto_inversionistas en el diagnóstico crudo es "elegible en teoría"
+    # (perfil+semáforo, sin BD); en /mineros/me exige ADEMÁS el visto bueno
+    # del Módulo INV (operacion.inv_visto_bueno) — recién creada la cuenta,
+    # ese visto bueno todavía no existe, así que acá es False aunque el
+    # diagnóstico crudo haya dado True.
+    assert body["apto_inversionistas"] is False
     assert body["semaforo_tecnico"] is None  # Módulo INV en pausa
     assert body["indice_madurez"] is None
 
@@ -933,6 +938,83 @@ RESPUESTAS_INV_C = {
     "INV_C5": "50_100",
 }
 
+RESPUESTAS_INV_B = {
+    "INV_0_1": "25k_100k",
+    "INV_0_2": ["equipo"],
+    "INV_0_3": "regalia",
+    "INV_0_4": ["concesion"],
+    "INV_0_5": "2_5a",
+    "INV_0_6": "nunca",
+    "INV_B1a": "no_tengo",
+    "INV_B1b": "no_tengo",
+    "INV_B1c": "no_tengo",
+    "INV_B2": "nunca",
+    "INV_B3": "capital",
+    "INV_B4": "si_titularidad",
+}
+
+
+def _hacer_apto_inversionistas(operacion_id, username, password="clave123", respuestas_inv=None):
+    """Empuja una operación (con lead ya creado) por TODO el pipeline hasta
+    apto_inversionistas=True: aprueba los documentos de formalización, el
+    Módulo INV y sus documentos de sustento. Atajo para los tests de
+    /proyectos — desde julio 2026 el semáforo legal verde ya no basta por
+    sí solo, también exige el visto bueno de inversión (ver
+    scoring.estado_seguimiento)."""
+    token = client.post(
+        "/mineros/login", json={"username": username, "password": password}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    for e in perfil["estudios_aplicables"]:
+        doc = client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": e["codigo"]},
+            files={"archivo": (f"{e['codigo']}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        ).json()
+        client.put(
+            f"/admin/documentos/{doc['id']}/revision",
+            json={"estado_revision": "aprobado"},
+            headers=admin_headers,
+        )
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.json()
+
+    respuestas_inv = respuestas_inv or RESPUESTAS_INV_C
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": respuestas_inv}, headers=headers
+    )
+    assert resp.status_code == 200, resp.json()
+
+    for c in resp.json()["categorias_requeridas"]:
+        if c["aprobado"]:
+            continue
+        doc = client.post(
+            "/mineros/documentos",
+            headers=headers,
+            data={"categoria": c["categoria"]},
+            files={"archivo": (f"{c['categoria']}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+        ).json()
+        client.put(
+            f"/admin/documentos/{doc['id']}/revision",
+            json={"estado_revision": "aprobado"},
+            headers=admin_headers,
+        )
+
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200, resp.json()
+
 
 def test_inversion_no_disponible_sin_visto_bueno_documentos():
     diag = _crear_diagnostico().json()
@@ -1298,6 +1380,7 @@ def test_proyectos_publicos_lista_sin_datos_sensibles():
         headers={"Authorization": f"Bearer {token}"},
         json={"capital_buscado": "USD 10,000"},
     )
+    _hacer_apto_inversionistas(diag["id"], "proyectominero")
 
     resp = client.get("/proyectos")
     assert resp.status_code == 200
@@ -1316,6 +1399,7 @@ def test_proyectos_publicos_lista_sin_datos_sensibles():
 def test_proyectos_sin_nombre_operacion_usa_generico():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="sinapodo"))
+    _hacer_apto_inversionistas(diag["id"], "sinapodo")
 
     resp = client.get("/proyectos")
     assert resp.json()[0]["nombre_proyecto"] == "Proyecto minero en Arequipa"
@@ -1335,6 +1419,7 @@ def test_proyectos_incluye_operaciones_bloqueadas():
     ).json()
     assert diag["apto_inversionistas"] is True
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado1"))
+    _hacer_apto_inversionistas(diag["id"], "bloqueado1", respuestas_inv=RESPUESTAS_INV_B)
 
     resp = client.get("/proyectos")
     assert len(resp.json()) == 1
@@ -1346,6 +1431,7 @@ def test_proyectos_filtra_por_mineral_y_region():
         "/leads",
         json=_lead_payload(diag1["id"], username="filtro1", whatsapp="+51900000011"),
     )
+    _hacer_apto_inversionistas(diag1["id"], "filtro1")
     diag2 = client.post(
         "/diagnostico",
         json={
@@ -1361,6 +1447,7 @@ def test_proyectos_filtra_por_mineral_y_region():
             diag2["id"], username="filtro2", whatsapp="+51900000022", region="puno"
         ),
     )
+    _hacer_apto_inversionistas(diag2["id"], "filtro2")
 
     resp = client.get("/proyectos?region=puno")
     assert len(resp.json()) == 1
@@ -1415,12 +1502,13 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
         json=_lead_payload(diag_a["id"], username="perfilAoculto", whatsapp="+51987000222"),
     )
 
-    # Un perfil C verde SÍ se lista, con la tarjeta del spec.
+    # Un perfil C verde con visto bueno de inversión SÍ se lista.
     diag_ok = _crear_diagnostico().json()
     client.post(
         "/leads",
         json=_lead_payload(diag_ok["id"], username="verdevisible", whatsapp="+51987000333"),
     )
+    _hacer_apto_inversionistas(diag_ok["id"], "verdevisible")
 
     proyectos = client.get("/proyectos").json()
     ids = {p["operacion_id"] for p in proyectos}
@@ -2327,6 +2415,8 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
             "ubicacion_maps": "https://maps.app.goo.gl/zona1",
         },
     )
+    operacion_id = client.get("/mineros/me", headers=headers).json()["operacion_id"]
+    _hacer_apto_inversionistas(operacion_id, "minerogenerado")
 
     proyectos = client.get("/proyectos").json()
     assert len(proyectos) == 1
@@ -2351,6 +2441,7 @@ def test_proyectos_ya_no_expone_scores_0_100():
         "/leads",
         json=_lead_payload(diag["id"], username="scoreinversion", nombre_operacion="Mina Score"),
     )
+    _hacer_apto_inversionistas(diag["id"], "scoreinversion")
 
     proyectos = client.get("/proyectos").json()
     assert len(proyectos) == 1
@@ -2798,6 +2889,8 @@ def test_proyectos_lista_incluye_foto_portada():
         files={"archivo": ("mina.jpg", b"\xff\xd8\xfffoto portada", "image/jpeg")},
         headers=headers,
     )
+    operacion_id = client.get("/mineros/me", headers=headers).json()["operacion_id"]
+    _hacer_apto_inversionistas(operacion_id, "minerofoto")
 
     proyectos = client.get("/proyectos").json()
     assert proyectos[0]["foto_portada_url"] is not None

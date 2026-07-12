@@ -340,3 +340,32 @@ export function preguntasVisiblesInversion(
   const bloque = perfil ? (BLOQUE_INV_POR_PERFIL[perfil] ?? []) : [];
   return [...MODULO_INV_0, ...bloque].filter((p) => !p.mostrarSi || p.mostrarSi(respuestas));
 }
+
+/** Etiquetas de las categorías de documento de sustento del Módulo INV que
+ *  NO existen ya como estudio del diagnóstico — espejo de
+ *  backend/uploads_config.CATEGORIAS_INVERSION + el título de concesión
+ *  (backend/types/documento.ts CATEGORIAS_DOCUMENTO). */
+export const ETIQUETA_CATEGORIA_INV: Record<string, string> = {
+  titulo_concesion: "Título de concesión",
+  liquidaciones_venta: "Liquidaciones de venta",
+  estados_financieros_libros: "Estados financieros o libros contables",
+};
+
+/** Documentos de sustento que el admin debe ver APROBADOS antes de dar el
+ *  visto bueno del Módulo INV — espejo EXACTO de
+ *  backend/catalogo_inversion.categorias_requeridas_inversion(). */
+export function categoriasRequeridasInversion(
+  perfil: string | null | undefined,
+  respuestasInv: RespuestasInversion
+): string[] {
+  if (perfil === "A" || perfil === "A_avanzado") return [];
+  if (perfil === "B") return ["titulo_concesion"];
+  if (perfil === "C") return respuestasInv.INV_C2 !== "no" ? ["liquidaciones_venta"] : [];
+  if (perfil === "D") {
+    const requeridos: string[] = [];
+    if (respuestasInv.INV_D1 !== "no") requeridos.push("estados_financieros_libros");
+    if (respuestasInv.INV_D2 !== "no") requeridos.push("liquidaciones_venta");
+    return requeridos;
+  }
+  return [];
+}

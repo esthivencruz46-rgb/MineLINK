@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Check, ImageIcon } from "lucide-react";
 import { ProgressBar } from "../components/ProgressBar";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import {
+  categoriasRequeridasInversion,
+  ETIQUETA_CATEGORIA_INV,
   preguntasVisiblesInversion,
   type PreguntaInv,
   type RespuestasInversion,
 } from "../data/preguntasInversion";
+import type { DocumentoOperacion } from "../types/documento";
 
 /** Wizard del Módulo INV — misma arquitectura de fondo que Cuestionario.tsx
  *  (respuestas + posición derivadas, sin aritmética de saltos guardada),
@@ -17,6 +20,7 @@ export function CuestionarioInversion() {
   const { authFetch } = useMineroAuth();
   const navigate = useNavigate();
   const [perfil, setPerfil] = useState<string | null>(null);
+  const [rutaVolver, setRutaVolver] = useState("/mi-cuenta");
   const [ofrece, setOfrece] = useState<boolean | null>(null);
   const [motivo, setMotivo] = useState<string | null>(null);
   const [respuestas, setRespuestas] = useState<RespuestasInversion>({});
@@ -25,20 +29,26 @@ export function CuestionarioInversion() {
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
+  const [subiendoCategoria, setSubiendoCategoria] = useState<string | null>(null);
+  const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     Promise.all([
       authFetch("/mineros/me").then((r) => r.json()),
       authFetch("/mineros/inversion").then((r) => r.json()),
+      authFetch("/mineros/documentos").then((r) => r.json()),
     ])
-      .then(([me, inv]) => {
+      .then(([me, inv, docs]) => {
         const perfilMinero: string | null = me.perfil ?? null;
         const respuestasPrevias: RespuestasInversion = inv.respuestas ?? {};
         setPerfil(perfilMinero);
+        setRutaVolver(me.situacion === "concesionario" ? "/mi-concesion" : "/mi-cuenta");
         setOfrece(inv.ofrece);
         setMotivo(inv.motivo ?? null);
         setRespuestas(respuestasPrevias);
         setEnviado(Boolean(inv.enviado));
+        setDocumentos(docs ?? []);
         // Retoma en la primera pregunta sin responder, no siempre desde 0.
         const visibles = preguntasVisiblesInversion(perfilMinero, respuestasPrevias);
         const idx = visibles.findIndex((p) => respuestasPrevias[p.id] === undefined);
@@ -48,6 +58,35 @@ export function CuestionarioInversion() {
       .finally(() => setCargando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authFetch]);
+
+  const categoriasRequeridas = useMemo(
+    () => categoriasRequeridasInversion(perfil, respuestas),
+    [perfil, respuestas]
+  );
+  const faltanDocumentos = categoriasRequeridas.filter(
+    (c) => !documentos.some((d) => d.categoria === c)
+  );
+
+  async function subirDocumentoSustento(categoria: string, archivo: File) {
+    setSubiendoCategoria(categoria);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.set("categoria", categoria);
+      form.set("archivo", archivo);
+      const resp = await authFetch("/mineros/documentos", { method: "POST", body: form });
+      if (!resp.ok) {
+        const detalle = await resp.json().catch(() => null);
+        throw new Error(detalle?.detail ?? "No se pudo subir el archivo.");
+      }
+      const doc = await resp.json();
+      setDocumentos((actuales) => [doc, ...actuales]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo subir el archivo.");
+    } finally {
+      setSubiendoCategoria(null);
+    }
+  }
 
   const visibles = useMemo(
     () => preguntasVisiblesInversion(perfil, respuestas),
@@ -79,7 +118,14 @@ export function CuestionarioInversion() {
         const detalle = await resp.json().catch(() => null);
         throw new Error(detalle?.detail ?? "No pudimos enviar tus respuestas.");
       }
-      setEnviado(true);
+      navigate("/documentos-enviados", {
+        state: {
+          volverA: rutaVolver,
+          titulo: "¡Perfil de inversión enviado!",
+          mensaje:
+            "Esthiven va a revisar tus respuestas y tus documentos de sustento. Te avisamos cuando tu perfil quede visible para inversionistas.",
+        },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos enviar tus respuestas.");
     } finally {
@@ -125,20 +171,75 @@ export function CuestionarioInversion() {
 
   if (!actual) {
     return (
-      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center gap-6 px-4">
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center gap-6 px-4 py-16">
         <BotonVolver onClick={volver} />
         <h1 className="text-xl font-bold">Listo para enviar</h1>
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-          Respondiste todas las preguntas del perfil de inversión. Una vez que envíes,
-          Esthiven revisará tus respuestas junto con tus documentos de sustento.
+          Respondiste todas las preguntas del perfil de inversión.
+          {categoriasRequeridas.length > 0 &&
+            " Sube también los documentos que tu perfil necesita antes de enviar."}
         </p>
+
+        {categoriasRequeridas.length > 0 && (
+          <div className="flex flex-col gap-3 rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark">
+            <h2 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+              Documentos de sustento
+            </h2>
+            {categoriasRequeridas.map((categoria) => {
+              const archivos = documentos.filter((d) => d.categoria === categoria);
+              return (
+                <div key={categoria} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    {archivos.length > 0 ? (
+                      <Check size={18} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
+                    ) : (
+                      <ImageIcon size={18} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+                    )}
+                    <span className="text-sm">
+                      {ETIQUETA_CATEGORIA_INV[categoria] ?? categoria}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => inputsRef.current[categoria]?.click()}
+                    disabled={subiendoCategoria === categoria}
+                    className="min-h-[36px] shrink-0 rounded-lg border border-acento px-3 text-xs font-semibold text-acento disabled:opacity-50"
+                  >
+                    {subiendoCategoria === categoria
+                      ? "Subiendo..."
+                      : archivos.length > 0
+                        ? "Reemplazar"
+                        : "+ Agregar"}
+                  </button>
+                  <input
+                    ref={(el) => {
+                      inputsRef.current[categoria] = el;
+                    }}
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const archivo = e.target.files?.[0];
+                      if (archivo) subirDocumentoSustento(categoria, archivo);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
-          disabled={enviando}
+          disabled={enviando || faltanDocumentos.length > 0}
           onClick={enviar}
           className="min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white disabled:opacity-50"
         >
-          {enviando ? "Enviando..." : "Enviar"}
+          {enviando
+            ? "Enviando..."
+            : faltanDocumentos.length > 0
+              ? "Sube los documentos que faltan"
+              : "Enviar"}
         </button>
       </div>
     );
