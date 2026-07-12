@@ -12,8 +12,14 @@ import schemas
 from auth import authenticate_admin, create_access_token, get_current_admin, hash_password
 from database import get_db
 from security import limitar_intentos_login
-from scoring import categorias_requeridas_out, estado_seguimiento, estudios_aplicables
+from scoring import (
+    categorias_requeridas_out,
+    estado_seguimiento,
+    estudios_aplicables,
+    respuestas_diagnostico_efectivas,
+)
 from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
+from notificaciones import crear_notificacion
 import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -436,6 +442,24 @@ def revisar_documento(
         payload.motivo_rechazo if payload.estado_revision == "rechazado" else None
     )
     documento.revisado_en = datetime.now(timezone.utc)
+
+    if payload.estado_revision == "rechazado":
+        lead = (
+            db.query(models.Lead)
+            .filter(models.Lead.operacion_id == documento.operacion_id)
+            .first()
+        )
+        if lead is not None:
+            etiqueta = categorias_requeridas_out(
+                documento.operacion, [documento.categoria]
+            )[0]["etiqueta"]
+            crear_notificacion(
+                db,
+                lead.id,
+                "documento_rechazado",
+                f"Tu documento \"{etiqueta}\" fue rechazado: {payload.motivo_rechazo}",
+            )
+
     db.commit()
     db.refresh(documento)
     return documento
@@ -487,13 +511,23 @@ def actualizar_visto_bueno_documentos(
                 ),
             )
 
+    ya_estaba_aprobado = operacion.visto_bueno_documentos
     operacion.visto_bueno_documentos = payload.visto_bueno
-    db.commit()
-    db.refresh(operacion)
 
     lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
     if lead is None:
         raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
+
+    if payload.visto_bueno and not ya_estaba_aprobado:
+        crear_notificacion(
+            db,
+            lead.id,
+            "documentos_aprobados",
+            "Tus documentos de formalización fueron aprobados. Ya puedes completar tu perfil de inversión.",
+        )
+
+    db.commit()
+    db.refresh(operacion)
 
     from routers.mineros import _perfil_out
 
@@ -522,7 +556,9 @@ def ver_inversion(
         respuestas=respuestas_inv,
         enviado=operacion.inv_enviado_en is not None,
         visto_bueno=operacion.inv_visto_bueno,
-        alertas=alertas_inversion(perfil, operacion.respuestas_json, respuestas_inv),
+        alertas=alertas_inversion(
+            perfil, respuestas_diagnostico_efectivas(operacion), respuestas_inv
+        ),
         categorias_requeridas=categorias_requeridas_out(
             operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
         ),
@@ -564,13 +600,23 @@ def actualizar_visto_bueno_inversion(
                 ),
             )
 
+    ya_estaba_aprobado = operacion.inv_visto_bueno
     operacion.inv_visto_bueno = payload.visto_bueno
-    db.commit()
-    db.refresh(operacion)
 
     lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
     if lead is None:
         raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
+
+    if payload.visto_bueno and not ya_estaba_aprobado:
+        crear_notificacion(
+            db,
+            lead.id,
+            "inversion_aprobada",
+            "Tu perfil de inversión fue aprobado. Ya eres visible para inversionistas.",
+        )
+
+    db.commit()
+    db.refresh(operacion)
 
     from routers.mineros import _perfil_out
 

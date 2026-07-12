@@ -74,12 +74,14 @@ PDF_VALIDO_DE_PRUEBA = (
 
 # Fixture principal: Perfil C (REINFO vigente, opera en concesión propia,
 # todos los documentos de formalización aprobados). Semáforo legal verde,
-# sin brechas, apto para inversionistas.
+# sin brechas, apto para inversionistas. Es titular de su propia concesión
+# → C2_7 (declaración de producción semestral) NO aplica, exceptuado por
+# ley (Art. 7c, D.S. N°001-2020-EM) — no se incluye en ids_esperados.
 RESPUESTAS_COMPLETAS = {
     "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
     "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
     "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
-    "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
+    "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado",
     "C4_1": "50_100t", "C4_2": "siempre",
 }
 
@@ -1069,6 +1071,142 @@ def test_admin_visto_bueno_inversion_exige_documentos_de_sustento():
     assert resp.json()["inv_visto_bueno"] is True
 
 
+def test_mineros_notificaciones_requiere_jwt():
+    resp = client.get("/mineros/notificaciones")
+    assert resp.status_code == 403
+
+
+def test_notificacion_al_rechazar_documento():
+    _operacion_id, headers, _codigos = _minero_con_estudios("notifrechazo")
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    doc = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("a.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    assert resp.json() == []
+
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": "Foto borrosa"},
+        headers=admin_headers,
+    )
+
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    assert resp.status_code == 200
+    notifs = resp.json()
+    assert len(notifs) == 1
+    assert notifs[0]["tipo"] == "documento_rechazado"
+    assert "Foto borrosa" in notifs[0]["mensaje"]
+    assert notifs[0]["leida"] is False
+
+
+def test_notificacion_al_dar_visto_bueno_documentos_e_inversion():
+    operacion_id, headers, admin_headers = _minero_con_visto_bueno("notifvistobueno")
+
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    notifs = resp.json()
+    assert any(n["tipo"] == "documentos_aprobados" for n in notifs)
+
+    # Repetir el mismo visto bueno (ya True) no debe duplicar la notificación
+    client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    assert sum(1 for n in resp.json() if n["tipo"] == "documentos_aprobados") == 1
+
+    client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    # RESPUESTAS_INV_C tiene INV_C2="completas" (≠ "no") → exige liquidaciones_venta aprobado
+    doc = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "liquidaciones_venta"},
+        files={"archivo": ("liq.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
+    )
+    resp = client.put(
+        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
+        json={"visto_bueno": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    assert any(n["tipo"] == "inversion_aprobada" for n in resp.json())
+
+
+def test_mineros_marcar_notificaciones_leidas():
+    _operacion_id, headers, _codigos = _minero_con_estudios("notifleidas")
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    doc = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("a.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": "Mal enfocada"},
+        headers=admin_headers,
+    )
+
+    resp = client.post("/mineros/notificaciones/marcar-leidas", headers=headers)
+    assert resp.status_code == 200
+    assert all(n["leida"] is True for n in resp.json())
+
+    resp = client.get("/mineros/notificaciones", headers=headers)
+    assert all(n["leida"] is True for n in resp.json())
+
+
+def test_inversion_bloqueada_si_titular_se_niega_a_firmar_contrato():
+    respuestas_contrato_se_niega = dict(RESPUESTAS_COMPLETAS)
+    respuestas_contrato_se_niega.update(
+        {
+            "C1_3": "contrato",
+            "C2_7": "aprobado",
+            "C3_1": "se_niega",
+        }
+    )
+    operacion_id, headers, admin_headers = _minero_con_visto_bueno(
+        "invriesgolegal", respuestas_contrato_se_niega
+    )
+
+    resp = client.get("/mineros/inversion", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["ofrece"] is False
+    assert "riesgo legal" in resp.json()["motivo"].lower()
+
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    assert resp.status_code == 422
+
+    # El admin resuelve la brecha "contrato_explotacion" (mismo mecanismo
+    # de seguimiento manual que ya existía) → se desbloquea solo.
+    client.put(
+        f"/admin/operaciones/{operacion_id}/brechas-resueltas",
+        json={"brechas_resueltas": ["contrato_explotacion"]},
+        headers=admin_headers,
+    )
+    resp = client.get("/mineros/inversion", headers=headers)
+    assert resp.json()["ofrece"] is True
+
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    assert resp.status_code == 200
+
+
 def test_mineros_documento_pdf_se_convierte_a_foto():
     # "Documentación" siempre muestra fotos, nunca un PDF crudo: la primera
     # hoja del PDF se convierte a JPEG al subirse.
@@ -1294,8 +1432,8 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     assert tarjeta["perfil"] == "C"
     assert tarjeta["semaforo_legal"] == "verde"
     assert tarjeta["indice_madurez"] is None  # Módulo INV en pausa
-    assert tarjeta["docs_completados"] == 7
-    assert tarjeta["docs_totales"] == 7
+    assert tarjeta["docs_completados"] == 6
+    assert tarjeta["docs_totales"] == 6
     assert tarjeta["vende_liquidacion"] is True
 
 
@@ -2442,6 +2580,7 @@ def test_mineros_me_expone_es_titular_concesion():
     # Quien opera en concesión ajena (C1_3=contrato) → False.
     respuestas_contrato = dict(RESPUESTAS_COMPLETAS)
     respuestas_contrato["C1_3"] = "contrato"
+    respuestas_contrato["C2_7"] = "aprobado"
     respuestas_contrato["C3_1"] = "firmado_inscrito"
     diag = client.post(
         "/diagnostico",

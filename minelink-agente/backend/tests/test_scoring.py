@@ -2,7 +2,8 @@ from datetime import date
 
 import pytest
 
-from catalogo_diagnostico import validar_respuestas
+from catalogo_diagnostico import validar_respuestas, ids_esperados
+from catalogo_inversion import activacion_inversion, alertas_inversion
 from scoring import (
     calcular_diagnostico,
     clasificacion_de,
@@ -65,11 +66,13 @@ def _perfil_b_sin_b5() -> dict[str, str]:
 
 
 def _perfil_c(overrides: dict[str, str] | None = None) -> dict[str, str]:
+    # Titular de su propia concesión → C2_7 (declaración de producción
+    # semestral) NO aplica, exceptuado por ley (Art. 7c, D.S. N°001-2020-EM).
     base = {
         "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
         "C1_1": "vigente", "C1_2": "si", "C1_3": "titular",
         "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
-        "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
+        "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado",
         "C4_1": "50_100t", "C4_2": "siempre",
     }
     if overrides:
@@ -259,7 +262,7 @@ def test_urgencia_c_alerta_roja():
     """Si todos los docs están sin iniciar, los días necesarios superan
     el plazo al 31/12/2026 y se activa alerta_roja."""
     r = _perfil_c()
-    for n in range(1, 8):
+    for n in range(1, 7):  # titular: C2_7 no aplica, no está en sus ids
         r[f"C2_{n}"] = "no_iniciado"
     resultado = calcular_diagnostico(r, hoy=date(2026, 10, 1))
     assert resultado["urgencia"]["alerta_roja"] is True
@@ -271,7 +274,7 @@ def test_urgencia_c_sin_alerta():
     r = _perfil_c()
     resultado = calcular_diagnostico(r, hoy=date(2026, 7, 1))
     assert resultado["urgencia"]["alerta_roja"] is False
-    assert resultado["urgencia"]["docs_completados"] == 7
+    assert resultado["urgencia"]["docs_completados"] == 6
 
 
 # ---------------------------------------------------------------------------
@@ -410,7 +413,7 @@ def test_perfil_c_verde_docs_completos():
     assert res["semaforo_legal"] == "verde"
     assert res["apto_inversionistas"] is True
     assert res["brechas"] == []
-    assert res["urgencia"]["docs_completados"] == 7
+    assert res["urgencia"]["docs_completados"] == 6
 
 
 def test_perfil_c_rojo_suspendido():
@@ -426,6 +429,47 @@ def test_perfil_c_contrato_incluye_c3():
     res = calcular_diagnostico(r, hoy=date(2026, 7, 1))
     assert res["perfil"] == "C"
     assert res["brechas"] == []
+
+
+def test_titular_no_requiere_c2_7():
+    r = _perfil_c()
+    assert "C2_7" not in ids_esperados(r)
+    assert validar_respuestas(r) == "C"
+
+
+def test_contrato_si_requiere_c2_7():
+    r = _perfil_c_contrato()
+    assert "C2_7" in ids_esperados(r)
+
+
+def test_activacion_inversion_bloqueada_si_titular_se_niega():
+    r = _perfil_c_contrato({"C3_1": "se_niega"})
+    activacion = activacion_inversion("C", r)
+    assert activacion["ofrece"] is False
+    assert "riesgo legal" in (activacion["motivo"] or "").lower()
+
+
+def test_activacion_inversion_se_desbloquea_si_se_resuelve_c3_1():
+    # Mismo mecanismo que ya usa el admin para brechas: parchear C3_1 a su
+    # valor bueno (VALOR_RESUELTO_POR_PREGUNTA) desbloquea el Módulo INV
+    # sin tocar la declaración original.
+    r = _perfil_c_contrato({"C3_1": "se_niega"})
+    r_resuelta = respuestas_con_brechas_resueltas(r, ["contrato_explotacion"])
+    assert r_resuelta["C3_1"] != "se_niega"
+    assert activacion_inversion("C", r_resuelta)["ofrece"] is True
+
+
+def test_al9_alerta_riesgo_exclusion_reinfo():
+    r = _perfil_c_contrato({"C3_1": "se_niega"})
+    alertas = alertas_inversion("C", r, {"INV_0_1": "menos_25k"})
+    codigos = {a["codigo"] for a in alertas}
+    assert "AL9" in codigos
+
+
+def test_al9_no_dispara_sin_modulo_inv_enviado():
+    r = _perfil_c_contrato({"C3_1": "se_niega"})
+    alertas = alertas_inversion("C", r, {})
+    assert not any(a["codigo"] == "AL9" for a in alertas)
 
 
 def test_perfil_d_verde():

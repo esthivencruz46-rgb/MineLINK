@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
+import { NotificacionesBell } from "../components/NotificacionesBell";
 import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
@@ -73,12 +74,15 @@ export function MiCuenta() {
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Hola, {perfil.nombre}</h1>
-        <button
-          onClick={cerrarSesion}
-          className="min-h-[44px] rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
-        >
-          Cerrar sesión
-        </button>
+        <div className="flex items-center gap-2">
+          <NotificacionesBell />
+          <button
+            onClick={cerrarSesion}
+            className="min-h-[44px] rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
+          >
+            Cerrar sesión
+          </button>
+        </div>
       </div>
 
       {perfil.nombre_operacion && (
@@ -200,6 +204,7 @@ export function MiCuenta() {
         ocultarEncabezado
         ocultarDocumentosLegales
         documentosEnviados={perfil.documentos_enviados}
+        rutaVolver="/mi-cuenta"
       />
 
       <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">

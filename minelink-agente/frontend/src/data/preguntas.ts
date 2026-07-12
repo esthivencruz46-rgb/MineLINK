@@ -54,7 +54,7 @@ export const MODULO_0: PreguntaCatalogo[] = [
     tipo: "opcion",
     texto: "¿Estás formalizado o inscrito en REINFO?",
     ayuda:
-      "REINFO es el registro para quien está EN PROCESO de formalizarse — si ya tienes tu título, licencia y todos los permisos vigentes, ya eres formal y no necesitas REINFO. Si no tienes ninguno de los dos, tu operación no tiene amparo legal todavía.",
+      "REINFO es el registro para quien está EN PROCESO de formalizarse — si ya tienes tu título, licencia y todos los permisos vigentes, ya eres formal y no necesitas REINFO. Si no tienes ninguno de los dos, tu operación no tiene amparo legal todavía. Si tienes concesión propia y estás inscrito en REINFO sobre esa misma concesión, estás exceptuado de la declaración de producción semestral (D.S. N°001-2020-EM, Art. 7c).",
     opciones: [
       { valor: "formal", etiqueta: "Ya estoy formalizado", descripcion: "Tengo título, licencia y todos los permisos vigentes — no necesito REINFO" },
       { valor: "reinfo", etiqueta: "Estoy inscrito en REINFO", descripcion: "Estoy en proceso de formalización" },
@@ -826,7 +826,10 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     ids.add("C1_1");
     ids.add("C1_2");
     ids.add("C1_3");
-    for (let i = 1; i <= 7; i++) ids.add(`C2_${i}`);
+    for (let i = 1; i <= 6; i++) ids.add(`C2_${i}`);
+    // C2_7 (declaración de producción semestral) no aplica al titular de
+    // su propia concesión — exceptuado por ley (Art. 7c, D.S. N°001-2020-EM).
+    if (respuestas.C1_3 !== "titular") ids.add("C2_7");
     if (respuestas.C1_3 === "contrato") ids.add("C3_1");
     ids.add("C4_1");
     ids.add("C4_2");

@@ -116,6 +116,22 @@ def activacion_inversion(perfil: str, respuestas_diagnostico: dict) -> dict:
         )
         return {"ofrece": True, "prioridad": prioridad, "motivo": None}
     if perfil == "C":
+        # C3_1="se_niega" (el titular no quiere firmar/renovar el contrato de
+        # cesión) es un riesgo legal activo de exclusión automática del
+        # REINFO (Art. 1, D.L. 1607) — se bloquea el módulo hasta que
+        # Esthiven lo revise. Si lo resuelve por seguimiento manual
+        # (brechas_resueltas_json, estudio "contrato_explotacion"), la
+        # respuesta efectiva de C3_1 deja de ser "se_niega" y esto se
+        # desbloquea solo (ver routers.mineros._activacion_inversion_de).
+        if respuestas_diagnostico.get("C3_1") == "se_niega":
+            return {
+                "ofrece": False,
+                "prioridad": None,
+                "motivo": (
+                    "Hay un riesgo legal activo con tu contrato (el titular se niega a "
+                    "firmarlo) — Esthiven necesita revisarlo antes de que puedas continuar."
+                ),
+            }
         return {"ofrece": True, "prioridad": None, "motivo": None}
     if perfil == "D":
         prioridad = "prioritario" if respuestas_diagnostico.get("D2_2") == "inversion" else "opcional"
@@ -129,8 +145,9 @@ def validar_respuestas_inversion(
     """Levanta ValueError si el módulo no se ofrece, si faltan/sobran ids,
     o si algún valor no es válido para su tipo. No devuelve nada — mismo
     estilo "valida o explota" que validar_respuestas() del diagnóstico."""
-    if not activacion_inversion(perfil, respuestas_diagnostico)["ofrece"]:
-        raise ValueError("El Módulo INV no está disponible para tu perfil.")
+    activacion = activacion_inversion(perfil, respuestas_diagnostico)
+    if not activacion["ofrece"]:
+        raise ValueError(activacion["motivo"] or "El Módulo INV no está disponible para tu perfil.")
 
     esperados = ids_esperados_inversion(perfil, respuestas_inv)
     recibidos = set(respuestas_inv.keys())
@@ -213,5 +230,13 @@ def alertas_inversion(perfil: str, respuestas_diagnostico: dict, respuestas_inv:
         alertas.append({"codigo": "AL7", "texto": "Posible conflicto de exclusividad: no publicar en marketplace hasta aclarar."})
     if ri("INV_C1") == "acopiador" and ri("INV_C3") == "lab_certificado":
         alertas.append({"codigo": "AL8", "texto": "Combinación atípica (vende a acopiador pero dice tener certificado de laboratorio): verificar el certificado subido."})
+    if r("C3_1") == "se_niega" and respuestas_inv:
+        alertas.append({
+            "codigo": "AL9",
+            "texto": (
+                "Riesgo de exclusión automática del REINFO (Art. 1, D.L. 1607): el titular "
+                "se niega a firmar el contrato. Bloquear publicación al inversionista hasta resolver."
+            ),
+        })
 
     return alertas

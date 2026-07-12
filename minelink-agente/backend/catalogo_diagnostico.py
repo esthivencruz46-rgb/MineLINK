@@ -246,7 +246,12 @@ def ids_esperados(respuestas: dict[str, str], hoy: date | None = None) -> set[st
 
     if perfil == "C":
         ids.update({"C1_1", "C1_2", "C1_3"})
-        ids.update({f"C2_{n}" for n in range(1, 8)})
+        ids.update({f"C2_{n}" for n in range(1, 7)})
+        # C2_7 (declaración de producción semestral) solo aplica a quien
+        # opera por contrato/cesión — el titular de su propia concesión
+        # está exceptuado por ley (Art. 7c, D.S. N°001-2020-EM).
+        if respuestas.get("C1_3") != "titular":
+            ids.add("C2_7")
         # C3 solo si opera en concesión ajena (por contrato/cesión); el
         # titular de su propia concesión no necesita contrato consigo mismo.
         if respuestas.get("C1_3") == "contrato":

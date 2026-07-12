@@ -12,7 +12,12 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from scoring import categorias_requeridas_out, estado_seguimiento, estudios_aplicables
+from scoring import (
+    categorias_requeridas_out,
+    estado_seguimiento,
+    estudios_aplicables,
+    respuestas_diagnostico_efectivas,
+)
 from catalogo_inversion import (
     activacion_inversion,
     categorias_requeridas_inversion,
@@ -75,6 +80,16 @@ def _es_titular_concesion(operacion: models.Operacion) -> bool | None:
     if respuestas.get("M0_1") == "concesion_propia":
         return True
     return None
+
+
+def _activacion_inversion_de(operacion: models.Operacion) -> dict:
+    """Usa las respuestas EFECTIVAS (con brechas resueltas parcheadas) para
+    que si el admin resuelve manualmente un bloqueo del Módulo INV (ej.
+    C3_1="se_niega" ya conversado y resuelto), se desbloquee solo, sin
+    tocar la declaración original."""
+    return activacion_inversion(
+        operacion.estado_formalizacion, respuestas_diagnostico_efectivas(operacion)
+    )
 
 
 def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
@@ -162,12 +177,8 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         es_titular_concesion=_es_titular_concesion(operacion),
         documentos_enviados=operacion.documentos_enviados_en is not None,
         visto_bueno_documentos=operacion.visto_bueno_documentos,
-        inversion_ofrecida=activacion_inversion(
-            operacion.estado_formalizacion, operacion.respuestas_json
-        )["ofrece"],
-        inversion_prioridad=activacion_inversion(
-            operacion.estado_formalizacion, operacion.respuestas_json
-        )["prioridad"],
+        inversion_ofrecida=_activacion_inversion_de(operacion)["ofrece"],
+        inversion_prioridad=_activacion_inversion_de(operacion)["prioridad"],
         inv_enviado=operacion.inv_enviado_en is not None,
         inv_visto_bueno=operacion.inv_visto_bueno,
         **estado_seguimiento(operacion),
@@ -287,6 +298,38 @@ def actualizar_perfil_inversion(
     return _perfil_out(lead, operacion)
 
 
+@router.get("/notificaciones", response_model=list[schemas.NotificacionOut])
+def listar_notificaciones(
+    db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
+):
+    return (
+        db.query(models.Notificacion)
+        .filter(models.Notificacion.lead_id == lead_id)
+        .order_by(models.Notificacion.created_at.desc())
+        .all()
+    )
+
+
+@router.post("/notificaciones/marcar-leidas", response_model=list[schemas.NotificacionOut])
+def marcar_notificaciones_leidas(
+    db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
+):
+    """Se llama al abrir el panel de la campana — marca TODAS las del
+    minero como leídas de una vez (no hay lectura una por una)."""
+    notificaciones = (
+        db.query(models.Notificacion).filter(models.Notificacion.lead_id == lead_id).all()
+    )
+    for n in notificaciones:
+        n.leida = True
+    db.commit()
+    return (
+        db.query(models.Notificacion)
+        .filter(models.Notificacion.lead_id == lead_id)
+        .order_by(models.Notificacion.created_at.desc())
+        .all()
+    )
+
+
 @router.get("/documentos", response_model=list[schemas.DocumentoOperacionOut])
 def listar_documentos(
     db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
@@ -342,7 +385,7 @@ def estado_inversion(
     ya lo aprobó, y qué documentos de sustento le faltan."""
     _lead, operacion = _operacion_del_lead(db, lead_id)
     perfil = operacion.estado_formalizacion
-    activacion = activacion_inversion(perfil, operacion.respuestas_json)
+    activacion = activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))
     respuestas_inv = operacion.inv_respuestas_json or {}
     return schemas.InversionEstadoOut(
         ofrece=activacion["ofrece"],
@@ -367,7 +410,7 @@ def enviar_inversion(
     admin dé su propio visto bueno sobreescribe (permite corregir)."""
     lead, operacion = _operacion_del_lead(db, lead_id)
     perfil = operacion.estado_formalizacion
-    if not activacion_inversion(perfil, operacion.respuestas_json)["ofrece"]:
+    if not activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))["ofrece"]:
         raise HTTPException(422, "El Módulo INV no está disponible para tu perfil.")
     if not operacion.visto_bueno_documentos:
         raise HTTPException(
@@ -375,7 +418,9 @@ def enviar_inversion(
         )
 
     try:
-        validar_respuestas_inversion(perfil, operacion.respuestas_json, payload.respuestas)
+        validar_respuestas_inversion(
+            perfil, respuestas_diagnostico_efectivas(operacion), payload.respuestas
+        )
     except ValueError as e:
         raise HTTPException(422, str(e))
 
@@ -384,7 +429,7 @@ def enviar_inversion(
     db.commit()
     db.refresh(operacion)
 
-    activacion = activacion_inversion(perfil, operacion.respuestas_json)
+    activacion = activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))
     return schemas.InversionEstadoOut(
         ofrece=activacion["ofrece"],
         prioridad=activacion["prioridad"],

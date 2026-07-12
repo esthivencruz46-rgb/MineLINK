@@ -459,6 +459,16 @@ class VistoBuenoInversionRequest(BaseModel):
     visto_bueno: bool
 
 
+class NotificacionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    tipo: str
+    mensaje: str
+    leida: bool
+    created_at: datetime
+
+
 class CategoriaFotoOut(BaseModel):
     categoria: str
     etiqueta: str

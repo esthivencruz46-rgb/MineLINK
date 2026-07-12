@@ -13,6 +13,7 @@ import { AdminLogin } from "./pages/admin/AdminLogin";
 import { ComoFunciona } from "./pages/ComoFunciona";
 import { Cuestionario } from "./pages/Cuestionario";
 import { CuestionarioInversion } from "./pages/CuestionarioInversion";
+import { DocumentosEnviados } from "./pages/DocumentosEnviados";
 import { Empresas } from "./pages/Empresas";
 import { Gracias } from "./pages/Gracias";
 import { Inicio } from "./pages/Inicio";
@@ -88,6 +89,14 @@ export function App() {
               element={
                 <ProtectedRouteMinero>
                   <CuestionarioInversion />
+                </ProtectedRouteMinero>
+              }
+            />
+            <Route
+              path="/documentos-enviados"
+              element={
+                <ProtectedRouteMinero>
+                  <DocumentosEnviados />
                 </ProtectedRouteMinero>
               }
             />

@@ -122,6 +122,14 @@ export interface MineroPerfil {
   inv_visto_bueno: boolean;
 }
 
+export interface Notificacion {
+  id: number;
+  tipo: string;
+  mensaje: string;
+  leida: boolean;
+  created_at: string;
+}
+
 export interface PerfilInversionRequest {
   descripcion_operacion?: string;
   capacidad_produccion?: string;

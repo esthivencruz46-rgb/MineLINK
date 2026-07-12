@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ImageIcon } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CATEGORIAS_DOCUMENTO, type CategoriaInfo, type DocumentoOperacion } from "../types/documento";
@@ -54,6 +55,9 @@ interface Props {
    * MineroPerfil.documentos_enviados) — cambia el botón a "Enviado, en
    * revisión" en vez de "Guardar archivos". */
   documentosEnviados?: boolean;
+  /** Ruta de la cuenta del minero (/mi-cuenta o /mi-concesion) — a dónde
+   * vuelve desde la pantalla de confirmación tras enviar. */
+  rutaVolver: string;
 }
 
 export function DocumentosMinero({
@@ -65,7 +69,9 @@ export function DocumentosMinero({
   ocultarEncabezado,
   ocultarDocumentosLegales,
   documentosEnviados,
-}: Props = {}) {
+  rutaVolver,
+}: Props) {
+  const navigate = useNavigate();
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
@@ -154,6 +160,7 @@ export function DocumentosMinero({
         throw new Error(detalle?.detail ?? "No pudimos enviar tus archivos a revisión");
       }
       setEnviado(true);
+      navigate("/documentos-enviados", { state: { volverA: rutaVolver } });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos enviar tus archivos a revisión");
     } finally {

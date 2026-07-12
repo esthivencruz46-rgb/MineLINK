@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Building2, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
@@ -25,6 +25,7 @@ interface EstadoDesdeCuenta {
 
 export function Empresas() {
   const location = useLocation();
+  const navigate = useNavigate();
   const estadoCuenta = location.state as EstadoDesdeCuenta | null;
   const guardado = leerDiagnostico();
   // Ya tiene cuenta (llegó desde /mi-concesion): no tiene sentido pedirle
@@ -82,6 +83,13 @@ export function Empresas() {
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+      <button
+        onClick={() => navigate(-1)}
+        className="self-start text-sm text-texto-suave underline dark:text-texto-suave-dark"
+      >
+        ← Volver
+      </button>
+
       <h1 className="text-2xl font-bold">Empresas que te pueden ayudar</h1>
 
       {esDemo && (

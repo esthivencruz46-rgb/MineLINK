@@ -33,6 +33,16 @@ DIAS_EVALUACION_DOC_PRESENTADO = 30
 
 IDS_DOCS_C2 = tuple(f"C2_{n}" for n in range(1, 8))
 
+
+def _ids_docs_c2_aplicables(respuestas: dict[str, str]) -> tuple[str, ...]:
+    """C2_7 (declaración de producción semestral) no aplica al titular de
+    su propia concesión (exceptuado por ley) — se excluye del checklist
+    para que no cuente como pendiente eternamente (ver
+    catalogo_diagnostico.ids_esperados)."""
+    if respuestas.get("C1_3") == "titular":
+        return tuple(i for i in IDS_DOCS_C2 if i != "C2_7")
+    return IDS_DOCS_C2
+
 # Etiquetas legibles de los bloqueantes (para "Primero resolvamos X")
 ETIQUETA_BLOQUEANTE = {
     "zona_prohibida": "El área está en una zona donde no se puede concesionar",
@@ -106,11 +116,12 @@ def urgencia_reinfo(perfil: str, respuestas: dict[str, str], hoy: date) -> dict 
     el paso del tiempo), nunca persistido."""
     if perfil != "C":
         return None
+    ids_docs = _ids_docs_c2_aplicables(respuestas)
     dias_restantes = (FECHA_LIMITE_REINFO - hoy).days
     no_iniciados = sum(
-        1 for i in IDS_DOCS_C2 if respuestas.get(i) in ("no_iniciado", "no_se")
+        1 for i in ids_docs if respuestas.get(i) in ("no_iniciado", "no_se")
     )
-    presentados = sum(1 for i in IDS_DOCS_C2 if respuestas.get(i) == "presentado")
+    presentados = sum(1 for i in ids_docs if respuestas.get(i) == "presentado")
     if respuestas.get("C1_2") != "si":
         no_iniciados += 1  # sinceramiento de coordenadas pendiente
     docs_pendientes = no_iniciados + presentados
@@ -120,8 +131,8 @@ def urgencia_reinfo(perfil: str, respuestas: dict[str, str], hoy: date) -> dict 
     )
     return {
         "dias_restantes": dias_restantes,
-        "docs_completados": sum(1 for i in IDS_DOCS_C2 if respuestas.get(i) == "aprobado"),
-        "docs_totales": len(IDS_DOCS_C2),
+        "docs_completados": sum(1 for i in ids_docs if respuestas.get(i) == "aprobado"),
+        "docs_totales": len(ids_docs),
         "docs_pendientes": docs_pendientes,
         "dias_necesarios": dias_necesarios,
         "alerta_roja": dias_necesarios > max(dias_restantes, 0),
@@ -193,7 +204,7 @@ def semaforo_legal(
             bloqueantes.append("plazo_reinfo_critico")
         amarillo = (
             r("C1_2") != "si"
-            or any(r(i) != "aprobado" for i in IDS_DOCS_C2)
+            or any(r(i) != "aprobado" for i in _ids_docs_c2_aplicables(respuestas))
             or r("C3_1") in ("firmado_sin_inscribir", "en_negociacion", "se_niega", "no_he_hablado")
         )
 
@@ -338,6 +349,20 @@ def respuestas_con_brechas_resueltas(
             if id_pregunta in actualizadas:
                 actualizadas[id_pregunta] = VALOR_RESUELTO_POR_PREGUNTA[id_pregunta]
     return actualizadas
+
+
+def respuestas_diagnostico_efectivas(operacion) -> dict:
+    """Respuestas del diagnóstico con las brechas que el admin ya marcó
+    resueltas parcheadas a su valor bueno — para todo lo que deba
+    reaccionar cuando el admin resuelve algo manualmente (ej. activación
+    del Módulo INV bloqueada por `catalogo_inversion.activacion_inversion`
+    mientras el titular de la concesión se niega a firmar el contrato,
+    C3_1="se_niega" — el mismo mecanismo de `brechas_resueltas_json` que ya
+    usa `estado_seguimiento()` es el que lo desbloquea, sin construir un
+    flujo de aprobación aparte)."""
+    return respuestas_con_brechas_resueltas(
+        operacion.respuestas_json or {}, operacion.brechas_resueltas_json or []
+    )
 
 
 def estado_seguimiento(operacion, hoy: date | None = None) -> dict:

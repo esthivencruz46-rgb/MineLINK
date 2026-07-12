@@ -288,6 +288,22 @@ class InteresEmpresa(Base):
     created_at = Column(DateTime, default=_now)
 
 
+class Notificacion(Base):
+    """Aviso para el minero cuando el admin resuelve algo sobre su cuenta
+    (documento rechazado con motivo, documentos/inversión aprobados) — ver
+    NotificacionesBell.tsx. En pausa el envío real por push (Firebase);
+    esto es un panel dentro de la app que el minero revisa al entrar."""
+
+    __tablename__ = "notificaciones"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    lead_id = Column(Integer, ForeignKey("leads.id"), nullable=False, index=True)
+    tipo = Column(String, nullable=False)
+    mensaje = Column(String, nullable=False)
+    leida = Column(Boolean, nullable=False, default=False)
+    created_at = Column(DateTime, default=_now)
+
+
 class Evento(Base):
     """Eventos simples de uso para métricas del embudo (cuántos empiezan
     el diagnóstico vs. cuántos lo terminan vs. cuántos se registran).
