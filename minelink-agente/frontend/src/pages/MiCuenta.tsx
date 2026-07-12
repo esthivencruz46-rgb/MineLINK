@@ -71,7 +71,7 @@ export function MiCuenta() {
   const semLegal = semaforoDesdeColor(perfil.semaforo_legal);
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-5 px-4 py-8">
+    <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Hola, {perfil.nombre}</h1>
         <div className="flex items-center gap-2">
@@ -141,119 +141,137 @@ export function MiCuenta() {
         </div>
       )}
 
-      <SemaforoCard titulo="Track Legal" semaforo={semLegal} grande />
+      {/* Desktop web: dos columnas (formalización a la izquierda, cuenta +
+          inversión a la derecha) — en celular/APK se apilan en una sola,
+          la sidebar queda debajo. */}
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
+        <div className="flex flex-col gap-5">
+          <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Formalización
+          </h2>
 
-      {perfil.etiquetas_bloqueantes.length > 0 && (
-        <div className="rounded-lg bg-red-900/10 p-4">
-          <h3 className="mb-2 flex items-center gap-2 font-semibold text-red-600">
-            <AlertTriangle size={18} /> Primero resolvamos esto
-          </h3>
-          <ul className="flex flex-col gap-1 text-sm">
-            {perfil.etiquetas_bloqueantes.map((b, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
-                {b}
-              </li>
-            ))}
-          </ul>
+          <SemaforoCard titulo="Track Legal" semaforo={semLegal} grande />
+
+          {perfil.etiquetas_bloqueantes.length > 0 && (
+            <div className="rounded-lg bg-red-900/10 p-4">
+              <h3 className="mb-2 flex items-center gap-2 font-semibold text-red-600">
+                <AlertTriangle size={18} /> Primero resolvamos esto
+              </h3>
+              <ul className="flex flex-col gap-1 text-sm">
+                {perfil.etiquetas_bloqueantes.map((b, i) => (
+                  <li key={i} className="flex items-start gap-2">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-red-500" />
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
+
+          <SalidasList
+            salidas={perfil.salidas}
+            onBuscarAyuda={() =>
+              navigate("/empresas", {
+                state: {
+                  region: perfil.region,
+                  estudios: perfil.brechas_pendientes,
+                  operacionId: perfil.operacion_id,
+                },
+              })
+            }
+          />
+
+          <DocumentosMinero
+            onDocumentosChange={setDocumentos}
+            estudiosAplicables={perfil.estudios_aplicables}
+            fotosPerfilAplicables={perfil.fotos_perfil}
+            esTitularConcesion={perfil.es_titular_concesion}
+            ocultarFotosOperacion
+            ocultarEncabezado
+            ocultarDocumentosLegales
+            documentosEnviados={perfil.documentos_enviados}
+            rutaVolver="/mi-cuenta"
+          />
+
+          <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+            <h2 className="font-semibold">Lo que te falta</h2>
+            {perfil.brechas_pendientes.length === 0 ? (
+              <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
+                No tienes brechas pendientes.
+              </p>
+            ) : (
+              <ul className="mt-2 flex flex-col gap-1">
+                {perfil.brechas_pendientes.map((b) => (
+                  <li key={b}>
+                    <button
+                      onClick={() =>
+                        navigate("/empresas", {
+                          state: {
+                            region: perfil.region,
+                            estudios: [b],
+                            operacionId: perfil.operacion_id,
+                          },
+                        })
+                      }
+                      className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
+                    >
+                      <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
+                      <span className="shrink-0 text-xs font-semibold text-acento">
+                        ¿Quién me ayuda? →
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {perfil.brechas_resueltas.length > 0 && (
+              <>
+                <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
+                  Ya resuelto
+                </h3>
+                <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
+                  {perfil.brechas_resueltas.map((b) => (
+                    <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
         </div>
-      )}
 
-      <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
+        <div className="flex flex-col gap-5">
+          <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Tu cuenta
+          </h2>
+          <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
+            <h2 className="font-semibold">Tus datos</h2>
+            <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
+              WhatsApp: {perfil.whatsapp}
+            </p>
+            {perfil.email && (
+              <p className="text-texto-suave dark:text-texto-suave-dark">
+                Email: {perfil.email}
+              </p>
+            )}
+            {perfil.codigo_reinfo && (
+              <p className="text-texto-suave dark:text-texto-suave-dark">
+                Código REINFO: {perfil.codigo_reinfo}
+              </p>
+            )}
+            <p className="text-texto-suave dark:text-texto-suave-dark">
+              Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
+            </p>
+          </div>
 
-      <SalidasList
-        salidas={perfil.salidas}
-        onBuscarAyuda={() =>
-          navigate("/empresas", {
-            state: {
-              region: perfil.region,
-              estudios: perfil.brechas_pendientes,
-              operacionId: perfil.operacion_id,
-            },
-          })
-        }
-      />
-
-      {/* Orden: tus datos → respaldo de declaración → lo que te falta */}
-      <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Tus datos</h2>
-        <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
-          WhatsApp: {perfil.whatsapp}
-        </p>
-        {perfil.email && (
-          <p className="text-texto-suave dark:text-texto-suave-dark">
-            Email: {perfil.email}
-          </p>
-        )}
-        {perfil.codigo_reinfo && (
-          <p className="text-texto-suave dark:text-texto-suave-dark">
-            Código REINFO: {perfil.codigo_reinfo}
-          </p>
-        )}
-        <p className="text-texto-suave dark:text-texto-suave-dark">
-          Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
-        </p>
+          <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Inversión
+          </h2>
+          <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
+        </div>
       </div>
-
-      <DocumentosMinero
-        onDocumentosChange={setDocumentos}
-        estudiosAplicables={perfil.estudios_aplicables}
-        fotosPerfilAplicables={perfil.fotos_perfil}
-        esTitularConcesion={perfil.es_titular_concesion}
-        ocultarFotosOperacion
-        ocultarEncabezado
-        ocultarDocumentosLegales
-        documentosEnviados={perfil.documentos_enviados}
-        rutaVolver="/mi-cuenta"
-      />
-
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-        <h2 className="font-semibold">Lo que te falta</h2>
-        {perfil.brechas_pendientes.length === 0 ? (
-          <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
-            No tienes brechas pendientes.
-          </p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-1">
-            {perfil.brechas_pendientes.map((b) => (
-              <li key={b}>
-                <button
-                  onClick={() =>
-                    navigate("/empresas", {
-                      state: {
-                        region: perfil.region,
-                        estudios: [b],
-                        operacionId: perfil.operacion_id,
-                      },
-                    })
-                  }
-                  className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                >
-                  <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
-                  <span className="shrink-0 text-xs font-semibold text-acento">
-                    ¿Quién me ayuda? →
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {perfil.brechas_resueltas.length > 0 && (
-          <>
-            <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
-              Ya resuelto
-            </h3>
-            <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
-              {perfil.brechas_resueltas.map((b) => (
-                <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
-              ))}
-            </ul>
-          </>
-        )}
-      </div>
-
-      <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
     </div>
   );
 }
