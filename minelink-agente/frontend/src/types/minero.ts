@@ -126,6 +126,9 @@ export interface MineroPerfil {
   // que aporta maquinaria, foto de la maquinaria) — mismo shape que
   // estudios_aplicables, pero para las respuestas de inversión.
   respaldos_declarados_inversion: { codigo: string; pregunta_id: string; valor: string }[];
+  // Estudios que declaró NO tener en el Módulo INV — "lo que te falta" de
+  // la columna de Inversión, con el mismo match brecha→empresa.
+  brechas_inversion: string[];
 }
 
 export interface Notificacion {

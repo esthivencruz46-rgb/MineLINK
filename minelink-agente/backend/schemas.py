@@ -621,6 +621,10 @@ class MineroPerfilOut(BaseModel):
     # que estudios_aplicables pero para las respuestas de inversión (ver
     # catalogo_inversion.respaldos_declarados_inversion).
     respaldos_declarados_inversion: list[EstudioAplicableOut] = []
+    # Estudios que declaró NO tener en el Módulo INV — "lo que te falta"
+    # de la columna de Inversión, con el mismo match brecha→empresa de
+    # formalización (ver catalogo_inversion.brechas_inversion).
+    brechas_inversion: list[str] = []
 
 
 class ProyectoPublicoOut(BaseModel):

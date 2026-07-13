@@ -327,6 +327,37 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
     return declarados
 
 
+# Respuestas del Módulo INV que declaran NO tener algo que una empresa o
+# consultor del catálogo puede resolver — espejo de BRECHA_POR_PREGUNTA del
+# diagnóstico de formalización, para que la cuenta muestre "lo que te
+# falta" también en inversión, con el mismo match brecha→empresa.
+_BRECHA_INV_POR_PREGUNTA: dict[str, tuple[tuple[str, ...], str]] = {
+    "INV_A1": (("ninguna",), "informe_geologico"),
+    "INV_B1a": (("no_tengo",), "informe_geologico"),
+    "INV_B1b": (("no_tengo",), "analisis_laboratorio"),
+    "INV_B1c": (("no_tengo",), "estimacion_recursos"),
+    "INV_C3": (("estimacion", "no_sabe"), "analisis_laboratorio"),
+    "INV_C4": (("estimacion", "no"), "costos_opex"),
+    "INV_D3a": (("no_tengo",), "informe_geologico"),
+    "INV_D3b": (("no_tengo",), "analisis_laboratorio"),
+    "INV_D3c": (("no_tengo",), "estimacion_recursos"),
+}
+
+
+def brechas_inversion(respuestas_inv: dict) -> list[str]:
+    """Estudios que el minero declaró NO tener en el Módulo INV — para el
+    apartado "lo que te falta" de la columna de Inversión. Solo respuestas
+    con un estudio real del catálogo detrás (algo que una empresa pueda
+    hacerle); las carencias sin proveedor (ej. no tener liquidaciones de
+    venta) no listan aquí porque nadie las vende."""
+    respuestas_inv = respuestas_inv or {}
+    brechas: list[str] = []
+    for pregunta_id, (valores, estudio) in _BRECHA_INV_POR_PREGUNTA.items():
+        if respuestas_inv.get(pregunta_id) in valores and estudio not in brechas:
+            brechas.append(estudio)
+    return brechas
+
+
 def alertas_inversion(perfil: str, respuestas_diagnostico: dict, respuestas_inv: dict) -> list[dict]:
     """Alertas de consistencia AL1-AL8 del spec — informativas para el
     admin, nunca bloquean que el minero envíe sus respuestas."""

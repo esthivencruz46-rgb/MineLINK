@@ -96,7 +96,7 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
         {guardadoOk && <span className="text-xs text-emerald-500">Guardado ✓</span>}
       </div>
 
-      <dl className="mt-3 flex flex-col gap-3">
+      <dl className="mt-3 flex flex-col gap-2.5">
         {entradas.map(([id, valor]) => {
           const pregunta = POR_ID_INV[id];
           if (!pregunta) return null;
@@ -106,18 +106,20 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
               ? valor
               : etiquetaRespuesta(id, valor);
 
-          // INV_0_1: el rango marcado + campo de monto exacto al costado.
+          // INV_0_1: el rango marcado + campo chico de monto exacto, todo
+          // en la misma línea que la pregunta.
           if (id === "INV_0_1") {
             return (
-              <div key={id} className="text-sm">
+              <div
+                key={id}
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
+              >
                 <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                <dd className="flex items-center gap-2">
                   <span className="font-semibold">{texto}</span>
-                  <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                    Monto exacto:
-                  </span>
-                  <div className="w-56">
+                  <div className="w-36">
                     <CampoMonto
+                      compacto
                       value={capitalBuscado}
                       onChange={(v) => {
                         setCapitalBuscado(v);
@@ -132,19 +134,22 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
           }
 
           return (
-            <div key={id} className="text-sm">
+            <div
+              key={id}
+              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm"
+            >
               <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-              <dd className="font-semibold">{texto}</dd>
+              <dd className="text-right font-semibold">{texto}</dd>
             </div>
           );
         })}
 
         {esRuta1 && (
-          <div className="text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
             <dt className="text-texto-suave dark:text-texto-suave-dark">
               ¿Cuánto produces y cuánto mineral te queda (reservas)?
             </dt>
-            <dd className="mt-1">
+            <dd className="w-full max-w-xs">
               <CampoProduccion
                 value={capacidadProduccion}
                 onChange={(v) => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
+import { BrechasInversionCard } from "../components/BrechasInversionCard";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
@@ -298,6 +299,7 @@ export function MiCuenta() {
             categorias={perfil.categorias_requeridas_inversion}
             declarados={perfil.respaldos_declarados_inversion}
           />
+          <BrechasInversionCard perfil={perfil} />
         </div>
       </div>
     </div>
