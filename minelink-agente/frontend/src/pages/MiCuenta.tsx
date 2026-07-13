@@ -158,7 +158,7 @@ export function MiCuenta() {
       {/* Desktop web: dos columnas (formalización a la izquierda, cuenta +
           inversión a la derecha) — en celular/APK se apilan en una sola,
           la sidebar queda debajo. */}
-      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[1fr_360px] lg:items-start lg:gap-6">
+      <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
         <div className="flex flex-col gap-5">
           <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Formalización
@@ -295,7 +295,10 @@ export function MiCuenta() {
             />
           )}
           {perfil.inv_enviado && <ResumenInversionRespuestas />}
-          <DocumentosInversionSustento categorias={perfil.categorias_requeridas_inversion} />
+          <DocumentosInversionSustento
+            categorias={perfil.categorias_requeridas_inversion}
+            declarados={perfil.respaldos_declarados_inversion}
+          />
         </div>
       </div>
     </div>

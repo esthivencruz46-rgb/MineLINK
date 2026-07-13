@@ -615,6 +615,12 @@ class MineroPerfilOut(BaseModel):
     # — para que la cuenta los muestre igual que "Respalda tu declaración"
     # de formalización, no solo dentro del wizard de /mi-inversion.
     categorias_requeridas_inversion: list[CategoriaRequeridaOut] = []
+    # "Respalda tu inversión": evidencia puntual de LO QUE RESPONDIÓ en el
+    # Módulo INV (ej. si dijo que aporta maquinaria, foto de la maquinaria;
+    # si dijo que vende a alguien, foto/liquidación de esa venta) — igual
+    # que estudios_aplicables pero para las respuestas de inversión (ver
+    # catalogo_inversion.respaldos_declarados_inversion).
+    respaldos_declarados_inversion: list[EstudioAplicableOut] = []
 
 
 class ProyectoPublicoOut(BaseModel):

@@ -122,6 +122,10 @@ export interface MineroPerfil {
   // Documentos de sustento de inversión (liquidaciones de venta, etc.) —
   // se muestran en la cuenta igual que "Respalda tu declaración".
   categorias_requeridas_inversion: { categoria: string; etiqueta: string; aprobado: boolean }[];
+  // Evidencia puntual de LO QUE RESPONDIÓ en el Módulo INV (ej. si dijo
+  // que aporta maquinaria, foto de la maquinaria) — mismo shape que
+  // estudios_aplicables, pero para las respuestas de inversión.
+  respaldos_declarados_inversion: { codigo: string; pregunta_id: string; valor: string }[];
 }
 
 export interface Notificacion {

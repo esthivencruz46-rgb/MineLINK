@@ -1,24 +1,45 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageIcon } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
+import { INFO_BRECHA } from "../data/brechas";
+import { ETIQUETA_CATEGORIA_INV, POR_ID_INV } from "../data/preguntasInversion";
 import type { DocumentoOperacion } from "../types/documento";
 
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
 
+interface CategoriaSustento {
+  categoria: string;
+  etiqueta: string;
+  aprobado?: boolean;
+  declarado?: string;
+}
+
 interface Props {
   /** Categorías de sustento de inversión requeridas para este perfil (ver
-   *  MineroPerfil.categorias_requeridas_inversion) — si viene vacío, este
-   *  componente no renderiza nada (perfil A/A_avanzado no tiene). */
+   *  MineroPerfil.categorias_requeridas_inversion) — obligatorias antes de
+   *  que el admin pueda dar seguimiento; traen si ya están aprobadas. */
   categorias: { categoria: string; etiqueta: string; aprobado: boolean }[];
+  /** Evidencia puntual de lo que el minero RESPONDIÓ en el Módulo INV (ej.
+   *  "aporto maquinaria" → foto de la maquinaria) — no bloquean nada, son
+   *  el equivalente exacto de "Respalda tu declaración" pero para
+   *  inversión (ver MineroPerfil.respaldos_declarados_inversion). */
+  declarados: { codigo: string; pregunta_id: string; valor: string }[];
+}
+
+function etiquetaCategoria(codigo: string): string {
+  return ETIQUETA_CATEGORIA_INV[codigo] ?? INFO_BRECHA[codigo]?.texto ?? codigo;
+}
+
+function etiquetaValorDeclarado(preguntaId: string, valor: string): string | undefined {
+  return POR_ID_INV[preguntaId]?.opciones?.find((o) => o.valor === valor)?.etiqueta;
 }
 
 /** "Respalda tu inversión" — mismo tratamiento visual que "Respalda tu
- *  declaración" en DocumentosMinero.tsx, pero para los documentos de
- *  sustento del Módulo INV (liquidaciones de venta, estados financieros,
- *  título de concesión, etc.). Vive aparte porque esas categorías no
- *  tienen una pregunta de origen del diagnóstico (sin "Marcaste: X") y se
- *  muestran en la columna de Inversión, no junto a formalización. */
-export function DocumentosInversionSustento({ categorias }: Props) {
+ *  declaración" en DocumentosMinero.tsx: combina las categorías
+ *  obligatorias por perfil (categorias) con la evidencia puntual de cada
+ *  respuesta (declarados, con su propio "Marcaste: X"), sin duplicar el
+ *  slot cuando una categoría aparece en ambas listas. */
+export function DocumentosInversionSustento({ categorias, declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
@@ -101,13 +122,31 @@ export function DocumentosInversionSustento({ categorias }: Props) {
     setVistaTipo(doc.content_type);
   }
 
-  if (categorias.length === 0) return null;
+  const slots = useMemo(() => {
+    const mapa = new Map<string, CategoriaSustento>();
+    for (const cat of categorias) {
+      mapa.set(cat.categoria, { categoria: cat.categoria, etiqueta: cat.etiqueta, aprobado: cat.aprobado });
+    }
+    for (const d of declarados) {
+      const existente = mapa.get(d.codigo);
+      const declarado = etiquetaValorDeclarado(d.pregunta_id, d.valor);
+      if (existente) {
+        existente.declarado = declarado;
+      } else {
+        mapa.set(d.codigo, { categoria: d.codigo, etiqueta: etiquetaCategoria(d.codigo), declarado });
+      }
+    }
+    return [...mapa.values()];
+  }, [categorias, declarados]);
+
+  if (slots.length === 0) return null;
 
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <h2 className="font-semibold">Respalda tu inversión</h2>
       <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-        Sube una foto o PDF por cada documento que tu perfil de inversión necesita.
+        Sube una foto o PDF por cada documento que respalde lo que respondiste en tu perfil de
+        inversión.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -115,7 +154,7 @@ export function DocumentosInversionSustento({ categorias }: Props) {
 
       {!cargando && (
         <div className="mt-4 flex flex-col gap-4">
-          {categorias.map((cat) => {
+          {slots.map((cat) => {
             const archivos = documentos.filter((d) => d.categoria === cat.categoria);
             return (
               <div
@@ -123,7 +162,14 @@ export function DocumentosInversionSustento({ categorias }: Props) {
                 className="rounded-lg border border-black/10 p-3 dark:border-white/10"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">{cat.etiqueta}</p>
+                  <div>
+                    <p className="text-sm font-semibold">{cat.etiqueta}</p>
+                    {cat.declarado && (
+                      <p className="mt-0.5 text-xs font-semibold text-acento">
+                        Marcaste: {cat.declarado}
+                      </p>
+                    )}
+                  </div>
                   <button
                     onClick={() => inputsRef.current[cat.categoria]?.click()}
                     disabled={subiendo === cat.categoria}

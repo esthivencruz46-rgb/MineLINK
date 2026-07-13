@@ -203,6 +203,59 @@ def categorias_requeridas_inversion(perfil: str, respuestas_inv: dict) -> list[s
     return []
 
 
+# Checklist de estudios técnicos (INV_B1a/b/c, INV_D3a/b/c) — mismo código
+# de estudio que ya usa el diagnóstico de formalización (B3_1/B3_2 e
+# informe_geologico/analisis_laboratorio/estimacion_recursos), para que si
+# el minero ya subió esa foto en "Respalda tu declaración" no se le pida
+# otra vez en "Respalda tu inversión".
+_CHECKLIST_ESTUDIO_POR_PREGUNTA: dict[str, str] = {
+    "INV_B1a": "informe_geologico",
+    "INV_B1b": "analisis_laboratorio",
+    "INV_B1c": "estimacion_recursos",
+    "INV_D3a": "informe_geologico",
+    "INV_D3b": "analisis_laboratorio",
+    "INV_D3c": "estimacion_recursos",
+}
+
+
+def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[dict]:
+    """Espejo de scoring.estudios_aplicables() (formalización) pero para el
+    Módulo INV: qué fotos/documentos de respaldo pedir en 'Respalda tu
+    inversión' según lo que el minero respondió, no solo los documentos de
+    sustento fijos por perfil (categorias_requeridas_inversion). Cada
+    entrada trae el id de pregunta + el valor crudo para que el frontend
+    muestre "Marcaste: X" al lado del slot, igual que en formalización."""
+    respuestas_inv = respuestas_inv or {}
+    declarados: list[dict] = []
+
+    aportes = respuestas_inv.get("INV_0_4")
+    if isinstance(aportes, list):
+        if "equipo" in aportes:
+            declarados.append(
+                {"codigo": "fotos_equipo_maquinaria", "pregunta_id": "INV_0_4", "valor": "equipo"}
+            )
+        if "mano_obra" in aportes:
+            declarados.append(
+                {"codigo": "fotos_trabajadores", "pregunta_id": "INV_0_4", "valor": "mano_obra"}
+            )
+
+    if perfil == "C":
+        vende_a = respuestas_inv.get("INV_C1")
+        if vende_a and vende_a != "no_vende":
+            declarados.append(
+                {"codigo": "liquidaciones_venta", "pregunta_id": "INV_C1", "valor": vende_a}
+            )
+        ley = respuestas_inv.get("INV_C3")
+        if ley in ("lab_certificado", "analisis_comprador"):
+            declarados.append({"codigo": "certificado_ley", "pregunta_id": "INV_C3", "valor": ley})
+
+    for pregunta_id, codigo in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():
+        if respuestas_inv.get(pregunta_id) == "tengo":
+            declarados.append({"codigo": codigo, "pregunta_id": pregunta_id, "valor": "tengo"})
+
+    return declarados
+
+
 def alertas_inversion(perfil: str, respuestas_diagnostico: dict, respuestas_inv: dict) -> list[dict]:
     """Alertas de consistencia AL1-AL8 del spec — informativas para el
     admin, nunca bloquean que el minero envíe sus respuestas."""

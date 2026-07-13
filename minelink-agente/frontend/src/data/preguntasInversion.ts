@@ -349,6 +349,9 @@ export const ETIQUETA_CATEGORIA_INV: Record<string, string> = {
   titulo_concesion: "Título de concesión",
   liquidaciones_venta: "Liquidaciones de venta",
   estados_financieros_libros: "Estados financieros o libros contables",
+  certificado_ley: "Certificado de ley del mineral",
+  fotos_equipo_maquinaria: "Fotos de tu maquinaria y equipo",
+  fotos_trabajadores: "Fotos de tus trabajadores",
 };
 
 /** Documentos de sustento que el admin debe ver APROBADOS antes de dar el

@@ -22,6 +22,7 @@ from scoring import (
 from catalogo_inversion import (
     activacion_inversion,
     categorias_requeridas_inversion,
+    respaldos_declarados_inversion,
     validar_respuestas_inversion,
 )
 from security import (
@@ -186,6 +187,12 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
                 operacion.estado_formalizacion, operacion.inv_respuestas_json or {}
             ),
         ),
+        respaldos_declarados_inversion=[
+            schemas.EstudioAplicableOut(**d)
+            for d in respaldos_declarados_inversion(
+                operacion.estado_formalizacion, operacion.inv_respuestas_json or {}
+            )
+        ],
         **estado_seguimiento(operacion),
     )
 

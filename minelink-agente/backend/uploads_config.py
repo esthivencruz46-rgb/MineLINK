@@ -59,6 +59,17 @@ CATEGORIAS_INVERSION = {
     "plan_expansion_documentado": (_PDF_O_IMAGEN, "Plan de expansión documentado"),
     "certificado_ley": (_PDF_O_IMAGEN, "Certificado de ley del mineral"),
     "fotos_labores_antiguas": (("image/jpeg", "image/png", "image/webp"), "Fotos de labores antiguas"),
+    # Respaldo de lo que el minero declaró en INV_0_4 ("¿qué aportas tú al
+    # acuerdo?") cuando marca equipo/mano de obra — ver
+    # catalogo_inversion.respaldos_declarados_inversion().
+    "fotos_equipo_maquinaria": (
+        ("image/jpeg", "image/png", "image/webp"),
+        "Fotos de tu maquinaria y equipo",
+    ),
+    "fotos_trabajadores": (
+        ("image/jpeg", "image/png", "image/webp"),
+        "Fotos de tus trabajadores",
+    ),
 }
 
 # El diagnóstico Sí/No declara el estado de formalización, pero esa
