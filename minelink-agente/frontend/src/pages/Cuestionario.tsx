@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Check, Lightbulb } from "lucide-react";
 import { ProgressBar } from "../components/ProgressBar";
@@ -106,7 +106,13 @@ export function Cuestionario() {
   const [idActual, setIdActual] = useState<string | null>(() =>
     vuelveDeResultado ? ultimaRespondida(respuestasIniciales) : null
   );
+  // Selección marcada pero NO confirmada — separada de `respuestas` para
+  // que elegir una opción no avance solo: hace falta pulsar "Continuar →"
+  // (igual que el Módulo INV), así el recuadro no salta de tamaño ni de
+  // posición cada vez que tocas algo.
+  const [borrador, setBorrador] = useState("");
   const [mineral, setMineral] = useState<string>("");
+  const [mineralBorrador, setMineralBorrador] = useState<string>("");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inicioRegistrado = useRef(false);
@@ -135,6 +141,17 @@ export function Cuestionario() {
       navigate("/sin-ruta");
     }
   }, [perfil, navigate]);
+
+  // El borrador arranca en lo que ya estaba respondido (modo revisión) o
+  // vacío (pregunta nueva) cada vez que cambia la pregunta que se ve.
+  useEffect(() => {
+    if (actual) setBorrador(respuestas[actual.id] ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actual?.id]);
+  useEffect(() => {
+    if (faltaMineral) setMineralBorrador(mineral);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [faltaMineral]);
 
   // Todo respondido → enviar (una sola vez).
   const listoParaEnviar =
@@ -239,23 +256,37 @@ export function Cuestionario() {
 
   if (!enviando && actual === null && faltaMineral) {
     return (
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
-        <BotonVolver onClick={volver} />
+      <TarjetaPregunta
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <BotonVolver onClick={volver} />
+            <button
+              disabled={!mineralBorrador}
+              onClick={() => setMineral(mineralBorrador)}
+              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+            >
+              Continuar →
+            </button>
+          </div>
+        }
+      >
         <ProgressBar actual={visibles.length + 1} total={visibles.length + 1} />
-        <h2 className="text-xl font-semibold">
+        <h2 className="mt-4 text-xl font-semibold">
           ¿Cuál es el principal mineral de tu operación?
         </h2>
-        <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+        <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
           Sirve para que los inversionistas encuentren tu proyecto por mineral.
         </p>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <OpcionesSeleccionables
-          opciones={OPCIONES_MINERAL}
-          valorActual={mineral}
-          disabled={enviando}
-          onSeleccionar={setMineral}
-        />
-      </div>
+        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+        <div className="mt-4">
+          <OpcionesSeleccionables
+            opciones={OPCIONES_MINERAL}
+            valorActual={mineralBorrador}
+            disabled={enviando}
+            onSeleccionar={setMineralBorrador}
+          />
+        </div>
+      </TarjetaPregunta>
     );
   }
 
@@ -265,13 +296,26 @@ export function Cuestionario() {
 
   if (actual) {
     const indiceActual = visibles.findIndex((p) => p.id === actual.id);
-    const yaRespondida = Boolean(respuestas[actual.id]);
+    const esNumerica = actual.tipo === "numero" || actual.tipo === "anio";
+    const puedeContinuar = borrador.trim().length > 0;
     return (
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col justify-center gap-6 px-4">
-        {indiceActual > 0 && <BotonVolver onClick={volver} />}
+      <TarjetaPregunta
+        footer={
+          <div className="flex items-center justify-between gap-3">
+            <BotonVolver onClick={indiceActual > 0 ? volver : undefined} />
+            <button
+              disabled={!puedeContinuar}
+              onClick={() => responder(borrador)}
+              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+            >
+              Continuar →
+            </button>
+          </div>
+        }
+      >
         <ProgressBar actual={indiceActual + 1} total={visibles.length} />
 
-        <div className="flex flex-col gap-3">
+        <div className="mt-4 flex flex-col gap-3">
           {perfil && perfil !== "sin_ruta" && actual.id !== "M0_1" && (
             <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
               {NOMBRE_PERFIL[perfil] ?? perfil}
@@ -289,33 +333,30 @@ export function Cuestionario() {
           )}
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
 
-        {actual.tipo === "numero" || actual.tipo === "anio" ? (
-          <NumeroInput
-            key={actual.id}
-            pregunta={actual}
-            valorActual={respuestas[actual.id] ?? ""}
-            onResponder={responder}
-          />
-        ) : (
-          <OpcionesSeleccionables
-            opciones={actual.opciones ?? []}
-            valorActual={respuestas[actual.id]}
-            disabled={enviando}
-            onSeleccionar={responder}
-          />
-        )}
-
-        {yaRespondida && actual.tipo !== "numero" && actual.tipo !== "anio" && (
-          <button
-            onClick={() => avanzarDesde(actual.id, respuestas)}
-            className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white"
-          >
-            Continuar →
-          </button>
-        )}
-      </div>
+        <div className="mt-4">
+          {esNumerica ? (
+            <input
+              key={actual.id}
+              className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+              type="number"
+              placeholder={actual.placeholder}
+              min={actual.min}
+              max={actual.max}
+              value={borrador}
+              onChange={(e) => setBorrador(e.target.value)}
+            />
+          ) : (
+            <OpcionesSeleccionables
+              opciones={actual.opciones ?? []}
+              valorActual={borrador}
+              disabled={enviando}
+              onSeleccionar={setBorrador}
+            />
+          )}
+        </div>
+      </TarjetaPregunta>
     );
   }
 
@@ -354,11 +395,31 @@ export function Cuestionario() {
 // Sub-componentes
 // -------------------------------------------------------------------
 
-function BotonVolver({ onClick }: { onClick: () => void }) {
+/** Recuadro de tamaño FIJO (no crece ni encoge entre preguntas, evita el
+ *  salto que molestaba al ir hacia atrás/adelante): el contenido de cada
+ *  pregunta se desplaza dentro de un área con scroll propio y el pie con
+ *  Volver/Continuar queda siempre en la misma posición — mismo patrón que
+ *  el Módulo INV (CuestionarioInversionInline.tsx), sin fondo de modal
+ *  porque aquí es la página completa, no un recuadro sobre otra pantalla. */
+function TarjetaPregunta({ children, footer }: { children: ReactNode; footer: ReactNode }) {
+  return (
+    <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-4">
+      <div className="flex h-[600px] max-h-[85vh] w-full flex-col rounded-lg bg-tarjeta p-6 dark:bg-tarjeta-dark">
+        <div className="flex-1 overflow-y-auto pr-1">{children}</div>
+        <div className="mt-4 shrink-0 border-t border-black/10 pt-4 dark:border-white/10">
+          {footer}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BotonVolver({ onClick }: { onClick?: () => void }) {
+  if (!onClick) return <span />;
   return (
     <button
       onClick={onClick}
-      className="self-start text-sm text-texto-suave underline dark:text-texto-suave-dark"
+      className="min-h-[44px] rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
     >
       ← Volver
     </button>
@@ -417,35 +478,3 @@ function OpcionesSeleccionables({
   );
 }
 
-function NumeroInput({
-  pregunta,
-  valorActual,
-  onResponder,
-}: {
-  pregunta: PreguntaCatalogo;
-  valorActual: string;
-  onResponder: (valor: string) => void;
-}) {
-  const [valor, setValor] = useState(valorActual);
-
-  return (
-    <div className="flex flex-col gap-3">
-      <input
-        className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-        type="number"
-        placeholder={pregunta.placeholder}
-        min={pregunta.min}
-        max={pregunta.max}
-        value={valor}
-        onChange={(e) => setValor(e.target.value)}
-      />
-      <button
-        disabled={!valor.trim()}
-        onClick={() => onResponder(valor.trim())}
-        className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
-      >
-        Continuar
-      </button>
-    </div>
-  );
-}
