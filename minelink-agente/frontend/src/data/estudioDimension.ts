@@ -16,6 +16,9 @@ export const DIMENSION_POR_ESTUDIO: Record<string, NombreDimension> = {
   declaracion_anual_consolidada: "legal",
   subsanacion_fiscalizacion: "legal",
   autorizacion_inicio_actividades: "legal",
+  // Credencial del perfil D (formal pleno) — se pide en "Respalda tu
+  // declaración" aunque no sea una brecha (ver scoring.estudios_aplicables).
+  autorizacion_drem: "legal",
   declaracion_produccion_semestral: "operativo",
   igafom_aprobado: "ambiental",
   instrumento_ambiental_dia_eia: "ambiental",

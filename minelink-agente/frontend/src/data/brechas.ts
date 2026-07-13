@@ -28,6 +28,12 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
     texto: "Declaración Bienal (clasificación PMA/PPM)",
     resuelve: "Acredita ante la autoridad minera regional tu condición de Pequeño Productor Minero (PPM) o Productor Minero Artesanal (PMA).",
   },
+  // No es una brecha: es la credencial del perfil D (formal pleno) — se
+  // usa como slot de "Respalda tu declaración" (ver scoring.estudios_aplicables).
+  autorizacion_drem: {
+    texto: "Autorización de inicio de actividades (DREM/GREM)",
+    resuelve: "Es el documento que acredita que ya eres un minero formal.",
+  },
   informe_geologico: {
     texto: "Informe geológico de tu veta",
     resuelve: "Certifica la estructura mineral de tu labor.",

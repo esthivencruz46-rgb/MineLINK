@@ -458,6 +458,16 @@ def estudios_aplicables(operacion) -> list[dict]:
             continue
         vistos.add(estudio)
         resultado.append({"codigo": estudio, "pregunta_id": id_pregunta, "valor": valor})
+
+    # Perfil D existe porque declaró "ya estoy formalizado" (M0_3) — el
+    # papel que lo demuestra es su autorización de inicio/reinicio de
+    # actividades (DREM/GREM), así que se le pide como respaldo aunque no
+    # sea una "brecha" (es exactamente lo contrario: su credencial).
+    if respuestas.get("M0_3") == "formal":
+        resultado.append(
+            {"codigo": "autorizacion_drem", "pregunta_id": "M0_3", "valor": "formal"}
+        )
+
     return sorted(resultado, key=lambda r: r["codigo"])
 
 
