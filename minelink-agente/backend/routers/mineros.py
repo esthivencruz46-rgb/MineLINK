@@ -22,6 +22,7 @@ from scoring import (
 from catalogo_inversion import (
     activacion_inversion,
     brechas_inversion,
+    brechas_inversion_en_proceso,
     categorias_requeridas_inversion,
     respaldos_declarados_inversion,
     validar_respuestas_inversion,
@@ -202,6 +203,12 @@ def _perfil_out(
         brechas_inversion=[
             b
             for b in brechas_inversion(operacion.inv_respuestas_json or {})
+            if b not in {d.categoria for d in (operacion.documentos or [])}
+            and b not in set(operacion.brechas_resueltas_json or [])
+        ],
+        brechas_inversion_en_proceso=[
+            b
+            for b in brechas_inversion_en_proceso(operacion.inv_respuestas_json or {})
             if b not in {d.categoria for d in (operacion.documentos or [])}
             and b not in set(operacion.brechas_resueltas_json or [])
         ],

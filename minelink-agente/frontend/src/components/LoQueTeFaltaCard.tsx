@@ -33,11 +33,19 @@ export function LoQueTeFaltaCard({
   const [error, setError] = useState<string | null>(null);
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const brechasFormalizacion = mostrarFormalizacion ? perfil.brechas_pendientes : [];
+  // "En trámite" (checklists del Módulo INV con "en proceso"): ya hay
+  // alguien haciéndolo — no se ofrece "¿Quién me ayuda?", solo subir el
+  // respaldo cuando termine. Además, si el diagnóstico de formalización
+  // lo marcó como brecha, la respuesta más reciente del Módulo INV manda:
+  // se muestra como en trámite, no como faltante.
+  const enProceso = perfil.brechas_inversion_en_proceso ?? [];
+  const brechasFormalizacion = (mostrarFormalizacion ? perfil.brechas_pendientes : []).filter(
+    (b) => !enProceso.includes(b)
+  );
   // Si una brecha ya está listada en formalización, no se repite en
   // inversión (ej. analisis_laboratorio puede salir de ambos cuestionarios).
   const brechasInversion = (perfil.brechas_inversion ?? []).filter(
-    (b) => !brechasFormalizacion.includes(b)
+    (b) => !brechasFormalizacion.includes(b) && !enProceso.includes(b)
   );
   const resueltas = mostrarFormalizacion ? perfil.brechas_resueltas : [];
 
@@ -61,7 +69,12 @@ export function LoQueTeFaltaCard({
     }
   }
 
-  if (brechasFormalizacion.length === 0 && brechasInversion.length === 0 && resueltas.length === 0) {
+  if (
+    brechasFormalizacion.length === 0 &&
+    brechasInversion.length === 0 &&
+    enProceso.length === 0 &&
+    resueltas.length === 0
+  ) {
     if (!mostrarFormalizacion) return null;
     return (
       <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
@@ -73,25 +86,36 @@ export function LoQueTeFaltaCard({
     );
   }
 
-  function itemBrecha(b: string) {
+  function itemBrecha(b: string, enTramite = false) {
     return (
       <li key={b} className="rounded-lg px-1 py-1.5 hover:bg-black/5 dark:hover:bg-white/5">
-        <p className="text-sm">• {INFO_BRECHA[b]?.texto ?? b}</p>
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
+          {enTramite && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              En trámite
+            </span>
+          )}
+        </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 pl-3">
-          <button
-            onClick={() =>
-              navigate("/empresas", {
-                state: {
-                  region: perfil.region,
-                  estudios: [b],
-                  operacionId: perfil.operacion_id,
-                },
-              })
-            }
-            className="text-xs font-semibold text-acento"
-          >
-            ¿Quién me ayuda? →
-          </button>
+          {/* En trámite ya hay alguien haciéndolo — no se ofrece buscar
+              empresas, solo subir el respaldo cuando termine. */}
+          {!enTramite && (
+            <button
+              onClick={() =>
+                navigate("/empresas", {
+                  state: {
+                    region: perfil.region,
+                    estudios: [b],
+                    operacionId: perfil.operacion_id,
+                  },
+                })
+              }
+              className="text-xs font-semibold text-acento"
+            >
+              ¿Quién me ayuda? →
+            </button>
+          )}
           <button
             onClick={() => inputsRef.current[b]?.click()}
             disabled={subiendo === b}
@@ -133,7 +157,9 @@ export function LoQueTeFaltaCard({
           <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
             Formalización
           </h3>
-          <ul className="mt-1 flex flex-col gap-1">{brechasFormalizacion.map(itemBrecha)}</ul>
+          <ul className="mt-1 flex flex-col gap-1">
+            {brechasFormalizacion.map((b) => itemBrecha(b))}
+          </ul>
         </>
       )}
 
@@ -142,7 +168,20 @@ export function LoQueTeFaltaCard({
           <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h3>
-          <ul className="mt-1 flex flex-col gap-1">{brechasInversion.map(itemBrecha)}</ul>
+          <ul className="mt-1 flex flex-col gap-1">
+            {brechasInversion.map((b) => itemBrecha(b))}
+          </ul>
+        </>
+      )}
+
+      {enProceso.length > 0 && (
+        <>
+          <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+            En trámite
+          </h3>
+          <ul className="mt-1 flex flex-col gap-1">
+            {enProceso.map((b) => itemBrecha(b, true))}
+          </ul>
         </>
       )}
 

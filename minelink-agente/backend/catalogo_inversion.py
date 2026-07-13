@@ -370,6 +370,20 @@ def brechas_inversion(respuestas_inv: dict) -> list[str]:
     return brechas
 
 
+def brechas_inversion_en_proceso(respuestas_inv: dict) -> list[str]:
+    """Estudios que el minero declaró tener EN PROCESO/en trámite en los
+    checklists del Módulo INV (INV_B1a..c, INV_D3a..c). No son una brecha
+    que resolver con una empresa — ya hay alguien haciéndolo — así que en
+    "lo que te falta" se muestran solo con la opción de subir el respaldo
+    cuando el trámite termine, sin el "¿Quién me ayuda?"."""
+    respuestas_inv = respuestas_inv or {}
+    en_proceso: list[str] = []
+    for pregunta_id, estudio in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():
+        if respuestas_inv.get(pregunta_id) == "en_proceso" and estudio not in en_proceso:
+            en_proceso.append(estudio)
+    return en_proceso
+
+
 def alertas_inversion(perfil: str, respuestas_diagnostico: dict, respuestas_inv: dict) -> list[dict]:
     """Alertas de consistencia AL1-AL8 del spec — informativas para el
     admin, nunca bloquean que el minero envíe sus respuestas."""
