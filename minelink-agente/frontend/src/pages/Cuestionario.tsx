@@ -395,17 +395,17 @@ export function Cuestionario() {
 // Sub-componentes
 // -------------------------------------------------------------------
 
-/** Recuadro de tamaño FIJO (no crece ni encoge entre preguntas, evita el
- *  salto que molestaba al ir hacia atrás/adelante): el contenido de cada
- *  pregunta se desplaza dentro de un área con scroll propio y el pie con
- *  Volver/Continuar queda siempre en la misma posición — mismo patrón que
- *  el Módulo INV (CuestionarioInversionInline.tsx), sin fondo de modal
- *  porque aquí es la página completa, no un recuadro sobre otra pantalla. */
+/** Recuadro ancho, con una altura mínima que ya alcanza para la pregunta
+ *  más grande del catálogo (8 opciones, la pantalla de mineral) — así
+ *  nunca hace falta scroll interno ni se ve un recuadro angosto, y las
+ *  preguntas cortas no lo encogen: se ve del mismo tamaño siempre, sin la
+ *  barra de scroll que se veía mal. Solo crecería en el caso extremo de
+ *  una pregunta con ayuda muy larga, nunca se hace más chico. */
 function TarjetaPregunta({ children, footer }: { children: ReactNode; footer: ReactNode }) {
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center px-4">
-      <div className="flex h-[600px] max-h-[85vh] w-full flex-col rounded-lg bg-tarjeta p-6 dark:bg-tarjeta-dark">
-        <div className="flex-1 overflow-y-auto pr-1">{children}</div>
+    <div className="mx-auto flex min-h-[80vh] max-w-2xl flex-col items-center justify-center px-4">
+      <div className="flex min-h-[620px] w-full flex-col rounded-lg bg-tarjeta p-6 dark:bg-tarjeta-dark">
+        <div className="flex-1">{children}</div>
         <div className="mt-4 shrink-0 border-t border-black/10 pt-4 dark:border-white/10">
           {footer}
         </div>

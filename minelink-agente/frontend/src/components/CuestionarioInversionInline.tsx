@@ -213,8 +213,8 @@ function ModalShell({
   onCerrar: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4">
-      <div className="relative flex h-[88dvh] max-h-[620px] w-full max-w-lg flex-col rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:h-[620px] md:rounded-lg">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-0 md:items-center md:p-4">
+      <div className="relative flex min-h-[600px] w-full max-w-2xl flex-col rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:rounded-lg">
         <button
           onClick={onCerrar}
           aria-label="Cerrar"
@@ -222,7 +222,7 @@ function ModalShell({
         >
           <X size={20} strokeWidth={2} />
         </button>
-        <div className="flex-1 overflow-y-auto pr-1">{children}</div>
+        <div className="flex-1">{children}</div>
         {footer && <div className="mt-4 shrink-0 border-t border-black/10 pt-4 dark:border-white/10">{footer}</div>}
       </div>
     </div>
