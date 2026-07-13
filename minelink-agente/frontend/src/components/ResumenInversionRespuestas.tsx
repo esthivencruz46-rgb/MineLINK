@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { TrendingUp } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CampoMonto } from "./CampoMonto";
 import { CampoProduccion } from "./CampoProduccion";
@@ -92,31 +93,42 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="font-semibold">Tu perfil de inversión</h2>
-        {guardadoOk && <span className="text-xs text-emerald-500">Guardado ✓</span>}
+        <h2 className="flex items-center gap-2 font-semibold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-acento/15 text-acento">
+            <TrendingUp size={15} strokeWidth={2.25} aria-hidden />
+          </span>
+          Tu perfil de inversión
+        </h2>
+        <span
+          className={`text-xs font-semibold text-emerald-500 transition-opacity ${
+            guardadoOk ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          Guardado ✓
+        </span>
       </div>
 
-      <dl className="mt-3 flex flex-col gap-2.5">
+      <dl className="mt-3 divide-y divide-black/5 dark:divide-white/5">
         {entradas.map(([id, valor]) => {
           const pregunta = POR_ID_INV[id];
           if (!pregunta) return null;
-          const texto = Array.isArray(valor)
-            ? valor.map((v) => etiquetaRespuesta(id, v)).join(", ")
-            : pregunta.tipo === "texto_corto"
-              ? valor
-              : etiquetaRespuesta(id, valor);
+          const valores = Array.isArray(valor)
+            ? valor.map((v) => etiquetaRespuesta(id, v))
+            : [pregunta.tipo === "texto_corto" ? valor : etiquetaRespuesta(id, valor)];
 
           // INV_0_1: el rango marcado + campo chico de monto exacto, todo
-          // en la misma línea que la pregunta.
+          // en la misma fila que la pregunta.
           if (id === "INV_0_1") {
             return (
               <div
                 key={id}
-                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm"
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0"
               >
                 <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-                <dd className="flex items-center gap-2">
-                  <span className="font-semibold">{texto}</span>
+                <dd className="flex flex-wrap items-center justify-end gap-2">
+                  <span className="rounded-full bg-acento/10 px-2.5 py-0.5 text-xs font-semibold text-acento">
+                    {valores[0]}
+                  </span>
                   <div className="w-36">
                     <CampoMonto
                       compacto
@@ -136,16 +148,25 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
           return (
             <div
               key={id}
-              className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm"
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0"
             >
               <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-              <dd className="text-right font-semibold">{texto}</dd>
+              <dd className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
+                {valores.map((v) => (
+                  <span
+                    key={v}
+                    className="rounded-full bg-acento/10 px-2.5 py-0.5 text-xs font-semibold text-acento"
+                  >
+                    {v}
+                  </span>
+                ))}
+              </dd>
             </div>
           );
         })}
 
         {esRuta1 && (
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0">
             <dt className="text-texto-suave dark:text-texto-suave-dark">
               ¿Cuánto produces y cuánto mineral te queda (reservas)?
             </dt>
