@@ -10,6 +10,21 @@ function etiquetaRespuesta(id: string, valor: string): string {
   return POR_ID_INV[id]?.opciones?.find((o) => o.valor === valor)?.etiqueta ?? valor;
 }
 
+// Respuestas que declaran NO tener algo — no se repiten aquí porque la
+// tarjeta "Lo que te falta" ya las muestra como brecha con su botón de
+// "¿Quién me ayuda?" (espejo de _BRECHA_INV_POR_PREGUNTA del backend).
+const RESPUESTAS_NEGATIVAS: Record<string, string[]> = {
+  INV_A1: ["ninguna"],
+  INV_B1a: ["no_tengo"],
+  INV_B1b: ["no_tengo"],
+  INV_B1c: ["no_tengo"],
+  INV_C3: ["estimacion", "no_sabe"],
+  INV_C4: ["estimacion", "no"],
+  INV_D3a: ["no_tengo"],
+  INV_D3b: ["no_tengo"],
+  INV_D3c: ["no_tengo"],
+};
+
 /** Si ya declaró la moneda en el diagnóstico, se fija acá — no puede
  * declarar en dólares y luego pedir en soles (o viceversa). */
 function monedaFijaDe(perfil: MineroPerfil): "S/" | "USD" | undefined {
@@ -85,7 +100,10 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
     })
     .filter(([id, valor]) => {
       if (Array.isArray(valor)) return valor.length > 0;
-      return !cubiertos.has(`${id}:${valor}`);
+      if (cubiertos.has(`${id}:${valor}`)) return false;
+      // "No tengo X" ya aparece en "Lo que te falta" — no repetirlo aquí.
+      if (RESPUESTAS_NEGATIVAS[id]?.includes(valor)) return false;
+      return true;
     });
 
   const esRuta1 = perfil.situacion !== "concesionario";
@@ -116,20 +134,23 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
             ? valor.map((v) => etiquetaRespuesta(id, v))
             : [pregunta.tipo === "texto_corto" ? valor : etiquetaRespuesta(id, valor)];
 
-          // INV_0_1: el rango marcado + campo chico de monto exacto, todo
-          // en la misma fila que la pregunta.
+          // INV_0_1: el rango marcado + campo de monto exacto, todo en la
+          // misma fila que la pregunta (la pregunta se parte en varias
+          // líneas si hace falta, la respuesta nunca baja).
           if (id === "INV_0_1") {
             return (
               <div
                 key={id}
-                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0"
+                className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
               >
-                <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-                <dd className="flex flex-wrap items-center justify-end gap-2">
+                <dt className="min-w-0 flex-1 text-texto-suave dark:text-texto-suave-dark">
+                  {pregunta.texto}
+                </dt>
+                <dd className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className="rounded-full bg-acento/10 px-2.5 py-0.5 text-xs font-semibold text-acento">
                     {valores[0]}
                   </span>
-                  <div className="w-36">
+                  <div className="w-48">
                     <CampoMonto
                       compacto
                       value={capitalBuscado}
@@ -148,10 +169,12 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
           return (
             <div
               key={id}
-              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0"
+              className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
             >
-              <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-              <dd className="flex max-w-full flex-wrap items-center justify-end gap-1.5">
+              <dt className="min-w-0 flex-1 text-texto-suave dark:text-texto-suave-dark">
+                {pregunta.texto}
+              </dt>
+              <dd className="flex max-w-[55%] shrink-0 flex-wrap items-center justify-end gap-1.5">
                 {valores.map((v) => (
                   <span
                     key={v}
@@ -166,11 +189,11 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
         })}
 
         {esRuta1 && (
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 py-2.5 text-sm first:pt-0 last:pb-0">
-            <dt className="text-texto-suave dark:text-texto-suave-dark">
+          <div className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+            <dt className="min-w-0 flex-1 text-texto-suave dark:text-texto-suave-dark">
               ¿Cuánto produces y cuánto mineral te queda (reservas)?
             </dt>
-            <dd className="w-full max-w-xs">
+            <dd className="w-56 shrink-0">
               <CampoProduccion
                 value={capacidadProduccion}
                 onChange={(v) => {
