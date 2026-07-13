@@ -627,6 +627,37 @@ def test_mineros_guarda_ley_promedio_sin_pisar_el_resto():
     assert body["capital_buscado"] == "USD 20,000"
 
 
+def test_mineros_guarda_fechas_de_formalizacion_por_clave():
+    # datos_formalizacion se FUSIONA por clave: cada slot guarda su fecha
+    # sin pisar las demás; un valor vacío borra solo esa clave.
+    token = _token_minero(username="minerofechas")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"datos_formalizacion": {"autorizacion_drem": "2024-03-15"}},
+    )
+    assert resp.status_code == 200
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"datos_formalizacion": {"vigencia_concesion": "2026-01-10"}},
+    )
+    assert resp.json()["datos_formalizacion"] == {
+        "autorizacion_drem": "2024-03-15",
+        "vigencia_concesion": "2026-01-10",
+    }
+
+    # Vaciar una clave la borra sin tocar la otra
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"datos_formalizacion": {"autorizacion_drem": ""}},
+    )
+    assert resp.json()["datos_formalizacion"] == {"vigencia_concesion": "2026-01-10"}
+
+
 def test_mineros_perfil_inversion_requiere_jwt():
     resp = client.put("/mineros/perfil-inversion", json={})
     assert resp.status_code == 403

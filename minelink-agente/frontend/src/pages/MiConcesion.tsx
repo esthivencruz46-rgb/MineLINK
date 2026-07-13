@@ -205,6 +205,7 @@ export function MiConcesion() {
             ocultarEncabezado
             ocultarDocumentosLegales
             documentosEnviados={perfil.documentos_enviados}
+            datosFormalizacion={perfil.datos_formalizacion ?? {}}
             rutaVolver="/mi-concesion"
             onEnviado={() => {
               cargarPerfil();

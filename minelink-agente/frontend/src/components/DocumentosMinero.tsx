@@ -11,6 +11,17 @@ import { NOMBRES_DIMENSION, POR_ID } from "../data/preguntas";
 const FORMATOS_FOTO_O_PDF = "Formato: PDF o una foto del documento (JPG, PNG, WEBP)";
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
 
+// Slots de formalización donde el documento trae una FECHA que vale la
+// pena declarar por escrito al costado del archivo — se guarda en
+// Operacion.datos_formalizacion_json (fusión por clave, autoguardado).
+const FECHA_POR_CATEGORIA: Record<string, string> = {
+  autorizacion_drem: "Fecha de inicio de actividades",
+  vigencia_concesion: "Fecha de tu última renovación / pago de vigencia",
+  declaracion_anual_consolidada: "Fecha de tu última DAC",
+  declaracion_produccion_semestral: "Fecha de tu última declaración semestral",
+  igafom_aprobado: "Fecha de aprobación de tu IGAFOM",
+};
+
 /** Traduce el valor crudo que el minero marcó (ej. "en_tramite") a su
  *  etiqueta legible, buscando la pregunta de origen en el catálogo del
  *  cuestionario — mismo texto que vio al responder. */
@@ -62,6 +73,9 @@ interface Props {
    * confirmación: se queda en la cuenta y se llama esto (las ventanas lo
    * usan para abrir el cuestionario de inversión ahí mismo). */
   onEnviado?: () => void;
+  /** Fechas ya declaradas por slot (ver MineroPerfil.datos_formalizacion)
+   * — estado inicial de los campos de fecha de FECHA_POR_CATEGORIA. */
+  datosFormalizacion?: Record<string, string>;
 }
 
 export function DocumentosMinero({
@@ -75,10 +89,33 @@ export function DocumentosMinero({
   documentosEnviados,
   rutaVolver,
   onEnviado,
+  datosFormalizacion,
 }: Props) {
   const navigate = useNavigate();
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
+  const [fechas, setFechas] = useState<Record<string, string>>(datosFormalizacion ?? {});
+  const debouncesFechaRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  useEffect(() => () => {
+    Object.values(debouncesFechaRef.current).forEach(clearTimeout);
+  }, []);
+
+  /** Autoguardado de la fecha declarada de un slot — el endpoint fusiona
+   *  por clave, así que cada slot viaja solo sin pisar a los demás. */
+  function guardarFecha(categoria: string, valor: string) {
+    setFechas((f) => ({ ...f, [categoria]: valor }));
+    if (debouncesFechaRef.current[categoria]) {
+      clearTimeout(debouncesFechaRef.current[categoria]);
+    }
+    debouncesFechaRef.current[categoria] = setTimeout(() => {
+      authFetch("/mineros/perfil-inversion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ datos_formalizacion: { [categoria]: valor } }),
+      }).catch(() => {});
+    }, 600);
+  }
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -253,6 +290,7 @@ export function DocumentosMinero({
 
   function bloqueCategoria(cat: CategoriaInfo) {
     const archivos = documentos.filter((d) => d.categoria === cat.categoria);
+    const etiquetaFecha = FECHA_POR_CATEGORIA[cat.categoria];
     return (
       <div key={cat.categoria} className="rounded-lg border border-black/10 p-3 dark:border-white/10">
         <div className="flex items-center justify-between gap-2">
@@ -269,6 +307,19 @@ export function DocumentosMinero({
             <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
               {cat.formatos}
             </p>
+            {etiquetaFecha && (
+              <div className="mt-1.5">
+                <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                  {etiquetaFecha}:
+                </p>
+                <input
+                  type="date"
+                  className="mt-0.5 min-h-[36px] rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+                  value={fechas[cat.categoria] ?? ""}
+                  onChange={(e) => guardarFecha(cat.categoria, e.target.value)}
+                />
+              </div>
+            )}
           </div>
           <button
             onClick={() => inputsRef.current[cat.categoria]?.click()}

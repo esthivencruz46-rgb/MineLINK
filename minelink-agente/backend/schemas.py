@@ -633,6 +633,9 @@ class MineroPerfilOut(BaseModel):
     # se listan en "lo que te falta" solo con la opción de subir respaldo
     # (sin "¿Quién me ayuda?": ya hay alguien haciéndolo).
     brechas_inversion_en_proceso: list[str] = []
+    # Fechas declaradas junto a los slots de formalización (dict
+    # categoria→valor, ver Operacion.datos_formalizacion_json).
+    datos_formalizacion: dict[str, str] = {}
     # Cuántos inversionistas dejaron interés en su proyecto (solo el
     # número; los contactos siguen siendo exclusivos del panel admin).
     intereses_recibidos: int = 0
@@ -811,6 +814,11 @@ class PerfilInversionUpdate(BaseModel):
     # que el perfil informativo viejo ya usaba y la ficha pública muestra.
     especie_mineral: Optional[str] = None
     toneladas_estimadas: Optional[str] = None
+    # Fechas declaradas junto a los slots de formalización ("Respalda tu
+    # declaración"): dict categoria→valor. Se FUSIONA por clave (mandar
+    # {"autorizacion_drem": "2024-03-15"} no borra las otras fechas; un
+    # valor vacío borra solo esa clave).
+    datos_formalizacion: Optional[dict[str, str]] = None
 
     @field_validator("ubicacion_maps")
     @classmethod

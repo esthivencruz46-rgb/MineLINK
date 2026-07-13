@@ -138,6 +138,13 @@ class Operacion(Base):
     inv_enviado_en = Column(DateTime, nullable=True)
     inv_visto_bueno = Column(Boolean, nullable=False, default=False)
 
+    # Fechas/datos que el minero declara junto a los slots de "Respalda tu
+    # declaración" (julio 2026): dict categoria→valor, ej.
+    # {"autorizacion_drem": "2024-03-15", "vigencia_concesion": "2026-01-10"}.
+    # Actualización parcial por clave desde PUT /mineros/perfil-inversion.
+    # ⚠️ Requiere correr seeds/migrar_datos_formalizacion.py contra Supabase.
+    datos_formalizacion_json = Column(JSON, nullable=True)
+
     created_at = Column(DateTime, default=_now)
 
     leads = relationship("Lead", back_populates="operacion")

@@ -201,6 +201,7 @@ export function MiCuenta() {
             ocultarEncabezado
             ocultarDocumentosLegales
             documentosEnviados={perfil.documentos_enviados}
+            datosFormalizacion={perfil.datos_formalizacion ?? {}}
             rutaVolver="/mi-cuenta"
             onEnviado={() => {
               cargarPerfil();

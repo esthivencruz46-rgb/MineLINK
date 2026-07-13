@@ -134,6 +134,9 @@ export interface MineroPerfil {
   brechas_inversion_en_proceso?: string[];
   // Cuántos inversionistas dejaron interés en su proyecto (solo el número).
   intereses_recibidos?: number;
+  // Fechas declaradas junto a los slots de formalización (dict
+  // categoria→valor ISO, ej. {"autorizacion_drem": "2024-03-15"}).
+  datos_formalizacion?: Record<string, string>;
 }
 
 export interface Notificacion {

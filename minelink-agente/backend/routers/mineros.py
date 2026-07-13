@@ -214,6 +214,7 @@ def _perfil_out(
             if b not in {d.categoria for d in (operacion.documentos or [])}
             and b not in set(operacion.brechas_resueltas_json or [])
         ],
+        datos_formalizacion=operacion.datos_formalizacion_json or {},
         # Cuántos inversionistas dejaron su interés en este proyecto — solo
         # el conteo: sus datos de contacto siguen siendo exclusivos del
         # admin, que hace de intermediario.
@@ -343,6 +344,16 @@ def actualizar_perfil_inversion(
         operacion.especie_mineral = datos["especie_mineral"]
     if "toneladas_estimadas" in datos:
         operacion.toneladas_estimadas = datos["toneladas_estimadas"]
+    if datos.get("datos_formalizacion") is not None:
+        # Fusión por clave: cada slot guarda su fecha por separado sin
+        # pisar las demás; un valor vacío borra solo esa clave.
+        actuales = dict(operacion.datos_formalizacion_json or {})
+        for clave, valor in datos["datos_formalizacion"].items():
+            if valor and valor.strip():
+                actuales[clave] = valor.strip()
+            else:
+                actuales.pop(clave, None)
+        operacion.datos_formalizacion_json = actuales
     db.commit()
     db.refresh(lead)
 
