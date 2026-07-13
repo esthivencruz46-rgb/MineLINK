@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
+import { ResumenInversionRespuestas } from "../components/ResumenInversionRespuestas";
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
 import { SalidasList } from "../components/SalidasList";
@@ -285,11 +286,7 @@ export function MiConcesion() {
           <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h2>
-          <SeccionInversionista
-            perfil={perfil}
-            abierto={mostrarInversion}
-            onAbrir={() => setMostrarInversion((v) => !v)}
-          />
+          <SeccionInversionista perfil={perfil} onAbrir={() => setMostrarInversion(true)} />
           {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (
             <CuestionarioInversionInline
               perfil={perfil}
@@ -297,8 +294,10 @@ export function MiConcesion() {
                 setMostrarInversion(false);
                 cargarPerfil();
               }}
+              onCerrar={() => setMostrarInversion(false)}
             />
           )}
+          {perfil.inv_enviado && <ResumenInversionRespuestas />}
           <DocumentosInversionSustento categorias={perfil.categorias_requeridas_inversion} />
         </div>
       </div>

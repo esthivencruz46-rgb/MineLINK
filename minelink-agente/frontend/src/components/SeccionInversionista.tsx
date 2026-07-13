@@ -10,13 +10,11 @@ import type { MineroPerfil } from "../types/minero";
  *  los datos por sí mismos. */
 export function SeccionInversionista({
   perfil,
-  abierto,
   onAbrir,
 }: {
   perfil: MineroPerfil;
-  /** true mientras el wizard embebido (CuestionarioInversionInline) está
-   *  desplegado debajo de esta tarjeta en la misma columna. */
-  abierto: boolean;
+  /** Abre el recuadro modal con las preguntas (CuestionarioInversionInline)
+   *  sobre la propia cuenta, sin navegar a otra página. */
   onAbrir: () => void;
 }) {
   if (!perfil.inversion_ofrecida) {
@@ -72,9 +70,8 @@ export function SeccionInversionista({
           <TrendingUp size={18} strokeWidth={2} /> Inversionista
         </h2>
         <p className="mt-1 text-sm text-white/85">
-          {abierto
-            ? "Completa tu perfil de inversión aquí abajo."
-            : "Completa tu perfil de inversión — no hace falta esperar a que aprueben tus documentos de formalización para empezar."}
+          Completa tu perfil de inversión — no hace falta esperar a que aprueben tus documentos
+          de formalización para empezar.
         </p>
       </div>
     </button>
