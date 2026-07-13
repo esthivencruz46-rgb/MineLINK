@@ -2330,8 +2330,8 @@ def _campos_postulacion(**overrides):
     campos = {
         "nombre": "Ing. Juana Pérez",
         "colegiatura": "CIP 123456",
-        "anios_servicio": 3,
         "whatsapp": "+51987654321",
+        "email": "juana.perez@example.com",
         "regiones_json": '["arequipa"]',
         "estudios_json": '["estudio_ventilacion"]',
     }
@@ -2362,8 +2362,17 @@ def test_postular_consultor_queda_inactivo():
     assert all(e["nombre"] != "Ing. Juana Pérez" for e in resp.json())
 
 
-def test_postular_consultor_rechaza_menos_de_3_anios():
-    resp = _postular(anios_servicio=2)
+def test_postular_consultor_requiere_email_valido():
+    # El email es obligatorio desde julio 2026 (los años de experiencia ya
+    # no se preguntan — se evalúan con el CV).
+    resp = client.post(
+        "/consultores/postular",
+        data={k: v for k, v in _campos_postulacion().items() if k != "email"},
+        files={"cv": ("cv.pdf", PDF_DE_PRUEBA, "application/pdf")},
+    )
+    assert resp.status_code == 422
+
+    resp = _postular(email="no-es-un-email")
     assert resp.status_code == 422
 
 

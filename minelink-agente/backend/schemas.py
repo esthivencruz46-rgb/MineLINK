@@ -249,11 +249,14 @@ class MejorOpcionOut(BaseModel):
 class PostulacionConsultorCreate(BaseModel):
     nombre: str
     colegiatura: str
-    anios_servicio: int
+    # Ya no se pregunta en el formulario (julio 2026) — la experiencia se
+    # evalúa con el CV; la columna Empresa.anios_servicio queda en 0.
+    anios_servicio: int = 0
     regiones_json: list[str]
     estudios_json: list[str]
     whatsapp: str
-    email: Optional[str] = None
+    # Obligatorio desde julio 2026 (antes era opcional).
+    email: str
 
     @field_validator("colegiatura")
     @classmethod
@@ -262,11 +265,12 @@ class PostulacionConsultorCreate(BaseModel):
             raise ValueError("La colegiatura es obligatoria")
         return normalizar_colegiatura(v)
 
-    @field_validator("anios_servicio")
+    @field_validator("email")
     @classmethod
-    def validar_experiencia_minima(cls, v: int) -> int:
-        if v < 3:
-            raise ValueError("Se requiere un mínimo de 3 años de experiencia")
+    def validar_email(cls, v: str) -> str:
+        v = v.strip()
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Ingresa un email válido")
         return v
 
     @field_validator("whatsapp")

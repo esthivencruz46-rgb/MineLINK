@@ -9,7 +9,6 @@ import { CampoTelefono } from "../components/CampoTelefono";
 interface Formulario {
   nombre: string;
   colegiatura: string;
-  anios_servicio: string;
   whatsapp: string;
   email: string;
   regiones_json: string[];
@@ -19,7 +18,6 @@ interface Formulario {
 const VACIO: Formulario = {
   nombre: "",
   colegiatura: "",
-  anios_servicio: "",
   whatsapp: "",
   email: "",
   regiones_json: [],
@@ -33,10 +31,10 @@ function validar(f: Formulario, cv: File | null): Record<string, string> {
   if (!f.nombre.trim()) errores.nombre = "Tu nombre es obligatorio";
   if (!/^\d+$/.test(f.colegiatura.trim()))
     errores.colegiatura = "Ingresa solo el número de tu colegiatura (ej. 123456)";
-  if (!f.anios_servicio || Number(f.anios_servicio) < 3)
-    errores.anios_servicio = "Se requiere un mínimo de 3 años de experiencia";
   if (!/^\d{9}$/.test(f.whatsapp))
     errores.whatsapp = "Ingresa los 9 dígitos de tu número (sin el +51)";
+  if (!/^\S+@\S+\.\S+$/.test(f.email.trim()))
+    errores.email = "Ingresa un email válido — es obligatorio para contactarte";
   if (f.regiones_json.length === 0)
     errores.regiones_json = "Marca al menos 1 departamento";
   if (f.estudios_json.length === 0)
@@ -83,9 +81,8 @@ export function Postular() {
       await postularConsultor({
         nombre: form.nombre.trim(),
         colegiatura: form.colegiatura.trim(),
-        anios_servicio: Number(form.anios_servicio),
         whatsapp: `+51${form.whatsapp}`,
-        email: form.email.trim() || undefined,
+        email: form.email.trim(),
         regiones_json: form.regiones_json,
         estudios_json: form.estudios_json,
         cv,
@@ -115,7 +112,7 @@ export function Postular() {
       <div>
         <h1 className="text-2xl font-bold">Quiero ser consultor en MineLink</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-          Para postular necesitas colegiatura vigente y al menos 3 años de experiencia.
+          Para postular necesitas colegiatura vigente y tu CV actualizado.
           Tu perfil queda pendiente de revisión antes de aparecer públicamente.
         </p>
       </div>
@@ -143,20 +140,6 @@ export function Postular() {
       </div>
 
       <div>
-        <input
-          type="number"
-          min={0}
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
-          placeholder="Años de experiencia (mínimo 3)"
-          value={form.anios_servicio}
-          onChange={(e) => setForm({ ...form, anios_servicio: e.target.value })}
-        />
-        {errores.anios_servicio && (
-          <p className="mt-1 text-xs text-red-500">{errores.anios_servicio}</p>
-        )}
-      </div>
-
-      <div>
         <CampoTelefono
           value={form.whatsapp}
           onChange={(v) => setForm({ ...form, whatsapp: v })}
@@ -165,12 +148,16 @@ export function Postular() {
         {errores.whatsapp && <p className="mt-1 text-xs text-red-500">{errores.whatsapp}</p>}
       </div>
 
-      <input
-        className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
-        placeholder="Email (opcional)"
-        value={form.email}
-        onChange={(e) => setForm({ ...form, email: e.target.value })}
-      />
+      <div>
+        <input
+          type="email"
+          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          placeholder="Tu email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+        {errores.email && <p className="mt-1 text-xs text-red-500">{errores.email}</p>}
+      </div>
 
       <div>
         <div className="mb-1 flex items-center justify-between gap-2">
@@ -203,17 +190,21 @@ export function Postular() {
 
       <div>
         <p className="mb-1 text-sm font-medium">¿En qué puedes ayudar?</p>
-        <div className="flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border border-black/10 p-3 dark:border-white/10">
+        <div className="flex flex-col gap-3">
           {ORDEN_DIMENSIONES.map((dim) => (
-            <div key={dim}>
-              <p className="mb-1 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+            <div
+              key={dim}
+              className="rounded-lg border border-black/10 p-3 dark:border-white/10"
+            >
+              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-acento">
                 {NOMBRES_DIMENSION[dim]}
               </p>
-              <div className="flex flex-col gap-1">
+              <div className="flex flex-col gap-1.5">
                 {ESTUDIOS_POR_DIMENSION[dim].map((estudio) => (
-                  <label key={estudio} className="flex items-center gap-1.5 text-sm">
+                  <label key={estudio} className="flex items-start gap-2 text-sm">
                     <input
                       type="checkbox"
+                      className="mt-0.5"
                       checked={form.estudios_json.includes(estudio)}
                       onChange={() => alternarLista("estudios_json", estudio)}
                     />

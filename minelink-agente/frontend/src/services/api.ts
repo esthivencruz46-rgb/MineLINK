@@ -157,11 +157,10 @@ export async function registrarInteresInversion(
 export interface PostulacionConsultor {
   nombre: string;
   colegiatura: string;
-  anios_servicio: number;
   regiones_json: string[];
   estudios_json: string[];
   whatsapp: string;
-  email?: string;
+  email: string;
   cv: File;
 }
 
@@ -169,9 +168,8 @@ export async function postularConsultor(payload: PostulacionConsultor): Promise<
   const form = new FormData();
   form.set("nombre", payload.nombre);
   form.set("colegiatura", payload.colegiatura);
-  form.set("anios_servicio", String(payload.anios_servicio));
   form.set("whatsapp", payload.whatsapp);
-  if (payload.email) form.set("email", payload.email);
+  form.set("email", payload.email);
   form.set("regiones_json", JSON.stringify(payload.regiones_json));
   form.set("estudios_json", JSON.stringify(payload.estudios_json));
   form.set("cv", payload.cv);

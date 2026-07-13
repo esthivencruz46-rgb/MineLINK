@@ -93,16 +93,19 @@ def mejor_opcion(
 async def postular_consultor(
     nombre: str = Form(...),
     colegiatura: str = Form(...),
-    anios_servicio: int = Form(...),
+    # Se conserva como campo opcional del API por compatibilidad, pero el
+    # formulario ya no lo pregunta (julio 2026) — la experiencia se evalúa
+    # con el CV.
+    anios_servicio: int = Form(0),
     whatsapp: str = Form(...),
-    email: Optional[str] = Form(None),
+    email: str = Form(...),
     regiones_json: str = Form(..., description="Lista JSON, ej: [\"arequipa\"]"),
     estudios_json: str = Form(..., description="Lista JSON, ej: [\"tramite_reinfo\"]"),
     cv: UploadFile = File(..., description="CV en PDF, obligatorio"),
     db: Session = Depends(get_db),
 ):
     """Auto-registro público de un consultor independiente. Exige colegiatura,
-    >=3 años de experiencia y CV en PDF (para que Esthiven lo revise antes de
+    email de contacto y CV en PDF (para que Esthiven lo revise antes de
     aprobar). Queda SIEMPRE inactivo hasta que se apruebe desde /admin/empresas."""
     try:
         datos = schemas.PostulacionConsultorCreate(

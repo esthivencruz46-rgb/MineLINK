@@ -68,9 +68,14 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
           ? `Colegiatura ${empresa.colegiatura}`
           : `RUC ${empresa.ruc}`}
       </p>
-      <p className="mt-1 text-sm">
-        {empresa.anios_servicio} años {empresa.tipo === "consultor" ? "de experiencia" : "en el rubro"}
-      </p>
+      {/* Los consultores postulados desde julio 2026 ya no declaran años
+          (se evalúan por CV) — anios_servicio queda en 0 y no se muestra. */}
+      {empresa.anios_servicio > 0 && (
+        <p className="mt-1 text-sm">
+          {empresa.anios_servicio} años{" "}
+          {empresa.tipo === "consultor" ? "de experiencia" : "en el rubro"}
+        </p>
+      )}
 
       {coincidentes.length > 0 && (
         <span className="mt-2 inline-block rounded-full bg-acento/15 px-3 py-1 text-sm font-semibold text-acento">
