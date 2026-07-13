@@ -290,20 +290,28 @@ def actualizar_perfil_inversion(
     lead_id: int = Depends(get_current_lead_id),
 ):
     """Guarda las respuestas del minero para su futuro perfil de
-    inversionistas (todas opcionales, se pueden dejar en blanco y
-    completar después). Todavía NO existe la ventana de inversionistas
-    ni ninguna lógica de match; esto solo guarda los datos."""
+    inversionistas — actualización PARCIAL: solo toca los campos que
+    vinieron en el body (`exclude_unset`). Varios recuadros de la cuenta
+    guardan por separado (ubicación, capital buscado, ley del mineral);
+    con reemplazo total uno pisaría a los otros."""
     lead, operacion = _operacion_del_lead(db, lead_id)
+    datos = payload.model_dump(exclude_unset=True)
 
-    lead.descripcion_operacion = payload.descripcion_operacion
-    lead.capacidad_produccion = payload.capacidad_produccion
-    lead.capital_buscado = payload.capital_buscado
-    lead.uso_fondos = payload.uso_fondos
-    if payload.ubicacion_maps != lead.ubicacion_maps:
-        lead.ubicacion_maps = payload.ubicacion_maps
+    if "descripcion_operacion" in datos:
+        lead.descripcion_operacion = datos["descripcion_operacion"]
+    if "capacidad_produccion" in datos:
+        lead.capacidad_produccion = datos["capacidad_produccion"]
+    if "capital_buscado" in datos:
+        lead.capital_buscado = datos["capital_buscado"]
+    if "uso_fondos" in datos:
+        lead.uso_fondos = datos["uso_fondos"]
+    if "ubicacion_maps" in datos and datos["ubicacion_maps"] != lead.ubicacion_maps:
+        lead.ubicacion_maps = datos["ubicacion_maps"]
         # Coordenadas para el mapa incrustado de la ficha pública;
         # best-effort: si no se resuelven, solo se muestra el botón de Maps.
-        lead.ubicacion_coords = resolver_coordenadas(payload.ubicacion_maps)
+        lead.ubicacion_coords = resolver_coordenadas(datos["ubicacion_maps"])
+    if "ley_promedio" in datos:
+        operacion.ley_promedio = datos["ley_promedio"]
     db.commit()
     db.refresh(lead)
 

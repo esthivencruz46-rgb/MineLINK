@@ -299,9 +299,15 @@ export function MiConcesion() {
             />
           )}
           {perfil.inv_enviado && (
-            <ResumenInversionRespuestas declarados={perfil.respaldos_declarados_inversion} />
+            <ResumenInversionRespuestas
+              perfil={perfil}
+              onGuardado={setPerfil}
+              declarados={perfil.respaldos_declarados_inversion}
+            />
           )}
           <DocumentosInversionSustento
+            perfil={perfil}
+            onGuardado={setPerfil}
             categorias={perfil.categorias_requeridas_inversion}
             declarados={perfil.respaldos_declarados_inversion}
           />

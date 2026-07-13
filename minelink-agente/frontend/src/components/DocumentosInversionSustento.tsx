@@ -4,6 +4,7 @@ import { useMineroAuth } from "../context/MineroAuthContext";
 import { INFO_BRECHA } from "../data/brechas";
 import { ETIQUETA_CATEGORIA_INV, POR_ID_INV } from "../data/preguntasInversion";
 import type { DocumentoOperacion } from "../types/documento";
+import type { MineroPerfil } from "../types/minero";
 
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
 
@@ -15,6 +16,8 @@ interface CategoriaSustento {
 }
 
 interface Props {
+  perfil: MineroPerfil;
+  onGuardado: (perfil: MineroPerfil) => void;
   /** Categorías de sustento de inversión requeridas para este perfil (ver
    *  MineroPerfil.categorias_requeridas_inversion) — obligatorias antes de
    *  que el admin pueda dar seguimiento; traen si ya están aprobadas. */
@@ -25,6 +28,12 @@ interface Props {
    *  inversión (ver MineroPerfil.respaldos_declarados_inversion). */
   declarados: { codigo: string; pregunta_id: string; valor: string }[];
 }
+
+/** Categoría cuyo slot lleva, además del archivo, un valor numérico que el
+ *  minero declara junto a él (por ahora solo la ley del mineral). */
+const CATEGORIA_CON_VALOR: Record<string, { placeholder: string; ancho: string }> = {
+  certificado_ley: { placeholder: "Ej: 2.5 g/t Au", ancho: "w-36" },
+};
 
 function etiquetaCategoria(codigo: string): string {
   return ETIQUETA_CATEGORIA_INV[codigo] ?? INFO_BRECHA[codigo]?.texto ?? codigo;
@@ -39,7 +48,7 @@ function etiquetaValorDeclarado(preguntaId: string, valor: string): string | und
  *  obligatorias por perfil (categorias) con la evidencia puntual de cada
  *  respuesta (declarados, con su propio "Marcaste: X"), sin duplicar el
  *  slot cuando una categoría aparece en ambas listas. */
-export function DocumentosInversionSustento({ categorias, declarados }: Props) {
+export function DocumentosInversionSustento({ perfil, onGuardado, categorias, declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
@@ -48,7 +57,26 @@ export function DocumentosInversionSustento({ categorias, declarados }: Props) {
   const [subiendo, setSubiendo] = useState<string | null>(null);
   const [vistaUrl, setVistaUrl] = useState<string | null>(null);
   const [vistaTipo, setVistaTipo] = useState("");
+  const [leyPromedio, setLeyPromedio] = useState(perfil.ley_promedio ?? "");
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
+  const debounceLeyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (debounceLeyRef.current) clearTimeout(debounceLeyRef.current);
+  }, []);
+
+  function onCambiarLey(valor: string) {
+    setLeyPromedio(valor);
+    if (debounceLeyRef.current) clearTimeout(debounceLeyRef.current);
+    debounceLeyRef.current = setTimeout(async () => {
+      const resp = await authFetch("/mineros/perfil-inversion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ley_promedio: valor.trim() || null }),
+      });
+      if (resp.ok) onGuardado(await resp.json());
+    }, 800);
+  }
 
   useEffect(() => {
     authFetch("/mineros/documentos")
@@ -156,18 +184,27 @@ export function DocumentosInversionSustento({ categorias, declarados }: Props) {
         <div className="mt-4 flex flex-col gap-4">
           {slots.map((cat) => {
             const archivos = documentos.filter((d) => d.categoria === cat.categoria);
+            const conValor = CATEGORIA_CON_VALOR[cat.categoria];
             return (
               <div
                 key={cat.categoria}
                 className="rounded-lg border border-black/10 p-3 dark:border-white/10"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-semibold">{cat.etiqueta}</p>
                     {cat.declarado && (
                       <p className="mt-0.5 text-xs font-semibold text-acento">
                         Marcaste: {cat.declarado}
                       </p>
+                    )}
+                    {conValor && (
+                      <input
+                        className={`mt-1.5 min-h-[36px] ${conValor.ancho} rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10`}
+                        placeholder={conValor.placeholder}
+                        value={leyPromedio}
+                        onChange={(e) => onCambiarLey(e.target.value)}
+                      />
                     )}
                   </div>
                   <button

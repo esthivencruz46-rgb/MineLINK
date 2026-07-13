@@ -773,11 +773,22 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
 
 
 class PerfilInversionUpdate(BaseModel):
+    """Body de PUT /mineros/perfil-inversion — ACTUALIZACIÓN PARCIAL: solo
+    se tocan los campos presentes en el JSON (ver `exclude_unset` en el
+    router), nunca se borran los que no vienen. Necesario porque varios
+    recuadros independientes de la cuenta (ubicación, capital buscado,
+    ley del mineral) guardan por separado — con reemplazo total, guardar
+    uno borraría los otros."""
+
     descripcion_operacion: Optional[str] = None
     capacidad_produccion: Optional[str] = None
     capital_buscado: Optional[str] = None
     uso_fondos: Optional[str] = None
     ubicacion_maps: Optional[str] = None
+    # Ley del mineral declarada junto al slot "Certificado de ley del
+    # mineral" en Respalda tu inversión — vive en Operacion, no en Lead
+    # (mismo campo que ya usaba el perfil informativo viejo, en pausa).
+    ley_promedio: Optional[str] = None
 
     @field_validator("ubicacion_maps")
     @classmethod

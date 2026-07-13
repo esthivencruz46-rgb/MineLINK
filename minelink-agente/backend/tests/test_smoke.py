@@ -570,8 +570,10 @@ def test_mineros_actualiza_perfil_inversion():
     assert body["descripcion_operacion"] == "Mina de oro a tajo abierto en Arequipa"
     assert body["capital_buscado"] == "USD 80,000"
 
-    # PUT reemplaza el perfil completo: los campos no enviados quedan en
-    # blanco (el frontend siempre manda las 4 respuestas juntas)
+    # PUT es una actualización PARCIAL: los campos no enviados se
+    # conservan tal cual — varios recuadros de la cuenta guardan cada uno
+    # su propio campo por separado (ubicación, capital, ley del mineral)
+    # y no deben pisarse entre sí.
     resp = client.put(
         "/mineros/perfil-inversion",
         headers=headers,
@@ -580,8 +582,18 @@ def test_mineros_actualiza_perfil_inversion():
     assert resp.status_code == 200
     body = resp.json()
     assert body["descripcion_operacion"] == "Actualizado"
-    assert body["capacidad_produccion"] is None
-    assert body["capital_buscado"] is None
+    assert body["capacidad_produccion"] == "50 toneladas/mes, reservas estimadas en 5 años"
+    assert body["capital_buscado"] == "USD 80,000"
+
+    # Explícitamente vaciar un campo (string vacío) sí lo borra — solo
+    # omitirlo del body es lo que lo preserva.
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"capital_buscado": None},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["capital_buscado"] is None
 
     # El admin también ve el perfil de inversión en /admin/leads
     admin_token = _admin_token()
@@ -590,6 +602,29 @@ def test_mineros_actualiza_perfil_inversion():
     ).json()
     lead = next(l for l in leads if l["nombre"] == "Juan Quispe")
     assert lead["descripcion_operacion"] == "Actualizado"
+
+
+def test_mineros_guarda_ley_promedio_sin_pisar_el_resto():
+    # ley_promedio vive en Operacion (no en Lead) — se guarda junto al slot
+    # "Certificado de ley del mineral" en Respalda tu inversión, sin
+    # afectar los demás campos del perfil de inversión.
+    token = _token_minero(username="mineroley")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"capital_buscado": "USD 20,000"},
+    )
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        headers=headers,
+        json={"ley_promedio": "2.5 g/t Au"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["ley_promedio"] == "2.5 g/t Au"
+    assert body["capital_buscado"] == "USD 20,000"
 
 
 def test_mineros_perfil_inversion_requiere_jwt():

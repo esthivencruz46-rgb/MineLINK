@@ -1,25 +1,7 @@
 import { useState } from "react";
 import { useMineroAuth } from "../context/MineroAuthContext";
-import { CampoMonto } from "./CampoMonto";
-import { CampoUsoFondos } from "./CampoUsoFondos";
 import { CampoProduccion } from "./CampoProduccion";
-import { OPCIONES_TIPO_APOYO } from "../data/preguntasPerfil";
-import { formatearMonto } from "../utils/formato";
 import type { MineroPerfil } from "../types/minero";
-
-function etiquetaTipoApoyo(valor: string): string {
-  return OPCIONES_TIPO_APOYO.find((o) => o.valor === valor)?.etiqueta ?? valor;
-}
-
-/** Si ya declaró la moneda en el diagnóstico, se fija acá — no puede
- * declarar en dólares y luego pedir en soles (o viceversa). Si dijo "aún
- * no sé" (o es un diagnóstico viejo sin este dato), queda sin fijar y el
- * selector de moneda se muestra abierto. */
-function monedaFijaDe(perfil: MineroPerfil): "S/" | "USD" | undefined {
-  if (perfil.moneda_capital === "soles") return "S/";
-  if (perfil.moneda_capital === "dolares") return "USD";
-  return undefined;
-}
 
 interface Props {
   perfil: MineroPerfil;
@@ -28,59 +10,6 @@ interface Props {
    * que declarar. */
   ocultarCapacidadProduccion?: boolean;
 }
-
-type Campo =
-  | "descripcion_operacion"
-  | "capacidad_produccion"
-  | "capital_buscado"
-  | "uso_fondos"
-  | "ubicacion_maps";
-
-const CAMPOS: {
-  campo: Campo;
-  etiqueta: string;
-  placeholder: string;
-  obligatorio: boolean;
-  unaLinea?: boolean;
-}[] = [
-  {
-    campo: "ubicacion_maps",
-    etiqueta: "Ubicación de tu mina (enlace de Google Maps)",
-    placeholder: "Ej: https://maps.app.goo.gl/abc123",
-    obligatorio: true,
-    unaLinea: true,
-  },
-  {
-    campo: "uso_fondos",
-    etiqueta: "¿Para qué buscas el dinero? Detalla un poco más",
-    placeholder:
-      'Ej: "Necesito un socio operador con experiencia en tajo abierto porque mi actual encargado se jubila este año y quiero mantener la producción sin bajar el ritmo."',
-    // Ya no es obligatorio: esto se pregunta en el diagnóstico (Bloque de
-    // oportunidad e inversión) y aquí se muestra como recordatorio junto
-    // al campo — este campo es para ampliarlo con contexto, no repetirlo.
-    obligatorio: false,
-  },
-  {
-    campo: "capital_buscado",
-    etiqueta: "¿Cuánto capital buscas? (monto exacto)",
-    placeholder: "",
-    obligatorio: false,
-    unaLinea: true,
-  },
-  {
-    campo: "descripcion_operacion",
-    etiqueta: "Cuéntanos sobre tu operación",
-    placeholder:
-      'Ej: "Mina de oro a tajo abierto en Puno, con 3 años operando y 8 trabajadores. Producimos 40 gramos de oro al mes y ya tenemos el IGAFOM aprobado. Buscamos capital para comprar una chancadora y duplicar nuestra capacidad de procesamiento."',
-    obligatorio: false,
-  },
-  {
-    campo: "capacidad_produccion",
-    etiqueta: "¿Cuánto produces y cuánto mineral te queda (reservas)?",
-    placeholder: "Ej: 50 toneladas/mes, reservas estimadas para 5 años",
-    obligatorio: false,
-  },
-];
 
 function esEnlaceMaps(valor: string): boolean {
   const v = valor.trim();
@@ -93,29 +22,24 @@ function esEnlaceMaps(valor: string): boolean {
   );
 }
 
+/** Perfil para inversionistas — reducido a lo que NO se captura ya en otra
+ * parte de la cuenta (julio 2026): "para qué buscas el dinero" y "cuánto
+ * capital buscas" ya se preguntan en el Módulo INV (ver
+ * ResumenInversionRespuestas.tsx, que además deja precisar el monto
+ * exacto); "cuéntanos sobre tu operación" se genera solo a partir de los
+ * datos reales (ver Resumen Ejecutivo en ProyectoDetalle.tsx) en vez de
+ * pedirle al minero que la redacte. Solo queda ubicación (obligatoria) y
+ * producción/reservas (Ruta 1 únicamente). */
 export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduccion }: Props) {
   const { authFetch } = useMineroAuth();
-  const [valores, setValores] = useState<Record<Campo, string>>({
-    descripcion_operacion: perfil.descripcion_operacion ?? "",
-    capacidad_produccion: perfil.capacidad_produccion ?? "",
-    capital_buscado: perfil.capital_buscado ?? "",
-    uso_fondos: perfil.uso_fondos ?? "",
-    ubicacion_maps: perfil.ubicacion_maps ?? "",
-  });
+  const [ubicacionMaps, setUbicacionMaps] = useState(perfil.ubicacion_maps ?? "");
+  const [capacidadProduccion, setCapacidadProduccion] = useState(perfil.capacidad_produccion ?? "");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardadoOk, setGuardadoOk] = useState(false);
 
-  const campos = ocultarCapacidadProduccion
-    ? CAMPOS.filter((c) => c.campo !== "capacidad_produccion")
-    : CAMPOS;
-
-  const faltantes = campos.filter(
-    (c) => c.obligatorio && !valores[c.campo].trim()
-  );
-  const mapsInvalido =
-    valores.ubicacion_maps.trim().length > 0 && !esEnlaceMaps(valores.ubicacion_maps);
-  const valido = faltantes.length === 0 && !mapsInvalido;
+  const mapsInvalido = ubicacionMaps.trim().length > 0 && !esEnlaceMaps(ubicacionMaps);
+  const valido = ubicacionMaps.trim().length > 0 && !mapsInvalido;
 
   async function guardar() {
     setGuardando(true);
@@ -126,11 +50,10 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          descripcion_operacion: valores.descripcion_operacion.trim() || undefined,
-          capacidad_produccion: valores.capacidad_produccion.trim() || undefined,
-          capital_buscado: valores.capital_buscado.trim() || undefined,
-          uso_fondos: valores.uso_fondos.trim() || undefined,
-          ubicacion_maps: valores.ubicacion_maps.trim() || undefined,
+          ubicacion_maps: ubicacionMaps.trim() || undefined,
+          ...(ocultarCapacidadProduccion
+            ? {}
+            : { capacidad_produccion: capacidadProduccion.trim() || undefined }),
         }),
       });
       if (!resp.ok) throw new Error();
@@ -138,7 +61,7 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
       onGuardado(actualizado);
       setGuardadoOk(true);
     } catch {
-      setError("No pudimos guardar tus respuestas. Intenta de nuevo.");
+      setError("No pudimos guardar. Intenta de nuevo.");
     } finally {
       setGuardando(false);
     }
@@ -148,103 +71,46 @@ export function PerfilInversionForm({ perfil, onGuardado, ocultarCapacidadProduc
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <h2 className="font-semibold">Perfil para inversionistas</h2>
       <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-        Los campos con <span className="text-red-500">*</span> son obligatorios
-        para que tu proyecto se muestre completo a los inversionistas en la
-        sección Proyectos.
+        La ubicación es obligatoria para que tu proyecto se muestre completo en la sección
+        Proyectos.
       </p>
 
       <div className="mt-4 flex flex-col gap-4">
-        {campos.map(({ campo, etiqueta, placeholder, obligatorio, unaLinea }) => (
-          <div key={campo}>
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Ubicación de tu mina (enlace de Google Maps)
+            <span className="ml-1 text-red-500">*</span>
+          </label>
+          <input
+            className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
+            placeholder="Ej: https://maps.app.goo.gl/abc123"
+            value={ubicacionMaps}
+            onChange={(e) => setUbicacionMaps(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+            En la app de Google Maps: mantén presionado el punto de tu mina → Compartir → Copiar
+            enlace, y pégalo aquí.
+          </p>
+          {mapsInvalido && (
+            <p className="mt-1 text-xs text-red-500">
+              Ese enlace no parece de Google Maps. Debe empezar con https:// y venir de
+              maps.google.com o maps.app.goo.gl.
+            </p>
+          )}
+        </div>
+
+        {!ocultarCapacidadProduccion && (
+          <div>
             <label className="mb-1 block text-sm font-medium">
-              {etiqueta}
-              {obligatorio && <span className="ml-1 text-red-500">*</span>}
+              ¿Cuánto produces y cuánto mineral te queda (reservas)?
             </label>
-            {campo === "capital_buscado" && perfil.moneda_capital === "no_se" && (
-              <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                En tu diagnóstico dijiste que aún no sabes cuánto capital
-                necesitas — puedes dejarlo así, o precisar un monto en
-                soles o dólares cuando lo tengas más claro.
-              </p>
-            )}
-            {campo === "capital_buscado" &&
-              perfil.monto_requerido &&
-              perfil.moneda_capital !== "no_se" && (
-                <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                  Recordatorio: en tu diagnóstico marcaste{" "}
-                  <span className="font-medium">{formatearMonto(perfil.monto_requerido)}</span>. Aquí
-                  puedes precisar el monto exacto.
-                </p>
-              )}
-            {campo === "uso_fondos" && (perfil.tipo_apoyo || perfil.motivo_capital) && (
-              <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                Recordatorio: en tu diagnóstico marcaste{" "}
-                {perfil.tipo_apoyo && (
-                  <span className="font-medium">{etiquetaTipoApoyo(perfil.tipo_apoyo)}</span>
-                )}
-                {perfil.motivo_capital && (
-                  <>
-                    {perfil.tipo_apoyo && " — "}
-                    <span className="font-medium">"{perfil.motivo_capital}"</span>
-                  </>
-                )}
-                .
-              </p>
-            )}
-            {campo === "capital_buscado" ? (
-              <CampoMonto
-                value={valores[campo]}
-                onChange={(v) => setValores({ ...valores, [campo]: v })}
-                monedaFija={monedaFijaDe(perfil)}
-              />
-            ) : campo === "uso_fondos" ? (
-              <CampoUsoFondos
-                value={valores[campo]}
-                onChange={(v) => setValores({ ...valores, [campo]: v })}
-              />
-            ) : campo === "capacidad_produccion" ? (
-              <CampoProduccion
-                value={valores[campo]}
-                onChange={(v) => setValores({ ...valores, [campo]: v })}
-              />
-            ) : unaLinea ? (
-              <input
-                className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
-                placeholder={placeholder}
-                value={valores[campo]}
-                onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
-              />
-            ) : (
-              <textarea
-                className="min-h-[70px] w-full rounded-lg border border-black/10 bg-transparent px-3 py-2 text-sm dark:border-white/10"
-                placeholder={placeholder}
-                value={valores[campo]}
-                onChange={(e) => setValores({ ...valores, [campo]: e.target.value })}
-              />
-            )}
-            {campo === "ubicacion_maps" && (
-              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                En la app de Google Maps: mantén presionado el punto de tu mina →
-                Compartir → Copiar enlace, y pégalo aquí.
-              </p>
-            )}
-            {campo === "ubicacion_maps" && mapsInvalido && (
-              <p className="mt-1 text-xs text-red-500">
-                Ese enlace no parece de Google Maps. Debe empezar con https:// y
-                venir de maps.google.com o maps.app.goo.gl.
-              </p>
-            )}
+            <CampoProduccion value={capacidadProduccion} onChange={setCapacidadProduccion} />
           </div>
-        ))}
+        )}
       </div>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {guardadoOk && <p className="mt-2 text-sm text-emerald-500">Guardado.</p>}
-      {!valido && faltantes.length > 0 && (
-        <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
-          Te falta completar: {faltantes.map((c) => c.etiqueta.split(" (")[0]).join(", ")}.
-        </p>
-      )}
 
       <button
         onClick={guardar}
