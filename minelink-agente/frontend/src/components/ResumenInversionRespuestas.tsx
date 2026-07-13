@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CampoMonto } from "./CampoMonto";
-import { CampoProduccion } from "./CampoProduccion";
 import { POR_ID_INV, type RespuestasInversion } from "../data/preguntasInversion";
 import type { MineroPerfil } from "../types/minero";
 
@@ -44,18 +43,14 @@ interface Props {
 }
 
 /** Muestra lo que el minero respondió en el Módulo INV (salvo lo que ya se
- *  muestra junto al slot de subida correspondiente, para no repetir). En
- *  la fila de INV_0_1 ("¿Cuánto capital buscas?") el rango marcado lleva
- *  al costado un campo para precisar el monto EXACTO; al final hay una
- *  fila más para producción/reservas (solo Ruta 1 — quien todavía no
- *  opera no tiene nada que producir). Ambos guardan solos al escribir. */
+ *  muestra junto al slot de subida correspondiente, y salvo los "no
+ *  tengo" que ya lista "Lo que te falta"). En la fila de INV_0_1
+ *  ("¿Cuánto capital buscas?") el rango marcado lleva al costado un campo
+ *  para precisar el monto EXACTO, que guarda solo al escribir. */
 export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [respuestas, setRespuestas] = useState<RespuestasInversion | null>(null);
   const [capitalBuscado, setCapitalBuscado] = useState(perfil.capital_buscado ?? "");
-  const [capacidadProduccion, setCapacidadProduccion] = useState(
-    perfil.capacidad_produccion ?? ""
-  );
   const [guardadoOk, setGuardadoOk] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -70,17 +65,16 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
-  /** Guarda un campo del perfil de inversión con una pausa corta — el
-   *  endpoint es de actualización parcial, así que cada campo viaja solo
-   *  sin pisar a los demás. */
-  function guardarCampo(campo: "capital_buscado" | "capacidad_produccion", valor: string) {
+  /** Guarda el monto exacto con una pausa corta — el endpoint es de
+   *  actualización parcial, así que el campo viaja solo sin pisar nada. */
+  function guardarCapital(valor: string) {
     setGuardadoOk(false);
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       const resp = await authFetch("/mineros/perfil-inversion", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [campo]: valor.trim() || null }),
+        body: JSON.stringify({ capital_buscado: valor.trim() || null }),
       });
       if (resp.ok) {
         onGuardado(await resp.json());
@@ -105,8 +99,6 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
       if (RESPUESTAS_NEGATIVAS[id]?.includes(valor)) return false;
       return true;
     });
-
-  const esRuta1 = perfil.situacion !== "concesionario";
 
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
@@ -156,7 +148,7 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
                       value={capitalBuscado}
                       onChange={(v) => {
                         setCapitalBuscado(v);
-                        guardarCampo("capital_buscado", v);
+                        guardarCapital(v);
                       }}
                       monedaFija={monedaFijaDe(perfil)}
                     />
@@ -188,22 +180,6 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
           );
         })}
 
-        {esRuta1 && (
-          <div className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
-            <dt className="min-w-0 flex-1 text-texto-suave dark:text-texto-suave-dark">
-              ¿Cuánto produces y cuánto mineral te queda (reservas)?
-            </dt>
-            <dd className="w-56 shrink-0">
-              <CampoProduccion
-                value={capacidadProduccion}
-                onChange={(v) => {
-                  setCapacidadProduccion(v);
-                  guardarCampo("capacidad_produccion", v);
-                }}
-              />
-            </dd>
-          </div>
-        )}
       </dl>
     </div>
   );

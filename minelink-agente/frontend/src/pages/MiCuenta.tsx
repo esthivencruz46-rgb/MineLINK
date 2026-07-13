@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { BrechasInversionCard } from "../components/BrechasInversionCard";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
@@ -14,7 +14,6 @@ import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
 import { INFO_BRECHA } from "../data/brechas";
-import { NOMBRE_PERFIL } from "../data/preguntas";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import type { DocumentoOperacion } from "../types/documento";
@@ -105,15 +104,22 @@ export function MiCuenta() {
         </p>
       )}
 
-      {/* Tus datos como franja compacta arriba (antes era una tarjeta en la
-          columna derecha — subió para que Inversión arranque a la misma
-          altura que Formalización y no se desperdicie espacio). */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-tarjeta px-5 py-3 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
-        <span className="font-semibold text-texto dark:text-texto-dark">Tus datos:</span>
-        <span>WhatsApp {perfil.whatsapp}</span>
-        {perfil.email && <span>· {perfil.email}</span>}
-        {perfil.codigo_reinfo && <span>· REINFO {perfil.codigo_reinfo}</span>}
-        <span>· Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}</span>
+      {/* Franja superior: Tus datos + (si ya está publicado) el aviso de
+          visibilidad para inversionistas, lado a lado. */}
+      <div className="flex flex-col gap-3 lg:flex-row">
+        <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-tarjeta px-5 py-3 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+          <span className="font-semibold text-texto dark:text-texto-dark">Tus datos:</span>
+          <span>WhatsApp {perfil.whatsapp}</span>
+          {perfil.email && <span>· {perfil.email}</span>}
+          {perfil.codigo_reinfo && <span>· REINFO {perfil.codigo_reinfo}</span>}
+          <span>· Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}</span>
+        </div>
+        {perfil.apto_inversionistas && (
+          <div className="flex flex-1 items-center gap-2 rounded-lg bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+            <CheckCircle2 size={18} strokeWidth={2} className="shrink-0" aria-hidden />
+            Tu perfil ya es visible para inversionistas
+          </div>
+        )}
       </div>
 
       {mostrarBienvenida && (
@@ -135,34 +141,15 @@ export function MiCuenta() {
         </div>
       )}
 
-      {perfil.brechas_pendientes.length > 0 && (
-        <div
-          className={`flex items-start gap-3 rounded-lg p-4 text-sm ${
-            perfil.estado_contacto === "contactado"
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-              : "bg-acento/10 text-acento"
-          }`}
-        >
-          <span aria-hidden>
-            {perfil.estado_contacto === "contactado" ? (
-              <CheckCircle2 size={20} strokeWidth={2} />
-            ) : (
-              <Search size={20} strokeWidth={2} />
-            )}
-          </span>
+      {/* Solo se avisa cuando el admin YA contactó — la promesa genérica de
+          "estamos buscando quién te ayude" se retiró (julio 2026). */}
+      {perfil.brechas_pendientes.length > 0 && perfil.estado_contacto === "contactado" && (
+        <div className="flex items-start gap-3 rounded-lg bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+          <CheckCircle2 size={20} strokeWidth={2} aria-hidden />
           <p>
-            {perfil.estado_contacto === "contactado"
-              ? "Ya te contactamos por WhatsApp para ayudarte con lo que te falta. Revisa tus mensajes."
-              : "Estamos buscando quién te ayude con lo que te falta. Te escribiremos por WhatsApp."}
+            Ya te contactamos por WhatsApp para ayudarte con lo que te falta. Revisa tus
+            mensajes.
           </p>
-        </div>
-      )}
-
-      {perfil.perfil && (
-        <div className="text-center">
-          <span className="rounded-full bg-acento/15 px-4 py-1 text-sm font-semibold text-acento">
-            {NOMBRE_PERFIL[perfil.perfil] ?? perfil.perfil}
-          </span>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { Check } from "lucide-react";
+import { NOMBRE_PERFIL } from "../data/preguntas";
 import type { MineroPerfil } from "../types/minero";
 
 function Item({
@@ -58,6 +59,11 @@ export function PasosFormalizacionInversion({ perfil }: { perfil: MineroPerfil }
           subtitulo={inversionHecha ? "Enviada" : "Puedes completarla ahora"}
           hecho={inversionHecha}
         />
+        {perfil.perfil && (
+          <span className="rounded-full bg-acento/15 px-4 py-1 text-sm font-semibold text-acento sm:ml-auto">
+            {NOMBRE_PERFIL[perfil.perfil] ?? perfil.perfil}
+          </span>
+        )}
       </div>
       <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
         {publicado

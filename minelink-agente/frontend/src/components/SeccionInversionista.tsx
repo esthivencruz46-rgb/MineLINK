@@ -1,4 +1,4 @@
-import { CheckCircle2, Lock, TrendingUp } from "lucide-react";
+import { Lock, TrendingUp } from "lucide-react";
 import type { MineroPerfil } from "../types/minero";
 
 /** Tarjeta "Inversionista" al final de la cuenta (MiCuenta/MiConcesion) —
@@ -31,18 +31,10 @@ export function SeccionInversionista({
     );
   }
 
+  // Publicado: el aviso verde vive arriba, al costado de "Tus datos" (ver
+  // MiCuenta/MiConcesion) — aquí ya no hay nada que hacer ni mostrar.
   if (perfil.apto_inversionistas) {
-    return (
-      <div className="flex items-start gap-3 rounded-lg bg-emerald-500/10 p-5 text-emerald-700 dark:text-emerald-400">
-        <CheckCircle2 size={18} strokeWidth={2} className="mt-0.5 shrink-0" />
-        <div>
-          <h2 className="font-semibold">Tu perfil ya es visible para inversionistas</h2>
-          <p className="mt-1 text-sm opacity-90">
-            Tu proyecto ya está publicado en la cartera y compite por inversionistas.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   if (perfil.inv_enviado) {
