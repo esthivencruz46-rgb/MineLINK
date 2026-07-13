@@ -296,6 +296,8 @@ export const MODULO_INV_D: PreguntaInv[] = [
   { id: "INV_D3a", tipo: "opcion", texto: "Mapeo geológico", opciones: OPCIONES_CHECKLIST },
   { id: "INV_D3b", tipo: "opcion", texto: "Muestreo con laboratorio certificado", opciones: OPCIONES_CHECKLIST },
   { id: "INV_D3c", tipo: "opcion", texto: "Estimación de recursos minerales", opciones: OPCIONES_CHECKLIST },
+  // INV_D5 ("describe tu proyecto de expansión") se eliminó (julio 2026)
+  // — el plan de expansión se sustenta con el documento, no con texto.
   {
     id: "INV_D4",
     tipo: "opcion",
@@ -305,12 +307,6 @@ export const MODULO_INV_D: PreguntaInv[] = [
       { valor: "spot", etiqueta: "Vendo al mercado (spot)" },
       { valor: "no", etiqueta: "No tengo comprador estable" },
     ],
-  },
-  {
-    id: "INV_D5",
-    tipo: "texto_corto",
-    texto: "Describe brevemente tu proyecto de expansión",
-    maxCaracteres: 300,
   },
 ];
 

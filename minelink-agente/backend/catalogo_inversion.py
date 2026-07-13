@@ -68,8 +68,10 @@ PREGUNTAS_INV: dict[str, tuple] = {
     "INV_D3a": ("opcion", ("tengo", "en_proceso", "no_tengo")),  # mapeo geológico
     "INV_D3b": ("opcion", ("tengo", "en_proceso", "no_tengo")),  # muestreo con laboratorio
     "INV_D3c": ("opcion", ("tengo", "en_proceso", "no_tengo")),  # estimación de recursos
+    # INV_D5 ("describe tu proyecto de expansión", texto libre) se eliminó
+    # (julio 2026, pedido de Esthiven) — el plan de expansión se sustenta
+    # con el documento si lo tiene, no con una redacción.
     "INV_D4": ("opcion", ("largo_plazo", "spot", "no")),
-    "INV_D5": ("texto_corto", 300),
 }
 
 _IDS_PERFIL: dict[str, tuple[str, ...]] = {
@@ -77,7 +79,7 @@ _IDS_PERFIL: dict[str, tuple[str, ...]] = {
     "A_avanzado": ("INV_A1", "INV_A2", "INV_A3"),
     "B": ("INV_B1a", "INV_B1b", "INV_B1c", "INV_B2", "INV_B3", "INV_B4"),
     "C": ("INV_C1", "INV_C2", "INV_C3", "INV_C4", "INV_C5"),
-    "D": ("INV_D1", "INV_D2", "INV_D3a", "INV_D3b", "INV_D3c", "INV_D4", "INV_D5"),
+    "D": ("INV_D1", "INV_D2", "INV_D3a", "INV_D3b", "INV_D3c", "INV_D4"),
 }
 
 
@@ -286,10 +288,13 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
             )
 
     if perfil == "C":
-        vende_a = respuestas_inv.get("INV_C1")
-        if vende_a and vende_a != "no_vende":
+        # INV_C2: declaró tener liquidaciones (completas o parciales) →
+        # que las suba. Es el origen correcto para este slot — INV_C1
+        # (a quién vende) no dice si esas ventas dejaron liquidación.
+        liquidaciones = respuestas_inv.get("INV_C2")
+        if liquidaciones in ("completas", "parciales"):
             declarados.append(
-                {"codigo": "liquidaciones_venta", "pregunta_id": "INV_C1", "valor": vende_a}
+                {"codigo": "liquidaciones_venta", "pregunta_id": "INV_C2", "valor": liquidaciones}
             )
         ley = respuestas_inv.get("INV_C3")
         if ley in ("lab_certificado", "analisis_comprador"):
@@ -302,22 +307,29 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
             )
 
     if perfil == "D":
+        # INV_D1: declaró llevar registros financieros → que muestre los
+        # estados/libros. "no" no pide nada.
+        finanzas = respuestas_inv.get("INV_D1")
+        if finanzas in ("auditados", "contabilidad_formal", "registro_interno"):
+            declarados.append(
+                {
+                    "codigo": "estados_financieros_libros",
+                    "pregunta_id": "INV_D1",
+                    "valor": finanzas,
+                }
+            )
+        # INV_D2: declaró producción histórica con liquidaciones → que las
+        # suba, sea cual sea el periodo que marcó.
+        historial = respuestas_inv.get("INV_D2")
+        if historial in ("mas_12m", "6_12m", "menos_6m"):
+            declarados.append(
+                {"codigo": "liquidaciones_venta", "pregunta_id": "INV_D2", "valor": historial}
+            )
         # INV_D4: un contrato de largo plazo/offtake es un papel firmado;
         # vender al spot no deja contrato que mostrar.
         if respuestas_inv.get("INV_D4") == "largo_plazo":
             declarados.append(
                 {"codigo": "contratos_offtake", "pregunta_id": "INV_D4", "valor": "largo_plazo"}
-            )
-        # INV_D5 (texto libre): si describió un proyecto de expansión, se le
-        # ofrece subir el plan documentado — sin "Marcaste: X" porque no
-        # hay opción que traducir (el valor es su propio texto).
-        if str(respuestas_inv.get("INV_D5") or "").strip():
-            declarados.append(
-                {
-                    "codigo": "plan_expansion_documentado",
-                    "pregunta_id": "INV_D5",
-                    "valor": "descrito",
-                }
             )
 
     for pregunta_id, codigo in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():

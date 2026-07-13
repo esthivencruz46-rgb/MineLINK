@@ -302,7 +302,6 @@ export function MiConcesion() {
           <DocumentosInversionSustento
             perfil={perfil}
             onGuardado={setPerfil}
-            categorias={perfil.categorias_requeridas_inversion ?? []}
             declarados={perfil.respaldos_declarados_inversion ?? []}
           />
           <BrechasInversionCard perfil={perfil} />

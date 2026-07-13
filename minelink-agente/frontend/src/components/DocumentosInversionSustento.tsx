@@ -18,14 +18,11 @@ interface CategoriaSustento {
 interface Props {
   perfil: MineroPerfil;
   onGuardado: (perfil: MineroPerfil) => void;
-  /** Categorías de sustento de inversión requeridas para este perfil (ver
-   *  MineroPerfil.categorias_requeridas_inversion) — obligatorias antes de
-   *  que el admin pueda dar seguimiento; traen si ya están aprobadas. */
-  categorias: { categoria: string; etiqueta: string; aprobado: boolean }[];
   /** Evidencia puntual de lo que el minero RESPONDIÓ en el Módulo INV (ej.
-   *  "aporto maquinaria" → foto de la maquinaria) — no bloquean nada, son
-   *  el equivalente exacto de "Respalda tu declaración" pero para
-   *  inversión (ver MineroPerfil.respaldos_declarados_inversion). */
+   *  "aporto maquinaria" → foto de la maquinaria) — cada slot existe
+   *  porque hay una respuesta suya detrás y la muestra como "Marcaste: X"
+   *  (ver MineroPerfil.respaldos_declarados_inversion). Lo que no declaró
+   *  no se le pide. */
   declarados: { codigo: string; pregunta_id: string; valor: string }[];
 }
 
@@ -44,11 +41,9 @@ function etiquetaValorDeclarado(preguntaId: string, valor: string): string | und
 }
 
 /** "Respalda tu inversión" — mismo tratamiento visual que "Respalda tu
- *  declaración" en DocumentosMinero.tsx: combina las categorías
- *  obligatorias por perfil (categorias) con la evidencia puntual de cada
- *  respuesta (declarados, con su propio "Marcaste: X"), sin duplicar el
- *  slot cuando una categoría aparece en ambas listas. */
-export function DocumentosInversionSustento({ perfil, onGuardado, categorias, declarados }: Props) {
+ *  declaración" en DocumentosMinero.tsx: un slot de subida por cada cosa
+ *  que el minero declaró tener en el Módulo INV, con su "Marcaste: X". */
+export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
@@ -152,20 +147,16 @@ export function DocumentosInversionSustento({ perfil, onGuardado, categorias, de
 
   const slots = useMemo(() => {
     const mapa = new Map<string, CategoriaSustento>();
-    for (const cat of categorias) {
-      mapa.set(cat.categoria, { categoria: cat.categoria, etiqueta: cat.etiqueta, aprobado: cat.aprobado });
-    }
     for (const d of declarados) {
-      const existente = mapa.get(d.codigo);
-      const declarado = etiquetaValorDeclarado(d.pregunta_id, d.valor);
-      if (existente) {
-        existente.declarado = declarado;
-      } else {
-        mapa.set(d.codigo, { categoria: d.codigo, etiqueta: etiquetaCategoria(d.codigo), declarado });
-      }
+      if (mapa.has(d.codigo)) continue;
+      mapa.set(d.codigo, {
+        categoria: d.codigo,
+        etiqueta: etiquetaCategoria(d.codigo),
+        declarado: etiquetaValorDeclarado(d.pregunta_id, d.valor),
+      });
     }
     return [...mapa.values()];
-  }, [categorias, declarados]);
+  }, [declarados]);
 
   if (slots.length === 0) return null;
 
