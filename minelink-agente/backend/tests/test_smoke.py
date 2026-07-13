@@ -794,6 +794,48 @@ def _minero_con_estudios(username: str) -> tuple[str, dict, list[str]]:
     return diag["id"], headers, codigos
 
 
+def test_subir_respaldo_de_brecha_la_resuelve_solo():
+    # Auto-resolución con evidencia (julio 2026): el minero sube el
+    # respaldo de una brecha pendiente desde "Lo que te falta" y esta pasa
+    # a resuelta sin intervención del admin.
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads", json=_lead_payload(diag["id"], username="autoresuelve", password="clave123")
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "autoresuelve", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert perfil["brechas_pendientes"], "el fixture debe tener al menos una brecha"
+    brecha = perfil["brechas_pendientes"][0]
+
+    resp = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": brecha},
+        files={"archivo": ("respaldo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp.status_code == 201
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert brecha not in perfil["brechas_pendientes"]
+    assert brecha in perfil["brechas_resueltas"]
+
+
 def test_mineros_enviar_documentos_exige_todos_los_slots():
     _operacion_id, headers, codigos = _minero_con_estudios("enviodocs1")
     assert codigos, "el fixture del diagnóstico debe declarar al menos un estudio"
@@ -2583,7 +2625,23 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     primera_brecha = detalle["brechas_pendientes"][0]
     assert primera_brecha not in detalle["brechas_verificadas"]
 
-    # Subir foto SIN marcar resuelta → no debe contar como verificada
+    # Marcar resuelta por el admin SIN foto → tampoco cuenta como
+    # verificada (el check público siempre exige el respaldo).
+    client.put(
+        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
+        json={"brechas_resueltas": [primera_brecha]},
+        headers=admin_headers,
+    )
+    detalle_resuelta_sin_foto = client.get(f"/proyectos/{diag['id']}").json()
+    assert primera_brecha not in detalle_resuelta_sin_foto["brechas_verificadas"]
+    client.put(
+        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
+        json={"brechas_resueltas": []},
+        headers=admin_headers,
+    )
+
+    # Subir la foto de respaldo la AUTO-RESUELVE (julio 2026) y, como la
+    # evidencia está presente, queda verificada de inmediato.
     client.post(
         "/mineros/documentos",
         headers=headers,
@@ -2591,19 +2649,8 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
         files={"archivo": ("foto.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
     )
     detalle_con_foto = client.get(f"/proyectos/{diag['id']}").json()
-    assert primera_brecha not in detalle_con_foto["brechas_verificadas"]
-
-    # Marcar la brecha como resuelta por el admin
-    client.put(
-        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
-        json={"brechas_resueltas": [primera_brecha]},
-        headers=admin_headers,
-    )
-
-    # Ahora SÍ debe aparecer como verificada (resuelta + foto)
-    detalle_resuelta = client.get(f"/proyectos/{diag['id']}").json()
-    assert primera_brecha in detalle_resuelta["brechas_verificadas"]
-    assert len(detalle_resuelta["documentos_estudios"].get(primera_brecha, [])) == 1
+    assert primera_brecha in detalle_con_foto["brechas_verificadas"]
+    assert len(detalle_con_foto["documentos_estudios"].get(primera_brecha, [])) == 1
 
 
 def test_proyectos_check_publico_acepta_categoria_equivalente():

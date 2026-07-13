@@ -204,7 +204,13 @@ export function MiCuenta() {
             rutaVolver="/mi-cuenta"
           />
 
-          <LoQueTeFaltaCard perfil={perfil} />
+          <LoQueTeFaltaCard
+            perfil={perfil}
+            onActualizado={() => {
+              cargarPerfil();
+              setRecarga((k) => k + 1);
+            }}
+          />
 
           <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>

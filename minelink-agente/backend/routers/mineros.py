@@ -196,7 +196,15 @@ def _perfil_out(
                 operacion.estado_formalizacion, operacion.inv_respuestas_json or {}
             )
         ],
-        brechas_inversion=brechas_inversion(operacion.inv_respuestas_json or {}),
+        # Una brecha de inversión también se auto-completa cuando el minero
+        # sube el respaldo de ese estudio (mismo criterio que formalización:
+        # evidencia, no puro clic) o cuando el admin la marcó resuelta.
+        brechas_inversion=[
+            b
+            for b in brechas_inversion(operacion.inv_respuestas_json or {})
+            if b not in {d.categoria for d in (operacion.documentos or [])}
+            and b not in set(operacion.brechas_resueltas_json or [])
+        ],
         # Cuántos inversionistas dejaron su interés en este proyecto — solo
         # el conteo: sus datos de contacto siguen siendo exclusivos del
         # admin, que hace de intermediario.
@@ -610,6 +618,18 @@ async def subir_documento(
         content_type=tipo_final,
     )
     db.add(documento)
+
+    # Auto-resolución con evidencia (julio 2026): si el minero sube el
+    # respaldo de una brecha que su diagnóstico marcó como pendiente, la
+    # brecha se resuelve sola — él mismo completa lo que le faltaba, sin
+    # esperar a que Esthiven la "libere" desde el admin. El admin conserva
+    # la supervisión por la revisión de documentos (puede rechazar el
+    # archivo) y el marcado manual para lo que se entera por WhatsApp.
+    brechas = set(operacion.brechas_json or [])
+    resueltas = set(operacion.brechas_resueltas_json or [])
+    if categoria in brechas and categoria not in resueltas:
+        operacion.brechas_resueltas_json = sorted(resueltas | {categoria})
+
     db.commit()
     db.refresh(documento)
     return documento

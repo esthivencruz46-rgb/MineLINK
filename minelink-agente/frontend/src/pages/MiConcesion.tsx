@@ -208,7 +208,14 @@ export function MiConcesion() {
             rutaVolver="/mi-concesion"
           />
 
-          <LoQueTeFaltaCard perfil={perfil} mostrarFormalizacion={muestraEstudios} />
+          <LoQueTeFaltaCard
+            perfil={perfil}
+            mostrarFormalizacion={muestraEstudios}
+            onActualizado={() => {
+              cargarPerfil();
+              setRecarga((k) => k + 1);
+            }}
+          />
 
           <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>
