@@ -2133,6 +2133,30 @@ def test_admin_elimina_lead_borra_tambien_sus_notificaciones():
     assert resp.status_code == 204
 
 
+def test_admin_elimina_lead_borra_tambien_intereses_empresa():
+    # Regresión: InteresEmpresa.operacion_id es FK NOT NULL — nunca se
+    # borraba junto con el lead (bug preexistente, no de esta sesión).
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    empresa = _crear_empresa(token, nombre="Empresa Interes SAC", ruc="20777777777")
+    diag = _crear_diagnostico().json()
+    lead = client.post(
+        "/leads", json=_lead_payload(diag["id"], username="conintereseempresa")
+    ).json()
+    resp = client.post(
+        f"/empresas/{empresa['id']}/interes",
+        json={
+            "operacion_id": diag["id"],
+            "nombre": "Juan Quispe",
+            "whatsapp": "+51987654321",
+        },
+    )
+    assert resp.status_code == 201
+
+    resp = client.delete(f"/admin/leads/{lead['id']}", headers=headers)
+    assert resp.status_code == 204
+
+
 def test_admin_elimina_lead_inexistente():
     token = _admin_token()
     resp = client.delete(

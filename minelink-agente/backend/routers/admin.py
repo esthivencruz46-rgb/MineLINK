@@ -229,6 +229,13 @@ def eliminar_lead(
             )
             for interes in intereses:
                 db.delete(interes)
+            intereses_empresa = (
+                db.query(models.InteresEmpresa)
+                .filter(models.InteresEmpresa.operacion_id == operacion_id)
+                .all()
+            )
+            for interes in intereses_empresa:
+                db.delete(interes)
             db.delete(operacion)
 
     db.commit()
