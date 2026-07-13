@@ -7,6 +7,7 @@ import { DocumentosMinero } from "../components/DocumentosMinero";
 import { ResumenInversionRespuestas } from "../components/ResumenInversionRespuestas";
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
+import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
@@ -283,6 +284,7 @@ export function MiCuenta() {
           <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h2>
+          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
           <SeccionInversionista perfil={perfil} onAbrir={() => setMostrarInversion(true)} />
           {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (
             <CuestionarioInversionInline

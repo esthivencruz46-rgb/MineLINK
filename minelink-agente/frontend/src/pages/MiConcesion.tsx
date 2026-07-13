@@ -7,6 +7,7 @@ import { DocumentosMinero } from "../components/DocumentosMinero";
 import { ResumenInversionRespuestas } from "../components/ResumenInversionRespuestas";
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
+import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
@@ -19,11 +20,10 @@ import type { DocumentoOperacion } from "../types/documento";
 import type { MineroPerfil } from "../types/minero";
 
 /** Ventana exclusiva de la Ruta 2 (concesionario que recién inicia) —
- * paralela a MiCuenta.tsx (Ruta 1). Enfocada en lo esencial por ahora: su
- * Track Legal y entregar los documentos que declaró tener en el
- * diagnóstico (DocumentosMinero) — la parte de perfil de inversión
- * (PerfilInversionForm, "proyecto ante los inversionistas") queda fuera
- * de esta ventana hasta que se retome esa función. */
+ * paralela a MiCuenta.tsx (Ruta 1): su Track Legal, los documentos que
+ * declaró tener en el diagnóstico (DocumentosMinero) y su perfil para
+ * inversionistas (PerfilInversionForm, sin capacidad de producción — Ruta
+ * 2 todavía no opera, no tiene nada que producir que declarar). */
 export function MiConcesion() {
   const { authFetch, logout } = useMineroAuth();
   const navigate = useNavigate();
@@ -286,6 +286,7 @@ export function MiConcesion() {
           <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h2>
+          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} ocultarCapacidadProduccion />
           <SeccionInversionista perfil={perfil} onAbrir={() => setMostrarInversion(true)} />
           {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (
             <CuestionarioInversionInline

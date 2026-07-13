@@ -283,6 +283,11 @@ export function ProyectoDetalle() {
           <Card acento>
             <h2 className="text-lg font-semibold">Resumen Ejecutivo</h2>
             <p className="mt-2">{partesResumen.join(" ")}</p>
+            {proyecto.descripcion_operacion && (
+              <p className="mt-3 border-l-2 border-acento/40 pl-3 text-sm italic text-texto-suave dark:text-texto-suave-dark">
+                "{proyecto.descripcion_operacion}"
+              </p>
+            )}
             {puntosAFavor.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {puntosAFavor.map((texto) => (
