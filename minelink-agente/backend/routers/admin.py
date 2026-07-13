@@ -198,11 +198,15 @@ def eliminar_lead(
         raise HTTPException(status_code=404, detail="Lead no encontrado")
 
     operacion_id = lead.operacion_id
-    notificaciones = (
-        db.query(models.Notificacion).filter(models.Notificacion.lead_id == lead_id).all()
+    # flush() intermedio a propósito: no hay relationship() ORM entre Lead y
+    # Notificacion (solo la columna FK), así que si se deja todo para un
+    # único flush() al final, SQLAlchemy no sabe que este delete debe ir
+    # ANTES del de leads y puede mandarlos en el orden equivocado —
+    # violando la llave foránea aunque el código los borre en orden.
+    db.query(models.Notificacion).filter(models.Notificacion.lead_id == lead_id).delete(
+        synchronize_session=False
     )
-    for notificacion in notificaciones:
-        db.delete(notificacion)
+    db.flush()
     db.delete(lead)
     db.flush()
 
@@ -222,21 +226,20 @@ def eliminar_lead(
             for documento in documentos:
                 storage.eliminar("documentos_mineros", documento.filename)
                 db.delete(documento)
-            intereses = (
-                db.query(models.InteresInversion)
-                .filter(models.InteresInversion.operacion_id == operacion_id)
-                .all()
-            )
-            for interes in intereses:
-                db.delete(interes)
-            intereses_empresa = (
-                db.query(models.InteresEmpresa)
-                .filter(models.InteresEmpresa.operacion_id == operacion_id)
-                .all()
-            )
-            for interes in intereses_empresa:
-                db.delete(interes)
+            # Mismo motivo del flush() de arriba: InteresInversion/
+            # InteresEmpresa no tienen relationship() ORM con Operacion
+            # (solo la columna FK), así que hace falta un flush() ANTES de
+            # borrar la operación para que el orden real de los DELETE en
+            # Postgres respete la llave foránea.
+            db.query(models.InteresInversion).filter(
+                models.InteresInversion.operacion_id == operacion_id
+            ).delete(synchronize_session=False)
+            db.query(models.InteresEmpresa).filter(
+                models.InteresEmpresa.operacion_id == operacion_id
+            ).delete(synchronize_session=False)
+            db.flush()
             db.delete(operacion)
+            db.flush()
 
     db.commit()
 
