@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { CampoMonto } from "./CampoMonto";
+import { CampoProduccion } from "./CampoProduccion";
 import { POR_ID_INV, type RespuestasInversion } from "../data/preguntasInversion";
-import { formatearMonto } from "../utils/formato";
 import type { MineroPerfil } from "../types/minero";
 
 function etiquetaRespuesta(id: string, valor: string): string {
@@ -28,14 +28,18 @@ interface Props {
 }
 
 /** Muestra lo que el minero respondió en el Módulo INV (salvo lo que ya se
- *  muestra junto al slot de subida correspondiente, para no repetir) y
- *  deja precisar el monto EXACTO de capital que busca — ya declaró un
- *  rango en INV_0_1, esto es solo para afinarlo si lo tiene claro. */
+ *  muestra junto al slot de subida correspondiente, para no repetir). En
+ *  la fila de INV_0_1 ("¿Cuánto capital buscas?") el rango marcado lleva
+ *  al costado un campo para precisar el monto EXACTO; al final hay una
+ *  fila más para producción/reservas (solo Ruta 1 — quien todavía no
+ *  opera no tiene nada que producir). Ambos guardan solos al escribir. */
 export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [respuestas, setRespuestas] = useState<RespuestasInversion | null>(null);
   const [capitalBuscado, setCapitalBuscado] = useState(perfil.capital_buscado ?? "");
-  const [guardando, setGuardando] = useState(false);
+  const [capacidadProduccion, setCapacidadProduccion] = useState(
+    perfil.capacidad_produccion ?? ""
+  );
   const [guardadoOk, setGuardadoOk] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -50,29 +54,23 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
     if (debounceRef.current) clearTimeout(debounceRef.current);
   }, []);
 
-  async function guardarCapital(valor: string): Promise<void> {
-    setGuardando(true);
+  /** Guarda un campo del perfil de inversión con una pausa corta — el
+   *  endpoint es de actualización parcial, así que cada campo viaja solo
+   *  sin pisar a los demás. */
+  function guardarCampo(campo: "capital_buscado" | "capacidad_produccion", valor: string) {
     setGuardadoOk(false);
-    try {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
       const resp = await authFetch("/mineros/perfil-inversion", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ capital_buscado: valor.trim() || null }),
+        body: JSON.stringify({ [campo]: valor.trim() || null }),
       });
       if (resp.ok) {
         onGuardado(await resp.json());
         setGuardadoOk(true);
       }
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  function onCambiarCapital(valor: string) {
-    setCapitalBuscado(valor);
-    setGuardadoOk(false);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => guardarCapital(valor), 800);
+    }, 800);
   }
 
   const cubiertos = new Set(declarados.map((d) => `${d.pregunta_id}:${d.valor}`));
@@ -89,55 +87,75 @@ export function ResumenInversionRespuestas({ perfil, onGuardado, declarados }: P
       return !cubiertos.has(`${id}:${valor}`);
     });
 
+  const esRuta1 = perfil.situacion !== "concesionario";
+
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-      <h2 className="font-semibold">Tu perfil de inversión</h2>
-
-      <div className="mt-3">
-        <label className="mb-1 block text-sm font-medium">¿Cuánto capital buscas? (monto exacto)</label>
-        {perfil.moneda_capital === "no_se" && (
-          <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-            En tu diagnóstico dijiste que aún no sabes cuánto capital necesitas — puedes dejarlo
-            así, o precisar un monto cuando lo tengas más claro.
-          </p>
-        )}
-        {perfil.monto_requerido && perfil.moneda_capital !== "no_se" && (
-          <p className="mb-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-            Recordatorio: en tu diagnóstico marcaste{" "}
-            <span className="font-medium">{formatearMonto(perfil.monto_requerido)}</span>. Aquí
-            puedes precisar el monto exacto.
-          </p>
-        )}
-        <CampoMonto
-          value={capitalBuscado}
-          onChange={onCambiarCapital}
-          monedaFija={monedaFijaDe(perfil)}
-        />
-        {guardando && (
-          <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">Guardando...</p>
-        )}
-        {!guardando && guardadoOk && <p className="mt-1 text-xs text-emerald-500">Guardado.</p>}
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="font-semibold">Tu perfil de inversión</h2>
+        {guardadoOk && <span className="text-xs text-emerald-500">Guardado ✓</span>}
       </div>
 
-      {entradas.length > 0 && (
-        <dl className="mt-4 flex flex-col gap-2 border-t border-black/10 pt-4 dark:border-white/10">
-          {entradas.map(([id, valor]) => {
-            const pregunta = POR_ID_INV[id];
-            if (!pregunta) return null;
-            const texto = Array.isArray(valor)
-              ? valor.map((v) => etiquetaRespuesta(id, v)).join(", ")
-              : pregunta.tipo === "texto_corto"
-                ? valor
-                : etiquetaRespuesta(id, valor);
+      <dl className="mt-3 flex flex-col gap-3">
+        {entradas.map(([id, valor]) => {
+          const pregunta = POR_ID_INV[id];
+          if (!pregunta) return null;
+          const texto = Array.isArray(valor)
+            ? valor.map((v) => etiquetaRespuesta(id, v)).join(", ")
+            : pregunta.tipo === "texto_corto"
+              ? valor
+              : etiquetaRespuesta(id, valor);
+
+          // INV_0_1: el rango marcado + campo de monto exacto al costado.
+          if (id === "INV_0_1") {
             return (
               <div key={id} className="text-sm">
                 <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
-                <dd className="font-semibold">{texto}</dd>
+                <dd className="mt-1 flex flex-wrap items-center gap-2">
+                  <span className="font-semibold">{texto}</span>
+                  <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Monto exacto:
+                  </span>
+                  <div className="w-56">
+                    <CampoMonto
+                      value={capitalBuscado}
+                      onChange={(v) => {
+                        setCapitalBuscado(v);
+                        guardarCampo("capital_buscado", v);
+                      }}
+                      monedaFija={monedaFijaDe(perfil)}
+                    />
+                  </div>
+                </dd>
               </div>
             );
-          })}
-        </dl>
-      )}
+          }
+
+          return (
+            <div key={id} className="text-sm">
+              <dt className="text-texto-suave dark:text-texto-suave-dark">{pregunta.texto}</dt>
+              <dd className="font-semibold">{texto}</dd>
+            </div>
+          );
+        })}
+
+        {esRuta1 && (
+          <div className="text-sm">
+            <dt className="text-texto-suave dark:text-texto-suave-dark">
+              ¿Cuánto produces y cuánto mineral te queda (reservas)?
+            </dt>
+            <dd className="mt-1">
+              <CampoProduccion
+                value={capacidadProduccion}
+                onChange={(v) => {
+                  setCapacidadProduccion(v);
+                  guardarCampo("capacidad_produccion", v);
+                }}
+              />
+            </dd>
+          </div>
+        )}
+      </dl>
     </div>
   );
 }

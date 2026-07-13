@@ -104,6 +104,17 @@ export function MiCuenta() {
         </p>
       )}
 
+      {/* Tus datos como franja compacta arriba (antes era una tarjeta en la
+          columna derecha — subió para que Inversión arranque a la misma
+          altura que Formalización y no se desperdicie espacio). */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-tarjeta px-5 py-3 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+        <span className="font-semibold text-texto dark:text-texto-dark">Tus datos:</span>
+        <span>WhatsApp {perfil.whatsapp}</span>
+        {perfil.email && <span>· {perfil.email}</span>}
+        {perfil.codigo_reinfo && <span>· REINFO {perfil.codigo_reinfo}</span>}
+        <span>· Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}</span>
+      </div>
+
       {mostrarBienvenida && (
         <div className="flex items-start justify-between gap-3 rounded-lg bg-acento/10 p-4 text-sm text-acento">
           <p>
@@ -259,32 +270,8 @@ export function MiCuenta() {
 
         <div className="flex flex-col gap-5">
           <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
-            Tu cuenta
-          </h2>
-          <div className="rounded-lg bg-tarjeta p-5 text-sm dark:bg-tarjeta-dark">
-            <h2 className="font-semibold">Tus datos</h2>
-            <p className="mt-2 text-texto-suave dark:text-texto-suave-dark">
-              WhatsApp: {perfil.whatsapp}
-            </p>
-            {perfil.email && (
-              <p className="text-texto-suave dark:text-texto-suave-dark">
-                Email: {perfil.email}
-              </p>
-            )}
-            {perfil.codigo_reinfo && (
-              <p className="text-texto-suave dark:text-texto-suave-dark">
-                Código REINFO: {perfil.codigo_reinfo}
-              </p>
-            )}
-            <p className="text-texto-suave dark:text-texto-suave-dark">
-              Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}
-            </p>
-          </div>
-
-          <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h2>
-          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
           <SeccionInversionista perfil={perfil} onAbrir={() => setMostrarInversion(true)} />
           {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (
             <CuestionarioInversionInline
@@ -309,6 +296,7 @@ export function MiCuenta() {
             categorias={perfil.categorias_requeridas_inversion}
             declarados={perfil.respaldos_declarados_inversion}
           />
+          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>
       </div>
     </div>
