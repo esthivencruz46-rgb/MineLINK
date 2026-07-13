@@ -187,9 +187,6 @@ export function AdminLeads() {
   const [leadDetalle, setLeadDetalle] = useState<LeadConDiagnostico | null>(null);
   const [docs, setDocs] = useState<DocumentoOperacion[]>([]);
   const [cargandoDocs, setCargandoDocs] = useState(false);
-  const [actualizandoDoc, setActualizandoDoc] = useState<number | null>(null);
-  const [rechazandoDoc, setRechazandoDoc] = useState<number | null>(null);
-  const [motivoRechazo, setMotivoRechazo] = useState("");
   const [leadInversion, setLeadInversion] = useState<LeadConDiagnostico | null>(null);
   const [inversion, setInversion] = useState<InversionAdmin | null>(null);
   const [cargandoInversion, setCargandoInversion] = useState(false);
@@ -320,8 +317,6 @@ export function AdminLeads() {
 
   function verDocumentos(lead: LeadConDiagnostico) {
     setLeadDetalle(lead);
-    setRechazandoDoc(null);
-    setMotivoRechazo("");
     setCargandoDocs(true);
     authFetch(`/admin/operaciones/${lead.operacion_id}/documentos`)
       .then((r) => {
@@ -369,31 +364,6 @@ export function AdminLeads() {
     setInteresesEmpresas((actuales) =>
       actuales.map((i) => (i.id === interes.id ? { ...i, estado_contacto: estado } : i))
     );
-  }
-
-  async function revisarDocumento(
-    doc: DocumentoOperacion,
-    estado_revision: "aprobado" | "rechazado",
-    motivo_rechazo?: string
-  ) {
-    setActualizandoDoc(doc.id);
-    try {
-      const resp = await authFetch(`/admin/documentos/${doc.id}/revision`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ estado_revision, motivo_rechazo }),
-      });
-      if (!resp.ok) {
-        setError("No pudimos actualizar la revisión de ese documento.");
-        return;
-      }
-      const actualizado = await resp.json();
-      setDocs((actuales) => actuales.map((d) => (d.id === doc.id ? actualizado : d)));
-      setRechazandoDoc(null);
-      setMotivoRechazo("");
-    } finally {
-      setActualizandoDoc(null);
-    }
   }
 
   function verInversion(lead: LeadConDiagnostico) {
@@ -811,64 +781,9 @@ export function AdminLeads() {
                       </button>
                     </div>
 
-                    <div className="mt-2 flex items-center gap-2">
-                      {doc.estado_revision === "aprobado" && (
-                        <span className="rounded bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                          Aprobado
-                        </span>
-                      )}
-                      {doc.estado_revision === "pendiente" && (
-                        <span className="rounded bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                          Pendiente
-                        </span>
-                      )}
-                      {doc.estado_revision === "rechazado" && (
-                        <span className="rounded bg-red-500/15 px-2 py-0.5 text-xs font-semibold text-red-500">
-                          Rechazado{doc.motivo_rechazo ? `: ${doc.motivo_rechazo}` : ""}
-                        </span>
-                      )}
-                      {doc.estado_revision !== "aprobado" && (
-                        <button
-                          disabled={actualizandoDoc === doc.id}
-                          onClick={() => revisarDocumento(doc, "aprobado")}
-                          className="rounded border border-emerald-500/30 px-2 py-0.5 text-xs font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
-                        >
-                          Aprobar
-                        </button>
-                      )}
-                      {doc.estado_revision !== "rechazado" && (
-                        <button
-                          disabled={actualizandoDoc === doc.id}
-                          onClick={() => {
-                            setRechazandoDoc(doc.id);
-                            setMotivoRechazo("");
-                          }}
-                          className="rounded border border-red-500/30 px-2 py-0.5 text-xs font-semibold text-red-500 disabled:opacity-50"
-                        >
-                          Rechazar
-                        </button>
-                      )}
-                    </div>
-
-                    {rechazandoDoc === doc.id && (
-                      <div className="mt-2 flex gap-2">
-                        <input
-                          type="text"
-                          autoFocus
-                          value={motivoRechazo}
-                          onChange={(e) => setMotivoRechazo(e.target.value)}
-                          placeholder="Motivo del rechazo (ej. foto borrosa)"
-                          className="min-h-[36px] flex-1 rounded border border-black/10 bg-tarjeta px-2 text-xs dark:border-white/10 dark:bg-tarjeta-dark"
-                        />
-                        <button
-                          disabled={!motivoRechazo.trim() || actualizandoDoc === doc.id}
-                          onClick={() => revisarDocumento(doc, "rechazado", motivoRechazo.trim())}
-                          className="shrink-0 rounded bg-red-500 px-2 text-xs font-semibold text-white disabled:opacity-50"
-                        >
-                          Confirmar
-                        </button>
-                      </div>
-                    )}
+                    {/* La revisión Aprobar/Rechazar por documento se retiró
+                        del panel (julio 2026): los inversionistas son
+                        quienes juzgan los datos — el admin solo mira. */}
                   </li>
                 ))}
               </ul>
