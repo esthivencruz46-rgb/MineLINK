@@ -7,12 +7,47 @@ import type { DocumentoOperacion } from "../types/documento";
 import type { MineroPerfil } from "../types/minero";
 
 const ACCEPT_FOTO_O_PDF = "application/pdf,image/jpeg,image/png,image/webp";
+const ACCEPT_SOLO_FOTO = "image/jpeg,image/png,image/webp";
+const FORMATOS_FOTO_O_PDF = "Formato: PDF o una foto del documento (JPG, PNG, WEBP)";
+const FORMATOS_SOLO_FOTO = "Formato: JPG, PNG o WEBP";
+
+// Categorías que son FOTOS de algo físico (no un documento): el backend
+// solo les acepta imagen (ver uploads_config.CATEGORIAS_INVERSION), así
+// que el selector de archivo debe coincidir para no invitar a subir un
+// PDF que el servidor va a rechazar.
+const CATEGORIAS_SOLO_FOTO = new Set([
+  "fotos_equipo_maquinaria",
+  "fotos_trabajadores",
+  "muestreo_propio",
+  "fotos_area_petitorio",
+  "fotos_labores_antiguas",
+]);
+
+// Qué es cada documento, en lenguaje simple — mismo tratamiento que la
+// descripción por categoría de "Respalda tu declaración" (INFO_BRECHA
+// cubre los estudios compartidos con formalización; esto, los propios
+// del Módulo INV).
+const DESCRIPCION_CATEGORIA_INV: Record<string, string> = {
+  titulo_concesion: "La resolución que te acredita como titular de la concesión.",
+  liquidaciones_venta: "Las liquidaciones que te dio tu comprador al venderle mineral.",
+  estados_financieros_libros: "Tus estados financieros o libros contables más recientes.",
+  certificado_ley: "El análisis o certificado que indica la ley de tu mineral.",
+  fotos_equipo_maquinaria: "Fotos de la maquinaria y el equipo que declaraste aportar.",
+  fotos_trabajadores: "Fotos de tu gente trabajando en la operación.",
+  muestreo_propio: "Fotos del muestreo que hiciste en el área.",
+  fotos_area_petitorio: "Fotos del área de tu petitorio.",
+  fotos_labores_antiguas: "Fotos de las labores antiguas que demuestran la producción anterior.",
+  registro_opex: "Tu registro de costos operativos mensuales.",
+  contratos_offtake: "El contrato de venta u offtake que tienes vigente.",
+};
 
 interface CategoriaSustento {
   categoria: string;
   etiqueta: string;
-  aprobado?: boolean;
   declarado?: string;
+  descripcion: string;
+  accept: string;
+  formatos: string;
 }
 
 interface Props {
@@ -149,10 +184,15 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
     const mapa = new Map<string, CategoriaSustento>();
     for (const d of declarados) {
       if (mapa.has(d.codigo)) continue;
+      const soloFoto = CATEGORIAS_SOLO_FOTO.has(d.codigo);
       mapa.set(d.codigo, {
         categoria: d.codigo,
         etiqueta: etiquetaCategoria(d.codigo),
         declarado: etiquetaValorDeclarado(d.pregunta_id, d.valor),
+        descripcion:
+          DESCRIPCION_CATEGORIA_INV[d.codigo] ?? INFO_BRECHA[d.codigo]?.resuelve ?? "",
+        accept: soloFoto ? ACCEPT_SOLO_FOTO : ACCEPT_FOTO_O_PDF,
+        formatos: soloFoto ? FORMATOS_SOLO_FOTO : FORMATOS_FOTO_O_PDF,
       });
     }
     return [...mapa.values()];
@@ -164,8 +204,8 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <h2 className="font-semibold">Respalda tu inversión</h2>
       <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-        Sube una foto o PDF por cada documento que respalde lo que respondiste en tu perfil de
-        inversión.
+        Sube un archivo por cada cosa que declaraste en tu perfil de inversión. Se guardan solos
+        al subirlos — puedes actualizarlos cuando quieras.
       </p>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
@@ -189,6 +229,14 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
                         Marcaste: {cat.declarado}
                       </p>
                     )}
+                    {cat.descripcion && (
+                      <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                        {cat.descripcion}
+                      </p>
+                    )}
+                    <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                      {cat.formatos}
+                    </p>
                     {conValor && (
                       <input
                         className={`mt-1.5 min-h-[36px] ${conValor.ancho} rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10`}
@@ -203,14 +251,18 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
                     disabled={subiendo === cat.categoria}
                     className="min-h-[36px] shrink-0 rounded-lg border border-acento px-3 text-xs font-semibold text-acento disabled:opacity-50"
                   >
-                    {subiendo === cat.categoria ? "Subiendo..." : "+ Agregar"}
+                    {subiendo === cat.categoria
+                      ? "Subiendo..."
+                      : archivos.length > 0
+                        ? "Actualizar"
+                        : "+ Agregar"}
                   </button>
                   <input
                     ref={(el) => {
                       inputsRef.current[cat.categoria] = el;
                     }}
                     type="file"
-                    accept={ACCEPT_FOTO_O_PDF}
+                    accept={cat.accept}
                     className="hidden"
                     onChange={(e) => {
                       const archivo = e.target.files?.[0];
