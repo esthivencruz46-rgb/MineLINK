@@ -143,26 +143,20 @@ export function CuestionarioInversionInline({
         ? (borrador as string).trim().length > 0
         : Boolean(borrador);
 
-  const esOpcionUnica = actual.tipo === "opcion";
-
   return (
     <ModalShell
       onCerrar={onCerrar}
       footer={
-        esOpcionUnica ? (
+        <div className="flex items-center justify-between gap-3">
           <BotonVolver onClick={paso > 0 ? volver : undefined} />
-        ) : (
-          <div className="flex items-center justify-between gap-3">
-            <BotonVolver onClick={paso > 0 ? volver : undefined} />
-            <button
-              disabled={!puedeContinuar}
-              onClick={() => responder(actual.id, borrador)}
-              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
-            >
-              Continuar →
-            </button>
-          </div>
-        )
+          <button
+            disabled={!puedeContinuar}
+            onClick={() => responder(actual.id, borrador)}
+            className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+          >
+            Continuar →
+          </button>
+        </div>
       }
     >
       <ProgressBar actual={paso + 1} total={visibles.length + 1} />
