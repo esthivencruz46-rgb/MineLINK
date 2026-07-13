@@ -117,23 +117,23 @@ class Operacion(Base):
     produccion_objetivo = Column(String, nullable=True)
     uso_fondos_diagnostico = Column(String, nullable=True)  # copiado a Lead.uso_fondos al registrarse
 
-    # Revisión de documentos por el admin (julio 2026) — gate para desbloquear
-    # el botón "Inversionista" en la cuenta del minero. documentos_enviados_en
-    # lo pone el minero al pulsar "Guardar archivos" (null = aún subiendo, sin
-    # enviar a revisión); visto_bueno_documentos lo pone el admin y es la
-    # ÚNICA fuente de verdad que desbloquea Inversionista en el frontend — ver
-    # `_todos_documentos_aprobados` en routers/admin.py para la validación que
-    # exige antes de dejarlo poner en True.
+    # documentos_enviados_en: el minero pulsó "Guardar archivos" en "Respalda
+    # tu declaración" (null = todavía subiendo). Junto con inv_enviado_en más
+    # abajo, decide si la operación es "apto_inversionistas" (ver
+    # scoring.estado_seguimiento) — la publicación en la cartera pública es
+    # automática al enviar, sin aprobación manual (julio 2026: se decidió que
+    # son los propios inversionistas quienes verifican los datos, no Esthiven).
+    # visto_bueno_documentos queda SIN USO (ver_bueno manual retirado) — no se
+    # borra la columna para no migrar de nuevo; siempre False de aquí en más.
     documentos_enviados_en = Column(DateTime, nullable=True)
     visto_bueno_documentos = Column(Boolean, nullable=False, default=False)
 
     # Módulo INV — perfil de inversión (julio 2026), ver catalogo_inversion.py.
-    # No exige visto_bueno_documentos primero — el minero puede llenarlo en
+    # No exige documentos_enviados_en primero — el minero puede llenarlo en
     # la misma sesión que sube sus documentos de formalización, sin esperar
-    # entre uno y otro (ver enviar_inversion en routers/mineros.py). Solo la
-    # publicación pública (apto_inversionistas) exige ambos vistos buenos.
-    # Reenviar antes de que el admin dé su propio visto bueno SOBREESCRIBE
-    # (permite corregir sin crear versiones).
+    # entre uno y otro (ver enviar_inversion en routers/mineros.py). Reenviar
+    # SOBREESCRIBE (permite corregir sin crear versiones). inv_visto_bueno
+    # queda SIN USO por la misma razón que visto_bueno_documentos, arriba.
     inv_respuestas_json = Column(JSON, nullable=True)
     inv_enviado_en = Column(DateTime, nullable=True)
     inv_visto_bueno = Column(Boolean, nullable=False, default=False)

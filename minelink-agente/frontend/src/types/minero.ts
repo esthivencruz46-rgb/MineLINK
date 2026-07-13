@@ -110,16 +110,18 @@ export interface MineroPerfil {
   estudios_aplicables: { codigo: string; pregunta_id: string; valor: string }[];
   fotos_perfil: { categoria: string; etiqueta: string }[];
   es_titular_concesion?: boolean | null;
-  // Revisión de documentos por el admin (julio 2026) — gate del botón
-  // "Inversionista" en /mi-cuenta y /mi-concesion.
+  // El minero ya pulsó "Guardar archivos" en "Respalda tu declaración".
+  // Ya no hay un visto bueno del admin que desbloquee nada — la
+  // publicación en la cartera es automática (ver apto_inversionistas).
   documentos_enviados: boolean;
-  visto_bueno_documentos: boolean;
   // Módulo INV (julio 2026) — si se ofrece a este minero y en qué estado
   // está su envío.
   inversion_ofrecida: boolean;
   inversion_prioridad?: string | null;
   inv_enviado: boolean;
-  inv_visto_bueno: boolean;
+  // Documentos de sustento de inversión (liquidaciones de venta, etc.) —
+  // se muestran en la cuenta igual que "Respalda tu declaración".
+  categorias_requeridas_inversion: { categoria: string; etiqueta: string; aprobado: boolean }[];
 }
 
 export interface Notificacion {

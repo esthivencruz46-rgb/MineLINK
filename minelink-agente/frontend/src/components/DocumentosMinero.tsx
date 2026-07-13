@@ -418,7 +418,7 @@ export function DocumentosMinero({
             if (enviado) {
               return (
                 <p className="mt-4 rounded-lg bg-acento/10 p-3 text-sm font-semibold text-acento">
-                  Enviado — Esthiven está revisando tus archivos.
+                  Enviado — tus archivos ya quedaron guardados.
                 </p>
               );
             }

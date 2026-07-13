@@ -15,7 +15,6 @@ from security import limitar_intentos_login
 from scoring import (
     categorias_requeridas_out,
     estado_seguimiento,
-    estudios_aplicables,
     respuestas_diagnostico_efectivas,
 )
 from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
@@ -134,7 +133,6 @@ def listar_leads(
             produccion_objetivo=operacion.produccion_objetivo,
             uso_fondos_diagnostico=operacion.uso_fondos_diagnostico,
             documentos_enviados=operacion.documentos_enviados_en is not None,
-            visto_bueno_documentos=operacion.visto_bueno_documentos,
             **estado_seguimiento(operacion),
         )
         for lead, operacion in filas
@@ -465,75 +463,6 @@ def revisar_documento(
     return documento
 
 
-def _documentos_estudios_faltantes(db: Session, operacion: models.Operacion) -> list[str]:
-    """Estudios que el minero declaró tener pero que todavía NO tienen un
-    documento aprobado — lo que le falta al admin para poder dar el visto
-    bueno. Vacío = ya se puede dar el visto bueno."""
-    aprobados = {
-        c
-        for (c,) in db.query(models.DocumentoOperacion.categoria)
-        .filter(
-            models.DocumentoOperacion.operacion_id == operacion.id,
-            models.DocumentoOperacion.estado_revision == "aprobado",
-        )
-        .distinct()
-    }
-    return [
-        e["codigo"] for e in estudios_aplicables(operacion) if e["codigo"] not in aprobados
-    ]
-
-
-@router.put(
-    "/operaciones/{operacion_id}/visto-bueno-documentos",
-    response_model=schemas.MineroPerfilOut,
-)
-def actualizar_visto_bueno_documentos(
-    operacion_id: str,
-    payload: schemas.VistoBuenoDocumentosRequest,
-    db: Session = Depends(get_db),
-    _admin: str = Depends(get_current_admin),
-):
-    """Desbloquea (o revoca) el botón "Inversionista" en la cuenta del
-    minero. Para desbloquear (visto_bueno=True), exige que CADA estudio
-    que el minero declaró tener ya tenga un documento aprobado — si falta
-    alguno, 400 con el detalle de qué falta."""
-    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
-    if operacion is None:
-        raise HTTPException(status_code=404, detail="Operación no encontrada")
-
-    if payload.visto_bueno:
-        faltantes = _documentos_estudios_faltantes(db, operacion)
-        if faltantes:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Todavía faltan documentos aprobados para: " + ", ".join(faltantes)
-                ),
-            )
-
-    ya_estaba_aprobado = operacion.visto_bueno_documentos
-    operacion.visto_bueno_documentos = payload.visto_bueno
-
-    lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
-    if lead is None:
-        raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
-
-    if payload.visto_bueno and not ya_estaba_aprobado:
-        crear_notificacion(
-            db,
-            lead.id,
-            "documentos_aprobados",
-            "Tus documentos de formalización fueron aprobados. Ya puedes completar tu perfil de inversión.",
-        )
-
-    db.commit()
-    db.refresh(operacion)
-
-    from routers.mineros import _perfil_out
-
-    return _perfil_out(lead, operacion)
-
-
 @router.get(
     "/operaciones/{operacion_id}/inversion",
     response_model=schemas.InversionAdminOut,
@@ -544,8 +473,9 @@ def ver_inversion(
     _admin: str = Depends(get_current_admin),
 ):
     """Respuestas del Módulo INV + alertas de consistencia AL1-AL8 +
-    documentos de sustento requeridos, para que Esthiven decida el visto
-    bueno."""
+    documentos de sustento requeridos — solo informativo (ej. para
+    contactar al minero si algo se ve raro). La publicación en la cartera
+    es automática al enviarse; Esthiven ya no aprueba manualmente."""
     operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
     if operacion is None:
         raise HTTPException(status_code=404, detail="Operación no encontrada")
@@ -555,7 +485,6 @@ def ver_inversion(
     return schemas.InversionAdminOut(
         respuestas=respuestas_inv,
         enviado=operacion.inv_enviado_en is not None,
-        visto_bueno=operacion.inv_visto_bueno,
         alertas=alertas_inversion(
             perfil, respuestas_diagnostico_efectivas(operacion), respuestas_inv
         ),
@@ -563,64 +492,6 @@ def ver_inversion(
             operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
         ),
     )
-
-
-@router.put(
-    "/operaciones/{operacion_id}/visto-bueno-inversion",
-    response_model=schemas.MineroPerfilOut,
-)
-def actualizar_visto_bueno_inversion(
-    operacion_id: str,
-    payload: schemas.VistoBuenoInversionRequest,
-    db: Session = Depends(get_db),
-    _admin: str = Depends(get_current_admin),
-):
-    """Marca el perfil de inversión como listo para el módulo
-    inversionista. Para desbloquear (visto_bueno=True), exige que todos
-    los documentos de sustento requeridos para el perfil estén aprobados."""
-    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
-    if operacion is None:
-        raise HTTPException(status_code=404, detail="Operación no encontrada")
-
-    if payload.visto_bueno:
-        perfil = operacion.estado_formalizacion
-        respuestas_inv = operacion.inv_respuestas_json or {}
-        faltantes = [
-            c["categoria"]
-            for c in categorias_requeridas_out(
-                operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
-            )
-            if not c["aprobado"]
-        ]
-        if faltantes:
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "Todavía faltan documentos aprobados para: " + ", ".join(faltantes)
-                ),
-            )
-
-    ya_estaba_aprobado = operacion.inv_visto_bueno
-    operacion.inv_visto_bueno = payload.visto_bueno
-
-    lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
-    if lead is None:
-        raise HTTPException(status_code=404, detail="Esta operación no tiene una cuenta creada")
-
-    if payload.visto_bueno and not ya_estaba_aprobado:
-        crear_notificacion(
-            db,
-            lead.id,
-            "inversion_aprobada",
-            "Tu perfil de inversión fue aprobado. Ya eres visible para inversionistas.",
-        )
-
-    db.commit()
-    db.refresh(operacion)
-
-    from routers.mineros import _perfil_out
-
-    return _perfil_out(lead, operacion)
 
 
 @router.get(

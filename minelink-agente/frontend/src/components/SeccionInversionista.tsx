@@ -3,11 +3,11 @@ import type { MineroPerfil } from "../types/minero";
 
 /** Tarjeta "Inversionista" al final de la cuenta (MiCuenta/MiConcesion) —
  *  refleja el estado del Módulo INV en un solo vistazo, sin duplicar la
- *  lógica entre las dos ventanas. Ya NO exige `visto_bueno_documentos`
- *  para desbloquearse: el minero puede completar inversión en la misma
- *  sesión que sube sus documentos de formalización, sin esperar la
- *  aprobación de uno para empezar el otro — solo la publicación final en
- *  la cartera pública exige ambos vistos buenos (ver scoring.py). */
+ *  lógica entre las dos ventanas. No hay aprobación manual del admin: el
+ *  minero completa formalización e inversión en la misma sesión y la
+ *  publicación en la cartera es automática al enviar ambas partes (ver
+ *  `apto_inversionistas` en scoring.py) — los inversionistas verifican
+ *  los datos por sí mismos. */
 export function SeccionInversionista({
   perfil,
   onAbrir,
@@ -29,14 +29,14 @@ export function SeccionInversionista({
     );
   }
 
-  if (perfil.inv_visto_bueno) {
+  if (perfil.apto_inversionistas) {
     return (
       <div className="flex items-start gap-3 rounded-lg bg-emerald-500/10 p-5 text-emerald-700 dark:text-emerald-400">
         <CheckCircle2 size={18} strokeWidth={2} className="mt-0.5 shrink-0" />
         <div>
           <h2 className="font-semibold">Tu perfil ya es visible para inversionistas</h2>
           <p className="mt-1 text-sm opacity-90">
-            Esthiven validó tu perfil de inversión. Tu proyecto ya compite en la vitrina.
+            Tu proyecto ya está publicado en la cartera y compite por inversionistas.
           </p>
         </div>
       </div>
@@ -48,10 +48,10 @@ export function SeccionInversionista({
       <div className="flex items-start gap-3 rounded-lg bg-acento/10 p-5 text-acento">
         <TrendingUp size={18} strokeWidth={2} className="mt-0.5 shrink-0" />
         <div>
-          <h2 className="font-semibold">Inversionista — en revisión</h2>
+          <h2 className="font-semibold">Inversionista — enviado</h2>
           <p className="mt-1 text-sm opacity-90">
-            Enviaste tu perfil de inversión. Esthiven lo revisará junto con tus documentos de
-            formalización — te avisamos cuando quede visible para inversionistas.
+            Enviaste tu perfil de inversión. Se publica en la cartera en cuanto también envíes
+            tus documentos de formalización (si todavía no lo hiciste).
           </p>
         </div>
       </div>

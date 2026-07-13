@@ -542,10 +542,10 @@ def test_mineros_login_y_perfil():
     assert body["perfil"] == diag["perfil"]
     assert body["semaforo_legal"] == diag["semaforo_legal"]
     # apto_inversionistas en el diagnóstico crudo es "elegible en teoría"
-    # (perfil+semáforo, sin BD); en /mineros/me exige ADEMÁS el visto bueno
-    # del Módulo INV (operacion.inv_visto_bueno) — recién creada la cuenta,
-    # ese visto bueno todavía no existe, así que acá es False aunque el
-    # diagnóstico crudo haya dado True.
+    # (perfil+semáforo, sin BD); en /mineros/me exige ADEMÁS haber ENVIADO
+    # documentos de formalización + Módulo INV — recién creada la cuenta,
+    # todavía no envió nada, así que acá es False aunque el diagnóstico
+    # crudo haya dado True.
     assert body["apto_inversionistas"] is False
     assert body["semaforo_tecnico"] is None  # Módulo INV en pausa
     assert body["indice_madurez"] is None
@@ -782,7 +782,6 @@ def test_mineros_enviar_documentos_completo():
     resp = client.post("/mineros/documentos/enviar", headers=headers)
     assert resp.status_code == 200
     assert resp.json()["documentos_enviados"] is True
-    assert resp.json()["visto_bueno_documentos"] is False
 
 
 def test_admin_revisa_documento_aprobado_y_rechazado():
@@ -822,69 +821,47 @@ def test_admin_revisa_documento_aprobado_y_rechazado():
     assert resp.json()["motivo_rechazo"] is None
 
 
-def test_admin_visto_bueno_exige_todos_los_documentos_aprobados():
+def test_documentos_enviados_no_exige_aprobacion_del_admin():
+    # Julio 2026: se quitó el visto bueno manual del admin — los
+    # inversionistas verifican los datos por sí mismos. "Guardar archivos"
+    # solo exige que TODO esté subido (cualquier estado de revisión), no
+    # que ya esté aprobado.
     operacion_id, headers, codigos = _minero_con_estudios("vistobueno1")
     assert len(codigos) >= 1
     admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
-    docs = []
     for codigo in codigos:
-        doc = client.post(
+        client.post(
             "/mineros/documentos",
             headers=headers,
             data={"categoria": codigo},
             files={"archivo": (f"{codigo}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-        ).json()
-        docs.append(doc)
-
-    # Ninguno aprobado todavía → 400
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 400
-    assert codigos[0] in resp.json()["detail"]
-
-    # Aprobar todos menos el último
-    for doc in docs[:-1]:
-        client.put(
-            f"/admin/documentos/{doc['id']}/revision",
-            json={"estado_revision": "aprobado"},
-            headers=admin_headers,
         )
-    if len(docs) > 1:
-        resp = client.put(
-            f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
-            json={"visto_bueno": True},
-            headers=admin_headers,
-        )
-        assert resp.status_code == 400
 
-    # Aprobar el último también
-    client.put(
-        f"/admin/documentos/{docs[-1]['id']}/revision",
-        json={"estado_revision": "aprobado"},
-        headers=admin_headers,
-    )
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
+    # Nada aprobado todavía, ni falta que hace — igual se puede enviar.
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
     assert resp.status_code == 200
-    assert resp.json()["visto_bueno_documentos"] is True
+    assert resp.json()["documentos_enviados"] is True
 
-    # GET /mineros/me también lo refleja
+    # Esthiven puede seguir rechazando un documento puntual (informativo),
+    # pero eso no revierte el envío.
+    doc = client.get("/mineros/documentos", headers=headers).json()[0]
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": "Prueba"},
+        headers=admin_headers,
+    )
     resp = client.get("/mineros/me", headers=headers)
-    assert resp.json()["visto_bueno_documentos"] is True
+    assert resp.json()["documentos_enviados"] is True
 
 
 def _minero_con_visto_bueno(username: str, respuestas=None) -> tuple[str, dict, dict]:
-    """Crea un minero, sube+aprueba un documento por cada estudio aplicable
-    y le da el visto bueno de documentos — atajo para los tests del
-    Módulo INV, que exigen ese gate. Devuelve (operacion_id, headers,
-    admin_headers)."""
+    """Crea un minero y sube+aprueba un documento por cada estudio
+    aplicable — atajo para los tests del Módulo INV. Ya NO hay un visto
+    bueno manual que esperar (julio 2026: la publicación es automática al
+    enviar, los inversionistas verifican los datos por sí mismos); el
+    nombre se conserva por costumbre pero ya no bloquea nada. Devuelve
+    (operacion_id, headers, admin_headers)."""
     respuestas = respuestas or RESPUESTAS_COMPLETAS
     diag = client.post(
         "/diagnostico",
@@ -915,12 +892,6 @@ def _minero_con_visto_bueno(username: str, respuestas=None) -> tuple[str, dict, 
             json={"estado_revision": "aprobado"},
             headers=admin_headers,
         )
-    resp = client.put(
-        f"/admin/operaciones/{diag['id']}/visto-bueno-documentos",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 200
     return diag["id"], headers, admin_headers
 
 
@@ -956,35 +927,26 @@ RESPUESTAS_INV_B = {
 
 def _hacer_apto_inversionistas(operacion_id, username, password="clave123", respuestas_inv=None):
     """Empuja una operación (con lead ya creado) por TODO el pipeline hasta
-    apto_inversionistas=True: aprueba los documentos de formalización, el
-    Módulo INV y sus documentos de sustento. Atajo para los tests de
-    /proyectos — desde julio 2026 el semáforo legal verde ya no basta por
-    sí solo, también exige el visto bueno de inversión (ver
-    scoring.estado_seguimiento)."""
+    apto_inversionistas=True: envía los documentos de formalización y el
+    Módulo INV con sus documentos de sustento. Atajo para los tests de
+    /proyectos. Ya NO hay aprobación manual del admin — desde julio 2026
+    la publicación es automática al enviar ambas partes (ver
+    scoring.estado_seguimiento); los inversionistas verifican los datos
+    por sí mismos, no Esthiven."""
     token = client.post(
         "/mineros/login", json={"username": username, "password": password}
     ).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
     perfil = client.get("/mineros/me", headers=headers).json()
     for e in perfil["estudios_aplicables"]:
-        doc = client.post(
+        client.post(
             "/mineros/documentos",
             headers=headers,
             data={"categoria": e["codigo"]},
             files={"archivo": (f"{e['codigo']}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-        ).json()
-        client.put(
-            f"/admin/documentos/{doc['id']}/revision",
-            json={"estado_revision": "aprobado"},
-            headers=admin_headers,
         )
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
     assert resp.status_code == 200, resp.json()
 
     respuestas_inv = respuestas_inv or RESPUESTAS_INV_C
@@ -994,33 +956,19 @@ def _hacer_apto_inversionistas(operacion_id, username, password="clave123", resp
     assert resp.status_code == 200, resp.json()
 
     for c in resp.json()["categorias_requeridas"]:
-        if c["aprobado"]:
-            continue
-        doc = client.post(
+        client.post(
             "/mineros/documentos",
             headers=headers,
             data={"categoria": c["categoria"]},
             files={"archivo": (f"{c['categoria']}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-        ).json()
-        client.put(
-            f"/admin/documentos/{doc['id']}/revision",
-            json={"estado_revision": "aprobado"},
-            headers=admin_headers,
         )
 
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 200, resp.json()
 
-
-def test_inversion_no_exige_visto_bueno_documentos_para_enviarse():
+def test_inversion_no_exige_documentos_enviados_para_enviarse():
     # El minero puede responder el Módulo INV en la misma sesión en que
-    # sube sus documentos de formalización, sin esperar a que se los
-    # aprueben — solo la publicación pública exige ambos vistos buenos
-    # (ver test_proyectos_exige_ambos_vistos_buenos).
+    # sube sus documentos de formalización, sin esperar a haberlos
+    # enviado — solo la publicación pública exige AMBOS envíos completos
+    # (ver test_proyectos_exige_ambos_envios).
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="invsindocs", password="clave123"))
     token = client.post(
@@ -1040,27 +988,26 @@ def test_inversion_no_exige_visto_bueno_documentos_para_enviarse():
     assert resp.json()["enviado"] is True
 
 
-def test_proyectos_exige_ambos_vistos_buenos():
+def test_proyectos_exige_ambos_envios():
     diag = _crear_diagnostico().json()
-    client.post("/leads", json=_lead_payload(diag["id"], username="ambosvistobueno", password="clave123"))
+    client.post("/leads", json=_lead_payload(diag["id"], username="ambosenviados", password="clave123"))
     token = client.post(
-        "/mineros/login", json={"username": "ambosvistobueno", "password": "clave123"}
+        "/mineros/login", json={"username": "ambosenviados", "password": "clave123"}
     ).json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
-    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
-    # Envía inversión ANTES de que aprueben sus documentos de formalización.
+    # Envía inversión ANTES de enviar sus documentos de formalización.
     resp = client.post(
         "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
     )
     assert resp.status_code == 200
 
-    # Sin ningún visto bueno todavía: no aparece.
+    # Con solo una de las dos partes enviada: no aparece.
     assert diag["id"] not in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
-    _hacer_apto_inversionistas(diag["id"], "ambosvistobueno")
+    _hacer_apto_inversionistas(diag["id"], "ambosenviados")
 
-    # Con ambos vistos buenos: ya aparece.
+    # Con las dos partes enviadas: ya aparece, sin que nadie lo apruebe.
     assert diag["id"] in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
 
@@ -1091,12 +1038,16 @@ def test_inversion_envio_completo_perfil_c():
     assert resp.status_code == 200
     body = resp.json()
     assert body["enviado"] is True
-    assert body["visto_bueno"] is False
     assert body["respuestas"]["INV_C2"] == "completas"
 
     resp = client.get("/mineros/me", headers=headers)
     assert resp.json()["inv_enviado"] is True
     assert resp.json()["inversion_ofrecida"] is True
+    # Los documentos de sustento de inversión se ven en la cuenta igual que
+    # los de formalización — no solo dentro del wizard de /mi-inversion.
+    categorias = {c["categoria"]: c for c in resp.json()["categorias_requeridas_inversion"]}
+    assert "liquidaciones_venta" in categorias  # INV_C2="completas" ≠ "no"
+    assert categorias["liquidaciones_venta"]["aprobado"] is False
 
     # El admin ve las mismas respuestas + alertas (ninguna debería saltar
     # con estas respuestas "limpias")
@@ -1127,10 +1078,15 @@ def test_inversion_condicional_negociando_exige_inv_0_7():
     assert resp.status_code == 200
 
 
-def test_admin_visto_bueno_inversion_exige_documentos_de_sustento():
+def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
+    # Perfil B requiere titulo_concesion como documento de sustento, pero
+    # ya no bloquea nada — es solo informativo (aprobado: bool en la
+    # respuesta) hasta que el minero lo suba.
     operacion_id, headers, admin_headers = _minero_con_visto_bueno(
-        "invvistobueno", RESPUESTAS_SIN_TRAMITE
-    )  # perfil B → requiere titulo_concesion
+        "invsustentob", RESPUESTAS_SIN_TRAMITE
+    )
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
+    assert resp.status_code == 200
     respuestas_inv_b = {
         "INV_0_1": "25k_100k",
         "INV_0_2": ["equipo"],
@@ -1149,15 +1105,8 @@ def test_admin_visto_bueno_inversion_exige_documentos_de_sustento():
         "/mineros/inversion", json={"respuestas": respuestas_inv_b}, headers=headers
     )
     assert resp.status_code == 200
-
-    # Sin título de concesión aprobado todavía → 400
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 400
-    assert "titulo_concesion" in resp.json()["detail"]
+    categorias = {c["categoria"]: c for c in resp.json()["categorias_requeridas"]}
+    assert categorias["titulo_concesion"]["aprobado"] is False
 
     doc = client.post(
         "/mineros/documentos",
@@ -1170,16 +1119,15 @@ def test_admin_visto_bueno_inversion_exige_documentos_de_sustento():
         json={"estado_revision": "aprobado"},
         headers=admin_headers,
     )
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 200
-    assert resp.json()["inv_visto_bueno"] is True
 
     resp = client.get("/mineros/me", headers=headers)
-    assert resp.json()["inv_visto_bueno"] is True
+    categorias = {
+        c["categoria"]: c for c in resp.json()["categorias_requeridas_inversion"]
+    }
+    assert categorias["titulo_concesion"]["aprobado"] is True
+    # Y el proyecto ya aparece en la cartera con solo haber ENVIADO ambas
+    # partes — sin depender de que lo aprueben.
+    assert operacion_id in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
 
 def test_mineros_notificaciones_requiere_jwt():
@@ -1215,45 +1163,34 @@ def test_notificacion_al_rechazar_documento():
     assert notifs[0]["leida"] is False
 
 
-def test_notificacion_al_dar_visto_bueno_documentos_e_inversion():
-    operacion_id, headers, admin_headers = _minero_con_visto_bueno("notifvistobueno")
+def test_notificacion_al_publicarse_en_cartera():
+    # Julio 2026: no hay visto bueno manual — se notifica automáticamente
+    # apenas la operación queda apta para la cartera (ambas partes
+    # enviadas), una sola vez aunque se reenvíe algo después.
+    operacion_id, headers, _admin_headers = _minero_con_visto_bueno("notifpublicado")
 
+    resp = client.post("/mineros/documentos/enviar", headers=headers)
+    assert resp.status_code == 200
+    # Con solo formalización enviada, todavía no es apto → sin notificación.
     resp = client.get("/mineros/notificaciones", headers=headers)
-    notifs = resp.json()
-    assert any(n["tipo"] == "documentos_aprobados" for n in notifs)
+    assert not any(n["tipo"] == "publicado_cartera" for n in resp.json())
 
-    # Repetir el mismo visto bueno (ya True) no debe duplicar la notificación
-    client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-documentos",
-        json={"visto_bueno": True},
-        headers=admin_headers,
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
     )
+    assert resp.status_code == 200
+    # RESPUESTAS_INV_C tiene INV_C2="completas" (≠ "no") → requiere
+    # liquidaciones_venta, pero eso es solo informativo — no bloquea nada.
     resp = client.get("/mineros/notificaciones", headers=headers)
-    assert sum(1 for n in resp.json() if n["tipo"] == "documentos_aprobados") == 1
+    assert any(n["tipo"] == "publicado_cartera" for n in resp.json())
+    assert operacion_id in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
+    # Reenviar no duplica la notificación.
     client.post(
         "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
     )
-    # RESPUESTAS_INV_C tiene INV_C2="completas" (≠ "no") → exige liquidaciones_venta aprobado
-    doc = client.post(
-        "/mineros/documentos",
-        headers=headers,
-        data={"categoria": "liquidaciones_venta"},
-        files={"archivo": ("liq.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-    ).json()
-    client.put(
-        f"/admin/documentos/{doc['id']}/revision",
-        json={"estado_revision": "aprobado"},
-        headers=admin_headers,
-    )
-    resp = client.put(
-        f"/admin/operaciones/{operacion_id}/visto-bueno-inversion",
-        json={"visto_bueno": True},
-        headers=admin_headers,
-    )
-    assert resp.status_code == 200
     resp = client.get("/mineros/notificaciones", headers=headers)
-    assert any(n["tipo"] == "inversion_aprobada" for n in resp.json())
+    assert sum(1 for n in resp.json() if n["tipo"] == "publicado_cartera") == 1
 
 
 def test_mineros_marcar_notificaciones_leidas():

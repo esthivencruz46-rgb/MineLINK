@@ -400,16 +400,17 @@ def estado_seguimiento(operacion, hoy: date | None = None) -> dict:
             "salidas": [],
         }
     resultado.pop("brechas", None)  # las brechas vigentes son `pendientes`
-    # "Apto para inversionistas" (gate de /proyectos) ahora exige TAMBIÉN los
-    # dos vistos buenos del admin (documentos de formalización + Módulo INV)
-    # — cumplir el semáforo legal ya no basta por sí solo. El minero puede
-    # llenar ambos sin esperar entre uno y otro (ver `enviar_inversion`),
-    # pero la publicación pública sigue esperando a que Esthiven revise y
-    # apruebe las dos partes (julio 2026).
+    # "Apto para inversionistas" (gate de /proyectos) ahora exige TAMBIÉN que
+    # el minero haya ENVIADO las dos partes (documentos de formalización +
+    # Módulo INV) — cumplir el semáforo legal ya no basta por sí solo. Ya
+    # NO hay un visto bueno manual del admin: los inversionistas verifican
+    # por sí mismos si los datos son correctos, así que la publicación es
+    # automática en cuanto el minero presenta todo lo que dijo tener
+    # (julio 2026 — ver routers.mineros._notificar_publicacion_si_corresponde).
     resultado["apto_inversionistas"] = bool(
         resultado["apto_inversionistas"]
-        and operacion.visto_bueno_documentos
-        and operacion.inv_visto_bueno
+        and operacion.documentos_enviados_en is not None
+        and operacion.inv_enviado_en is not None
     )
     return {**base, **resultado}
 

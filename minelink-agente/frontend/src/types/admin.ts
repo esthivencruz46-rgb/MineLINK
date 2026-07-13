@@ -81,9 +81,8 @@ export interface LeadConDiagnostico {
   motivo_capital?: string | null;
   produccion_objetivo?: string | null;
   uso_fondos_diagnostico?: string | null;
-  // Revisión de documentos por el admin (julio 2026)
+  // El minero ya pulsó "Guardar archivos" — ya no hay visto bueno del admin
   documentos_enviados: boolean;
-  visto_bueno_documentos: boolean;
 }
 
 export interface TopBrecha {

@@ -28,8 +28,8 @@ export function DocumentosEnviados() {
   const titulo = estado.titulo ?? "¡Archivos enviados!";
   const mensaje =
     estado.mensaje ??
-    "Esthiven va a revisar cada documento. Si alguno está mal, te va a indicar cuál y por qué " +
-      "para que lo corrijas.";
+    "Tus archivos ya quedaron guardados. Esthiven puede marcarte si alguno se ve mal (foto " +
+      "borrosa, documento equivocado) para que lo corrijas — no bloquea nada mientras tanto.";
   const [ofrecerInversion, setOfrecerInversion] = useState(false);
 
   useEffect(() => {

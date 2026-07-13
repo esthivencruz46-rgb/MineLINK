@@ -402,12 +402,6 @@ class RevisarDocumentoRequest(BaseModel):
         return v
 
 
-class VistoBuenoDocumentosRequest(BaseModel):
-    """Body de PUT /admin/operaciones/{operacion_id}/visto-bueno-documentos."""
-
-    visto_bueno: bool
-
-
 # ---------- Módulo INV (perfil de inversión) ----------
 
 class EnviarInversionRequest(BaseModel):
@@ -431,32 +425,27 @@ class AlertaInversionOut(BaseModel):
 
 class InversionEstadoOut(BaseModel):
     """Respuesta de GET /mineros/inversion — todo lo que la cuenta del
-    minero necesita para decidir qué mostrar (bloqueado/wizard/en
-    revisión/aprobado)."""
+    minero necesita para decidir qué mostrar (no aplica/wizard/enviado/
+    publicado). La publicación en la cartera es automática al enviarse,
+    no hay un visto bueno manual del admin que esperar."""
 
     ofrece: bool
     prioridad: Optional[str] = None
     motivo: Optional[str] = None
     respuestas: dict[str, str | list[str]] = {}
     enviado: bool = False
-    visto_bueno: bool = False
     categorias_requeridas: list[CategoriaRequeridaOut] = []
 
 
 class InversionAdminOut(BaseModel):
-    """Respuesta de GET /admin/operaciones/{operacion_id}/inversion."""
+    """Respuesta de GET /admin/operaciones/{operacion_id}/inversion — solo
+    informativo (respuestas + alertas + documentos), sin acción de
+    aprobación asociada."""
 
     respuestas: dict[str, str | list[str]] = {}
     enviado: bool = False
-    visto_bueno: bool = False
     alertas: list[AlertaInversionOut] = []
     categorias_requeridas: list[CategoriaRequeridaOut] = []
-
-
-class VistoBuenoInversionRequest(BaseModel):
-    """Body de PUT /admin/operaciones/{operacion_id}/visto-bueno-inversion."""
-
-    visto_bueno: bool
 
 
 class NotificacionOut(BaseModel):
@@ -610,20 +599,22 @@ class MineroPerfilOut(BaseModel):
     # concesión" si es titular, "Contrato de explotación" si no) en vez de
     # los dos, que confundía (julio 2026).
     es_titular_concesion: Optional[bool] = None
-    # Revisión de documentos por el admin (julio 2026) — gate del botón
-    # "Inversionista". documentos_enviados: el minero ya pulsó "Guardar
-    # archivos" (puede seguir sin visto_bueno_documentos mientras se
-    # revisa/corrige). visto_bueno_documentos: TODOS los documentos que
-    # declaró tener fueron aprobados por el admin — única fuente de verdad
-    # que desbloquea Inversionista en el frontend.
+    # El minero ya pulsó "Guardar archivos" en "Respalda tu declaración".
+    # Ya NO hay un visto_bueno del admin que desbloquee nada — la
+    # publicación en la cartera es automática al enviar (ver
+    # apto_inversionistas en scoring.estado_seguimiento). El admin puede
+    # seguir aprobando/rechazando documentos puntuales (informativo, ver
+    # DocumentoOperacion.estado_revision), pero eso ya no bloquea nada.
     documentos_enviados: bool = False
-    visto_bueno_documentos: bool = False
     # Módulo INV (julio 2026) — si se ofrece a este minero y en qué estado
     # está su envío, para que la cuenta muestre el botón correcto.
     inversion_ofrecida: bool = False
     inversion_prioridad: Optional[str] = None
     inv_enviado: bool = False
-    inv_visto_bueno: bool = False
+    # Documentos de sustento del Módulo INV (liquidaciones de venta, etc.)
+    # — para que la cuenta los muestre igual que "Respalda tu declaración"
+    # de formalización, no solo dentro del wizard de /mi-inversion.
+    categorias_requeridas_inversion: list[CategoriaRequeridaOut] = []
 
 
 class ProyectoPublicoOut(BaseModel):
@@ -1054,9 +1045,8 @@ class LeadConDiagnostico(BaseModel):
     motivo_capital: Optional[str] = None
     produccion_objetivo: Optional[str] = None
     uso_fondos_diagnostico: Optional[str] = None
-    # Revisión de documentos por el admin (julio 2026) — ver MineroPerfilOut
+    # ver MineroPerfilOut — el minero ya pulsó "Guardar archivos"
     documentos_enviados: bool = False
-    visto_bueno_documentos: bool = False
 
 
 class ActualizarEstadoContactoRequest(BaseModel):

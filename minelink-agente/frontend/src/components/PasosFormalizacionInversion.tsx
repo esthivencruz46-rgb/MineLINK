@@ -27,17 +27,17 @@ function Item({
   );
 }
 
-/** Resumen de las dos partes que Esthiven revisa antes de publicar el
+/** Resumen de las dos partes que hay que enviar antes de publicar el
  *  proyecto en la cartera pública — Formalización e Inversión se pueden
- *  completar en paralelo, en la misma sesión, SIN esperar la aprobación
- *  de una para empezar la otra; lo único que espera a que ambas estén
- *  aprobadas es la publicación final (ver apto_inversionistas). */
+ *  completar en paralelo, en la misma sesión, sin esperar una a la otra;
+ *  no hay aprobación manual del admin: la publicación es automática en
+ *  cuanto ambas están enviadas (ver apto_inversionistas). */
 export function PasosFormalizacionInversion({ perfil }: { perfil: MineroPerfil }) {
   const totalBrechas = perfil.brechas.length;
   const resueltas = perfil.brechas_resueltas.length;
-  const formalizacionHecha = perfil.visto_bueno_documentos;
-  const inversionHecha = perfil.inv_visto_bueno;
-  const publicado = formalizacionHecha && inversionHecha;
+  const formalizacionHecha = perfil.documentos_enviados;
+  const inversionHecha = perfil.inv_enviado;
+  const publicado = perfil.apto_inversionistas;
 
   return (
     <div className="flex flex-col gap-3 rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark">
@@ -46,7 +46,7 @@ export function PasosFormalizacionInversion({ perfil }: { perfil: MineroPerfil }
           titulo="Formalización"
           subtitulo={
             formalizacionHecha
-              ? "Aprobada"
+              ? "Enviada"
               : totalBrechas > 0
                 ? `${resueltas}/${totalBrechas} completos`
                 : "En curso"
@@ -55,16 +55,14 @@ export function PasosFormalizacionInversion({ perfil }: { perfil: MineroPerfil }
         />
         <Item
           titulo="Inversión"
-          subtitulo={
-            inversionHecha ? "Aprobada" : perfil.inv_enviado ? "En revisión" : "Puedes completarla ahora"
-          }
+          subtitulo={inversionHecha ? "Enviada" : "Puedes completarla ahora"}
           hecho={inversionHecha}
         />
       </div>
       <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
         {publicado
-          ? "Esthiven aprobó las dos partes — tu proyecto ya está publicado en la cartera."
-          : "Puedes completar las dos partes sin esperar una a la otra — Esthiven las revisa juntas antes de publicarte en la cartera."}
+          ? "Tu proyecto ya está publicado en la cartera para inversionistas."
+          : "Puedes completar las dos partes sin esperar una a la otra — se publica sola en cuanto envíes ambas."}
       </p>
     </div>
   );

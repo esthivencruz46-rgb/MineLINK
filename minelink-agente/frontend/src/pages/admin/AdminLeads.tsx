@@ -59,7 +59,6 @@ interface AlertaInversion {
 interface InversionAdmin {
   respuestas: Record<string, string | string[]>;
   enviado: boolean;
-  visto_bueno: boolean;
   alertas: AlertaInversion[];
   categorias_requeridas: CategoriaRequerida[];
 }
@@ -191,13 +190,9 @@ export function AdminLeads() {
   const [actualizandoDoc, setActualizandoDoc] = useState<number | null>(null);
   const [rechazandoDoc, setRechazandoDoc] = useState<number | null>(null);
   const [motivoRechazo, setMotivoRechazo] = useState("");
-  const [actualizandoVistoBueno, setActualizandoVistoBueno] = useState(false);
-  const [errorVistoBueno, setErrorVistoBueno] = useState<string | null>(null);
   const [leadInversion, setLeadInversion] = useState<LeadConDiagnostico | null>(null);
   const [inversion, setInversion] = useState<InversionAdmin | null>(null);
   const [cargandoInversion, setCargandoInversion] = useState(false);
-  const [actualizandoVistoBuenoInv, setActualizandoVistoBuenoInv] = useState(false);
-  const [errorVistoBuenoInv, setErrorVistoBuenoInv] = useState<string | null>(null);
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
@@ -327,7 +322,6 @@ export function AdminLeads() {
     setLeadDetalle(lead);
     setRechazandoDoc(null);
     setMotivoRechazo("");
-    setErrorVistoBueno(null);
     setCargandoDocs(true);
     authFetch(`/admin/operaciones/${lead.operacion_id}/documentos`)
       .then((r) => {
@@ -402,45 +396,8 @@ export function AdminLeads() {
     }
   }
 
-  const todosLosDocumentosAprobados =
-    docs.length > 0 && docs.every((d) => d.estado_revision === "aprobado");
-
-  async function darVistoBueno(lead: LeadConDiagnostico, visto_bueno: boolean) {
-    setActualizandoVistoBueno(true);
-    setErrorVistoBueno(null);
-    try {
-      const resp = await authFetch(
-        `/admin/operaciones/${lead.operacion_id}/visto-bueno-documentos`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ visto_bueno }),
-        }
-      );
-      if (!resp.ok) {
-        const detalle = await resp.json().catch(() => null);
-        setErrorVistoBueno(detalle?.detail ?? "No pudimos actualizar el visto bueno.");
-        return;
-      }
-      const actualizado = await resp.json();
-      setLeadDetalle((actual) =>
-        actual ? { ...actual, visto_bueno_documentos: actualizado.visto_bueno_documentos } : actual
-      );
-      setLeads((actuales) =>
-        actuales.map((l) =>
-          l.operacion_id === lead.operacion_id
-            ? { ...l, visto_bueno_documentos: actualizado.visto_bueno_documentos }
-            : l
-        )
-      );
-    } finally {
-      setActualizandoVistoBueno(false);
-    }
-  }
-
   function verInversion(lead: LeadConDiagnostico) {
     setLeadInversion(lead);
-    setErrorVistoBuenoInv(null);
     setCargandoInversion(true);
     authFetch(`/admin/operaciones/${lead.operacion_id}/inversion`)
       .then((r) => {
@@ -450,32 +407,6 @@ export function AdminLeads() {
       .then(setInversion)
       .catch(() => setError("No pudimos cargar el perfil de inversión."))
       .finally(() => setCargandoInversion(false));
-  }
-
-  async function darVistoBuenoInversion(lead: LeadConDiagnostico, visto_bueno: boolean) {
-    setActualizandoVistoBuenoInv(true);
-    setErrorVistoBuenoInv(null);
-    try {
-      const resp = await authFetch(
-        `/admin/operaciones/${lead.operacion_id}/visto-bueno-inversion`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ visto_bueno }),
-        }
-      );
-      if (!resp.ok) {
-        const detalle = await resp.json().catch(() => null);
-        setErrorVistoBuenoInv(detalle?.detail ?? "No pudimos actualizar el visto bueno.");
-        return;
-      }
-      const actualizado = await resp.json();
-      setInversion((actual) =>
-        actual ? { ...actual, visto_bueno: actualizado.inv_visto_bueno } : actual
-      );
-    } finally {
-      setActualizandoVistoBuenoInv(false);
-    }
   }
 
   async function verArchivo(doc: DocumentoOperacion) {
@@ -943,33 +874,6 @@ export function AdminLeads() {
               </ul>
             )}
 
-            {!cargandoDocs && docs.length > 0 && (
-              <div className="mt-4 border-t border-black/10 pt-3 dark:border-white/10">
-                {errorVistoBueno && <p className="mb-2 text-xs text-red-500">{errorVistoBueno}</p>}
-                {leadDetalle.visto_bueno_documentos ? (
-                  <button
-                    disabled={actualizandoVistoBueno}
-                    onClick={() => darVistoBueno(leadDetalle, false)}
-                    className="min-h-[40px] w-full rounded-lg border border-emerald-500/30 text-sm font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
-                  >
-                    Visto bueno dado — revocar
-                  </button>
-                ) : (
-                  <button
-                    disabled={!todosLosDocumentosAprobados || actualizandoVistoBueno}
-                    onClick={() => darVistoBueno(leadDetalle, true)}
-                    title={
-                      todosLosDocumentosAprobados
-                        ? undefined
-                        : "Aprueba todos los documentos primero"
-                    }
-                    className="min-h-[40px] w-full rounded-lg bg-acento text-sm font-semibold text-white disabled:opacity-50"
-                  >
-                    {actualizandoVistoBueno ? "Guardando..." : "Dar visto bueno"}
-                  </button>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1044,36 +948,11 @@ export function AdminLeads() {
                       ))}
                     </ul>
                     <p className="mb-4 text-xs text-texto-suave dark:text-texto-suave-dark">
-                      Aprueba estos documentos desde el botón "Documentos" de este mismo lead.
+                      Se publica automáticamente en la cartera al enviarse — esto es solo
+                      informativo, no hace falta aprobar nada aquí.
                     </p>
                   </>
                 )}
-
-                <div className="border-t border-black/10 pt-3 dark:border-white/10">
-                  {errorVistoBuenoInv && (
-                    <p className="mb-2 text-xs text-red-500">{errorVistoBuenoInv}</p>
-                  )}
-                  {inversion.visto_bueno ? (
-                    <button
-                      disabled={actualizandoVistoBuenoInv}
-                      onClick={() => darVistoBuenoInversion(leadInversion, false)}
-                      className="min-h-[40px] w-full rounded-lg border border-emerald-500/30 text-sm font-semibold text-emerald-600 disabled:opacity-50 dark:text-emerald-400"
-                    >
-                      Visto bueno dado — revocar
-                    </button>
-                  ) : (
-                    <button
-                      disabled={
-                        actualizandoVistoBuenoInv ||
-                        inversion.categorias_requeridas.some((c) => !c.aprobado)
-                      }
-                      onClick={() => darVistoBuenoInversion(leadInversion, true)}
-                      className="min-h-[40px] w-full rounded-lg bg-acento text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {actualizandoVistoBuenoInv ? "Guardando..." : "Dar visto bueno"}
-                    </button>
-                  )}
-                </div>
               </>
             )}
           </div>

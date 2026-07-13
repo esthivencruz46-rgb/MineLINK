@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
+import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
@@ -273,6 +274,7 @@ export function MiCuenta() {
             Inversión
           </h2>
           <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
+          <DocumentosInversionSustento categorias={perfil.categorias_requeridas_inversion} />
         </div>
       </div>
     </div>

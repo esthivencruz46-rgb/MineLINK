@@ -12,6 +12,7 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
+from notificaciones import crear_notificacion
 from scoring import (
     categorias_requeridas_out,
     estado_seguimiento,
@@ -176,11 +177,15 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
         ],
         es_titular_concesion=_es_titular_concesion(operacion),
         documentos_enviados=operacion.documentos_enviados_en is not None,
-        visto_bueno_documentos=operacion.visto_bueno_documentos,
         inversion_ofrecida=_activacion_inversion_de(operacion)["ofrece"],
         inversion_prioridad=_activacion_inversion_de(operacion)["prioridad"],
         inv_enviado=operacion.inv_enviado_en is not None,
-        inv_visto_bueno=operacion.inv_visto_bueno,
+        categorias_requeridas_inversion=categorias_requeridas_out(
+            operacion,
+            categorias_requeridas_inversion(
+                operacion.estado_formalizacion, operacion.inv_respuestas_json or {}
+            ),
+        ),
         **estado_seguimiento(operacion),
     )
 
@@ -330,6 +335,35 @@ def marcar_notificaciones_leidas(
     )
 
 
+def _notificar_publicacion_si_corresponde(
+    db: Session, lead: models.Lead, operacion: models.Operacion
+) -> None:
+    """Si la operación acaba de quedar apta para la cartera pública (ver
+    scoring.estado_seguimiento — perfil B/C/D + semáforo legal no rojo +
+    documentos de formalización Y de inversión enviados), notifica al
+    minero UNA sola vez. Ya no hay un visto bueno manual del admin: los
+    inversionistas juzgan por sí mismos si los datos son correctos."""
+    if not estado_seguimiento(operacion).get("apto_inversionistas"):
+        return
+    ya_notificado = (
+        db.query(models.Notificacion)
+        .filter(
+            models.Notificacion.lead_id == lead.id,
+            models.Notificacion.tipo == "publicado_cartera",
+        )
+        .first()
+    )
+    if ya_notificado is not None:
+        return
+    crear_notificacion(
+        db,
+        lead.id,
+        "publicado_cartera",
+        "Tu proyecto ya está publicado en la cartera para inversionistas.",
+    )
+    db.commit()
+
+
 @router.get("/documentos", response_model=list[schemas.DocumentoOperacionOut])
 def listar_documentos(
     db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
@@ -348,11 +382,11 @@ def enviar_documentos(
     db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
 ):
     """Botón "Guardar archivos": el minero avisa que ya subió todo lo que
-    declaró tener en "Respalda tu declaración" y pide revisión al admin.
-    Exige al menos un archivo por cada estudio aplicable (cualquier estado
-    de revisión) — no exige que ya estén aprobados, eso lo decide el admin
-    después vía el visto bueno. Reenviar es idempotente: solo actualiza el
-    timestamp (útil tras corregir un documento rechazado)."""
+    declaró tener en "Respalda tu declaración". Exige al menos un archivo
+    por cada estudio aplicable (cualquier estado de revisión — Esthiven
+    puede seguir marcando uno puntual como mal subido, pero eso ya no
+    bloquea nada). Reenviar es idempotente: solo actualiza el timestamp
+    (útil tras corregir un documento rechazado)."""
     lead, operacion = _operacion_del_lead(db, lead_id)
 
     subidas = {
@@ -373,6 +407,7 @@ def enviar_documentos(
     operacion.documentos_enviados_en = datetime.now(timezone.utc)
     db.commit()
     db.refresh(operacion)
+    _notificar_publicacion_si_corresponde(db, lead, operacion)
     return _perfil_out(lead, operacion)
 
 
@@ -381,8 +416,8 @@ def estado_inversion(
     db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)
 ):
     """Todo lo que la cuenta necesita para decidir qué mostrar en el botón
-    "Inversionista": si el módulo se ofrece, si ya lo llenó, si el admin
-    ya lo aprobó, y qué documentos de sustento le faltan."""
+    "Inversionista": si el módulo se ofrece, si ya lo llenó, y qué
+    documentos de sustento le faltan."""
     _lead, operacion = _operacion_del_lead(db, lead_id)
     perfil = operacion.estado_formalizacion
     activacion = activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))
@@ -393,7 +428,6 @@ def estado_inversion(
         motivo=activacion["motivo"],
         respuestas=respuestas_inv,
         enviado=operacion.inv_enviado_en is not None,
-        visto_bueno=operacion.inv_visto_bueno,
         categorias_requeridas=categorias_requeridas_out(
             operacion, categorias_requeridas_inversion(perfil, respuestas_inv)
         ),
@@ -406,16 +440,13 @@ def enviar_inversion(
     db: Session = Depends(get_db),
     lead_id: int = Depends(get_current_lead_id),
 ):
-    """Guarda las respuestas del Módulo INV. Reenviar antes de que el
-    admin dé su propio visto bueno sobreescribe (permite corregir).
-
-    Ya NO exige `visto_bueno_documentos` — antes obligaba al minero a
-    esperar la aprobación de formalización antes de poder siquiera
-    empezar inversión (dos vueltas separadas: preguntas → archivos →
-    esperar → preguntas → archivos → esperar). Ahora puede responder y
-    subir todo en la misma sesión; lo único que sigue exigiendo AMBOS
-    vistos buenos es la publicación en la cartera pública (ver
-    `apto_inversionistas` en scoring.estado_seguimiento)."""
+    """Guarda las respuestas del Módulo INV. Reenviar sobreescribe (permite
+    corregir). No exige `documentos_enviados_en` de formalización — el
+    minero puede responder y subir todo en la misma sesión; la
+    publicación en la cartera pública se calcula sola en cuanto ambas
+    partes están enviadas (ver `apto_inversionistas` en
+    scoring.estado_seguimiento) — ya no hay un visto bueno manual del
+    admin: los inversionistas verifican los datos por sí mismos."""
     lead, operacion = _operacion_del_lead(db, lead_id)
     perfil = operacion.estado_formalizacion
     if not activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))["ofrece"]:
@@ -432,6 +463,7 @@ def enviar_inversion(
     operacion.inv_enviado_en = datetime.now(timezone.utc)
     db.commit()
     db.refresh(operacion)
+    _notificar_publicacion_si_corresponde(db, lead, operacion)
 
     activacion = activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))
     return schemas.InversionEstadoOut(
@@ -440,7 +472,6 @@ def enviar_inversion(
         motivo=activacion["motivo"],
         respuestas=operacion.inv_respuestas_json,
         enviado=True,
-        visto_bueno=operacion.inv_visto_bueno,
         categorias_requeridas=categorias_requeridas_out(
             operacion,
             categorias_requeridas_inversion(perfil, operacion.inv_respuestas_json),

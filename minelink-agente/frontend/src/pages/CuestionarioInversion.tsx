@@ -123,7 +123,7 @@ export function CuestionarioInversion() {
           volverA: rutaVolver,
           titulo: "¡Perfil de inversión enviado!",
           mensaje:
-            "Esthiven va a revisar tus respuestas y tus documentos de sustento. Te avisamos cuando tu perfil quede visible para inversionistas.",
+            "Tu perfil de inversión ya quedó guardado. En cuanto también tengas tus documentos de formalización enviados, tu proyecto se publica solo en la cartera — te avisamos cuando eso pase.",
         },
       });
     } catch (e) {
@@ -156,8 +156,8 @@ export function CuestionarioInversion() {
         <Check size={36} strokeWidth={2} className="text-emerald-500" aria-hidden />
         <h1 className="text-xl font-bold">¡Enviado!</h1>
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-          Esthiven va a revisar tus respuestas y tus documentos de sustento. Te avisamos por
-          WhatsApp cuando tu perfil quede visible para inversionistas.
+          Tu perfil de inversión ya quedó guardado. En cuanto también tengas tus documentos de
+          formalización enviados, tu proyecto se publica solo en la cartera.
         </p>
         <button
           onClick={() => navigate(-1)}
