@@ -1660,6 +1660,14 @@ def test_proyectos_registra_interes_inversion():
     assert len(resp.json()) == 1
     assert resp.json()[0]["email"] == "inversionista@example.com"
 
+    # El minero ve CUÁNTOS intereses recibió (solo el número — los datos
+    # de contacto del inversionista siguen siendo exclusivos del admin).
+    token = client.post(
+        "/mineros/login", json={"username": "interesproyecto", "password": "clave123"}
+    ).json()["access_token"]
+    me = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"}).json()
+    assert me["intereses_recibidos"] == 1
+
 
 def test_proyectos_registra_interes_email_opcional():
     diag = _crear_diagnostico().json()

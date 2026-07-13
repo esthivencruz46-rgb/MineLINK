@@ -625,6 +625,9 @@ class MineroPerfilOut(BaseModel):
     # de la columna de Inversión, con el mismo match brecha→empresa de
     # formalización (ver catalogo_inversion.brechas_inversion).
     brechas_inversion: list[str] = []
+    # Cuántos inversionistas dejaron interés en su proyecto (solo el
+    # número; los contactos siguen siendo exclusivos del panel admin).
+    intereses_recibidos: int = 0
 
 
 class ProyectoPublicoOut(BaseModel):

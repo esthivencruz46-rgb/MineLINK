@@ -129,6 +129,8 @@ export interface MineroPerfil {
   // Estudios que declaró NO tener en el Módulo INV — "lo que te falta" de
   // la columna de Inversión, con el mismo match brecha→empresa.
   brechas_inversion: string[];
+  // Cuántos inversionistas dejaron interés en su proyecto (solo el número).
+  intereses_recibidos?: number;
 }
 
 export interface Notificacion {

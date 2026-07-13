@@ -95,7 +95,9 @@ def _activacion_inversion_de(operacion: models.Operacion) -> dict:
     )
 
 
-def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.MineroPerfilOut:
+def _perfil_out(
+    db: Session, lead: models.Lead, operacion: models.Operacion
+) -> schemas.MineroPerfilOut:
     return schemas.MineroPerfilOut(
         operacion_id=operacion.id,
         nombre=lead.nombre,
@@ -195,6 +197,12 @@ def _perfil_out(lead: models.Lead, operacion: models.Operacion) -> schemas.Miner
             )
         ],
         brechas_inversion=brechas_inversion(operacion.inv_respuestas_json or {}),
+        # Cuántos inversionistas dejaron su interés en este proyecto — solo
+        # el conteo: sus datos de contacto siguen siendo exclusivos del
+        # admin, que hace de intermediario.
+        intereses_recibidos=db.query(models.InteresInversion)
+        .filter(models.InteresInversion.operacion_id == operacion.id)
+        .count(),
         **estado_seguimiento(operacion),
     )
 
@@ -282,7 +290,7 @@ def recuperar_password(
 @router.get("/me", response_model=schemas.MineroPerfilOut)
 def perfil(db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)):
     lead, operacion = _operacion_del_lead(db, lead_id)
-    return _perfil_out(lead, operacion)
+    return _perfil_out(db, lead, operacion)
 
 
 @router.put("/perfil-inversion", response_model=schemas.MineroPerfilOut)
@@ -317,7 +325,7 @@ def actualizar_perfil_inversion(
     db.commit()
     db.refresh(lead)
 
-    return _perfil_out(lead, operacion)
+    return _perfil_out(db, lead, operacion)
 
 
 @router.get("/notificaciones", response_model=list[schemas.NotificacionOut])
@@ -425,7 +433,7 @@ def enviar_documentos(
     db.commit()
     db.refresh(operacion)
     _notificar_publicacion_si_corresponde(db, lead, operacion)
-    return _perfil_out(lead, operacion)
+    return _perfil_out(db, lead, operacion)
 
 
 @router.get("/inversion", response_model=schemas.InversionEstadoOut)

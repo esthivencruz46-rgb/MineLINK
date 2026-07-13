@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
+import { ProyectoPublicadoAcciones } from "../components/ProyectoPublicadoAcciones";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
@@ -112,12 +113,7 @@ export function MiCuenta() {
           {perfil.codigo_reinfo && <span>· REINFO {perfil.codigo_reinfo}</span>}
           <span>· Registrado el {new Date(perfil.created_at).toLocaleDateString("es-PE")}</span>
         </div>
-        {perfil.apto_inversionistas && (
-          <div className="flex flex-1 items-center gap-2 rounded-lg bg-emerald-500/10 px-5 py-3 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
-            <CheckCircle2 size={18} strokeWidth={2} className="shrink-0" aria-hidden />
-            Tu perfil ya es visible para inversionistas
-          </div>
-        )}
+        {perfil.apto_inversionistas && <ProyectoPublicadoAcciones perfil={perfil} />}
       </div>
 
       {mostrarBienvenida && (
