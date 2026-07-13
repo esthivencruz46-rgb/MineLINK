@@ -100,10 +100,10 @@ export function MiConcesion() {
               cargarPerfil();
               setRecarga((k) => k + 1);
             }}
-            className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
           >
             <RefreshCw size={15} strokeWidth={2.25} aria-hidden />
-            Actualizar
+            Guardar
           </button>
           <NotificacionesBell />
           <button
