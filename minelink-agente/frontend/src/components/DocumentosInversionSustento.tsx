@@ -169,13 +169,6 @@ export function DocumentosInversionSustento({ perfil, onGuardado, categorias, de
 
   if (slots.length === 0) return null;
 
-  // Mismo aviso "te falta" que en formalización (ver DocumentosMinero.tsx):
-  // según lo que respondió en el Módulo INV, estos archivos deberían estar
-  // subidos y todavía no lo están.
-  const faltantes = slots.filter(
-    (s) => !documentos.some((d) => d.categoria === s.categoria)
-  );
-
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
       <h2 className="font-semibold">Respalda tu inversión</h2>
@@ -186,25 +179,6 @@ export function DocumentosInversionSustento({ perfil, onGuardado, categorias, de
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
       {cargando && <p className="mt-2 text-sm">Cargando...</p>}
-
-      {!cargando && faltantes.length > 0 && (
-        <div className="mt-3 rounded-lg bg-amber-500/10 p-3 text-sm text-amber-600 dark:text-amber-400">
-          <p className="font-semibold">
-            Te falta subir {faltantes.length} archivo{faltantes.length !== 1 ? "s" : ""}:
-          </p>
-          <ul className="mt-1 flex flex-col gap-0.5">
-            {faltantes.map((s) => (
-              <li key={s.categoria}>• {s.etiqueta}</li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {!cargando && faltantes.length === 0 && (
-        <p className="mt-3 rounded-lg bg-emerald-500/10 p-3 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-          Subiste todos los archivos que tu perfil de inversión necesita.
-        </p>
-      )}
 
       {!cargando && (
         <div className="mt-4 flex flex-col gap-4">
