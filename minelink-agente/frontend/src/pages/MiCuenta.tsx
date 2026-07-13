@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, X } from "lucide-react";
-import { BrechasInversionCard } from "../components/BrechasInversionCard";
+import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
@@ -13,7 +13,6 @@ import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
-import { INFO_BRECHA } from "../data/brechas";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import type { DocumentoOperacion } from "../types/documento";
@@ -209,51 +208,7 @@ export function MiCuenta() {
             rutaVolver="/mi-cuenta"
           />
 
-          <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-            <h2 className="font-semibold">Lo que te falta</h2>
-            {perfil.brechas_pendientes.length === 0 ? (
-              <p className="mt-2 text-sm text-texto-suave dark:text-texto-suave-dark">
-                No tienes brechas pendientes.
-              </p>
-            ) : (
-              <ul className="mt-2 flex flex-col gap-1">
-                {perfil.brechas_pendientes.map((b) => (
-                  <li key={b}>
-                    <button
-                      onClick={() =>
-                        navigate("/empresas", {
-                          state: {
-                            region: perfil.region,
-                            estudios: [b],
-                            operacionId: perfil.operacion_id,
-                          },
-                        })
-                      }
-                      className="flex w-full items-center justify-between gap-2 rounded-lg px-1 py-1.5 text-left text-sm hover:bg-black/5 dark:hover:bg-white/5"
-                    >
-                      <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
-                      <span className="shrink-0 text-xs font-semibold text-acento">
-                        ¿Quién me ayuda? →
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {perfil.brechas_resueltas.length > 0 && (
-              <>
-                <h3 className="mt-4 text-sm font-semibold text-texto-suave dark:text-texto-suave-dark">
-                  Ya resuelto
-                </h3>
-                <ul className="mt-1 flex flex-col gap-1 text-sm text-texto-suave line-through dark:text-texto-suave-dark">
-                  {perfil.brechas_resueltas.map((b) => (
-                    <li key={b}>{INFO_BRECHA[b]?.texto ?? b}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
+          <LoQueTeFaltaCard perfil={perfil} />
 
           <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>
@@ -285,7 +240,6 @@ export function MiCuenta() {
             onGuardado={setPerfil}
             declarados={perfil.respaldos_declarados_inversion ?? []}
           />
-          <BrechasInversionCard perfil={perfil} />
         </div>
       </div>
     </div>
