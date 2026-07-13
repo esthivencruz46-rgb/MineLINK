@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, RefreshCw, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
 import { ProyectoPublicadoAcciones } from "../components/ProyectoPublicadoAcciones";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
@@ -34,6 +34,9 @@ export function MiConcesion() {
   const [mostrarBienvenida, setMostrarBienvenida] = useState(
     Boolean((location.state as { bienvenida?: boolean } | null)?.bienvenida)
   );
+  // Cambiar la key remonta todo el contenido: cada tarjeta (documentos,
+  // fotos, notificaciones) vuelve a pedir sus datos al backend.
+  const [recarga, setRecarga] = useState(0);
   const [mostrarInversion, setMostrarInversion] = useState(
     Boolean((location.state as { abrirInversion?: boolean } | null)?.abrirInversion)
   );
@@ -88,10 +91,20 @@ export function MiConcesion() {
   const muestraEstudios = perfil.perfil !== "A" && perfil.perfil !== "A_avanzado";
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
+    <div key={recarga} className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Mi concesión</h1>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              cargarPerfil();
+              setRecarga((k) => k + 1);
+            }}
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
+          >
+            <RefreshCw size={15} strokeWidth={2.25} aria-hidden />
+            Actualizar
+          </button>
           <NotificacionesBell />
           <button
             onClick={cerrarSesion}
