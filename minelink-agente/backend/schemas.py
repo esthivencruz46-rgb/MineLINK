@@ -804,6 +804,13 @@ class PerfilInversionUpdate(BaseModel):
     # mineral" en Respalda tu inversión — vive en Operacion, no en Lead
     # (mismo campo que ya usaba el perfil informativo viejo, en pausa).
     ley_promedio: Optional[str] = None
+    # Datos geológicos declarados junto a sus slots de respaldo (julio
+    # 2026): minerales de interés + litología (compuestos en un string,
+    # junto al informe geológico) y reservas estimadas (cantidad + unidad,
+    # junto a la estimación de recursos). Ambos son columnas de Operacion
+    # que el perfil informativo viejo ya usaba y la ficha pública muestra.
+    especie_mineral: Optional[str] = None
+    toneladas_estimadas: Optional[str] = None
 
     @field_validator("ubicacion_maps")
     @classmethod

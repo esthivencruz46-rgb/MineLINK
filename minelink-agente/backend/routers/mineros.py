@@ -339,6 +339,10 @@ def actualizar_perfil_inversion(
         lead.ubicacion_coords = resolver_coordenadas(datos["ubicacion_maps"])
     if "ley_promedio" in datos:
         operacion.ley_promedio = datos["ley_promedio"]
+    if "especie_mineral" in datos:
+        operacion.especie_mineral = datos["especie_mineral"]
+    if "toneladas_estimadas" in datos:
+        operacion.toneladas_estimadas = datos["toneladas_estimadas"]
     db.commit()
     db.refresh(lead)
 

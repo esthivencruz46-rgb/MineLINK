@@ -167,6 +167,118 @@ function LeyesMineralEditor({
   );
 }
 
+function parsearGeo(texto: string): { minerales: string; litologia: string } {
+  if (texto.startsWith("Litología: ")) {
+    return { minerales: "", litologia: texto.slice("Litología: ".length) };
+  }
+  const [minerales, litologia] = texto.split(" · Litología: ");
+  return { minerales: minerales?.trim() ?? "", litologia: litologia?.trim() ?? "" };
+}
+
+function componerGeo(minerales: string, litologia: string): string {
+  const m = minerales.trim();
+  const l = litologia.trim();
+  if (!m && !l) return "";
+  if (!l) return m;
+  return m ? `${m} · Litología: ${l}` : `Litología: ${l}`;
+}
+
+/** Datos geológicos al costado del slot del informe geológico: minerales
+ *  de interés + litología — se guardan compuestos en
+ *  Operacion.especie_mineral, que la ficha pública ya muestra. */
+function GeologiaEditor({
+  valorInicial,
+  onCambiar,
+}: {
+  valorInicial: string;
+  onCambiar: (compuesto: string) => void;
+}) {
+  const inicial = parsearGeo(valorInicial);
+  const [minerales, setMinerales] = useState(inicial.minerales);
+  const [litologia, setLitologia] = useState(inicial.litologia);
+
+  return (
+    <div className="mt-1.5 flex flex-col gap-1.5">
+      <input
+        className="min-h-[36px] w-full rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+        placeholder="Minerales de interés (Ej: calcopirita, oro nativo)"
+        value={minerales}
+        onChange={(e) => {
+          setMinerales(e.target.value);
+          onCambiar(componerGeo(e.target.value, litologia));
+        }}
+      />
+      <input
+        className="min-h-[36px] w-full rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+        placeholder="Litología (Ej: vetas de cuarzo en andesita)"
+        value={litologia}
+        onChange={(e) => {
+          setLitologia(e.target.value);
+          onCambiar(componerGeo(minerales, e.target.value));
+        }}
+      />
+    </div>
+  );
+}
+
+const UNIDADES_RESERVAS = ["TN", "m³", "kg", "oz"];
+
+function parsearReservas(texto: string): { cantidad: string; unidad: string } {
+  const m = texto.match(/^([\d.,]+)\s*(.*)$/);
+  if (!m) return { cantidad: "", unidad: UNIDADES_RESERVAS[0] };
+  return { cantidad: m[1].replace(/,/g, ""), unidad: m[2].trim() || UNIDADES_RESERVAS[0] };
+}
+
+/** Cantidad de reservas al costado del slot de estimación de recursos —
+ *  se guarda como "50,000 TN" en Operacion.toneladas_estimadas, que la
+ *  ficha pública ya muestra. */
+function ReservasEditor({
+  valorInicial,
+  onCambiar,
+}: {
+  valorInicial: string;
+  onCambiar: (compuesto: string) => void;
+}) {
+  const inicial = parsearReservas(valorInicial);
+  const [cantidad, setCantidad] = useState(inicial.cantidad);
+  const [unidad, setUnidad] = useState(inicial.unidad);
+
+  function emitir(c: string, u: string) {
+    const digitos = c.replace(/[^\d.]/g, "");
+    onCambiar(digitos ? `${Number(digitos).toLocaleString("es-PE")} ${u}` : "");
+  }
+
+  return (
+    <div className="mt-1.5 flex items-center gap-1.5">
+      <input
+        className="min-h-[36px] w-28 rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+        placeholder="Ej: 50000"
+        inputMode="decimal"
+        value={cantidad}
+        onChange={(e) => {
+          const v = e.target.value.replace(/[^\d.]/g, "");
+          setCantidad(v);
+          emitir(v, unidad);
+        }}
+      />
+      <select
+        className="min-h-[36px] rounded-lg border border-black/10 bg-tarjeta px-1.5 text-xs text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+        value={unidad}
+        onChange={(e) => {
+          setUnidad(e.target.value);
+          emitir(cantidad, e.target.value);
+        }}
+      >
+        {UNIDADES_RESERVAS.map((u) => (
+          <option key={u} value={u} className="bg-white text-black">
+            {u}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 /** "Respalda tu inversión" — mismo tratamiento visual que "Respalda tu
  *  declaración" en DocumentosMinero.tsx: un slot de subida por cada cosa
  *  que el minero declaró tener en el Módulo INV, con su "Marcaste: X". */
@@ -180,24 +292,34 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
   const [vistaUrl, setVistaUrl] = useState<string | null>(null);
   const [vistaTipo, setVistaTipo] = useState("");
   const [leyPromedio, setLeyPromedio] = useState(perfil.ley_promedio ?? "");
+  const [especieMineral, setEspecieMineral] = useState(perfil.especie_mineral ?? "");
+  const [toneladasEstimadas, setToneladasEstimadas] = useState(
+    perfil.toneladas_estimadas ?? ""
+  );
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
-  const debounceLeyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncesRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => () => {
-    if (debounceLeyRef.current) clearTimeout(debounceLeyRef.current);
+    Object.values(debouncesRef.current).forEach(clearTimeout);
   }, []);
 
-  function onCambiarLey(valor: string) {
-    setLeyPromedio(valor);
-    if (debounceLeyRef.current) clearTimeout(debounceLeyRef.current);
-    debounceLeyRef.current = setTimeout(async () => {
+  /** Guarda un campo de la operación con pausa corta — el endpoint es de
+   *  actualización parcial, cada campo viaja solo sin pisar a los demás. */
+  function guardarCampo(campo: string, valor: string) {
+    if (debouncesRef.current[campo]) clearTimeout(debouncesRef.current[campo]);
+    debouncesRef.current[campo] = setTimeout(async () => {
       const resp = await authFetch("/mineros/perfil-inversion", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ley_promedio: valor.trim() || null }),
+        body: JSON.stringify({ [campo]: valor.trim() || null }),
       });
       if (resp.ok) onGuardado(await resp.json());
     }, 800);
+  }
+
+  function onCambiarLey(valor: string) {
+    setLeyPromedio(valor);
+    guardarCampo("ley_promedio", valor);
   }
 
   useEffect(() => {
@@ -337,6 +459,34 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
                         <LeyesMineralEditor
                           valorInicial={leyPromedio}
                           onCambiar={onCambiarLey}
+                        />
+                      </>
+                    )}
+                    {cat.categoria === "informe_geologico" && (
+                      <>
+                        <p className="mt-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Cuéntanos de tu geología:
+                        </p>
+                        <GeologiaEditor
+                          valorInicial={especieMineral}
+                          onCambiar={(v) => {
+                            setEspecieMineral(v);
+                            guardarCampo("especie_mineral", v);
+                          }}
+                        />
+                      </>
+                    )}
+                    {cat.categoria === "estimacion_recursos" && (
+                      <>
+                        <p className="mt-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                          ¿Cuántas reservas estima tu documento?
+                        </p>
+                        <ReservasEditor
+                          valorInicial={toneladasEstimadas}
+                          onCambiar={(v) => {
+                            setToneladasEstimadas(v);
+                            guardarCampo("toneladas_estimadas", v);
+                          }}
                         />
                       </>
                     )}
