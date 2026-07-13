@@ -352,6 +352,11 @@ export const ETIQUETA_CATEGORIA_INV: Record<string, string> = {
   certificado_ley: "Certificado de ley del mineral",
   fotos_equipo_maquinaria: "Fotos de tu maquinaria y equipo",
   fotos_trabajadores: "Fotos de tus trabajadores",
+  muestreo_propio: "Fotos de tu muestreo propio",
+  fotos_labores_antiguas: "Fotos de las labores antiguas",
+  registro_opex: "Registro de costos operativos (OPEX)",
+  contratos_offtake: "Contrato de venta / offtake",
+  plan_expansion_documentado: "Plan de expansión documentado",
 };
 
 /** Documentos de sustento que el admin debe ver APROBADOS antes de dar el

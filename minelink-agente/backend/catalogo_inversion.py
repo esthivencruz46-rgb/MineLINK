@@ -224,12 +224,31 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
     inversión' según lo que el minero respondió, no solo los documentos de
     sustento fijos por perfil (categorias_requeridas_inversion). Cada
     entrada trae el id de pregunta + el valor crudo para que el frontend
-    muestre "Marcaste: X" al lado del slot, igual que en formalización."""
+    muestre "Marcaste: X" al lado del slot, igual que en formalización.
+
+    Criterio (julio 2026): solo respuestas que declaran tener algo FÍSICO o
+    DOCUMENTADO hoy generan slot — un activo (equipo, trabajadores,
+    concesión), un papel (liquidación, contrato, registro de costos) o una
+    evidencia de campo (muestreo, labores antiguas). Las respuestas de
+    intención/estimación (cuánto capital busca, para qué lo usaría, plazo
+    de retorno esperado, qué lo frena, si aceptaría un operador, cuánto
+    aumentaría su producción) NO piden archivo: no hay nada que
+    fotografiar todavía, y pedir "respaldo" de una aspiración solo genera
+    ruido para el minero y para el inversionista."""
     respuestas_inv = respuestas_inv or {}
     declarados: list[dict] = []
 
+    # INV_0_4 "¿qué aportas tú al acuerdo?" — cada aporte tangible pide su
+    # evidencia. "conocimiento" (de la zona/yacimiento) no: no se
+    # fotografía. "operacion" (en marcha) tampoco: sus fotos ya son las
+    # "fotos de la mina" de la columna de formalización, pedirlas de nuevo
+    # aquí duplicaría el mismo álbum.
     aportes = respuestas_inv.get("INV_0_4")
     if isinstance(aportes, list):
+        if "concesion" in aportes:
+            declarados.append(
+                {"codigo": "titulo_concesion", "pregunta_id": "INV_0_4", "valor": "concesion"}
+            )
         if "equipo" in aportes:
             declarados.append(
                 {"codigo": "fotos_equipo_maquinaria", "pregunta_id": "INV_0_4", "valor": "equipo"}
@@ -237,6 +256,33 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
         if "mano_obra" in aportes:
             declarados.append(
                 {"codigo": "fotos_trabajadores", "pregunta_id": "INV_0_4", "valor": "mano_obra"}
+            )
+
+    if perfil in ("A", "A_avanzado"):
+        # INV_A1: solo "muestreo propio" es evidencia física del propio
+        # minero — minería vecina e información pública no son suyas para
+        # respaldar, y "ninguna" no tiene nada que subir.
+        if respuestas_inv.get("INV_A1") == "muestreo_propio":
+            declarados.append(
+                {"codigo": "muestreo_propio", "pregunta_id": "INV_A1", "valor": "muestreo_propio"}
+            )
+
+    if perfil == "B":
+        # INV_B2: producción anterior de la concesión — con registros pide
+        # los registros (liquidaciones); sin registros, al menos fotos de
+        # las labores antiguas que la demuestran. "nunca"/"no sé" no piden.
+        produccion_previa = respuestas_inv.get("INV_B2")
+        if produccion_previa == "si_registros":
+            declarados.append(
+                {"codigo": "liquidaciones_venta", "pregunta_id": "INV_B2", "valor": "si_registros"}
+            )
+        elif produccion_previa == "si_sin_registros":
+            declarados.append(
+                {
+                    "codigo": "fotos_labores_antiguas",
+                    "pregunta_id": "INV_B2",
+                    "valor": "si_sin_registros",
+                }
             )
 
     if perfil == "C":
@@ -248,6 +294,31 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
         ley = respuestas_inv.get("INV_C3")
         if ley in ("lab_certificado", "analisis_comprador"):
             declarados.append({"codigo": "certificado_ley", "pregunta_id": "INV_C3", "valor": ley})
+        # INV_C4: solo el registro detallado de OPEX es un documento real;
+        # una "estimación general" vive en la cabeza del minero.
+        if respuestas_inv.get("INV_C4") == "detallado":
+            declarados.append(
+                {"codigo": "registro_opex", "pregunta_id": "INV_C4", "valor": "detallado"}
+            )
+
+    if perfil == "D":
+        # INV_D4: un contrato de largo plazo/offtake es un papel firmado;
+        # vender al spot no deja contrato que mostrar.
+        if respuestas_inv.get("INV_D4") == "largo_plazo":
+            declarados.append(
+                {"codigo": "contratos_offtake", "pregunta_id": "INV_D4", "valor": "largo_plazo"}
+            )
+        # INV_D5 (texto libre): si describió un proyecto de expansión, se le
+        # ofrece subir el plan documentado — sin "Marcaste: X" porque no
+        # hay opción que traducir (el valor es su propio texto).
+        if str(respuestas_inv.get("INV_D5") or "").strip():
+            declarados.append(
+                {
+                    "codigo": "plan_expansion_documentado",
+                    "pregunta_id": "INV_D5",
+                    "valor": "descrito",
+                }
+            )
 
     for pregunta_id, codigo in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():
         if respuestas_inv.get(pregunta_id) == "tengo":

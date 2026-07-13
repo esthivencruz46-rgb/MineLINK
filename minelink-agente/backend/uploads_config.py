@@ -70,6 +70,9 @@ CATEGORIAS_INVERSION = {
         ("image/jpeg", "image/png", "image/webp"),
         "Fotos de tus trabajadores",
     ),
+    # Respaldo de INV_C4 cuando el minero declara llevar un registro
+    # detallado de sus costos operativos.
+    "registro_opex": (_PDF_O_IMAGEN, "Registro de costos operativos (OPEX)"),
 }
 
 # El diagnóstico Sí/No declara el estado de formalización, pero esa
