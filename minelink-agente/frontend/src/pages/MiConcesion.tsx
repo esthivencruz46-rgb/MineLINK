@@ -272,16 +272,9 @@ export function MiConcesion() {
             </p>
           </div>
 
-          <div className="mt-2">
-            <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
-              Inversión
-            </h2>
-            {!perfil.visto_bueno_documentos && perfil.inversion_ofrecida && (
-              <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                Se desbloquea al terminar Formalización
-              </p>
-            )}
-          </div>
+          <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Inversión
+          </h2>
           <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
         </div>
       </div>

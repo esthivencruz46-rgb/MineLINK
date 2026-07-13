@@ -1016,7 +1016,11 @@ def _hacer_apto_inversionistas(operacion_id, username, password="clave123", resp
     assert resp.status_code == 200, resp.json()
 
 
-def test_inversion_no_disponible_sin_visto_bueno_documentos():
+def test_inversion_no_exige_visto_bueno_documentos_para_enviarse():
+    # El minero puede responder el Módulo INV en la misma sesión en que
+    # sube sus documentos de formalización, sin esperar a que se los
+    # aprueben — solo la publicación pública exige ambos vistos buenos
+    # (ver test_proyectos_exige_ambos_vistos_buenos).
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="invsindocs", password="clave123"))
     token = client.post(
@@ -1032,7 +1036,32 @@ def test_inversion_no_disponible_sin_visto_bueno_documentos():
     resp = client.post(
         "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
     )
-    assert resp.status_code == 422
+    assert resp.status_code == 200
+    assert resp.json()["enviado"] is True
+
+
+def test_proyectos_exige_ambos_vistos_buenos():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="ambosvistobueno", password="clave123"))
+    token = client.post(
+        "/mineros/login", json={"username": "ambosvistobueno", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    # Envía inversión ANTES de que aprueben sus documentos de formalización.
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_C}, headers=headers
+    )
+    assert resp.status_code == 200
+
+    # Sin ningún visto bueno todavía: no aparece.
+    assert diag["id"] not in {p["operacion_id"] for p in client.get("/proyectos").json()}
+
+    _hacer_apto_inversionistas(diag["id"], "ambosvistobueno")
+
+    # Con ambos vistos buenos: ya aparece.
+    assert diag["id"] in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
 
 def test_inversion_perfil_a_con_a4_2_no_no_se_ofrece():

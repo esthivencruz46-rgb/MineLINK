@@ -2,8 +2,12 @@ import { CheckCircle2, Lock, TrendingUp } from "lucide-react";
 import type { MineroPerfil } from "../types/minero";
 
 /** Tarjeta "Inversionista" al final de la cuenta (MiCuenta/MiConcesion) —
- *  refleja el estado del gate de documentos y del Módulo INV en un solo
- *  vistazo, sin duplicar la lógica entre las dos ventanas. */
+ *  refleja el estado del Módulo INV en un solo vistazo, sin duplicar la
+ *  lógica entre las dos ventanas. Ya NO exige `visto_bueno_documentos`
+ *  para desbloquearse: el minero puede completar inversión en la misma
+ *  sesión que sube sus documentos de formalización, sin esperar la
+ *  aprobación de uno para empezar el otro — solo la publicación final en
+ *  la cartera pública exige ambos vistos buenos (ver scoring.py). */
 export function SeccionInversionista({
   perfil,
   onAbrir,
@@ -19,22 +23,6 @@ export function SeccionInversionista({
           <h2 className="font-semibold">Inversionista</h2>
           <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
             Por ahora no aplica a tu perfil.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!perfil.visto_bueno_documentos) {
-    return (
-      <div className="flex items-start gap-3 rounded-lg bg-tarjeta p-5 opacity-70 dark:bg-tarjeta-dark">
-        <Lock size={18} strokeWidth={2} className="mt-0.5 shrink-0 text-texto-suave dark:text-texto-suave-dark" />
-        <div>
-          <h2 className="font-semibold">Inversionista (bloqueado)</h2>
-          <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-            {perfil.documentos_enviados
-              ? "Esthiven está revisando los archivos que enviaste. Se desbloquea en cuanto los valide."
-              : "Se desbloquea cuando envíes tus archivos en \"Respalda tu declaración\" y Esthiven los valide."}
           </p>
         </div>
       </div>
@@ -62,8 +50,8 @@ export function SeccionInversionista({
         <div>
           <h2 className="font-semibold">Inversionista — en revisión</h2>
           <p className="mt-1 text-sm opacity-90">
-            Enviaste tu perfil de inversión. Esthiven lo está revisando junto con tus documentos
-            de sustento.
+            Enviaste tu perfil de inversión. Esthiven lo revisará junto con tus documentos de
+            formalización — te avisamos cuando quede visible para inversionistas.
           </p>
         </div>
       </div>
@@ -80,7 +68,8 @@ export function SeccionInversionista({
           <TrendingUp size={18} strokeWidth={2} /> Inversionista
         </h2>
         <p className="mt-1 text-sm text-white/85">
-          Esthiven ya validó tus documentos. Completa tu perfil para atraer inversionistas.
+          Completa tu perfil de inversión — no hace falta esperar a que aprueben tus documentos
+          de formalización para empezar.
         </p>
       </div>
     </button>

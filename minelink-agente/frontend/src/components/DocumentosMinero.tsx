@@ -160,7 +160,12 @@ export function DocumentosMinero({
         throw new Error(detalle?.detail ?? "No pudimos enviar tus archivos a revisión");
       }
       setEnviado(true);
-      navigate("/documentos-enviados", { state: { volverA: rutaVolver } });
+      // mostrarCtaInversion: en la pantalla de confirmación se ofrece
+      // seguir directo con el Módulo INV en la misma sesión — ya no hace
+      // falta esperar a que aprueben estos documentos para empezarlo.
+      navigate("/documentos-enviados", {
+        state: { volverA: rutaVolver, mostrarCtaInversion: true },
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos enviar tus archivos a revisión");
     } finally {

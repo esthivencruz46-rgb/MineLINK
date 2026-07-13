@@ -1,10 +1,16 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Check } from "lucide-react";
+import { Check, TrendingUp } from "lucide-react";
+import { useMineroAuth } from "../context/MineroAuthContext";
 
 interface EstadoEnvio {
   volverA?: string;
   titulo?: string;
   mensaje?: string;
+  /** true cuando viene de guardar documentos de FORMALIZACIÓN — ahí se
+   *  ofrece seguir directo con el Módulo INV en la misma sesión, sin
+   *  esperar a que aprueben estos documentos primero. */
+  mostrarCtaInversion?: boolean;
 }
 
 /** Pantalla dedicada de confirmación tras un envío a revisión — la usan
@@ -16,13 +22,24 @@ interface EstadoEnvio {
 export function DocumentosEnviados() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { authFetch } = useMineroAuth();
   const estado = (location.state as EstadoEnvio | null) ?? {};
   const volverA = estado.volverA ?? "/mi-cuenta";
   const titulo = estado.titulo ?? "¡Archivos enviados!";
   const mensaje =
     estado.mensaje ??
     "Esthiven va a revisar cada documento. Si alguno está mal, te va a indicar cuál y por qué " +
-      "para que lo corrijas. Cuando todos queden aprobados, se desbloquea tu botón de Inversionista.";
+      "para que lo corrijas.";
+  const [ofrecerInversion, setOfrecerInversion] = useState(false);
+
+  useEffect(() => {
+    if (!estado.mostrarCtaInversion) return;
+    authFetch("/mineros/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((me) => setOfrecerInversion(Boolean(me?.inversion_ofrecida && !me?.inv_enviado)))
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
@@ -31,9 +48,29 @@ export function DocumentosEnviados() {
       </div>
       <h1 className="text-xl font-bold">{titulo}</h1>
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">{mensaje}</p>
+
+      {ofrecerInversion && (
+        <>
+          <button
+            onClick={() => navigate("/mi-inversion")}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento px-6 py-3 font-semibold text-white"
+          >
+            <TrendingUp size={18} strokeWidth={2} aria-hidden />
+            Continuar con tu perfil de inversión →
+          </button>
+          <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+            No hace falta esperar a que aprueben estos documentos para empezar.
+          </p>
+        </>
+      )}
+
       <button
         onClick={() => navigate(volverA)}
-        className="min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
+        className={`min-h-[44px] rounded-lg px-6 font-semibold ${
+          ofrecerInversion
+            ? "border border-black/10 dark:border-white/10"
+            : "bg-acento text-white"
+        }`}
       >
         Volver a mi cuenta
       </button>

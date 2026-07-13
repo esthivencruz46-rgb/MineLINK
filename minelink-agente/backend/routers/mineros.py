@@ -407,15 +407,19 @@ def enviar_inversion(
     lead_id: int = Depends(get_current_lead_id),
 ):
     """Guarda las respuestas del Módulo INV. Reenviar antes de que el
-    admin dé su propio visto bueno sobreescribe (permite corregir)."""
+    admin dé su propio visto bueno sobreescribe (permite corregir).
+
+    Ya NO exige `visto_bueno_documentos` — antes obligaba al minero a
+    esperar la aprobación de formalización antes de poder siquiera
+    empezar inversión (dos vueltas separadas: preguntas → archivos →
+    esperar → preguntas → archivos → esperar). Ahora puede responder y
+    subir todo en la misma sesión; lo único que sigue exigiendo AMBOS
+    vistos buenos es la publicación en la cartera pública (ver
+    `apto_inversionistas` en scoring.estado_seguimiento)."""
     lead, operacion = _operacion_del_lead(db, lead_id)
     perfil = operacion.estado_formalizacion
     if not activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))["ofrece"]:
         raise HTTPException(422, "El Módulo INV no está disponible para tu perfil.")
-    if not operacion.visto_bueno_documentos:
-        raise HTTPException(
-            422, "Primero necesitas el visto bueno de tus documentos de formalización."
-        )
 
     try:
         validar_respuestas_inversion(
