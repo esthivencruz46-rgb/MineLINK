@@ -256,20 +256,7 @@ export function Cuestionario() {
 
   if (!enviando && actual === null && faltaMineral) {
     return (
-      <TarjetaPregunta
-        footer={
-          <div className="flex items-center justify-between gap-3">
-            <BotonVolver onClick={volver} />
-            <button
-              disabled={!mineralBorrador}
-              onClick={() => setMineral(mineralBorrador)}
-              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
-            >
-              Continuar →
-            </button>
-          </div>
-        }
-      >
+      <TarjetaPregunta footer={<BotonVolver onClick={volver} />}>
         <ProgressBar actual={visibles.length + 1} total={visibles.length + 1} />
         <h2 className="mt-4 text-xl font-semibold">
           ¿Cuál es el principal mineral de tu operación?
@@ -283,7 +270,10 @@ export function Cuestionario() {
             opciones={OPCIONES_MINERAL}
             valorActual={mineralBorrador}
             disabled={enviando}
-            onSeleccionar={setMineralBorrador}
+            onSeleccionar={(v) => {
+              setMineralBorrador(v);
+              setMineral(v);
+            }}
           />
         </div>
       </TarjetaPregunta>
@@ -301,16 +291,20 @@ export function Cuestionario() {
     return (
       <TarjetaPregunta
         footer={
-          <div className="flex items-center justify-between gap-3">
+          esNumerica ? (
+            <div className="flex items-center justify-between gap-3">
+              <BotonVolver onClick={indiceActual > 0 ? volver : undefined} />
+              <button
+                disabled={!puedeContinuar}
+                onClick={() => responder(borrador)}
+                className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                Continuar →
+              </button>
+            </div>
+          ) : (
             <BotonVolver onClick={indiceActual > 0 ? volver : undefined} />
-            <button
-              disabled={!puedeContinuar}
-              onClick={() => responder(borrador)}
-              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
-            >
-              Continuar →
-            </button>
-          </div>
+          )
         }
       >
         <ProgressBar actual={indiceActual + 1} total={visibles.length} />
@@ -352,7 +346,10 @@ export function Cuestionario() {
               opciones={actual.opciones ?? []}
               valorActual={borrador}
               disabled={enviando}
-              onSeleccionar={setBorrador}
+              onSeleccionar={(v) => {
+                setBorrador(v);
+                responder(v);
+              }}
             />
           )}
         </div>
