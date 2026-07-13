@@ -372,11 +372,8 @@ export function DocumentosMinero({
                     Aprobado
                   </span>
                 )}
-                {doc.estado_revision === "pendiente" && (
-                  <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                    En revisión
-                  </span>
-                )}
+                {/* "pendiente" no muestra texto — el archivo subido habla
+                    por sí solo; solo se etiquetan aprobado/rechazado. */}
                 {doc.estado_revision === "rechazado" && (
                   <span
                     className="text-center text-xs font-semibold text-red-500"
