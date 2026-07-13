@@ -337,18 +337,24 @@ def respaldos_declarados_inversion(
     for pregunta_id, codigo in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():
         if respuestas_inv.get(pregunta_id) == "tengo":
             declarados.append({"codigo": codigo, "pregunta_id": pregunta_id, "valor": "tengo"})
-        # "En proceso" recién gana su recuadro cuando el minero YA subió el
-        # archivo (desde "lo que te falta") — antes de eso vive solo ahí,
-        # como pendiente en trámite; después, el archivo se ve y administra
-        # igual que cualquier otro respaldo.
-        elif (
-            respuestas_inv.get(pregunta_id) == "en_proceso"
+
+    # La evidencia manda: cualquier brecha del Módulo INV ("no tengo",
+    # "en proceso", ley solo estimada...) cuyo archivo el minero YA subió
+    # (desde "lo que te falta") gana su recuadro aquí — si no, el archivo
+    # quedaba invisible: salía de "lo que te falta" pero no se veía en
+    # ninguna parte de la cuenta.
+    origenes = list(_CHECKLIST_ESTUDIO_POR_PREGUNTA.items()) + [
+        (pid, estudio) for pid, (_valores, estudio) in _BRECHA_INV_POR_PREGUNTA.items()
+    ]
+    for pregunta_id, codigo in origenes:
+        valor = respuestas_inv.get(pregunta_id)
+        if (
+            valor
+            and not isinstance(valor, list)
             and codigo in categorias_con_archivo
             and not any(d["codigo"] == codigo for d in declarados)
         ):
-            declarados.append(
-                {"codigo": codigo, "pregunta_id": pregunta_id, "valor": "en_proceso"}
-            )
+            declarados.append({"codigo": codigo, "pregunta_id": pregunta_id, "valor": valor})
 
     return declarados
 

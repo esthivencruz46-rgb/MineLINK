@@ -1206,6 +1206,26 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     # partes — sin depender de que lo aprueben.
     assert operacion_id in {p["operacion_id"] for p in client.get("/proyectos").json()}
 
+    # Brecha de inversión ("No tengo" estimación de recursos) — al subir el
+    # respaldo desde "lo que te falta" sale de brechas_inversion Y gana su
+    # recuadro en "Respalda tu inversión" (la evidencia manda; antes el
+    # archivo quedaba invisible).
+    me = resp.json()
+    assert "estimacion_recursos" in me["brechas_inversion"]
+    assert "estimacion_recursos" not in {
+        r["codigo"] for r in me["respaldos_declarados_inversion"]
+    }
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "estimacion_recursos"},
+        files={"archivo": ("estimacion.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "estimacion_recursos" not in me["brechas_inversion"]
+    respaldos = {r["codigo"]: r for r in me["respaldos_declarados_inversion"]}
+    assert respaldos["estimacion_recursos"]["valor"] == "no_tengo"
+
 
 def test_mineros_notificaciones_requiere_jwt():
     resp = client.get("/mineros/notificaciones")
