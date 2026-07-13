@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
+import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { NotificacionesBell } from "../components/NotificacionesBell";
@@ -33,9 +34,12 @@ export function MiConcesion() {
   const [mostrarBienvenida, setMostrarBienvenida] = useState(
     Boolean((location.state as { bienvenida?: boolean } | null)?.bienvenida)
   );
+  const [mostrarInversion, setMostrarInversion] = useState(
+    Boolean((location.state as { abrirInversion?: boolean } | null)?.abrirInversion)
+  );
 
-  useEffect(() => {
-    authFetch("/mineros/me")
+  function cargarPerfil() {
+    return authFetch("/mineros/me")
       .then((r) => {
         if (!r.ok) throw new Error();
         return r.json();
@@ -46,6 +50,11 @@ export function MiConcesion() {
       })
       .catch(() => setError("No pudimos cargar tus datos."))
       .finally(() => setCargando(false));
+  }
+
+  useEffect(() => {
+    cargarPerfil();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authFetch]);
 
   function cerrarSesion() {
@@ -276,7 +285,20 @@ export function MiConcesion() {
           <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h2>
-          <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
+          <SeccionInversionista
+            perfil={perfil}
+            abierto={mostrarInversion}
+            onAbrir={() => setMostrarInversion((v) => !v)}
+          />
+          {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (
+            <CuestionarioInversionInline
+              perfil={perfil}
+              onEnviado={() => {
+                setMostrarInversion(false);
+                cargarPerfil();
+              }}
+            />
+          )}
           <DocumentosInversionSustento categorias={perfil.categorias_requeridas_inversion} />
         </div>
       </div>

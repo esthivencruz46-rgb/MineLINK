@@ -52,7 +52,7 @@ export function DocumentosEnviados() {
       {ofrecerInversion && (
         <>
           <button
-            onClick={() => navigate("/mi-inversion")}
+            onClick={() => navigate(volverA, { state: { abrirInversion: true } })}
             className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento px-6 py-3 font-semibold text-white"
           >
             <TrendingUp size={18} strokeWidth={2} aria-hidden />
