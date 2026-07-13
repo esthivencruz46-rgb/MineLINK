@@ -198,6 +198,11 @@ def eliminar_lead(
         raise HTTPException(status_code=404, detail="Lead no encontrado")
 
     operacion_id = lead.operacion_id
+    notificaciones = (
+        db.query(models.Notificacion).filter(models.Notificacion.lead_id == lead_id).all()
+    )
+    for notificacion in notificaciones:
+        db.delete(notificacion)
     db.delete(lead)
     db.flush()
 

@@ -2103,6 +2103,36 @@ def test_admin_elimina_lead_borra_tambien_sus_documentos():
     assert resp.status_code == 404
 
 
+def test_admin_elimina_lead_borra_tambien_sus_notificaciones():
+    # Regresión: Notificacion.lead_id es FK NOT NULL — Postgres (producción)
+    # rechaza borrar el lead si le quedan notificaciones huérfanas (SQLite
+    # local no lo hace cumplir por defecto, por eso el bug no se vio en
+    # tests hasta que se agregó este caso explícito).
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    _operacion_id, minero_headers, _codigos = _minero_con_estudios("connotificaciones")
+    doc = client.post(
+        "/mineros/documentos",
+        headers=minero_headers,
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("a.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "rechazado", "motivo_rechazo": "Prueba"},
+        headers=headers,
+    )
+    resp = client.get("/mineros/notificaciones", headers=minero_headers)
+    assert len(resp.json()) > 0
+
+    resp = client.get("/admin/leads", headers=headers)
+    lead_id = next(
+        l["id"] for l in resp.json() if l["operacion_id"] == _operacion_id
+    )
+    resp = client.delete(f"/admin/leads/{lead_id}", headers=headers)
+    assert resp.status_code == 204
+
+
 def test_admin_elimina_lead_inexistente():
     token = _admin_token()
     resp = client.delete(
