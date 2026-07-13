@@ -2,7 +2,10 @@ import { useState } from "react";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
-import { ESTUDIOS_POR_DIMENSION, ORDEN_DIMENSIONES } from "../data/estudiosPorDimension";
+import {
+  ESTUDIOS_POR_DIMENSION_CON_PREGUNTA,
+  ORDEN_DIMENSIONES,
+} from "../data/estudiosPorDimension";
 import { postularConsultor } from "../services/api";
 import { CampoTelefono } from "../components/CampoTelefono";
 
@@ -108,7 +111,7 @@ export function Postular() {
   }
 
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-5 px-4 py-8">
+    <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-8">
       <div>
         <h1 className="text-2xl font-bold">Quiero ser consultor en MineLink</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
@@ -117,6 +120,10 @@ export function Postular() {
         </p>
       </div>
 
+      {/* Web ancha: dos columnas (tus datos a la izquierda, en qué ayudas a
+          la derecha) — en celular/APK se apilan en una sola. */}
+      <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+        <div className="flex flex-col gap-5">
       <div>
         <input
           className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
@@ -189,38 +196,6 @@ export function Postular() {
       </div>
 
       <div>
-        <p className="mb-1 text-sm font-medium">¿En qué puedes ayudar?</p>
-        <div className="flex flex-col gap-3">
-          {ORDEN_DIMENSIONES.map((dim) => (
-            <div
-              key={dim}
-              className="rounded-lg border border-black/10 p-3 dark:border-white/10"
-            >
-              <p className="mb-2 text-xs font-bold uppercase tracking-wide text-acento">
-                {NOMBRES_DIMENSION[dim]}
-              </p>
-              <div className="flex flex-col gap-1.5">
-                {ESTUDIOS_POR_DIMENSION[dim].map((estudio) => (
-                  <label key={estudio} className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={form.estudios_json.includes(estudio)}
-                      onChange={() => alternarLista("estudios_json", estudio)}
-                    />
-                    {INFO_BRECHA[estudio].texto}
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        {errores.estudios_json && (
-          <p className="mt-1 text-xs text-red-500">{errores.estudios_json}</p>
-        )}
-      </div>
-
-      <div>
         <p className="mb-1 text-sm font-medium">Tu CV (PDF, máx. 5MB)</p>
         <label className="flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-dashed border-black/20 bg-tarjeta px-3 text-sm dark:border-white/20 dark:bg-tarjeta-dark">
           <input
@@ -238,6 +213,44 @@ export function Postular() {
           al minero de que hablará con alguien calificado.
         </p>
         {errores.cv && <p className="mt-1 text-xs text-red-500">{errores.cv}</p>}
+      </div>
+        </div>
+
+        <div>
+          <p className="mb-1 text-sm font-medium">¿En qué puedes ayudar?</p>
+          <div className="flex flex-col gap-3">
+            {/* Solo estudios con pregunta generadora en el diagnóstico o el
+                Módulo INV — un estudio legacy nunca haría match con nadie. */}
+            {ORDEN_DIMENSIONES.filter(
+              (dim) => ESTUDIOS_POR_DIMENSION_CON_PREGUNTA[dim].length > 0
+            ).map((dim) => (
+              <div
+                key={dim}
+                className="rounded-lg border border-black/10 p-3 dark:border-white/10"
+              >
+                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-acento">
+                  {NOMBRES_DIMENSION[dim]}
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {ESTUDIOS_POR_DIMENSION_CON_PREGUNTA[dim].map((estudio) => (
+                    <label key={estudio} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={form.estudios_json.includes(estudio)}
+                        onChange={() => alternarLista("estudios_json", estudio)}
+                      />
+                      {INFO_BRECHA[estudio].texto}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {errores.estudios_json && (
+            <p className="mt-1 text-xs text-red-500">{errores.estudios_json}</p>
+          )}
+        </div>
       </div>
 
       {errores.general && <p className="text-sm text-red-500">{errores.general}</p>}
