@@ -266,6 +266,8 @@ export function MiCuenta() {
               </>
             )}
           </div>
+
+          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>
 
         <div className="flex flex-col gap-5">
@@ -296,7 +298,6 @@ export function MiCuenta() {
             categorias={perfil.categorias_requeridas_inversion}
             declarados={perfil.respaldos_declarados_inversion}
           />
-          <PerfilInversionForm perfil={perfil} onGuardado={setPerfil} />
         </div>
       </div>
     </div>
