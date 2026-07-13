@@ -58,6 +58,10 @@ interface Props {
   /** Ruta de la cuenta del minero (/mi-cuenta o /mi-concesion) — a dónde
    * vuelve desde la pantalla de confirmación tras enviar. */
   rutaVolver: string;
+  /** Si viene, al enviar los archivos NO se navega a la pantalla de
+   * confirmación: se queda en la cuenta y se llama esto (las ventanas lo
+   * usan para abrir el cuestionario de inversión ahí mismo). */
+  onEnviado?: () => void;
 }
 
 export function DocumentosMinero({
@@ -70,6 +74,7 @@ export function DocumentosMinero({
   ocultarDocumentosLegales,
   documentosEnviados,
   rutaVolver,
+  onEnviado,
 }: Props) {
   const navigate = useNavigate();
   const { authFetch } = useMineroAuth();
@@ -160,12 +165,15 @@ export function DocumentosMinero({
         throw new Error(detalle?.detail ?? "No pudimos enviar tus archivos a revisión");
       }
       setEnviado(true);
-      // mostrarCtaInversion: en la pantalla de confirmación se ofrece
-      // seguir directo con el Módulo INV en la misma sesión — ya no hace
-      // falta esperar a que aprueben estos documentos para empezarlo.
-      navigate("/documentos-enviados", {
-        state: { volverA: rutaVolver, mostrarCtaInversion: true },
-      });
+      if (onEnviado) {
+        // Sin navegar a ninguna parte: la cuenta se queda donde está y
+        // habilita/abre directamente la parte de inversión (julio 2026).
+        onEnviado();
+      } else {
+        navigate("/documentos-enviados", {
+          state: { volverA: rutaVolver, mostrarCtaInversion: true },
+        });
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos enviar tus archivos a revisión");
     } finally {

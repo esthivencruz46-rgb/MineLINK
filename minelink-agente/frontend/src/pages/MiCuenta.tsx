@@ -202,6 +202,13 @@ export function MiCuenta() {
             ocultarDocumentosLegales
             documentosEnviados={perfil.documentos_enviados}
             rutaVolver="/mi-cuenta"
+            onEnviado={() => {
+              cargarPerfil();
+              // Habilita la parte de inversión ahí mismo, sin salir de la
+              // cuenta: si el módulo aplica y no se envió, abre el
+              // cuestionario directamente.
+              setMostrarInversion(true);
+            }}
           />
 
           <LoQueTeFaltaCard
