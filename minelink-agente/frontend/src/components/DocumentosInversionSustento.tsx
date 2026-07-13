@@ -61,11 +61,39 @@ interface Props {
   declarados: { codigo: string; pregunta_id: string; valor: string }[];
 }
 
-/** Categoría cuyo slot lleva, además del archivo, un valor numérico que el
- *  minero declara junto a él (por ahora solo la ley del mineral). */
-const CATEGORIA_CON_VALOR: Record<string, { placeholder: string; ancho: string }> = {
-  certificado_ley: { placeholder: "Ej: 2.5 g/t Au", ancho: "w-36" },
-};
+// Slots donde el archivo trae leyes de elementos (certificado de ley,
+// análisis de laboratorio): al costado se declaran hasta 3 leyes
+// (elemento + valor + unidad) que se guardan compuestas en
+// Operacion.ley_promedio (ej. "Au: 2.5 g/TN · Cu: 1.2 %").
+const CATEGORIAS_CON_LEYES = new Set(["certificado_ley", "analisis_laboratorio"]);
+
+const UNIDADES_LEY = ["g/TN", "%", "oz/TN", "g/m³"];
+
+interface FilaLey {
+  elemento: string;
+  valor: string;
+  unidad: string;
+}
+
+const FILA_LEY_VACIA: FilaLey = { elemento: "", valor: "", unidad: UNIDADES_LEY[0] };
+
+function parsearLeyes(texto: string): FilaLey[] {
+  const filas: FilaLey[] = [];
+  for (const parte of texto.split("·")) {
+    const m = parte.trim().match(/^(.+?):\s*([\d.,]+)\s*(.*)$/);
+    if (m) {
+      filas.push({ elemento: m[1].trim(), valor: m[2], unidad: m[3].trim() || UNIDADES_LEY[0] });
+    }
+  }
+  return filas;
+}
+
+function componerLeyes(filas: FilaLey[]): string {
+  return filas
+    .filter((f) => f.elemento.trim() && f.valor.trim())
+    .map((f) => `${f.elemento.trim()}: ${f.valor.trim()} ${f.unidad}`)
+    .join(" · ");
+}
 
 function etiquetaCategoria(codigo: string): string {
   return ETIQUETA_CATEGORIA_INV[codigo] ?? INFO_BRECHA[codigo]?.texto ?? codigo;
@@ -73,6 +101,70 @@ function etiquetaCategoria(codigo: string): string {
 
 function etiquetaValorDeclarado(preguntaId: string, valor: string): string | undefined {
   return POR_ID_INV[preguntaId]?.opciones?.find((o) => o.valor === valor)?.etiqueta;
+}
+
+/** Editor de leyes del mineral al costado del slot del archivo: hasta 3
+ *  filas de elemento + valor + unidad. El minero declara por escrito lo
+ *  que su certificado/análisis dice, y el inversionista lo ve como texto
+ *  sin tener que abrir la foto. */
+function LeyesMineralEditor({
+  valorInicial,
+  onCambiar,
+}: {
+  valorInicial: string;
+  onCambiar: (compuesto: string) => void;
+}) {
+  const [filas, setFilas] = useState<FilaLey[]>(() => {
+    const parseadas = parsearLeyes(valorInicial);
+    return parseadas.length > 0 ? parseadas : [{ ...FILA_LEY_VACIA }];
+  });
+
+  function actualizar(indice: number, cambios: Partial<FilaLey>) {
+    const nuevas = filas.map((f, i) => (i === indice ? { ...f, ...cambios } : f));
+    setFilas(nuevas);
+    onCambiar(componerLeyes(nuevas));
+  }
+
+  return (
+    <div className="mt-1.5 flex flex-col gap-1.5">
+      {filas.map((fila, i) => (
+        <div key={i} className="flex items-center gap-1.5">
+          <input
+            className="min-h-[36px] w-16 rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+            placeholder={`Ej: ${["Au", "Ag", "Cu"][i] ?? "Zn"}`}
+            value={fila.elemento}
+            onChange={(e) => actualizar(i, { elemento: e.target.value })}
+          />
+          <input
+            className="min-h-[36px] w-20 rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+            placeholder="Ej: 2.5"
+            inputMode="decimal"
+            value={fila.valor}
+            onChange={(e) => actualizar(i, { valor: e.target.value.replace(/[^\d.,]/g, "") })}
+          />
+          <select
+            className="min-h-[36px] rounded-lg border border-black/10 bg-tarjeta px-1.5 text-xs text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+            value={fila.unidad}
+            onChange={(e) => actualizar(i, { unidad: e.target.value })}
+          >
+            {UNIDADES_LEY.map((u) => (
+              <option key={u} value={u} className="bg-white text-black">
+                {u}
+              </option>
+            ))}
+          </select>
+        </div>
+      ))}
+      {filas.length < 3 && (
+        <button
+          onClick={() => setFilas([...filas, { ...FILA_LEY_VACIA }])}
+          className="self-start text-xs font-semibold text-acento"
+        >
+          + Otra ley
+        </button>
+      )}
+    </div>
+  );
 }
 
 /** "Respalda tu inversión" — mismo tratamiento visual que "Respalda tu
@@ -215,7 +307,7 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
         <div className="mt-4 flex flex-col gap-4">
           {slots.map((cat) => {
             const archivos = documentos.filter((d) => d.categoria === cat.categoria);
-            const conValor = CATEGORIA_CON_VALOR[cat.categoria];
+            const conLeyes = CATEGORIAS_CON_LEYES.has(cat.categoria);
             return (
               <div
                 key={cat.categoria}
@@ -237,13 +329,16 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
                     <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
                       {cat.formatos}
                     </p>
-                    {conValor && (
-                      <input
-                        className={`mt-1.5 min-h-[36px] ${conValor.ancho} rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10`}
-                        placeholder={conValor.placeholder}
-                        value={leyPromedio}
-                        onChange={(e) => onCambiarLey(e.target.value)}
-                      />
+                    {conLeyes && (
+                      <>
+                        <p className="mt-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Escribe las leyes que indica tu documento:
+                        </p>
+                        <LeyesMineralEditor
+                          valorInicial={leyPromedio}
+                          onCambiar={onCambiarLey}
+                        />
+                      </>
                     )}
                   </div>
                   <button

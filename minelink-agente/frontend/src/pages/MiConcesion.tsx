@@ -9,7 +9,6 @@ import { ResumenInversionRespuestas } from "../components/ResumenInversionRespue
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
-import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
@@ -187,18 +186,6 @@ export function MiConcesion() {
 
           <UrgenciaYReloj urgencia={perfil.urgencia} relojProduccion={perfil.reloj_produccion} />
 
-          <SalidasList
-            salidas={perfil.salidas}
-            onBuscarAyuda={() =>
-              navigate("/empresas", {
-                state: {
-                  region: perfil.region,
-                  estudios: perfil.brechas_pendientes,
-                  operacionId: perfil.operacion_id,
-                },
-              })
-            }
-          />
 
           <DocumentosMinero
             onDocumentosChange={setDocumentos}
