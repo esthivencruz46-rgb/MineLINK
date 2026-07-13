@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { NotificacionesBell } from "../components/NotificacionesBell";
+import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
 import { SalidasList } from "../components/SalidasList";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
@@ -147,6 +148,8 @@ export function MiConcesion() {
         </div>
       )}
 
+      {perfil.inversion_ofrecida && <PasosFormalizacionInversion perfil={perfil} />}
+
       {/* Desktop web: dos columnas (formalización a la izquierda, cuenta +
           inversión a la derecha) — en celular/APK se apilan en una sola,
           la sidebar queda debajo. */}
@@ -269,9 +272,16 @@ export function MiConcesion() {
             </p>
           </div>
 
-          <h2 className="mt-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
-            Inversión
-          </h2>
+          <div className="mt-2">
+            <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+              Inversión
+            </h2>
+            {!perfil.visto_bueno_documentos && perfil.inversion_ofrecida && (
+              <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                Se desbloquea al terminar Formalización
+              </p>
+            )}
+          </div>
           <SeccionInversionista perfil={perfil} onAbrir={() => navigate("/mi-inversion")} />
         </div>
       </div>
