@@ -9,19 +9,20 @@ function etiquetaRespuesta(id: string, valor: string): string {
   return POR_ID_INV[id]?.opciones?.find((o) => o.valor === valor)?.etiqueta ?? valor;
 }
 
-// Respuestas que declaran NO tener algo — no se repiten aquí porque la
-// tarjeta "Lo que te falta" ya las muestra como brecha con su botón de
-// "¿Quién me ayuda?" (espejo de _BRECHA_INV_POR_PREGUNTA del backend).
+// Respuestas que ya se muestran en "Lo que te falta" (como faltante con
+// "¿Quién me ayuda?" o como "En proceso" con solo subir respaldo) — no se
+// repiten aquí (espejo de _BRECHA_INV_POR_PREGUNTA y de los checklists
+// "en_proceso" del backend).
 const RESPUESTAS_NEGATIVAS: Record<string, string[]> = {
   INV_A1: ["ninguna"],
-  INV_B1a: ["no_tengo"],
-  INV_B1b: ["no_tengo"],
-  INV_B1c: ["no_tengo"],
+  INV_B1a: ["no_tengo", "en_proceso"],
+  INV_B1b: ["no_tengo", "en_proceso"],
+  INV_B1c: ["no_tengo", "en_proceso"],
   INV_C3: ["estimacion", "no_sabe"],
   INV_C4: ["estimacion", "no"],
-  INV_D3a: ["no_tengo"],
-  INV_D3b: ["no_tengo"],
-  INV_D3c: ["no_tengo"],
+  INV_D3a: ["no_tengo", "en_proceso"],
+  INV_D3b: ["no_tengo", "en_proceso"],
+  INV_D3c: ["no_tengo", "en_proceso"],
 };
 
 /** Si ya declaró la moneda en el diagnóstico, se fija acá — no puede

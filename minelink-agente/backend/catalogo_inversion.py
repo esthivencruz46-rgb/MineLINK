@@ -220,7 +220,9 @@ _CHECKLIST_ESTUDIO_POR_PREGUNTA: dict[str, str] = {
 }
 
 
-def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[dict]:
+def respaldos_declarados_inversion(
+    perfil: str, respuestas_inv: dict, categorias_con_archivo: frozenset | set = frozenset()
+) -> list[dict]:
     """Espejo de scoring.estudios_aplicables() (formalización) pero para el
     Módulo INV: qué fotos/documentos de respaldo pedir en 'Respalda tu
     inversión' según lo que el minero respondió, no solo los documentos de
@@ -335,6 +337,18 @@ def respaldos_declarados_inversion(perfil: str, respuestas_inv: dict) -> list[di
     for pregunta_id, codigo in _CHECKLIST_ESTUDIO_POR_PREGUNTA.items():
         if respuestas_inv.get(pregunta_id) == "tengo":
             declarados.append({"codigo": codigo, "pregunta_id": pregunta_id, "valor": "tengo"})
+        # "En proceso" recién gana su recuadro cuando el minero YA subió el
+        # archivo (desde "lo que te falta") — antes de eso vive solo ahí,
+        # como pendiente en trámite; después, el archivo se ve y administra
+        # igual que cualquier otro respaldo.
+        elif (
+            respuestas_inv.get(pregunta_id) == "en_proceso"
+            and codigo in categorias_con_archivo
+            and not any(d["codigo"] == codigo for d in declarados)
+        ):
+            declarados.append(
+                {"codigo": codigo, "pregunta_id": pregunta_id, "valor": "en_proceso"}
+            )
 
     return declarados
 

@@ -93,7 +93,7 @@ export function LoQueTeFaltaCard({
           <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
           {enTramite && (
             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              En trámite
+              En proceso
             </span>
           )}
         </p>
@@ -163,23 +163,13 @@ export function LoQueTeFaltaCard({
         </>
       )}
 
-      {brechasInversion.length > 0 && (
+      {(brechasInversion.length > 0 || enProceso.length > 0) && (
         <>
           <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
             Inversión
           </h3>
           <ul className="mt-1 flex flex-col gap-1">
             {brechasInversion.map((b) => itemBrecha(b))}
-          </ul>
-        </>
-      )}
-
-      {enProceso.length > 0 && (
-        <>
-          <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-            En trámite
-          </h3>
-          <ul className="mt-1 flex flex-col gap-1">
             {enProceso.map((b) => itemBrecha(b, true))}
           </ul>
         </>

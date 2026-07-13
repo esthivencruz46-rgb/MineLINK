@@ -194,7 +194,9 @@ def _perfil_out(
         respaldos_declarados_inversion=[
             schemas.EstudioAplicableOut(**d)
             for d in respaldos_declarados_inversion(
-                operacion.estado_formalizacion, operacion.inv_respuestas_json or {}
+                operacion.estado_formalizacion,
+                operacion.inv_respuestas_json or {},
+                {d.categoria for d in (operacion.documentos or [])},
             )
         ],
         # Una brecha de inversión también se auto-completa cuando el minero
