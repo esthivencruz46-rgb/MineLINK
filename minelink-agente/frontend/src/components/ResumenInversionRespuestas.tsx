@@ -6,12 +6,20 @@ function etiquetaRespuesta(id: string, valor: string): string {
   return POR_ID_INV[id]?.opciones?.find((o) => o.valor === valor)?.etiqueta ?? valor;
 }
 
-/** Muestra lo que el minero respondió en el Módulo INV — mismo tratamiento
- *  que "Marcaste: X" en DocumentosMinero.tsx, para que la columna de
- *  Inversión, igual que la de Formalización, recuerde lo declarado justo
- *  al lado de donde se suben los documentos de sustento. Solo aparece una
- *  vez enviado (antes de eso, las respuestas se responden en el modal). */
-export function ResumenInversionRespuestas() {
+interface Props {
+  /** Respuestas que YA tienen su propio slot de foto en "Respalda tu
+   *  inversión" (ver MineroPerfil.respaldos_declarados_inversion) — se
+   *  excluyen de esta lista para no mostrarlas dos veces: quedan junto al
+   *  slot de subida, con su "Marcaste: X" ahí en vez de aquí. */
+  declarados: { pregunta_id: string; valor: string }[];
+}
+
+/** Muestra lo que el minero respondió en el Módulo INV, salvo lo que ya se
+ *  muestra al costado del slot de subida correspondiente en "Respalda tu
+ *  inversión" — evita repetir la misma respuesta en dos tarjetas. Solo
+ *  aparece una vez enviado (antes de eso, las respuestas se responden en
+ *  el modal). */
+export function ResumenInversionRespuestas({ declarados }: Props) {
   const { authFetch } = useMineroAuth();
   const [respuestas, setRespuestas] = useState<RespuestasInversion | null>(null);
 
@@ -22,7 +30,20 @@ export function ResumenInversionRespuestas() {
       .catch(() => {});
   }, [authFetch]);
 
-  const entradas = Object.entries(respuestas ?? {});
+  const cubiertos = new Set(declarados.map((d) => `${d.pregunta_id}:${d.valor}`));
+
+  const entradas = Object.entries(respuestas ?? {})
+    .map(([id, valor]): [string, string | string[]] => {
+      if (Array.isArray(valor)) {
+        return [id, valor.filter((v) => !cubiertos.has(`${id}:${v}`))];
+      }
+      return [id, valor];
+    })
+    .filter(([id, valor]) => {
+      if (Array.isArray(valor)) return valor.length > 0;
+      return !cubiertos.has(`${id}:${valor}`);
+    });
+
   if (entradas.length === 0) return null;
 
   return (

@@ -297,7 +297,9 @@ export function MiConcesion() {
               onCerrar={() => setMostrarInversion(false)}
             />
           )}
-          {perfil.inv_enviado && <ResumenInversionRespuestas />}
+          {perfil.inv_enviado && (
+            <ResumenInversionRespuestas declarados={perfil.respaldos_declarados_inversion} />
+          )}
           <DocumentosInversionSustento
             categorias={perfil.categorias_requeridas_inversion}
             declarados={perfil.respaldos_declarados_inversion}
