@@ -9,7 +9,10 @@ import type { MineroPerfil } from "../types/minero";
 export function BrechasInversionCard({ perfil }: { perfil: MineroPerfil }) {
   const navigate = useNavigate();
 
-  if (perfil.brechas_inversion.length === 0) return null;
+  // `?? []`: si el backend desplegado aún no expone este campo (deploy a
+  // medias), la cuenta no debe reventar — simplemente no se muestra.
+  const brechas = perfil.brechas_inversion ?? [];
+  if (brechas.length === 0) return null;
 
   return (
     <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
@@ -19,7 +22,7 @@ export function BrechasInversionCard({ perfil }: { perfil: MineroPerfil }) {
         ayudarte.
       </p>
       <ul className="mt-2 flex flex-col gap-1">
-        {perfil.brechas_inversion.map((b) => (
+        {brechas.map((b) => (
           <li key={b}>
             <button
               onClick={() =>
