@@ -654,7 +654,10 @@ def test_scores_por_track_suben_con_el_avance():
 
     me = client.get("/mineros/me", headers=headers).json()
     score_inicial = me["score_formalizacion"]
-    assert isinstance(score_inicial, int) and 0 <= score_inicial <= 100
+    # La etapa manda: un perfil B (concesionario sin operar) vive en el
+    # rango 30-55 — ni con su etapa impecable alcanza a un formal pleno
+    # (80-100). Ver RANGO_SCORE_POR_PERFIL.
+    assert isinstance(score_inicial, int) and 30 <= score_inicial <= 55
     assert me["brechas_pendientes"], "el fixture debe tener brechas"
 
     # Resolver una brecha con respaldo debe SUBIR el score de formalización

@@ -517,8 +517,18 @@ def categorias_requeridas_out(operacion, categorias: list[str]) -> list[dict]:
 # resumen. Derivados SOLO de datos reales; pesos PENDIENTES DE CALIBRAR.
 # ---------------------------------------------------------------------
 
-# Score de Formalización: avance del checklist (60) + semáforo legal (25)
-# + evidencia subida (15).
+# Score de Formalización: la ETAPA del pipeline define el rango (un
+# formal pleno D siempre puntúa por encima de un concesionario B, aunque
+# el B tenga su etapa impecable — el score compara niveles ABSOLUTOS de
+# formalización, no esfuerzo relativo) y el avance interno (checklist 60%
+# + semáforo 25% + evidencia 15%) mueve el puntaje dentro de ese rango.
+RANGO_SCORE_POR_PERFIL: dict[str, tuple[int, int]] = {
+    "A": (0, 15),            # desde cero, aún sin concesión
+    "A_avanzado": (15, 30),  # petitorio en trámite
+    "B": (30, 55),           # concesión titulada, sin operar
+    "C": (55, 80),           # opera con REINFO, formalizándose
+    "D": (80, 100),          # formal pleno
+}
 PUNTOS_AVANCE_FORMALIZACION = 60
 PUNTOS_SEMAFORO_LEGAL = {"verde": 25, "amarillo": 12, "rojo": 0}
 PUNTOS_EVIDENCIA_FORMALIZACION = 15
@@ -535,29 +545,32 @@ CASTIGO_BRECHA_EN_PROCESO = 4
 
 
 def score_formalizacion(operacion) -> int | None:
-    """Score 0-100 del track de formalización: cuánto del camino legal ya
-    recorrió y respaldó. None para diagnósticos del modelo anterior (sin
-    perfil con que calcular)."""
+    """Score 0-100 del track de formalización: la etapa del pipeline
+    define el rango y el avance interno lo mueve dentro de él (ver
+    RANGO_SCORE_POR_PERFIL). None para diagnósticos del modelo anterior
+    (sin perfil con que calcular)."""
     seguimiento = estado_seguimiento(operacion)
-    if seguimiento.get("perfil") is None:
+    perfil = seguimiento.get("perfil")
+    if perfil is None or perfil not in RANGO_SCORE_POR_PERFIL:
         return None
 
     total = len(operacion.brechas_json or [])
     pendientes = len(seguimiento.get("brechas_pendientes") or [])
     avance = 1.0 if total == 0 else (total - pendientes) / total
-    puntos = PUNTOS_AVANCE_FORMALIZACION * avance
+    interno = PUNTOS_AVANCE_FORMALIZACION * avance
 
-    puntos += PUNTOS_SEMAFORO_LEGAL.get(seguimiento.get("semaforo_legal") or "", 0)
+    interno += PUNTOS_SEMAFORO_LEGAL.get(seguimiento.get("semaforo_legal") or "", 0)
 
     aplicables = estudios_aplicables(operacion)
     subidas = {d.categoria for d in (operacion.documentos or [])}
     if aplicables:
         con_respaldo = sum(1 for e in aplicables if e["codigo"] in subidas)
-        puntos += PUNTOS_EVIDENCIA_FORMALIZACION * con_respaldo / len(aplicables)
+        interno += PUNTOS_EVIDENCIA_FORMALIZACION * con_respaldo / len(aplicables)
     elif operacion.documentos_enviados_en is not None:
-        puntos += PUNTOS_EVIDENCIA_FORMALIZACION
+        interno += PUNTOS_EVIDENCIA_FORMALIZACION
 
-    return round(min(100.0, puntos))
+    minimo, maximo = RANGO_SCORE_POR_PERFIL[perfil]
+    return round(minimo + (maximo - minimo) * min(100.0, interno) / 100.0)
 
 
 def score_inversion(operacion, lead=None) -> int | None:
