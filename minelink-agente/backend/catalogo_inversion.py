@@ -36,6 +36,23 @@ PREGUNTAS_INV: dict[str, tuple] = {
     "INV_0_6": ("opcion", ("negociando", "sin_exito", "nunca")),
     # Solo aparece si INV_0_6 == "negociando" (ver ids_esperados_inversion)
     "INV_0_7": ("opcion", ("si", "no", "no_se")),
+    # Terreno superficial (julio 2026): la causa #1 de proyectos parados en
+    # el Perú — con acuerdo firmado pide el documento como respaldo; sin
+    # acuerdo es brecha (acreditacion_terreno, estudio ya existente).
+    "INV_0_8": (
+        "opcion",
+        ("propio", "comunidad_acuerdo", "privado_acuerdo", "sin_acuerdo", "no_se"),
+    ),
+    # Estructura legal: define QUÉ compraría el inversionista.
+    "INV_0_9": ("opcion", ("persona_natural", "empresa", "cooperativa", "sin_formalizar")),
+    # Porcentaje máximo dispuesto a ceder: filtra expectativas incompatibles.
+    "INV_0_10": ("opcion", ("menos_20", "20_40", "hasta_50", "mas_50", "negociar")),
+    # Deudas/compromisos previos: un adelanto de comprador es un pasivo
+    # oculto que mata acuerdos tarde — mejor declararlo temprano.
+    "INV_0_11": (
+        "opcion",
+        ("sin_deudas", "deuda_bancaria", "adelantos_compradores", "otras", "prefiero_no_decir"),
+    ),
 
     # ---------- INV_A: perfil A y A_avanzado ----------
     "INV_A1": ("opcion", ("muestreo_propio", "mineria_vecina", "info_publica", "ninguna")),
@@ -90,7 +107,18 @@ def ids_esperados_inversion(perfil: str, respuestas_inv: dict) -> set[str]:
     las propias respuestas que se están validando."""
     if perfil not in _IDS_PERFIL:
         return set()
-    ids = {"INV_0_1", "INV_0_2", "INV_0_3", "INV_0_4", "INV_0_5", "INV_0_6"}
+    ids = {
+        "INV_0_1",
+        "INV_0_2",
+        "INV_0_3",
+        "INV_0_4",
+        "INV_0_5",
+        "INV_0_6",
+        "INV_0_8",
+        "INV_0_9",
+        "INV_0_10",
+        "INV_0_11",
+    }
     if respuestas_inv.get("INV_0_6") == "negociando":
         ids.add("INV_0_7")
     ids.update(_IDS_PERFIL[perfil])
@@ -247,6 +275,17 @@ def respaldos_declarados_inversion(
     # fotografía. "operacion" (en marcha) tampoco: sus fotos ya son las
     # "fotos de la mina" de la columna de formalización, pedirlas de nuevo
     # aquí duplicaría el mismo álbum.
+    # INV_0_8: acuerdo firmado por el terreno superficial → que lo muestre
+    # (reutiliza el estudio acreditacion_terreno del catálogo).
+    if respuestas_inv.get("INV_0_8") in ("comunidad_acuerdo", "privado_acuerdo"):
+        declarados.append(
+            {
+                "codigo": "acreditacion_terreno",
+                "pregunta_id": "INV_0_8",
+                "valor": respuestas_inv["INV_0_8"],
+            }
+        )
+
     aportes = respuestas_inv.get("INV_0_4")
     if isinstance(aportes, list):
         if "concesion" in aportes:
@@ -364,6 +403,7 @@ def respaldos_declarados_inversion(
 # diagnóstico de formalización, para que la cuenta muestre "lo que te
 # falta" también en inversión, con el mismo match brecha→empresa.
 _BRECHA_INV_POR_PREGUNTA: dict[str, tuple[tuple[str, ...], str]] = {
+    "INV_0_8": (("sin_acuerdo", "no_se"), "acreditacion_terreno"),
     "INV_A1": (("ninguna",), "informe_geologico"),
     "INV_B1a": (("no_tengo",), "informe_geologico"),
     "INV_B1b": (("no_tengo",), "analisis_laboratorio"),
@@ -431,6 +471,14 @@ def alertas_inversion(perfil: str, respuestas_diagnostico: dict, respuestas_inv:
         alertas.append({"codigo": "AL7", "texto": "Posible conflicto de exclusividad: no publicar en marketplace hasta aclarar."})
     if ri("INV_C1") == "acopiador" and ri("INV_C3") == "lab_certificado":
         alertas.append({"codigo": "AL8", "texto": "Combinación atípica (vende a acopiador pero dice tener certificado de laboratorio): verificar el certificado subido."})
+    if ri("INV_0_11") == "adelantos_compradores":
+        alertas.append({
+            "codigo": "AL10",
+            "texto": (
+                "Declara adelantos de compradores: parte de su producción futura puede "
+                "estar comprometida — aclarar el alcance antes de presentar inversionistas."
+            ),
+        })
     if r("C3_1") == "se_niega" and respuestas_inv:
         alertas.append({
             "codigo": "AL9",

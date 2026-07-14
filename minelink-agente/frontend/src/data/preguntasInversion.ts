@@ -115,6 +115,57 @@ export const MODULO_INV_0: PreguntaInv[] = [
     ],
     mostrarSi: (r) => r.INV_0_6 === "negociando",
   },
+  {
+    id: "INV_0_8",
+    tipo: "opcion",
+    texto: "¿Quién es dueño del terreno donde está (o estará) tu labor?",
+    ayuda:
+      "El terreno superficial es distinto de la concesión: el conflicto con su dueño es la causa más común de proyectos parados.",
+    opciones: [
+      { valor: "propio", etiqueta: "Yo mismo" },
+      { valor: "comunidad_acuerdo", etiqueta: "La comunidad, con acuerdo firmado" },
+      { valor: "privado_acuerdo", etiqueta: "Un privado, con acuerdo firmado" },
+      { valor: "sin_acuerdo", etiqueta: "La comunidad o un privado, sin acuerdo todavía" },
+      { valor: "no_se", etiqueta: "No sé" },
+    ],
+  },
+  {
+    id: "INV_0_9",
+    tipo: "opcion",
+    texto: "¿Qué estructura legal tiene tu operación?",
+    opciones: [
+      { valor: "persona_natural", etiqueta: "Persona natural (a mi nombre)" },
+      { valor: "empresa", etiqueta: "Empresa (SAC, EIRL, SRL...)" },
+      { valor: "cooperativa", etiqueta: "Cooperativa o asociación" },
+      { valor: "sin_formalizar", etiqueta: "Sin estructura todavía" },
+    ],
+  },
+  {
+    id: "INV_0_10",
+    tipo: "opcion",
+    texto: "¿Qué porcentaje máximo de tu operación estarías dispuesto a ceder?",
+    opciones: [
+      { valor: "menos_20", etiqueta: "Menos del 20%" },
+      { valor: "20_40", etiqueta: "Entre 20% y 40%" },
+      { valor: "hasta_50", etiqueta: "Hasta 50%" },
+      { valor: "mas_50", etiqueta: "Más del 50%" },
+      { valor: "negociar", etiqueta: "Prefiero negociarlo" },
+    ],
+  },
+  {
+    id: "INV_0_11",
+    tipo: "opcion",
+    texto: "¿Tienes deudas o compromisos previos sobre la operación?",
+    ayuda:
+      "Declararlo temprano genera confianza — un compromiso que aparece tarde suele matar el acuerdo.",
+    opciones: [
+      { valor: "sin_deudas", etiqueta: "Sin deudas" },
+      { valor: "deuda_bancaria", etiqueta: "Deuda bancaria" },
+      { valor: "adelantos_compradores", etiqueta: "Adelantos de compradores de mineral" },
+      { valor: "otras", etiqueta: "Otras deudas" },
+      { valor: "prefiero_no_decir", etiqueta: "Prefiero no decirlo" },
+    ],
+  },
 ];
 
 // -------------------------------------------------------------------

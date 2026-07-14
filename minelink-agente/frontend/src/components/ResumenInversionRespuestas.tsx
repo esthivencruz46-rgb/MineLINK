@@ -14,6 +14,7 @@ function etiquetaRespuesta(id: string, valor: string): string {
 // repiten aquí (espejo de _BRECHA_INV_POR_PREGUNTA y de los checklists
 // "en_proceso" del backend).
 const RESPUESTAS_NEGATIVAS: Record<string, string[]> = {
+  INV_0_8: ["sin_acuerdo", "no_se"],
   INV_A1: ["ninguna"],
   INV_B1a: ["no_tengo", "en_proceso"],
   INV_B1b: ["no_tengo", "en_proceso"],

@@ -67,6 +67,24 @@ interface Props {
 // Operacion.ley_promedio (ej. "Au: 2.5 g/TN · Cu: 1.2 %").
 const CATEGORIAS_CON_LEYES = new Set(["certificado_ley", "analisis_laboratorio"]);
 
+// Slots con un dato corto declarado al costado del archivo — se guardan
+// por categoría en Operacion.datos_formalizacion_json (fusión por clave,
+// mismo mecanismo que las fechas de formalización).
+const DATO_POR_CATEGORIA: Record<string, { etiqueta: string; placeholder: string }> = {
+  registro_opex: {
+    etiqueta: "Costo aproximado por tonelada (S/ por TN):",
+    placeholder: "Ej: 120",
+  },
+  fotos_equipo_maquinaria: {
+    etiqueta: "¿Qué máquinas tienes?",
+    placeholder: "Ej: compresora, 2 perforadoras, winche",
+  },
+  fotos_trabajadores: {
+    etiqueta: "¿Cuántos trabajadores son?",
+    placeholder: "Ej: 8",
+  },
+};
+
 const UNIDADES_LEY = ["g/TN", "%", "oz/TN", "g/m³"];
 
 interface FilaLey {
@@ -322,6 +340,26 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
     guardarCampo("ley_promedio", valor);
   }
 
+  const [datos, setDatos] = useState<Record<string, string>>(
+    perfil.datos_formalizacion ?? {}
+  );
+
+  /** Dato corto por categoría (OPEX, máquinas, trabajadores) — se guarda
+   *  en datos_formalizacion (fusión por clave) con pausa corta. */
+  function guardarDato(categoria: string, valor: string) {
+    setDatos((d) => ({ ...d, [categoria]: valor }));
+    const clave = `dato:${categoria}`;
+    if (debouncesRef.current[clave]) clearTimeout(debouncesRef.current[clave]);
+    debouncesRef.current[clave] = setTimeout(async () => {
+      const resp = await authFetch("/mineros/perfil-inversion", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ datos_formalizacion: { [categoria]: valor } }),
+      });
+      if (resp.ok) onGuardado(await resp.json());
+    }, 800);
+  }
+
   useEffect(() => {
     authFetch("/mineros/documentos")
       .then((r) => (r.ok ? r.json() : []))
@@ -487,6 +525,19 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
                             setToneladasEstimadas(v);
                             guardarCampo("toneladas_estimadas", v);
                           }}
+                        />
+                      </>
+                    )}
+                    {DATO_POR_CATEGORIA[cat.categoria] && (
+                      <>
+                        <p className="mt-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                          {DATO_POR_CATEGORIA[cat.categoria].etiqueta}
+                        </p>
+                        <input
+                          className="mt-0.5 min-h-[36px] w-full max-w-xs rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+                          placeholder={DATO_POR_CATEGORIA[cat.categoria].placeholder}
+                          value={datos[cat.categoria] ?? ""}
+                          onChange={(e) => guardarDato(cat.categoria, e.target.value)}
                         />
                       </>
                     )}
