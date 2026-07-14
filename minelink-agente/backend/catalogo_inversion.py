@@ -114,13 +114,17 @@ def ids_esperados_inversion(perfil: str, respuestas_inv: dict) -> set[str]:
         "INV_0_4",
         "INV_0_5",
         "INV_0_6",
-        "INV_0_8",
         "INV_0_9",
         "INV_0_10",
         "INV_0_11",
     }
     if respuestas_inv.get("INV_0_6") == "negociando":
         ids.add("INV_0_7")
+    # INV_0_8 (terreno superficial) SOLO para perfil D: A/B ya lo responden
+    # en su diagnóstico (A3_1/A3_2, B1_4/B1_5) y C declara su constancia de
+    # terreno en C2_2 — repetirlo sería preguntar dos veces lo mismo.
+    if perfil == "D":
+        ids.add("INV_0_8")
     ids.update(_IDS_PERFIL[perfil])
     return ids
 

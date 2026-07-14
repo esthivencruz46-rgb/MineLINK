@@ -116,6 +116,9 @@ export const MODULO_INV_0: PreguntaInv[] = [
     mostrarSi: (r) => r.INV_0_6 === "negociando",
   },
   {
+    // SOLO perfil D: A/B ya responden el terreno en su diagnóstico
+    // (A3_1/A3_2, B1_4/B1_5) y C declara su constancia en C2_2 — ver
+    // preguntasVisiblesInversion, que la filtra por perfil.
     id: "INV_0_8",
     tipo: "opcion",
     texto: "¿Quién es dueño del terreno donde está (o estará) tu labor?",
@@ -385,7 +388,12 @@ export function preguntasVisiblesInversion(
   respuestas: RespuestasInversion
 ): PreguntaInv[] {
   const bloque = perfil ? (BLOQUE_INV_POR_PERFIL[perfil] ?? []) : [];
-  return [...MODULO_INV_0, ...bloque].filter((p) => !p.mostrarSi || p.mostrarSi(respuestas));
+  return [...MODULO_INV_0, ...bloque].filter((p) => {
+    // INV_0_8 (terreno superficial) solo para perfil D — los demás ya lo
+    // respondieron en su diagnóstico (espejo de ids_esperados_inversion).
+    if (p.id === "INV_0_8" && perfil !== "D") return false;
+    return !p.mostrarSi || p.mostrarSi(respuestas);
+  });
 }
 
 /** Etiquetas de las categorías de documento de sustento del Módulo INV que
