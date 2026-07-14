@@ -1420,6 +1420,7 @@ def test_inversion_bloqueada_si_titular_se_niega_a_firmar_contrato():
             "C3_1": "se_niega",
         }
     )
+    respuestas_contrato_se_niega.pop("C2_3")  # no aplica a contrato
     operacion_id, headers, admin_headers = _minero_con_visto_bueno(
         "invriesgolegal", respuestas_contrato_se_niega
     )
@@ -2910,6 +2911,7 @@ def test_mineros_me_expone_es_titular_concesion():
     respuestas_contrato["C1_3"] = "contrato"
     respuestas_contrato["C2_7"] = "aprobado"
     respuestas_contrato["C3_1"] = "firmado_inscrito"
+    respuestas_contrato.pop("C2_3")  # no aplica a contrato
     diag = client.post(
         "/diagnostico",
         json={

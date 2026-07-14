@@ -454,7 +454,7 @@ export const MODULO_C: PreguntaCatalogo[] = [
   {
     id: "C2_3",
     tipo: "estado_doc",
-    texto: "¿Cómo está tu titularidad/cesión/contrato en SUNARP?",
+    texto: "¿Cómo está la inscripción de tu titularidad en SUNARP?",
     ayuda:
       "Es el documento que dice quién es el dueño legal de la concesión, registrado en la SUNARP.",
     opciones: [
@@ -830,7 +830,12 @@ export function idsAplicables(respuestas: Record<string, string>): Set<string> {
     // C2_7 (declaración de producción semestral) no aplica al titular de
     // su propia concesión — exceptuado por ley (Art. 7c, D.S. N°001-2020-EM).
     if (respuestas.C1_3 !== "titular") ids.add("C2_7");
-    if (respuestas.C1_3 === "contrato") ids.add("C3_1");
+    // Quien opera por contrato no ve C2_3: C3_1 ya pregunta firma e
+    // inscripción del contrato — sería preguntar lo mismo dos veces.
+    if (respuestas.C1_3 === "contrato") {
+      ids.add("C3_1");
+      ids.delete("C2_3");
+    }
     ids.add("C4_1");
     ids.add("C4_2");
     return ids;

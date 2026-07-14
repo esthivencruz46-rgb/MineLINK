@@ -36,11 +36,14 @@ IDS_DOCS_C2 = tuple(f"C2_{n}" for n in range(1, 8))
 
 def _ids_docs_c2_aplicables(respuestas: dict[str, str]) -> tuple[str, ...]:
     """C2_7 (declaración de producción semestral) no aplica al titular de
-    su propia concesión (exceptuado por ley) — se excluye del checklist
-    para que no cuente como pendiente eternamente (ver
-    catalogo_diagnostico.ids_esperados)."""
+    su propia concesión (exceptuado por ley), y C2_3 (contrato en SUNARP)
+    no aplica a quien opera por contrato — su C3_1 ya pregunta firma e
+    inscripción (ver catalogo_diagnostico.ids_esperados). Se excluyen del
+    checklist para que no cuenten como pendientes eternamente."""
     if respuestas.get("C1_3") == "titular":
         return tuple(i for i in IDS_DOCS_C2 if i != "C2_7")
+    if respuestas.get("C1_3") == "contrato":
+        return tuple(i for i in IDS_DOCS_C2 if i != "C2_3")
     return IDS_DOCS_C2
 
 # Etiquetas legibles de los bloqueantes (para "Primero resolvamos X")

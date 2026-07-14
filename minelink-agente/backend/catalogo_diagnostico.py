@@ -254,8 +254,13 @@ def ids_esperados(respuestas: dict[str, str], hoy: date | None = None) -> set[st
             ids.add("C2_7")
         # C3 solo si opera en concesión ajena (por contrato/cesión); el
         # titular de su propia concesión no necesita contrato consigo mismo.
+        # En ese caso C2_3 ("tu contrato en SUNARP") se OMITE: C3_1 ya
+        # pregunta firma E inscripción del contrato — preguntarlo dos veces
+        # confundía (julio 2026). Para el titular, C2_3 sigue (su
+        # titularidad en SUNARP, que C3_1 no cubre porque no se le hace).
         if respuestas.get("C1_3") == "contrato":
             ids.add("C3_1")
+            ids.discard("C2_3")
         ids.update({"C4_1", "C4_2"})
         return ids
 

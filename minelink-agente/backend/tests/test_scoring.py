@@ -84,7 +84,9 @@ def _perfil_c_contrato(overrides: dict[str, str] | None = None) -> dict[str, str
     base = {
         "M0_1": "concesion_propia", "M0_3": "reinfo", "M0_4": "vigente",
         "C1_1": "vigente", "C1_2": "si", "C1_3": "contrato",
-        "C2_1": "aprobado", "C2_2": "aprobado", "C2_3": "aprobado",
+        # C2_3 no aplica a quien opera por contrato — C3_1 ya cubre firma
+        # e inscripción (julio 2026).
+        "C2_1": "aprobado", "C2_2": "aprobado",
         "C2_4": "aprobado", "C2_5": "aprobado", "C2_6": "aprobado", "C2_7": "aprobado",
         "C3_1": "firmado_inscrito",
         "C4_1": "50_100t", "C4_2": "siempre",
