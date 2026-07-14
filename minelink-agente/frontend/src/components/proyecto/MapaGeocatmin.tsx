@@ -42,6 +42,11 @@ export function MapaGeocatmin({
       { maxZoom: 19, attribution: "Esri, Maxar" }
     ).addTo(mapa);
 
+    // Pila visual definida por el dueño (julio 2026): satélite al fondo →
+    // geología encima con 60% de transparencia (opacity 0.4) → el polígono
+    // de la concesión solo con su borde. El catastro completo (todas las
+    // concesiones vecinas, con etiquetas) queda disponible en el control
+    // de capas, apagado por defecto.
     // f: "image" es OBLIGATORIO con GEOCATMIN: su servidor no envía
     // cabeceras CORS (verificado julio 2026), así que el modo por defecto
     // de esri-leaflet (XHR f=json) sería bloqueado por el navegador. En
@@ -52,15 +57,14 @@ export function MapaGeocatmin({
       opacity: 0.8,
       f: "image",
       attribution: "GEOCATMIN · INGEMMET",
-    }).addTo(mapa);
+    });
 
-    // Geología SIEMPRE visible por defecto (pedido del dueño, julio 2026);
-    // desde el control se puede apagar para ver el terreno limpio.
     const geologia = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer`,
       layers: [6],
-      opacity: 0.45,
+      opacity: 0.4,
       f: "image",
+      attribution: "GEOCATMIN · INGEMMET",
     }).addTo(mapa);
 
     L.control
@@ -78,12 +82,12 @@ export function MapaGeocatmin({
       const anillos = poligonoConcesion.map((anillo) =>
         anillo.map(([x, y]) => [y, x] as [number, number])
       );
+      // Solo el borde de color, sin relleno — la geología de abajo se ve
+      // completa dentro de la concesión.
       const poligono = L.polygon(anillos, {
         color: "#10b981",
         weight: 3,
-        fillColor: "#10b981",
-        fillOpacity: 0.12,
-        dashArray: "6 4",
+        fill: false,
       }).addTo(mapa);
       poligono.bindTooltip("Concesión del proyecto", { sticky: true });
       mapa.fitBounds(poligono.getBounds().pad(0.15));
