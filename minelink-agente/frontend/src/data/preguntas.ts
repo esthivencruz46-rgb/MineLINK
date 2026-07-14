@@ -425,6 +425,36 @@ export const MODULO_C: PreguntaCatalogo[] = [
       { valor: "contrato", etiqueta: "La opero por contrato/cesión" },
     ],
   },
+  // Bloque "no soy titular" (solo C1_3=contrato): contrato con el titular
+  // + declaración semestral, encadenados justo después de la pregunta que
+  // los activa — no al final del checklist (julio 2026).
+  {
+    id: "C3_1",
+    tipo: "opcion",
+    texto: "¿Cómo está el contrato con el titular de la concesión?",
+    ayuda:
+      "Si trabajas en una concesión que no es tuya, necesitas un contrato con el titular. Si es tu propia concesión, esta pregunta no aplica.",
+    opciones: [
+      { valor: "firmado_inscrito", etiqueta: "Firmado e inscrito en SUNARP" },
+      { valor: "firmado_sin_inscribir", etiqueta: "Firmado pero no inscrito" },
+      { valor: "en_negociacion", etiqueta: "Estamos negociando" },
+      { valor: "se_niega", etiqueta: "El titular se niega" },
+      { valor: "no_he_hablado", etiqueta: "No he hablado con el titular" },
+    ],
+  },
+  {
+    id: "C2_7",
+    tipo: "estado_doc",
+    texto: "¿Cómo está tu declaración de producción semestral?",
+    ayuda:
+      "Cada 6 meses debes reportar cuánto mineral produjiste. Es obligatorio para mantener tu REINFO activo.",
+    opciones: [
+      { valor: "aprobado", etiqueta: "Aprobado" },
+      { valor: "presentado", etiqueta: "Presentado (en evaluación)" },
+      { valor: "no_iniciado", etiqueta: "No iniciado" },
+      { valor: "no_se", etiqueta: "No sé" },
+    ],
+  },
   {
     id: "C2_1",
     tipo: "estado_doc",
@@ -501,33 +531,6 @@ export const MODULO_C: PreguntaCatalogo[] = [
       { valor: "presentado", etiqueta: "Presentado (en evaluación)" },
       { valor: "no_iniciado", etiqueta: "No iniciado" },
       { valor: "no_se", etiqueta: "No sé" },
-    ],
-  },
-  {
-    id: "C2_7",
-    tipo: "estado_doc",
-    texto: "¿Cómo está tu declaración de producción semestral?",
-    ayuda:
-      "Cada 6 meses debes reportar cuánto mineral produjiste. Es obligatorio para mantener tu REINFO activo.",
-    opciones: [
-      { valor: "aprobado", etiqueta: "Aprobado" },
-      { valor: "presentado", etiqueta: "Presentado (en evaluación)" },
-      { valor: "no_iniciado", etiqueta: "No iniciado" },
-      { valor: "no_se", etiqueta: "No sé" },
-    ],
-  },
-  {
-    id: "C3_1",
-    tipo: "opcion",
-    texto: "¿Cómo está el contrato con el titular de la concesión?",
-    ayuda:
-      "Si trabajas en una concesión que no es tuya, necesitas un contrato con el titular. Si es tu propia concesión, esta pregunta no aplica.",
-    opciones: [
-      { valor: "firmado_inscrito", etiqueta: "Firmado e inscrito en SUNARP" },
-      { valor: "firmado_sin_inscribir", etiqueta: "Firmado pero no inscrito" },
-      { valor: "en_negociacion", etiqueta: "Estamos negociando" },
-      { valor: "se_niega", etiqueta: "El titular se niega" },
-      { valor: "no_he_hablado", etiqueta: "No he hablado con el titular" },
     ],
   },
   {
