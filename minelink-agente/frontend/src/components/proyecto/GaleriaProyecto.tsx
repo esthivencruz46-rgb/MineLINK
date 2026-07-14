@@ -1,17 +1,22 @@
 import { useState } from "react";
+import { BadgeCheck } from "lucide-react";
 import { BASE_URL } from "../../services/api";
-import type { FotoPublica } from "../../types/proyecto";
+import type { FotoPublica, GeocatminInfo } from "../../types/proyecto";
 
-/** Mosaico superior de la ficha (julio 2026): la parte ANCHA es la
- * ubicación en vista satelital y las celdas del costado son las fotos del
- * proyecto (mina, minerales...). Sin ubicación, las fotos ocupan todo el
- * rectángulo (layout anterior); sin nada, un placeholder compacto. */
+/** Mosaico superior de la ficha (julio 2026): a la izquierda el bloque de
+ * UBICACIÓN — mapa satelital vertical con el panel GEOCATMIN (concesión
+ * del catastro minero + geología) pegado debajo, un solo bloque visual —
+ * y a la derecha 2 fotos grandes del proyecto (mina, mineral...) que
+ * llenan exactamente la misma altura. Sin ubicación, las fotos ocupan
+ * todo el rectángulo; sin nada, un placeholder compacto. */
 export function GaleriaProyecto({
   fotos,
   ubicacionCoords,
+  geocatmin,
 }: {
   fotos: FotoPublica[];
   ubicacionCoords?: string | null;
+  geocatmin?: GeocatminInfo | null;
 }) {
   const [indiceAbierto, setIndiceAbierto] = useState<number | null>(null);
 
@@ -23,11 +28,41 @@ export function GaleriaProyecto({
     );
   }
 
-  // Rectángulo alto y angosto (julio 2026, pedido del dueño): el doble de
-  // alto y la mitad de ancho que la versión anterior — las fotos ocupan el
-  // resto en una cuadrícula 2×2 de la misma altura total.
+  const concesion = geocatmin?.concesion;
+  const geologia = geocatmin?.geologia;
+  // Resumen GEOCATMIN dentro del propio bloque de ubicación — el dato
+  // oficial al lado del mapa, no perdido más abajo. El detalle completo
+  // (titular, código, disclaimer) sigue en "Cotejo con registros públicos".
+  const panelGeocatmin =
+    geocatmin && (concesion || geologia) ? (
+      <div className="rounded-xl bg-tarjeta p-3 shadow-sm dark:bg-tarjeta-dark">
+        {concesion ? (
+          <p className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+            <BadgeCheck size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden />
+            <span>
+              Concesión {concesion.nombre}
+              {concesion.leyenda ? ` · ${concesion.leyenda.toLowerCase()}` : ""}
+              {concesion.hectareas != null ? ` · ${Math.round(concesion.hectareas)} ha` : ""}
+            </span>
+          </p>
+        ) : (
+          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+            Pin fuera de una concesión registrada (referencial)
+          </p>
+        )}
+        {geologia?.unidad && (
+          <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+            Geología: {geologia.unidad}
+          </p>
+        )}
+        <p className="mt-1 text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+          GEOCATMIN · INGEMMET
+        </p>
+      </div>
+    ) : null;
+
   const mapa = ubicacionCoords ? (
-    <div className="h-full min-h-64 overflow-hidden rounded-lg shadow-sm md:min-h-[48rem]">
+    <div className="h-64 overflow-hidden rounded-xl shadow-sm md:min-h-0 md:h-auto md:flex-1">
       <iframe
         title="Ubicación del proyecto (vista satelital)"
         src={`https://maps.google.com/maps?q=${ubicacionCoords}&z=15&t=k&output=embed`}
@@ -39,38 +74,43 @@ export function GaleriaProyecto({
     </div>
   ) : null;
 
+  const bloqueUbicacion = mapa ? (
+    <div className="flex flex-col gap-3 md:h-full">
+      {mapa}
+      {panelGeocatmin}
+    </div>
+  ) : null;
+
   const miniatura = (foto: FotoPublica, indice: number, alto: string) => (
     <button
       key={foto.id}
       onClick={() => setIndiceAbierto(indice)}
-      className="group overflow-hidden rounded-lg shadow-sm transition duration-200"
+      className={`group overflow-hidden rounded-xl shadow-sm transition duration-200 ${alto}`}
     >
       <img
         src={`${BASE_URL}${foto.url}`}
         alt="Foto del proyecto"
         loading="lazy"
-        className={`${alto} w-full object-cover transition duration-200 group-hover:scale-105`}
+        className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
       />
     </button>
   );
 
   return (
     <>
-      {mapa ? (
-        // Rectángulo con la ubicación en la parte ancha + fotos al costado.
+      {bloqueUbicacion ? (
         fotos.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[35fr_65fr]">
-            {mapa}
-            {/* 2 fotos grandes apiladas (mina, mineral...), cada una la
-                mitad de la altura del mapa. */}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-              {fotos
-                .slice(0, 2)
-                .map((foto, i) => miniatura(foto, i, "h-32 md:h-[23.6rem]"))}
+          // Alto fijo compartido (md:h-[30rem]): el bloque de ubicación
+          // (mapa vertical + panel GEOCATMIN) y las 2 fotos apiladas
+          // terminan exactamente en la misma línea.
+          <div className="grid grid-cols-1 gap-3 md:h-[30rem] md:grid-cols-[2fr_3fr]">
+            {bloqueUbicacion}
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:grid-rows-2">
+              {fotos.slice(0, 2).map((foto, i) => miniatura(foto, i, "h-32 md:h-full"))}
             </div>
           </div>
         ) : (
-          mapa
+          <div className="md:h-[30rem]">{bloqueUbicacion}</div>
         )
       ) : (
         // Sin ubicación: las fotos ocupan todo el rectángulo.

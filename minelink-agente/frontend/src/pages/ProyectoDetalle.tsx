@@ -330,7 +330,11 @@ export function ProyectoDetalle() {
           del proyecto al costado (la tarjeta "Ubicación" aparte se
           eliminó — vivía abajo y dejaba este espacio a medio usar). */}
       <div className="mt-6">
-        <GaleriaProyecto fotos={proyecto.fotos} ubicacionCoords={proyecto.ubicacion_coords} />
+        <GaleriaProyecto
+          fotos={proyecto.fotos}
+          ubicacionCoords={proyecto.ubicacion_coords}
+          geocatmin={proyecto.geocatmin}
+        />
       </div>
 
       {/* LAYOUT 2 COLUMNAS */}
