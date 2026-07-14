@@ -43,10 +43,10 @@ export const MODULO_0: PreguntaCatalogo[] = [
     ayuda:
       "Esta pregunta nos ayuda a mostrarte solo lo que te corresponde. No te preocupes si no sabes exactamente: elige la que más se parezca a tu caso.",
     opciones: [
-      { valor: "concesion_propia", etiqueta: "Tengo una concesión y estoy operando", descripcion: "Ya tengo título (propio o por contrato) y estoy sacando mineral" },
-      { valor: "concesion_no_operando", etiqueta: "Tengo una concesión y no estoy operando", descripcion: "Tengo el título (propio o por contrato) pero todavía no empecé a sacar mineral" },
-      { valor: "petitorio_tramite", etiqueta: "Estoy en trámite de petitorio (quiere concesión)", descripcion: "Ya inicié el proceso ante INGEMMET pero todavía no tengo título" },
-      { valor: "nada", etiqueta: "No tengo nada todavía", descripcion: "Quiero empezar desde cero" },
+      { valor: "concesion_propia", etiqueta: "Estoy explotando una concesión minera", descripcion: "Como titular o mediante un contrato" },
+      { valor: "concesion_no_operando", etiqueta: "Tengo una concesión (o derecho para operarla), pero aún no exploto", descripcion: "Todavía no he iniciado actividades mineras" },
+      { valor: "petitorio_tramite", etiqueta: "Estoy tramitando un petitorio minero", descripcion: "Busco obtener una concesión" },
+      { valor: "nada", etiqueta: "Quiero empezar desde cero", descripcion: "Necesito orientación para iniciar" },
     ],
   },
   {
