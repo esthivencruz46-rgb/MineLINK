@@ -154,3 +154,26 @@ idéntica desde el principio, no solo `None`.
 **Cómo evitarlo:** regla concreta
 **Estado:** RESUELTO | PENDIENTE
 -->
+
+## 2026-07-14 — Capas GEOCATMIN invisibles en el mapa Leaflet (CORS doble)
+**Síntoma:** en `MapaGeocatmin.tsx` (esri-leaflet `dynamicMapLayer` sobre
+GEOCATMIN/INGEMMET) el mapa mostraba solo la base satelital: las capas de
+catastro/geología no aparecían en el navegador, aunque las mismas URLs de
+`export` devolvían PNG perfectos con curl/requests.
+**Causa raíz:** el servidor de GEOCATMIN NO envía cabeceras CORS, y
+esri-leaflet tropieza con eso DOS veces: (1) su modo por defecto pide el
+export vía XHR `f=json` → bloqueado por CORS; (2) incluso con `f: "image"`,
+`_renderImage` crea el `<img>` con `crossOrigin = options.useCors` (true
+por defecto) → el navegador vuelve a exigir CORS sobre la imagen, esta
+falla y `onOverlayError` QUITA la capa del mapa en silencio (sin nada en
+pantalla ni excepción visible).
+**Solución aplicada:** ambas capas llevan `f: "image"` **y**
+`useCors: false`. Verificado con una página de reproducción local +
+captura de Edge headless (`--headless=new --screenshot`), que también
+sirvió para ver el error real (`layer.on("requesterror")`).
+**Cómo evitarlo:** con cualquier servicio ArcGIS ajeno, comprobar primero
+si responde `Access-Control-Allow-Origin` (GEOCATMIN: no). Si no lo hace,
+esri-leaflet necesita SIEMPRE el par `f: "image"` + `useCors: false`.
+Probar capas de mapa en un navegador real/headless, no solo con curl —
+el fallo de crossorigin en `<img>` no existe fuera del navegador.
+**Estado:** RESUELTO

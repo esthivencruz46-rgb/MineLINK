@@ -47,15 +47,18 @@ export function MapaGeocatmin({
     // de la concesión solo con su borde. El catastro completo (todas las
     // concesiones vecinas, con etiquetas) queda disponible en el control
     // de capas, apagado por defecto.
-    // f: "image" es OBLIGATORIO con GEOCATMIN: su servidor no envía
-    // cabeceras CORS (verificado julio 2026), así que el modo por defecto
-    // de esri-leaflet (XHR f=json) sería bloqueado por el navegador. En
-    // modo imagen el export se carga como <img>, exento de CORS.
+    // f: "image" + useCors: false son OBLIGATORIOS con GEOCATMIN: su
+    // servidor no envía cabeceras CORS (verificado julio 2026). Sin
+    // f:"image" el XHR de export muere por CORS; y sin useCors:false
+    // esri-leaflet marca el <img> con crossorigin="anonymous", el
+    // navegador vuelve a exigir CORS sobre la imagen, esta falla y el
+    // manejador de error QUITA la capa en silencio (mapa solo-satélite).
     const catastro = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_CATASTRO_MINERO_WGS84/MapServer`,
       layers: [0],
       opacity: 0.8,
       f: "image",
+      useCors: false,
       attribution: "GEOCATMIN · INGEMMET",
     });
 
@@ -64,6 +67,7 @@ export function MapaGeocatmin({
       layers: [6],
       opacity: 0.4,
       f: "image",
+      useCors: false,
       attribution: "GEOCATMIN · INGEMMET",
     }).addTo(mapa);
 
