@@ -75,6 +75,10 @@ export interface ProyectoDetalle extends ProyectoPublico {
   es_titular_concesion?: boolean | null;
   // Señales verificadas derivadas de los documentos privados.
   indicadores?: IndicadoresVerificados;
+  // Respuestas públicas del Módulo INV (capital, uso, qué ofrece/aporta,
+  // retorno, estructura legal, % a ceder, deudas) — valores crudos del
+  // catálogo, traducir con data/preguntasInversion.ts.
+  respuestas_inversion_publicas?: Record<string, string | string[]>;
   // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
   // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;

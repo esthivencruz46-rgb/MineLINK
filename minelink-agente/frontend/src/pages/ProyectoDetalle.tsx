@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
-import { PerfilInformativoAgrupado } from "../components/PerfilInformativoAgrupado";
 import { INFO_BRECHA } from "../data/brechas";
+import { POR_ID_INV } from "../data/preguntasInversion";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
 import { obtenerProyecto, BASE_URL } from "../services/api";
@@ -95,7 +95,6 @@ export function ProyectoDetalle() {
   };
   const trackLegalTexto = TRACK_LEGAL_TEXTO[proyecto.perfil ?? ""] ?? "En evaluación";
 
-  const dims = proyecto.dimensiones;
   // El diagnóstico es autodeclarado — el minero puede responder "sí" a
   // todo sin sustento. brechas_verificadas es el subconjunto de
   // brechas_resueltas que además tiene foto de respaldo subida: solo esas
@@ -192,12 +191,68 @@ export function ProyectoDetalle() {
 
   const puntosAFavor: string[] = [];
   if (proyecto.semaforo_legal === "verde") puntosAFavor.push("Sin pendientes legales en su etapa");
-  if (proyecto.vende_liquidacion) puntosAFavor.push("Vende con liquidación formal");
+  if (proyecto.indicadores?.ventas_liquidacion_verificada) {
+    puntosAFavor.push("Ventas con liquidación verificadas");
+  } else if (proyecto.vende_liquidacion) {
+    puntosAFavor.push("Vende con liquidación formal");
+  }
   if ((madurez ?? 0) >= 4) puntosAFavor.push("Madurez técnica alta");
   if (proyecto.brechas_resueltas.length > 0) {
     puntosAFavor.push(`${proyecto.brechas_resueltas.length} trámite(s) resuelto(s)`);
   }
   if (proyecto.capital_buscado) puntosAFavor.push("Busca capital activamente");
+
+  // Respuestas públicas del Módulo INV traducidas a etiquetas legibles con
+  // el mismo catálogo del cuestionario (data/preguntasInversion.ts).
+  const inv = proyecto.respuestas_inversion_publicas ?? {};
+  const etiquetaInv = (id: string, valor: string): string =>
+    POR_ID_INV[id]?.opciones?.find((o) => o.valor === valor)?.etiqueta ?? valor;
+  const valorInv = (id: string): string | null => {
+    const v = inv[id];
+    if (v == null) return null;
+    if (Array.isArray(v)) {
+      return v.length > 0 ? v.map((x) => etiquetaInv(id, x)).join(", ") : null;
+    }
+    return etiquetaInv(id, v);
+  };
+  const filasOportunidad = [
+    { id: "INV_0_1", etiqueta: "Capital que busca" },
+    { id: "INV_0_2", etiqueta: "Uso del capital" },
+    { id: "INV_0_3", etiqueta: "Qué ofrece a cambio" },
+    { id: "INV_0_4", etiqueta: "Qué aporta el titular" },
+    { id: "INV_0_5", etiqueta: "Retorno estimado por el titular" },
+    { id: "INV_0_9", etiqueta: "Estructura legal" },
+    { id: "INV_0_10", etiqueta: "Dispuesto a ceder" },
+    { id: "INV_0_11", etiqueta: "Deudas declaradas" },
+  ]
+    .map((f) => ({ ...f, valor: valorInv(f.id) }))
+    .filter((f): f is { id: string; etiqueta: string; valor: string } => f.valor != null);
+
+  // Datos estructurados de la operación (los escribe el minero junto a sus
+  // archivos de respaldo — ver DocumentosInversionSustento).
+  const filasOperacion = [
+    { etiqueta: "Ley promedio del mineral", valor: proyecto.ley_promedio },
+    { etiqueta: "Minerales y litología", valor: proyecto.especie_mineral },
+    { etiqueta: "Reservas estimadas", valor: proyecto.toneladas_estimadas },
+    {
+      etiqueta: "Costo operativo aproximado",
+      valor: proyecto.indicadores?.opex_costo_aprox
+        ? `S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
+        : null,
+    },
+    {
+      etiqueta: "Equipo de trabajo",
+      valor:
+        [
+          proyecto.indicadores?.num_trabajadores
+            ? `${proyecto.indicadores.num_trabajadores} trabajadores`
+            : null,
+          proyecto.indicadores?.maquinaria,
+        ]
+          .filter(Boolean)
+          .join(" · ") || null,
+    },
+  ].filter((f): f is { etiqueta: string; valor: string } => Boolean(f.valor));
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -321,21 +376,11 @@ export function ProyectoDetalle() {
               {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
                 const items = itemsFormalizacion.filter((item) => item.dim === dim);
                 if (items.length === 0 && !conReinfo) return null;
-                const info = dims?.[dim];
-                const porcentaje =
-                  info && info.maximo > 0 ? Math.round((info.puntaje / info.maximo) * 100) : null;
                 return (
                   <div key={dim}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
-                        {NOMBRES_DIMENSION[dim]}
-                      </h3>
-                      {porcentaje !== null && (
-                        <span className="text-xs font-semibold text-texto-suave dark:text-texto-suave-dark">
-                          {porcentaje}%
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                      {NOMBRES_DIMENSION[dim]}
+                    </h3>
                     <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
                       {conReinfo && (
                         <li className="flex items-center gap-2.5 text-sm">
@@ -376,12 +421,66 @@ export function ProyectoDetalle() {
             </div>
           </Card>
 
-          {/* ESCALA ECONÓMICA · VIABILIDAD TÉCNICA · RIESGO AMBIENTAL/
-              SOCIAL · CAPACIDAD DEL EQUIPO · CLARIDAD DE OPORTUNIDAD —
-              una tarjeta por dimensión, mismo orden que el panel lateral. */}
-          <PerfilInformativoAgrupado
-            datos={proyecto as unknown as Record<string, unknown>}
-          />
+          {/* OPORTUNIDAD DE INVERSIÓN — las respuestas públicas del Módulo
+              INV: lo que el inversionista necesita para decidir. Reemplaza
+              al perfil informativo del modelo viejo (julio 2026). */}
+          {(filasOportunidad.length > 0 || proyecto.capital_buscado) && (
+            <Card>
+              <h2 className="text-lg font-semibold">Oportunidad de inversión</h2>
+              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Declarado por el titular en su perfil de inversión.
+              </p>
+              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                {proyecto.capital_buscado && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                      Capital buscado
+                    </dt>
+                    <dd className="text-sm font-medium">
+                      {formatearMonto(proyecto.capital_buscado)}
+                      {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
+                    </dd>
+                  </div>
+                )}
+                {filasOportunidad
+                  .filter((f) => !(f.id === "INV_0_1" && proyecto.capital_buscado))
+                  .map((f) => (
+                    <div key={f.id}>
+                      <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                        {f.etiqueta}
+                      </dt>
+                      <dd
+                        className={`text-sm font-medium ${
+                          f.id === "INV_0_11" && inv.INV_0_11 === "sin_deudas"
+                            ? "text-emerald-600 dark:text-emerald-400"
+                            : ""
+                        }`}
+                      >
+                        {f.valor}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+            </Card>
+          )}
+
+          {/* DATOS DE LA OPERACIÓN — cifras estructuradas que el minero
+              escribe junto a sus archivos de respaldo. */}
+          {filasOperacion.length > 0 && (
+            <Card>
+              <h2 className="text-lg font-semibold">Datos de la operación</h2>
+              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                {filasOperacion.map((f) => (
+                  <div key={f.etiqueta}>
+                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                      {f.etiqueta}
+                    </dt>
+                    <dd className="text-sm font-medium">{f.valor}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Card>
+          )}
 
           {/* MAPA */}
           <Card>
@@ -426,6 +525,13 @@ export function ProyectoDetalle() {
         <div className="h-fit md:sticky md:top-6">
           <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark">
             <div className="flex flex-col gap-4">
+              {(typeof proyecto.score_formalizacion === "number" ||
+                typeof proyecto.score_inversion === "number") && (
+                <div className="flex flex-col gap-2 border-b border-black/5 pb-4 dark:border-white/10">
+                  <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
+                  <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
+                </div>
+              )}
               <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Track Legal
@@ -520,23 +626,6 @@ export function ProyectoDetalle() {
                   </p>
                 </div>
               )}
-              {(proyecto.indicadores?.num_trabajadores || proyecto.indicadores?.maquinaria) && (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Equipo de trabajo
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {[
-                      proyecto.indicadores.num_trabajadores
-                        ? `${proyecto.indicadores.num_trabajadores} trabajadores`
-                        : null,
-                      proyecto.indicadores.maquinaria,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-              )}
               {proyecto.capital_buscado && (
                 <div>
                   <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
@@ -609,6 +698,28 @@ export function ProyectoDetalle() {
 
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Fila de score 0-100 del panel lateral — mismos umbrales de color que la
+ * tarjeta de la cartera y la cuenta del minero (≥70 verde, ≥40 ámbar). */
+function FilaScore({ etiqueta, valor }: { etiqueta: string; valor?: number | null }) {
+  if (typeof valor !== "number") return null;
+  const clase =
+    valor >= 70
+      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      : valor >= 40
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "bg-red-500/15 text-red-500";
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+        {etiqueta}
+      </p>
+      <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${clase}`}>
+        {valor}/100
+      </span>
+    </div>
+  );
 }
 
 function Card({ children, acento }: { children: React.ReactNode; acento?: boolean }) {

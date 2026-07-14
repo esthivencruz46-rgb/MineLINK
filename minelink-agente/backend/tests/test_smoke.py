@@ -2745,6 +2745,15 @@ def test_proyectos_ya_no_expone_scores_0_100():
     detalle = client.get(f"/proyectos/{proyecto['operacion_id']}").json()
     assert detalle["semaforo_legal"] == "verde"
     assert detalle["dimensiones_inversion"] == {}
+    # Ficha renovada: las respuestas de DECISIÓN del Módulo INV son
+    # públicas (estructura legal, % a ceder, deudas...), pero el historial
+    # de negociaciones y los bloques por perfil quedan privados.
+    publicas = detalle["respuestas_inversion_publicas"]
+    assert publicas["INV_0_9"] == "persona_natural"
+    assert publicas["INV_0_10"] == "20_40"
+    assert publicas["INV_0_11"] == "sin_deudas"
+    assert "INV_0_6" not in publicas
+    assert "INV_C2" not in publicas
 
 
 def test_proyectos_expone_perfil_informativo_del_diagnostico():

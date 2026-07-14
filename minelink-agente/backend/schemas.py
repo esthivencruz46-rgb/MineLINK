@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
@@ -750,6 +750,13 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # Señales verificadas derivadas de los documentos privados (ver
     # IndicadoresVerificadosOut) — el hecho, nunca el archivo.
     indicadores: IndicadoresVerificadosOut = IndicadoresVerificadosOut()
+    # Respuestas del Módulo INV que SÍ son públicas (julio 2026): lo que un
+    # inversionista necesita para decidir — capital, uso, qué ofrece y qué
+    # aporta, plazo de retorno, estructura legal, % a ceder y deudas
+    # declaradas. El historial de negociaciones (INV_0_6/0_7) y los bloques
+    # por perfil quedan privados. Valores crudos del catálogo; el frontend
+    # los traduce con data/preguntasInversion.ts.
+    respuestas_inversion_publicas: dict[str, Union[str, list[str]]] = {}
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

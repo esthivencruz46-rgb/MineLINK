@@ -1,3 +1,6 @@
+// ⏸️ EN PAUSA (julio 2026) — no borrar. Mostraba el perfil informativo del
+// modelo viejo en la ficha pública; la ficha renovada usa las tarjetas
+// "Oportunidad de inversión" y "Datos de la operación" (ProyectoDetalle.tsx).
 import { CATEGORIAS_PERFIL_INFORMATIVO, CAMPOS_PERFIL_INFORMATIVO } from "../data/perfilInformativo";
 import { NOMBRES_DIMENSION_INVERSION } from "../types/proyecto";
 import { formatearMonto } from "../utils/formato";

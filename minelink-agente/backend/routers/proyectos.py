@@ -37,6 +37,16 @@ CATEGORIAS_GALERIA = [
     "fotos_labores_antiguas",
     "fotos_area_petitorio",
 ]
+# Respuestas del Módulo INV públicas en la ficha del proyecto (julio 2026):
+# los datos de DECISIÓN del inversionista — capital, uso, qué ofrece/aporta,
+# plazo de retorno, estructura legal, % a ceder y deudas declaradas. El
+# historial de negociaciones (INV_0_6/0_7) y los bloques por perfil NO se
+# publican (contexto privado de la intermediación del admin).
+IDS_INV_PUBLICOS = frozenset(
+    ["INV_0_1", "INV_0_2", "INV_0_3", "INV_0_4", "INV_0_5", "INV_0_9", "INV_0_10", "INV_0_11"]
+)
+
+
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
     return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"
 
@@ -355,6 +365,11 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         es_titular_concesion=_es_titular_concesion(operacion),
         dimensiones=None,
         indicadores=_indicadores_verificados(operacion),
+        respuestas_inversion_publicas={
+            k: v
+            for k, v in (operacion.inv_respuestas_json or {}).items()
+            if k in IDS_INV_PUBLICOS
+        },
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
