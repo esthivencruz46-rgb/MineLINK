@@ -23,8 +23,11 @@ export function GaleriaProyecto({
     );
   }
 
+  // Rectángulo alto y angosto (julio 2026, pedido del dueño): el doble de
+  // alto y la mitad de ancho que la versión anterior — las fotos ocupan el
+  // resto en una cuadrícula 2×2 de la misma altura total.
   const mapa = ubicacionCoords ? (
-    <div className="h-full min-h-64 overflow-hidden rounded-lg shadow-sm md:min-h-96">
+    <div className="h-full min-h-64 overflow-hidden rounded-lg shadow-sm md:min-h-[48rem]">
       <iframe
         title="Ubicación del proyecto (vista satelital)"
         src={`https://maps.google.com/maps?q=${ubicacionCoords}&z=15&t=k&output=embed`}
@@ -56,12 +59,14 @@ export function GaleriaProyecto({
       {mapa ? (
         // Rectángulo con la ubicación en la parte ancha + fotos al costado.
         fotos.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[7fr_3fr]">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[35fr_65fr]">
             {mapa}
+            {/* 2 fotos grandes apiladas (mina, mineral...), cada una la
+                mitad de la altura del mapa. */}
             <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
               {fotos
                 .slice(0, 2)
-                .map((foto, i) => miniatura(foto, i, "h-32 md:h-[186px]"))}
+                .map((foto, i) => miniatura(foto, i, "h-32 md:h-[23.6rem]"))}
             </div>
           </div>
         ) : (
