@@ -216,7 +216,14 @@ def _perfil_out(
             if b not in {d.categoria for d in (operacion.documentos or [])}
             and b not in set(operacion.brechas_resueltas_json or [])
         ],
-        datos_formalizacion=operacion.datos_formalizacion_json or {},
+        # Las claves internas (prefijo "_", ej. el caché "_geocatmin" de la
+        # ficha pública) NO son datos del minero y además son dicts anidados
+        # que romperían la validación dict[str, str] del schema — se filtran.
+        datos_formalizacion={
+            k: v
+            for k, v in (operacion.datos_formalizacion_json or {}).items()
+            if not k.startswith("_") and isinstance(v, str)
+        },
         score_formalizacion=score_formalizacion(operacion),
         score_inversion=score_inversion(operacion, lead),
         # Cuántos inversionistas dejaron su interés en este proyecto — solo
@@ -369,6 +376,8 @@ def actualizar_perfil_inversion(
         # pisar las demás; un valor vacío borra solo esa clave.
         actuales = dict(operacion.datos_formalizacion_json or {})
         for clave, valor in datos["datos_formalizacion"].items():
+            if clave.startswith("_"):
+                continue  # claves internas (caché _geocatmin): intocables desde la UI
             if valor and valor.strip():
                 actuales[clave] = valor.strip()
             else:

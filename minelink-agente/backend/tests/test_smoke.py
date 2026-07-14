@@ -3169,6 +3169,34 @@ def test_admin_cambia_estado_contacto_y_minero_lo_ve():
     assert perfil["estado_contacto"] == "contactado"
 
 
+def test_perfil_carga_aunque_exista_cache_geocatmin():
+    # Regresión (julio 2026): la ficha pública cachea GEOCATMIN como clave
+    # interna "_geocatmin" (un dict ANIDADO) dentro de
+    # datos_formalizacion_json — /mineros/me declara ese campo como
+    # dict[str, str] y sin filtro la validación revienta con 500 ("no
+    # cargan mis datos"). Las claves con "_" nunca deben salir al perfil.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="congeocache"))
+
+    db = TestingSessionLocal()
+    op = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    op.datos_formalizacion_json = {
+        "autorizacion_drem": "2024-04-10",
+        "_geocatmin": {"coords": "-11.9,-77.0", "concesion": None, "geologia": None},
+    }
+    db.commit()
+    db.close()
+
+    token = client.post(
+        "/mineros/login", json={"username": "congeocache", "password": "clave123"}
+    ).json()["access_token"]
+    resp = client.get("/mineros/me", headers={"Authorization": f"Bearer {token}"})
+    assert resp.status_code == 200, resp.text
+    datos = resp.json()["datos_formalizacion"]
+    assert datos["autorizacion_drem"] == "2024-04-10"
+    assert "_geocatmin" not in datos
+
+
 def test_extraccion_de_coordenadas_de_enlaces_maps():
     from geoubicacion import _extraer
 
