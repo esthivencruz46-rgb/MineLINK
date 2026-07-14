@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BadgeCheck } from "lucide-react";
 import { BASE_URL } from "../../services/api";
+import { MapaGeocatmin } from "./MapaGeocatmin";
 import type { FotoPublica, GeocatminInfo } from "../../types/proyecto";
 
 /** Mosaico superior de la ficha (julio 2026): a la izquierda el bloque de
@@ -61,21 +62,18 @@ export function GaleriaProyecto({
       </div>
     ) : null;
 
+  // OJO: el iframe lleva SIEMPRE una altura explícita como respaldo
+  // (min-h): la versión anterior dependía de heredar height:100% de una
+  // cadena de contenedores y, cuando un eslabón solo tenía min-height, el
+  // iframe colapsaba a sus 150px por defecto dejando un hueco gigante.
   const mapa = ubicacionCoords ? (
-    <div className="h-64 overflow-hidden rounded-xl shadow-sm md:min-h-0 md:h-auto md:flex-1">
-      <iframe
-        title="Ubicación del proyecto (vista satelital)"
-        src={`https://maps.google.com/maps?q=${ubicacionCoords}&z=15&t=k&output=embed`}
-        className="h-full w-full border-0"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        allowFullScreen
-      />
+    <div className="h-64 min-h-64 overflow-hidden rounded-xl shadow-sm md:h-auto md:flex-1">
+      <MapaGeocatmin coords={ubicacionCoords} />
     </div>
   ) : null;
 
   const bloqueUbicacion = mapa ? (
-    <div className="flex flex-col gap-3 md:h-full">
+    <div className="flex flex-col gap-3 md:h-[30rem]">
       {mapa}
       {panelGeocatmin}
     </div>
@@ -110,7 +108,7 @@ export function GaleriaProyecto({
             </div>
           </div>
         ) : (
-          <div className="md:h-[30rem]">{bloqueUbicacion}</div>
+          bloqueUbicacion
         )
       ) : (
         // Sin ubicación: las fotos ocupan todo el rectángulo.
