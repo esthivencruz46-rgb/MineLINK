@@ -33,10 +33,15 @@ export function MapaGeocatmin({ coords }: { coords: string }) {
       { maxZoom: 19, attribution: "Esri, Maxar" }
     ).addTo(mapa);
 
+    // f: "image" es OBLIGATORIO con GEOCATMIN: su servidor no envía
+    // cabeceras CORS (verificado julio 2026), así que el modo por defecto
+    // de esri-leaflet (XHR f=json) sería bloqueado por el navegador. En
+    // modo imagen el export se carga como <img>, exento de CORS.
     const catastro = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_CATASTRO_MINERO_WGS84/MapServer`,
       layers: [0],
       opacity: 0.8,
+      f: "image",
       attribution: "GEOCATMIN · INGEMMET",
     }).addTo(mapa);
 
@@ -44,6 +49,7 @@ export function MapaGeocatmin({ coords }: { coords: string }) {
       url: `${GEOCATMIN}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer`,
       layers: [6],
       opacity: 0.45,
+      f: "image",
     });
 
     L.control
