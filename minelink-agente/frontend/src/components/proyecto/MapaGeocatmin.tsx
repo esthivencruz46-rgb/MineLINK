@@ -62,19 +62,53 @@ export function MapaGeocatmin({
       attribution: "GEOCATMIN · INGEMMET",
     });
 
-    const geologia = dynamicMapLayer({
+    // Geología en dos escalas APILADAS bajo un solo interruptor: la 100K
+    // cubre todo el país (base garantizada) y la 50K —más detallada— se
+    // dibuja ENCIMA solo donde INGEMMET tiene cobertura; donde no existe,
+    // su imagen sale transparente y se ve la 100K. El servicio 50K es
+    // lento (verificado: >25s en algunas zonas): como cada capa carga
+    // async e independiente, el detalle aparece cuando llega sin bloquear
+    // nada. zIndex fija el orden aunque las imágenes se refresquen al
+    // mover el mapa.
+    const geologia100 = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer`,
       layers: [6],
       opacity: 0.4,
       f: "image",
       useCors: false,
+      zIndex: 10,
       attribution: "GEOCATMIN · INGEMMET",
-    }).addTo(mapa);
+    });
+    const geologia50 = dynamicMapLayer({
+      url: `${GEOCATMIN}/SERV_GEOLOGIA_50K_INTEGRADA/MapServer`,
+      layers: [7], // Litología
+      opacity: 0.5,
+      f: "image",
+      useCors: false,
+      zIndex: 11,
+    });
+
+    // Clic en el mapa → nombre de la unidad geológica en un popup (los
+    // polígonos solo traen su código impreso, ej. "N-mz"). Se consulta la
+    // 100K porque responde rápido; el identify viaja por JSONP gracias a
+    // useCors:false (el servidor no da CORS).
+    geologia100.bindPopup((_error: unknown, featureCollection: any) => {
+      const props = featureCollection?.features?.[0]?.properties;
+      if (!props?.UNIDAD && !props?.DESCRIP) return false;
+      const titulo = props.UNIDAD || props.NAME;
+      const detalle =
+        props.DESCRIP && props.DESCRIP !== titulo ? `<br/>${props.DESCRIP}` : "";
+      return `<strong>${titulo}</strong>${detalle}<br/><span style="font-size:11px;color:#64748b">Geología INGEMMET · carta 1:100,000</span>`;
+    });
+
+    // La 50K arranca FUERA del grupo: es pesada, así que solo se pide en
+    // una zona acotada (ver actualizarGeologia50 más abajo).
+    const geologia = L.layerGroup([geologia100]).addTo(mapa);
 
     L.control
       .layers(
         undefined,
-        { "Catastro minero": catastro, "Geología 1:100K": geologia },
+        { "Catastro minero": catastro, "Geología (50K si existe / 100K)": geologia },
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
@@ -82,6 +116,7 @@ export function MapaGeocatmin({
     // Polígono EXACTO de la concesión del proyecto, resaltado sobre las
     // capas — anillos ArcGIS [lng, lat] → Leaflet [lat, lng]. El mapa se
     // encuadra a la concesión completa (el pin queda dentro).
+    let zona50: L.LatLngBounds | null = null;
     if (poligonoConcesion && poligonoConcesion.length > 0) {
       const anillos = poligonoConcesion.map((anillo) =>
         anillo.map(([x, y]) => [y, x] as [number, number])
@@ -95,7 +130,26 @@ export function MapaGeocatmin({
       }).addTo(mapa);
       poligono.bindTooltip("Concesión del proyecto", { sticky: true });
       mapa.fitBounds(poligono.getBounds().pad(0.15));
+      // Zona de ~10 veces el ÁREA de la concesión (pedido del dueño):
+      // pad(1.1) ≈ ×3.2 por lado ≈ ×10 en área.
+      zona50 = poligono.getBounds().pad(1.1);
     }
+
+    // La 50K solo se solicita con la vista DENTRO de la zona acotada (o,
+    // sin concesión, con zoom cercano) — así nunca se le pide a INGEMMET
+    // un render 50K de media región, que es lo que lo vuelve lentísimo.
+    const actualizarGeologia50 = () => {
+      const dentro = zona50
+        ? zona50.contains(mapa.getBounds())
+        : mapa.getZoom() >= 12;
+      if (dentro && !geologia.hasLayer(geologia50)) {
+        geologia.addLayer(geologia50);
+      } else if (!dentro && geologia.hasLayer(geologia50)) {
+        geologia.removeLayer(geologia50);
+      }
+    };
+    mapa.on("moveend", actualizarGeologia50);
+    actualizarGeologia50();
 
     // Pin de la operación (circleMarker: no depende de los PNG del icono
     // por defecto de Leaflet, que Vite no sirve solo).
