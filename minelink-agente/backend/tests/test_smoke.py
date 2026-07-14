@@ -13,6 +13,7 @@ os.environ["SUPABASE_SERVICE_KEY"] = ""
 # internet real
 os.environ["MINELINK_RESOLVER_MAPS"] = "0"
 os.environ["MINELINK_GEOCATMIN"] = "0"
+os.environ["MINELINK_REINFO"] = "0"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -2774,8 +2775,10 @@ def test_proyectos_ya_no_expone_scores_0_100():
     # catálogo completo (los legacy sin pregunta, ej. sctr, ya no salen).
     assert "igafom_aprobado" in detalle["estudios_aplicables"]
     assert "sctr" not in detalle["estudios_aplicables"]
-    # GEOCATMIN desactivado en tests (sin red): el campo existe y es None.
+    # GEOCATMIN/REINFO desactivados en tests (sin red): los campos existen
+    # y son None.
     assert detalle["geocatmin"] is None
+    assert detalle["reinfo"] is None
 
 
 def test_proyectos_expone_perfil_informativo_del_diagnostico():

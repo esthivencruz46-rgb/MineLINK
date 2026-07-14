@@ -77,6 +77,23 @@ export interface GeocatminInfo {
     descripcion?: string | null;
     codigo?: string | null;
   } | null;
+  // Alertas de zona: áreas restringidas (GEOCATMIN) y ANP (SERNANP).
+  restricciones?: { tipo: string; nombre?: string | null }[];
+  anp?: {
+    nombre?: string | null;
+    categoria?: string | null;
+    zona?: "dentro" | "amortiguamiento";
+  } | null;
+}
+
+/** Verificación del código REINFO contra el padrón oficial del MINEM. */
+export interface ReinfoVerificado {
+  codigo?: string;
+  consultado_en?: string;
+  estado?: string; // "VIGENTE" | "SUSPENDIDO" | "no_encontrado"
+  declarante?: string | null;
+  derecho?: string | null;
+  distrito?: string | null;
 }
 
 export interface DimensionScore {
@@ -112,6 +129,8 @@ export interface ProyectoDetalle extends ProyectoPublico {
   respuestas_inversion_publicas?: Record<string, string | string[]>;
   // Concesión del catastro minero + geología del punto (GEOCATMIN).
   geocatmin?: GeocatminInfo | null;
+  // Cotejo del código REINFO contra el padrón del MINEM.
+  reinfo?: ReinfoVerificado | null;
   // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
   // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;

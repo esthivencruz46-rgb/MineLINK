@@ -29,10 +29,33 @@ import requests
 _DESACTIVADO = os.environ.get("MINELINK_GEOCATMIN") == "0"
 
 _BASE = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services"
+# SERNANP publica sus ANP en su propio ArcGIS (verificado julio 2026):
+# capa 0102/0 = ANP de administración nacional; 0214/0 = zonas de
+# amortiguamiento. Campos: anp_nomb, anp_cate.
+_SERNANP = "https://geoservicios.sernanp.gob.pe/arcgis/rest/services/servicios_ogc"
 _TIMEOUT = 12
+
+# Capas de SERV_AREA_RESERVADA que generan alerta si el pin cae dentro
+# (id de capa → etiqueta legible). La 2 ("Área de No Admisión de
+# Petitorios") importa sobre todo al perfil A.
+_CAPAS_RESTRICCION = {
+    0: "Área de defensa nacional",
+    1: "Zona arqueológica",
+    2: "Área de no admisión de petitorios",
+    6: "Zona urbana",
+}
 
 # Cada cuántos días se vuelve a consultar aunque el pin no haya cambiado.
 DIAS_REFRESCO = 30
+
+
+def _nombre_de(attrs: dict) -> Optional[str]:
+    """Primer atributo que parezca un nombre legible (los servicios del
+    Estado no comparten esquema: NOMBRE, anp_nomb, NM_ZONA...)."""
+    for k, v in attrs.items():
+        if v and any(s in k.upper() for s in ("NOMB", "NAME")):
+            return str(v)
+    return None
 
 
 def _query_punto(
@@ -42,10 +65,11 @@ def _query_punto(
     lat: float,
     out_fields: str,
     con_geometria: bool = False,
+    base: str = _BASE,
 ) -> Optional[dict]:
     """Primer polígono que contiene el punto ({attributes, geometry}), o None."""
     r = requests.get(
-        f"{_BASE}/{servicio}/MapServer/{capa}/query",
+        f"{base}/{servicio}/MapServer/{capa}/query",
         params={
             "geometry": '{"x":%s,"y":%s,"spatialReference":{"wkid":4326}}' % (lng, lat),
             "geometryType": "esriGeometryPoint",
@@ -76,12 +100,17 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
 
     resultado: dict = {
         # Versión del formato del caché: subir cuando cambie el shape para
-        # que los cachés viejos (sin polígono) se reconsulten solos.
-        "v": 2,
+        # que los cachés viejos se reconsulten solos (v3: + restricciones/ANP).
+        "v": 3,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
         "geologia": None,
+        # Alertas de zona: [{tipo, nombre}] — áreas restringidas de
+        # GEOCATMIN + ANP/amortiguamiento de SERNANP. Lista vacía = punto
+        # limpio; solo-informativas (el pin es aproximado).
+        "restricciones": [],
+        "anp": None,
     }
 
     try:
@@ -122,6 +151,45 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
                 "descripcion": attrs.get("DESCRIP"),
                 "codigo": attrs.get("NAME"),
             }
+    except requests.RequestException:
+        pass
+
+    # Alertas de zona (best-effort por capa: una capa caída no tumba a las
+    # demás). Áreas restringidas del propio GEOCATMIN...
+    for capa, etiqueta in _CAPAS_RESTRICCION.items():
+        try:
+            feature = _query_punto("SERV_AREA_RESERVADA", capa, lng, lat, "*")
+        except requests.RequestException:
+            continue
+        if feature:
+            resultado["restricciones"].append(
+                {"tipo": etiqueta, "nombre": _nombre_de(feature.get("attributes") or {})}
+            )
+
+    # ...y las Áreas Naturales Protegidas de SERNANP (dentro de una ANP la
+    # minería está prohibida; en zona de amortiguamiento hay condiciones).
+    try:
+        feature = _query_punto(
+            "peru_sernanp_0102", 0, lng, lat, "*", base=_SERNANP
+        )
+        if feature:
+            attrs = feature.get("attributes") or {}
+            resultado["anp"] = {
+                "nombre": attrs.get("anp_nomb") or _nombre_de(attrs),
+                "categoria": attrs.get("anp_cate"),
+                "zona": "dentro",
+            }
+        else:
+            feature = _query_punto(
+                "peru_sernanp_0214", 0, lng, lat, "*", base=_SERNANP
+            )
+            if feature:
+                attrs = feature.get("attributes") or {}
+                resultado["anp"] = {
+                    "nombre": attrs.get("anp_nomb") or _nombre_de(attrs),
+                    "categoria": attrs.get("anp_cate"),
+                    "zona": "amortiguamiento",
+                }
     except requests.RequestException:
         pass
 

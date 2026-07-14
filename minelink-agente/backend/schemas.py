@@ -766,9 +766,14 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # Datos oficiales de GEOCATMIN (INGEMMET) en el pin declarado: la
     # concesión del catastro minero y la geología del punto — referencial
     # (el pin es aproximado). {coords, consultado_en, concesion|None,
-    # geologia|None} — ver geocatmin.consultar. None = sin pin o sin
-    # consulta exitosa todavía.
+    # geologia|None} — ver geocatmin.consultar (v3 añade restricciones y
+    # anp). None = sin pin o sin consulta exitosa todavía.
     geocatmin: Optional[dict] = None
+    # Verificación del código REINFO contra el padrón oficial del MINEM:
+    # {codigo, consultado_en, estado VIGENTE/SUSPENDIDO/no_encontrado,
+    # declarante, derecho, distrito} — ver reinfo.consultar_reinfo. None =
+    # sin código declarado o sin consulta exitosa todavía.
+    reinfo: Optional[dict] = None
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

@@ -499,16 +499,83 @@ export function ProyectoDetalle() {
           {/* COTEJO CON REGISTROS PÚBLICOS — datos oficiales de GEOCATMIN
               (INGEMMET) consultados automáticamente con el pin declarado:
               la concesión del catastro minero y la geología del punto. */}
-          {proyecto.geocatmin && (proyecto.geocatmin.concesion || proyecto.geocatmin.geologia) && (
+          {(proyecto.reinfo ||
+            (proyecto.geocatmin &&
+              (proyecto.geocatmin.concesion ||
+                proyecto.geocatmin.geologia ||
+                proyecto.geocatmin.anp ||
+                (proyecto.geocatmin.restricciones?.length ?? 0) > 0))) && (
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Cotejo con registros públicos</h2>
                 <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
-                  GEOCATMIN · INGEMMET
+                  INGEMMET · MINEM · SERNANP
                 </span>
               </div>
 
-              {proyecto.geocatmin.concesion ? (
+              {/* REINFO cotejado contra el padrón oficial del MINEM */}
+              {proyecto.reinfo && (
+                <div
+                  className={`mt-3 rounded-lg p-4 text-sm font-semibold ${
+                    proyecto.reinfo.estado === "VIGENTE"
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : proyecto.reinfo.estado === "SUSPENDIDO"
+                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                        : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                  }`}
+                >
+                  {proyecto.reinfo.estado === "VIGENTE" ? (
+                    <p className="flex items-center gap-1.5">
+                      <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
+                      REINFO verificado en el padrón del MINEM: VIGENTE
+                    </p>
+                  ) : proyecto.reinfo.estado === "SUSPENDIDO" ? (
+                    <p>REINFO en el padrón del MINEM: SUSPENDIDO</p>
+                  ) : (
+                    <p>
+                      El código REINFO declarado no aparece en el padrón del MINEM —
+                      verificar con el titular.
+                    </p>
+                  )}
+                  {proyecto.reinfo.derecho && (
+                    <p className="mt-1 text-xs font-normal">
+                      Derecho: {proyecto.reinfo.derecho}
+                      {proyecto.reinfo.distrito ? ` · ${proyecto.reinfo.distrito}` : ""}
+                      {` · código ${proyecto.reinfo.codigo}`}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Alertas de zona: ANP (SERNANP) y áreas restringidas */}
+              {proyecto.geocatmin?.anp && (
+                <p
+                  className={`mt-3 rounded-lg p-4 text-sm font-semibold ${
+                    proyecto.geocatmin.anp.zona === "dentro"
+                      ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                  }`}
+                >
+                  {proyecto.geocatmin.anp.zona === "dentro"
+                    ? `⚠ El punto cae dentro de un Área Natural Protegida (${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""}) — la actividad minera está prohibida ahí.`
+                    : `El punto cae en la zona de amortiguamiento del ${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""} — la actividad tiene condiciones especiales.`}
+                </p>
+              )}
+              {(proyecto.geocatmin?.restricciones?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {proyecto.geocatmin!.restricciones!.map((r) => (
+                    <span
+                      key={`${r.tipo}-${r.nombre}`}
+                      className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                    >
+                      {r.tipo}
+                      {r.nombre ? `: ${r.nombre}` : ""}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {proyecto.geocatmin?.concesion ? (
                 <div className="mt-3 rounded-lg bg-emerald-500/10 p-4">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                     <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
@@ -559,15 +626,15 @@ export function ProyectoDetalle() {
                     )}
                   </dl>
                 </div>
-              ) : (
+              ) : proyecto.geocatmin ? (
                 <p className="mt-3 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
                   El punto declarado no cae dentro de una concesión registrada en el
                   catastro minero. El pin es aproximado, así que esto no descarta que la
                   operación esté amparada — verificar con el titular.
                 </p>
-              )}
+              ) : null}
 
-              {proyecto.geocatmin.geologia && (
+              {proyecto.geocatmin?.geologia && (
                 <div className="mt-3">
                   <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
                     Geología del punto (carta 1:100,000)
@@ -581,8 +648,9 @@ export function ProyectoDetalle() {
               )}
 
               <p className="mt-3 text-[11px] leading-relaxed text-texto-suave dark:text-texto-suave-dark">
-                Consulta automática a GEOCATMIN (INGEMMET) según el pin declarado por el
-                titular{proyecto.geocatmin.consultado_en ? ` · ${proyecto.geocatmin.consultado_en}` : ""}.
+                Consulta automática a los registros públicos (GEOCATMIN/INGEMMET, padrón
+                REINFO del MINEM, ANP de SERNANP) según lo declarado por el titular
+                {proyecto.geocatmin?.consultado_en ? ` · ${proyecto.geocatmin.consultado_en}` : ""}.
                 Dato referencial: el titular registrado puede diferir de quien opera
                 (contratos de explotación son legales y comunes).
               </p>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 import geocatmin
 import models
+import reinfo
 import schemas
 import storage
 from auth import hash_password
@@ -332,8 +333,8 @@ def _geocatmin_cacheado(
         return None
     datos = operacion.datos_formalizacion_json or {}
     cache = datos.get("_geocatmin")
-    # v: cachés de un formato anterior (ej. sin polígono) se reconsultan.
-    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 2:
+    # v: cachés de un formato anterior (ej. sin restricciones/ANP) se reconsultan.
+    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 3:
         try:
             consultado = date.fromisoformat(cache.get("consultado_en", ""))
             if date.today() - consultado <= timedelta(days=geocatmin.DIAS_REFRESCO):
@@ -345,6 +346,34 @@ def _geocatmin_cacheado(
     if consulta is None:
         return cache if isinstance(cache, dict) else None
     operacion.datos_formalizacion_json = {**datos, "_geocatmin": consulta}
+    db.commit()
+    return consulta
+
+
+def _reinfo_cacheado(
+    db: Session, lead: models.Lead, operacion: models.Operacion
+) -> Optional[dict]:
+    """Verificación del código REINFO contra el padrón del MINEM, con el
+    mismo patrón de caché que _geocatmin_cacheado (clave interna
+    "_reinfo"). Se reconsulta si el código cambió o pasaron
+    reinfo.DIAS_REFRESCO días; si MINEM no responde, se conserva lo último."""
+    codigo = (lead.codigo_reinfo or operacion.codigo_reinfo or "").strip()
+    if not codigo:
+        return None
+    datos = operacion.datos_formalizacion_json or {}
+    cache = datos.get("_reinfo")
+    if isinstance(cache, dict) and cache.get("codigo") == codigo:
+        try:
+            consultado = date.fromisoformat(cache.get("consultado_en", ""))
+            if date.today() - consultado <= timedelta(days=reinfo.DIAS_REFRESCO):
+                return cache
+        except ValueError:
+            pass
+
+    consulta = reinfo.consultar_reinfo(codigo)
+    if consulta is None:
+        return cache if isinstance(cache, dict) else None
+    operacion.datos_formalizacion_json = {**datos, "_reinfo": consulta}
     db.commit()
     return consulta
 
@@ -452,6 +481,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
             if k in IDS_INV_PUBLICOS
         },
         geocatmin=_geocatmin_cacheado(db, lead, operacion),
+        reinfo=_reinfo_cacheado(db, lead, operacion),
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
