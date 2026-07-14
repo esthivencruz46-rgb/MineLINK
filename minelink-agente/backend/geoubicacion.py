@@ -22,6 +22,10 @@ _DESACTIVADO = os.environ.get("MINELINK_RESOLVER_MAPS") == "0"
 _PATRONES = [
     re.compile(r"!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)"),      # pin real: ...!3d-11.5!4d-76.2...
     re.compile(r"[?&]q(?:uery)?=(-?\d{1,2}\.\d+),\s*(-?\d{1,3}\.\d+)"),  # ?q=-11.5,-76.2
+    # Formato nuevo de los enlaces cortos compartidos desde la app (2026):
+    # google.com/maps/search/-11.965602,+-77.094409 — las coordenadas del
+    # pin van en la RUTA (el "+" es un espacio URL-encodeado).
+    re.compile(r"/maps/(?:search|place)/(-?\d{1,2}\.\d+),\s*\+?(-?\d{1,3}\.\d+)"),
     re.compile(r"@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)"),          # centro de vista (último recurso)
 ]
 

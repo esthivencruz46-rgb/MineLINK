@@ -3176,6 +3176,13 @@ def test_extraccion_de_coordenadas_de_enlaces_maps():
     assert _extraer("https://google.com/maps?q=-11.1,-75.2") == "-11.1,-75.2"
     assert _extraer("https://maps.google.com/algo!3d-12.5!4d-76.7!") == "-12.5,-76.7"
     assert _extraer("https://maps.app.goo.gl/corto") is None
+    # Formato nuevo de los enlaces cortos de la app (2026): coordenadas en
+    # la RUTA /maps/search/lat,+lng — antes de soportarlo, el enlace del
+    # minero quedaba guardado sin mapa (caso real, julio 2026).
+    assert (
+        _extraer("https://www.google.com/maps/search/-11.965602,+-77.094409?entry=tts")
+        == "-11.965602,-77.094409"
+    )
     # El pin real (!3d!4d) manda sobre el centro de la vista (@): si el mapa
     # estaba alejado al compartir, @ puede quedar muy lejos del pin
     url_con_ambos = "https://google.com/maps/place/Mina/@-12.52,-76.71,135803m/data=!3d-12.31!4d-75.70"

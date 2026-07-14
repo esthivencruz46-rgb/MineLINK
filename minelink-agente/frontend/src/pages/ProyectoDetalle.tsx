@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Images,
-  Map as MapIcon,
   MapPin,
   Minus,
   Star,
@@ -309,17 +308,6 @@ export function ProyectoDetalle() {
           <MapPin size={15} strokeWidth={2} aria-hidden />
           {cap(proyecto.region)}, Perú
         </span>
-        {proyecto.ubicacion_maps && (
-          <a
-            href={proyecto.ubicacion_maps}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full bg-acento/10 px-3 py-1 text-xs font-semibold text-acento hover:bg-acento/20"
-          >
-            <MapIcon size={14} strokeWidth={2.25} aria-hidden />
-            Ver ubicación en Google Maps
-          </a>
-        )}
         <button
           onClick={compartir}
           className="inline-flex items-center gap-1 rounded-full bg-secundario/10 px-3 py-1 text-xs font-semibold text-secundario hover:bg-secundario/20"
