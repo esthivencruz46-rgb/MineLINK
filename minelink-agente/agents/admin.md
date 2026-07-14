@@ -2,9 +2,10 @@
 
 ## Rol
 Construyes el panel privado donde Esthiven (único admin) gestiona
-empresas y revisa leads. Es parte del frontend React pero con reglas
-propias: aquí la eficiencia importa más que la simpleza — Esthiven es
-usuario técnico.
+empresas, revisa leads con sus perfiles/semáforos/alertas del Módulo INV
+e intermedia entre mineros, empresas e inversionistas. Es parte del
+frontend React pero con reglas propias: aquí la eficiencia importa más
+que la simpleza — Esthiven es usuario técnico.
 
 ## Skill asociada
 `skills/admin-panel/SKILL.md`
@@ -14,9 +15,9 @@ usuario técnico.
 | Ruta | Contenido |
 |---|---|
 | /admin/login | Usuario + contraseña → JWT guardado en memoria (no localStorage) |
-| /admin | Dashboard: leads de hoy, total diagnósticos, score promedio, brechas más comunes (top 5) |
-| /admin/empresas | Tabla CRUD: crear, editar, desactivar empresas. Checkboxes para estudios[] (catálogo de criterios_score.md) y regiones[] |
-| /admin/leads | Tabla de leads: nombre, WhatsApp (link directo wa.me), región, score, brechas, código REINFO si dejó. Filtros por fecha y región. Botón exportar CSV. Cada brecha se puede marcar/desmarcar como "resuelta" (seguimiento manual, ver más abajo) |
+| /admin | Dashboard: leads/diagnósticos de hoy y total, top 5 brechas pendientes, últimos leads |
+| /admin/empresas | Tabla CRUD + import CSV; vista por bloques de dimensión con rating/reseñas (solo visibles aquí) |
+| /admin/leads | Tabla de leads: contacto (wa.me), perfil A/B/C/D, semáforos, brechas expandibles, código REINFO. Botones por fila: Documentos (solo lectura), Inversión (respuestas + alertas AL1-AL10), Empresas/Intereses (para intermediar), reseteo de contraseña |
 
 ## Reglas técnicas
 - JWT en memoria (useState/context), NUNCA en localStorage — si recarga,
@@ -29,24 +30,19 @@ usuario técnico.
 - Export CSV con encoding UTF-8 BOM (para que Excel en Windows lea tildes)
 
 ## Seguimiento de brechas resueltas (sin rehacer el cuestionario)
-Cuando Esthiven se entera (por WhatsApp) de que un minero ya resolvió
-1 o 2 de sus brechas, NO debe hacerlo repetir todo el diagnóstico. En
-`/admin/leads` puede marcar esas brechas puntuales como "resueltas":
-- `PUT /admin/operaciones/{id}/brechas-resueltas` recalcula
-  `score_actual`/`bloqueado_actual`/`brechas_pendientes` a partir de
-  `respuestas_json` + la lista de resueltas, usando la misma lógica de
-  `scoring.calcular_diagnostico` (nunca se duplica el cálculo de puntos)
-- Esto es una capa de SEGUIMIENTO aparte, no una edición del diagnóstico
-  original (ver regla de abajo). `score_total`/`brechas`/`bloqueado`
-  (la declaración original) nunca cambian; lo que se actualiza es
-  `score_actual`/`brechas_pendientes`/`bloqueado_actual`
-- El dashboard (top 5 brechas) cuenta brechas PENDIENTES, no las ya
-  resueltas — así refleja qué necesita reclutar Esthiven ahora
+- El minero se AUTO-resuelve subiendo el respaldo (flujo principal desde
+  julio 2026). El marcado manual del admin
+  (`PUT /admin/operaciones/{id}/brechas-resueltas`) queda para casos sin
+  foto — y NO genera el ✓ público (eso exige foto).
+- `estado_seguimiento` recalcula el estado vigente parchando respuestas;
+  la declaración original (`respuestas_json`, `brechas_json`) es
+  inmutable — el seguimiento es una capa aparte.
+- El dashboard cuenta brechas PENDIENTES, no resueltas.
 
 ## Lo que este panel NUNCA hace
-- Editar `respuestas_json`, `brechas_json`, `score_total` o `bloqueado`
-  de un diagnóstico (son la declaración original del minero,
-  inmutable). Marcar brechas como "resueltas" no es editar la
-  declaración: es una capa de seguimiento aparte, ver arriba
+- Aprobar/rechazar documentos (se ELIMINÓ julio 2026 — la publicación es
+  automática al enviar; no reintroducir sin decisión del dueño)
+- Editar la declaración original del minero
 - Enviar mensajes automáticos a leads (Esthiven escribe personalmente
   por WhatsApp — la confianza es el producto)
+- Exponer contactos fuera del panel ni archivos privados fuera de él

@@ -1,54 +1,69 @@
 # Agente: Frontend — React + TypeScript
 
 ## Rol
-Construyes la interfaz que ve el minero: cuestionario, resultados con
-score y brechas, y directorio de empresas recomendadas. Todo el lenguaje
-visible sigue las reglas de `context/perfil_usuario.md` — SIN EXCEPCIÓN.
+Construyes la interfaz que ven el minero y el inversionista: wizard del
+diagnóstico, cuentas del minero, cartera y ficha pública de proyectos,
+directorio de empresas. Todo el lenguaje visible sigue las reglas de
+`context/perfil_usuario.md` — SIN EXCEPCIÓN.
 
 ## Skills asociadas
-- `skills/score-display/SKILL.md` → para todo lo visual del score
-- `skills/empresa-card/SKILL.md` → para tarjetas y filtros de empresas
+- `skills/score-display/SKILL.md` → semáforos, madurez, scores, brechas
+- `skills/empresa-card/SKILL.md` → tarjetas/filtros de empresas y postulación
 
 ## Stack
 React 18 · TypeScript strict (prohibido any) · Tailwind CSS · Vite ·
-React Router · tema oscuro/claro con toggle (oscuro por defecto).
+React Router · tema oscuro/claro con toggle (oscuro por defecto) ·
+Capacitor 6 para la app Android (misma UI).
 
-## Paleta (definir como variables Tailwind en index.css)
+## Paleta (variables Tailwind en index.css)
 ```
 Oscuro: fondo #0f1923 · tarjeta #1a2332 · acento #0e7c66 (verde mineral)
         · secundario #b4552d (cobre) · texto #f0f4f8 / #8899aa
 Claro:  fondo #f4f6f8 · tarjeta #ffffff · mismos acentos
         · texto #1a2332 / #4a5568
 Semáforo: verde emerald-500 · ámbar amber-500 · rojo red-500
+Scores 0-100: ≥70 emerald · ≥40 amber · resto red (umbrales compartidos)
 ```
 
-## Páginas (React Router)
-
-| Ruta | Página | Contenido |
-|---|---|---|
-| / | Inicio | Propuesta: "Descubre gratis qué te falta para formalizarte". Botón grande "Empezar mi diagnóstico". Sin registro. |
-| /diagnostico | Cuestionario | Wizard de 22 preguntas en 5 bloques. Barra de progreso. Una pregunta por pantalla en móvil. Botones SÍ / NO / No sé (No sé = NO para el score). |
-| /resultado | Resultado | Score con semáforo, barras por dimensión, lista de brechas en lenguaje simple, botón "Ver quién me puede ayudar". Campo opcional REINFO. |
-| /empresas | Directorio | Tarjetas de empresas filtradas por las brechas del diagnóstico. Filtro manual adicional por región y tipo de estudio. |
-| /gracias | Cierre | Tras dejar contacto: "Te escribiremos por WhatsApp". |
+## Superficies principales (rutas completas en RUTAS.md)
+- **/** Inicio → botón "Empezar mi diagnóstico", sin registro.
+- **/diagnostico** Wizard del modelo A/B/C/D (`Cuestionario.tsx` +
+  `data/preguntas.ts`): REGLA DURA anti-bug — único estado = `respuestas`
+  + paso actual; las pantallas aplicables se DERIVAN en cada render
+  (nunca aritmética de saltos guardada). Tarjeta de tamaño FIJO
+  (min-h, footer anclado, sin scroll interno), botones Volver Y
+  Continuar siempre presentes; un clic en opción única también avanza.
+  SIN RUTA → página informativa sin POST.
+- **/resultado** Dos semáforos + checklist de la etapa + brechas.
+- **/mi-cuenta** (C/D) y **/mi-concesion** (A/B): tira "Tus datos" +
+  columna Formalización (archivos con fechas/datos estructurados,
+  "Lo que te falta" unificado, ubicación al final) | columna Inversión
+  (wizard INV en modal, "Tu perfil de inversión", respaldos). Autosave
+  con debounce (~800ms) por campo; botón verde "Guardar" del header
+  remonta con `key={recarga}`. Campanita de notificaciones.
+- **/proyectos** cartera + **/proyectos/:id** ficha pública (mosaico
+  satelital + fotos, tarjetas grandes de documento, oportunidad de
+  inversión, GEOCATMIN, PDF descargable).
+- **/empresas**, **/postular**, cuentas de inversionista, /admin.
 
 ## Flujo de datos
-1. /diagnostico guarda respuestas en estado local (useState en wizard)
-2. Al terminar → POST /diagnostico → guarda respuesta en sessionStorage
-   (NO localStorage) → navega a /resultado
-3. /resultado lee de sessionStorage; si está vacío redirige a /
-4. "Ver quién me puede ayudar" → GET /empresas con las brechas → /empresas
-5. Modal de contacto (nombre + WhatsApp) → POST /leads → /gracias
+1. Wizard guarda respuestas en estado local → POST al terminar →
+   sessionStorage (NO localStorage) → /resultado (vacío → redirige a /).
+2. `services/api.ts` centraliza TODOS los fetch (base URL configurable).
+3. Los catálogos de `data/` son ESPEJOS del backend: cambiar ids de
+   preguntas toca ambos lados o el POST devuelve 422.
+4. Campos nuevos del backend siempre con default defensivo (`?? []`,
+   `?.`) — el frontend puede desplegarse antes/después que el backend
+   (deploy-skew ya rompió la cuenta una vez).
 
 ## Reglas técnicas
 - Interfaces TypeScript en src/types/ espejando los schemas del backend
-- services/api.ts centraliza TODOS los fetch con base URL configurable
-  y fallback a datos DEMO si el backend no responde (marcados // DEMO)
 - Mobile-first: el minero usa celular; probar cada vista a 360px
 - Botones táctiles mínimo 44px de alto
-- Textos del cuestionario: copiar EXACTAMENTE de context/criterios_score.md
-- Cada sigla con tooltip/nota: tomar las aclaraciones de perfil_usuario.md
+- Cada sigla con su aclaración (perfil_usuario.md)
 - Sin librerías de estado (Redux/Zustand): useState + props alcanza
+- `data/preguntasPerfil.ts` y `perfilInformativo.ts` están ⏸️ EN PAUSA —
+  no borrar, no importar en código nuevo
 
 ## Definición de terminado
 1. npm run build pasa sin errores ni warnings de TypeScript

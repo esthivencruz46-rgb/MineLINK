@@ -37,10 +37,8 @@ Built on top of it since (all deployed):
   (same pattern as `MINELINK_RESOLVER_MAPS=0`).
 
 Still pending:
-- **F5 docs rewrite**: `context/criterios_score.md`, the orchestrator
-  `minelink-agente/CLAUDE.md` and the `skills/` still describe the OLD model (22 Sí/No +
-  MineScore). Where they conflict, `context/diagnostico_formalizacion.md` and the current
-  code win.
+- Admin dashboard's `score_promedio` still averages the legacy `score_total` (0 on new
+  rows) — cosmetic, replace with madurez promedio / conteo por perfil when convenient.
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):
   `backend/scoring_legacy.py`, `frontend/src/data/preguntasPerfil.ts`,
   `perfilInformativo.ts`, `components/PerfilInformativoAgrupado.tsx`.
@@ -65,8 +63,9 @@ Read `minelink-agente/CLAUDE.md` first — it is the orchestrator file for this 
 - Production deployment details (Vercel + Render + Supabase; auto-deploy on push to `main` —
   the push itself is done by Esthiven from GitHub Desktop; the agent has no git credentials)
 
-Note: the orchestrator still describes the OLD diagnostic in places (F5 rewrite pending).
-Where they conflict, `context/diagnostico_formalizacion.md` and the current code win.
+The orchestrator, `context/criterios_score.md`, `agents/` and `skills/` were rewritten to the
+current model in July 2026 (F5). If any doc ever conflicts with the code,
+`context/diagnostico_formalizacion.md` and the current code win.
 
 Before touching any code, also read `minelink-agente/errores_aprendidos.md` — it accumulates
 environment-specific gotchas and is meant to be updated whenever an error takes more than one

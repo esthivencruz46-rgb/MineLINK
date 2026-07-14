@@ -2,133 +2,72 @@
 
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:
-1. Elige su situación — **2 rutas completamente distintas, no una
-   variación de la misma** (ver context/criterios_score.md, fuente de
-   verdad completa — esto es solo un resumen):
-   - Ruta 1 `minero_artesanal` (ya opera): perfil informativo de 8 bloques
-     (operación actual, conocimiento técnico, equipo, ambiente, oportunidad
-     e inversión, riesgos/conformidad, capacidad del operador, visión a
-     futuro) + el cuestionario Sí/No de formalización (L1-L5, A1-A4 con A4
-     condicional, O1, T1-T7, S1-S5). `tipo_mina` se DERIVA del tipo de
-     explotación que declara (ya no se pregunta aparte)
-   - Ruta 2 `concesionario` (recién inicia, no opera): perfil informativo
-     de 8 bloques (titularidad/vigencia, geología/depósito, etapa del
-     proyecto, proyecto/escala, historial/riesgos, formalización,
-     capacidad/equipo, motivación/estructura) + un set Sí/No reducido
-     (L1,L2,L3,L4,L6,A1,A2,T1,T3,T6,T7,R1 — incluye Ambiental y una
-     dimensión Social nueva) que mide incertidumbre legal/ambiental/social
-     gradual, no todo-o-nada
-   Varias preguntas del perfil se copian silenciosamente al cuestionario
-   Sí/No en vez de repetirse (L1/L2/L4/L6/A1/A4/R1/T7 según ruta — ver
-   "Preguntas condicionales y prellenadas" en criterios_score.md). El
-   monto de capital que busca, el plazo y el uso de fondos se preguntan
-   DURANTE el diagnóstico (ya no solo al registrarse) y se copian a
-   `Lead.capital_buscado`/`uso_fondos` al crear la cuenta.
-   Departamento NO se pregunta en el diagnóstico (queda "no especificado"
-   en `Operacion.region` hasta que se registre); mineral se deriva del
-   "elemento económico principal" que el usuario declara en el perfil de
-   cada ruta
-2. Recibe su score (0-100) y su lista de brechas
-3. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
-   le faltan, o postula él mismo como consultor si es profesional. El
-   WhatsApp de la empresa NO es público (julio 2026, cambio de política):
-   en vez de un link directo a wa.me, el minero deja su nombre/WhatsApp
-   con "Me interesa" (`POST /empresas/{id}/interes`, crea un
-   `InteresEmpresa`, sin cuenta) y Esthiven ve el interés en `/admin` →
-   Leads → botón "Empresas", desde donde escribe a la empresa con su
-   propio WhatsApp dándole el contacto del minero (mismo patrón de
-   intermediación que con inversionistas, punto 8 más abajo)
-4. Si busca ayuda cercana, se registra (nombre, WhatsApp, **departamento
-   obligatorio** — reemplaza el "no especificado" tanto en el lead como en
-   la operación, para que el filtro de /proyectos tenga sentido —, email
-   opcional, nombre de su operación, usuario y contraseña que él elige) —
-   ese registro reemplaza el antiguo modal de solo nombre+WhatsApp
-5. Puede volver a iniciar sesión (`/ingresar` → `/mi-cuenta`) con ese
-   usuario/contraseña para ver su score y brechas sin rehacer el
-   cuestionario (`POST /mineros/login`, `GET /mineros/me`)
-6. Desde `/mi-cuenta` (o `/mi-concesion` en Ruta 2) puede subir documentos
-   (fotos de la mina — hasta 10 —, informe de leyes, catastro, RUC,
-   contrato de explotación, título de concesión) y llenar un perfil de
-   inversión opcional (descripción, producción/reservas — con selects
-   estructurados, no texto libre, para evitar errores de redacción en lo
-   que se publica —, capital buscado, uso de fondos; estos dos últimos
-   muestran como recordatorio en línea lo que ya declaró en el
-   diagnóstico — monto/motivo —, no lo repiten como pregunta aparte). Todo
-   PDF subido se convierte a foto de su primera hoja en el servidor
-   (`imagenes.convertir_pdf_a_imagen`, PyMuPDF) — nunca se guarda ni se
-   sirve un PDF crudo. Además, como el diagnóstico Sí/No es autodeclarado
-   y no se puede comprobar por sí solo, hay una sección "Respalda tu
-   declaración" con un slot de foto por cada estudio que el minero declaró
-   SÍ tener (respondió Sí, o el admin marcó la brecha como resuelta
-   después — ver `routers/mineros.py` `_estudios_aplicables`, expuesto
-   como `estudios_aplicables` en `GET /mineros/me`), EXCLUYENDO los
-   estudios que en la práctica piden la misma foto que otro (ver
-   `uploads_config.categoria_equivalente` y "Categorías de documento
-   equivalentes" en `criterios_score.md`). También se piden fotos
-   condicionadas al PERFIL (no al Sí/No): del mineral que declaró extraer,
-   de su camino de acceso, de su fuente de agua/energía — solo si lo
-   declaró, con su propia respuesta en la etiqueta (ver
-   `uploads_config.categorias_perfil_foto_aplicables`, expuesto como
-   `fotos_perfil`, exclusivo de Ruta 1). La propia cuenta del minero
-   (`/mi-cuenta`, `/mi-concesion`) YA NO muestra un resumen de todo lo que
-   declaró en el diagnóstico — esa vista completa (perfil agrupado en 9
-   categorías) es solo para el inversionista en la ficha pública del
-   proyecto (`ProyectoDetalle.tsx` → `PerfilInformativoAgrupado`); al
-   minero solo le sirve como recordatorio puntual dentro de los campos que
-   sí puede editar (julio 2026)
-7. Todas las operaciones registradas (con Lead) aparecen automáticamente
-   en `/proyectos` — REINFO/formalización iniciada YA NO es requisito para
-   listarse (enlazado desde Inicio como
-   "Ver proyectos mineros"), una vitrina pública buscable por mineral y
-   departamento — SIN nombre real, WhatsApp ni email (`GET /proyectos`,
-   `GET /proyectos/minerales`). Al hacer clic en un proyecto se abre su
-   detalle (`GET /proyectos/{operacion_id}`): perfil de inversión
-   completo, la galería pública (fotos de la mina + las condicionadas al
-   perfil — mineral/camino de acceso/agua/energía, mismas categorías que
-   se suben en "Fotos de tu operación" en `/mi-cuenta`, públicas vía `GET
-   /proyectos/{id}/fotos/{doc_id}`), y las fotos reales de los documentos
-   legales que presentó (RUC, catastro, informe de leyes, y SOLO el que
-   corresponda entre contrato de explotación / título de concesión según
-   `es_titular_concesion` — mismo filtro que en su propia cuenta, nunca se
-   muestran ambos — `GET /proyectos/{id}/documentos/{doc_id}`, público,
-   sin login). Esto es la base de una futura conexión con inversionistas,
-   pero todavía NO hay match
-8. El detalle del proyecto tiene un diseño premium (estilo Stripe/Linear/
-   Notion) con MineScore por dimensión, checklist de formalización,
-   factores de riesgo y oportunidades — todo DERIVADO de datos reales del
-   diagnóstico, nunca inventado (sin CAPEX/TIR/VPN/equipo técnico con
-   nombres, porque esos datos no se recopilan). Un inversionista puede
-   dejar sus datos (`POST /proyectos/{id}/interes`) y Esthiven los ve en
-   `/admin` (`GET /admin/operaciones/{id}/intereses`) para hacer de
-   intermediario — nunca se revela el WhatsApp/email del minero
-9. Ese formulario de interés pide: nombre, teléfono, email (opcional),
-   motivo de inversión, monto y qué información necesita — y crea la
-   cuenta del inversionista en el mismo paso (usuario/contraseña, mismo
-   patrón que el minero). Puede volver a entrar en
-   `/ingresar-inversionista` → `/mi-cuenta-inversionista`
-   (`POST /inversionistas/login`, `GET /inversionistas/me`); por ahora
-   esa ventana solo muestra lo que ya dejó registrado, sin match ni
-   funciones nuevas todavía
+1. Responde el **diagnóstico de formalización** (fuente de verdad:
+   `context/diagnostico_formalizacion.md`; ejecutable:
+   `backend/catalogo_diagnostico.py` + `backend/scoring.py`): 4 preguntas
+   filtro (M0) lo ubican en su perfil exacto del pipeline —
+   **A** "desde cero" / **A_avanzado** "petitorio en trámite" /
+   **B** "concesionario sin operar" / **C** "opera con REINFO" /
+   **D** "formal pleno" / **SIN RUTA** (opera sin amparo legal: página
+   informativa, sin cuenta ni POST) — y responde SOLO el módulo de su
+   perfil. La salida son DOS semáforos independientes (Track Legal y
+   Track Técnico con Índice de Madurez 0-5) + un checklist de su etapa +
+   sus brechas. Regla de oro: SOBREVIVIR → ORDENAR → CRECER.
+2. Ve las empresas y consultores que hacen EXACTAMENTE los estudios que
+   le faltan (brecha→estudio→`Empresa.estudios_json`), o se postula él
+   mismo como consultor (el formulario solo ofrece estudios que una
+   pregunta actual puede generar — `ESTUDIOS_CON_PREGUNTA`). El WhatsApp
+   de la empresa NO es público: el minero deja su interés
+   (`POST /empresas/{id}/interes`) y Esthiven intermedia desde /admin.
+3. Se registra (nombre, WhatsApp, departamento obligatorio, nombre de su
+   operación, usuario/contraseña + pregunta de seguridad para recuperar
+   contraseña solo) y vuelve a entrar por `/ingresar` → `/mi-cuenta`
+   (perfiles C/D) o `/mi-concesion` (A/B).
+4. Desde su cuenta: **"Respalda tu declaración"** — un slot de foto por
+   cada estudio que declaró tener (`estudios_aplicables`; el perfil D
+   además sube su credencial `autorizacion_drem`), con fechas y datos
+   estructurados junto a los archivos (ley del mineral, minerales/
+   litología, reservas, costo por TN, maquinaria, trabajadores →
+   `datos_formalizacion_json`). Todo PDF se convierte a foto de su
+   primera hoja (nunca se sirve un PDF crudo). En "Lo que te falta" cada
+   brecha tiene "Ya lo tengo — subir respaldo": subir el archivo la
+   resuelve solo (evidencia primero, sin aprobación del admin). Al enviar
+   sus documentos se abre el **Módulo INV** (`catalogo_inversion.py`,
+   wizard modal): bloque común INV_0 + bloque por perfil, con sus propios
+   respaldos y brechas. Una campanita de notificaciones le avisa de
+   novedades.
+5. **Publicación automática**: con perfil B/C/D, semáforo legal ≠ rojo y
+   AMBAS partes enviadas (documentos + Módulo INV), el proyecto aparece
+   en `/proyectos` — sin visto bueno manual. La cartera muestra tarjetas
+   con los dos **scores 0-100 por track** (`score_formalizacion` anclado
+   a la etapa, `score_inversion`), chip "✓ Ventas verificadas", la
+   mini-foto de la **credencial** que prueba que existe (autorización
+   DREM / título de concesión) y selector de orden. SIN datos de contacto.
+6. La **ficha pública** (`/proyectos/{id}`): mosaico superior con la
+   ubicación en vista SATELITAL (parte ancha) + fotos; Resumen Ejecutivo;
+   checklist de formalización SOLO con los estudios de su perfil
+   (tarjetas grandes de documento con sello "Verificado" + visor con
+   flechas; lo pendiente en chips); "Oportunidad de inversión"
+   (respuestas públicas del INV: capital, % a ceder, deudas, estructura
+   legal...); "Datos de la operación"; **"Cotejo con registros públicos"**
+   (GEOCATMIN/INGEMMET: concesión del catastro minero + geología del
+   punto, caché 30 días, siempre referencial); indicadores verificados en
+   el panel lateral; y descarga de ficha en PDF (jsPDF, 2 páginas).
+7. **Privacidad por diseño**: liquidaciones de venta, estados
+   financieros, registro OPEX y fotos de TRABAJADORES son privados para
+   siempre — públicamente solo se muestra el hecho verificado
+   (`IndicadoresVerificadosOut`). El inversionista deja su interés
+   (`POST /proyectos/{id}/interes`, crea su cuenta en el mismo paso) y
+   Esthiven intermedia — nunca se revela el contacto del minero. El
+   minero ve el CONTEO de intereses recibidos y puede "ver su proyecto
+   como lo ve el inversionista".
 
-Esthiven es el único administrador: carga empresas (una por una o en lote
-vía CSV con `POST /admin/empresas/importar` — su base externa de
-profesionales con rating 0-5 y nº de reseñas), revisa leads, resetea
-contraseñas de mineros y puede marcar brechas puntuales como resueltas
-por seguimiento manual (ver agents/admin.md). Mineros e inversionistas
-también pueden recuperar su propia contraseña sin el admin: al
-registrarse eligen una pregunta y respuesta de seguridad (texto libre,
-la respuesta se guarda hasheada); `GET /{mineros|inversionistas}/
-pregunta-seguridad/{username}` + `POST .../recuperar-password` (4
-intentos por cuenta, ver `security.py`). Cuentas viejas sin pregunta
-configurada (nullable) siguen dependiendo del reseteo manual del admin. Las empresas NO tienen
-acceso; Esthiven las carga manualmente, o las aprueba si un consultor
-independiente se postuló solo. El rating de empresas/consultores solo se
-ve en el admin; en la página pública /empresas ordena internamente los
-bloques (Empresas / Consultores) de mejor a peor, sin mostrarse. En
-/admin/empresas la vista por defecto agrupa por bloques de dimensión
-(Legal, Ambiental, Operativo, Técnico, Seguridad — una empresa puede
-aparecer en varios), con columnas de rating y nº de reseñas y un selector
-de orden (rating / reseñas / años / nombre); hay un toggle a lista completa.
+Esthiven es el único administrador: carga empresas (una por una o CSV),
+revisa leads con su perfil/semáforos/alertas del Módulo INV (AL1-AL10),
+ve documentos (solo lectura — ya no aprueba/rechaza), resetea contraseñas
+y puede marcar brechas puntuales como resueltas por seguimiento manual.
+Las empresas NO tienen acceso; su rating solo se ve en el admin (ordena
+internamente /empresas sin mostrarse).
 
 ## Rol de este archivo
 Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
@@ -137,13 +76,14 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 3. Lee el archivo del agente en `agents/` y sigue sus reglas
 4. Carga la skill correspondiente de `skills/` solo si la tarea la necesita
 5. Los archivos de `context/` son la fuente de verdad del negocio:
-   NUNCA contradigas `criterios_score.md` ni `perfil_usuario.md`
+   NUNCA contradigas `diagnostico_formalizacion.md`, `criterios_score.md`
+   (reglas transversales) ni `perfil_usuario.md`
 
 ## Tabla de enrutamiento (qué agente activar)
 
 | Si la tarea involucra... | Agente | Skill asociada |
 |---|---|---|
-| Endpoints, modelos BD, lógica de score, FastAPI, SQLite, pytest | agents/backend.md | skills/diagnostico-brechas |
+| Endpoints, modelos BD, semáforos/scores, catálogos, FastAPI, pytest | agents/backend.md | skills/diagnostico-brechas |
 | Páginas, componentes React, cuestionario UI, Tailwind, resultados | agents/frontend.md | skills/score-display, skills/empresa-card |
 | Panel de administración, CRUD empresas, tabla de leads, JWT | agents/admin.md | skills/admin-panel |
 | Tareas mixtas (ej. "conecta el frontend al backend") | backend primero, luego frontend | las de ambos |
@@ -170,7 +110,8 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 - El APK de Android apunta al backend público. Tras cambios de frontend, el ciclo completo es:
   `npm run android:sync` → `gradlew assembleDebug` → copiar a `Descargas\MineLink.apk` →
   `python -m seeds.publicar_apk` (lo sube al bucket PÚBLICO `descargas` de Supabase, de donde
-  descarga el botón "Descargar la app" de la portada — URL fija).
+  descarga el botón "Descargar la app" de la portada — URL fija). NO regenerar el APK tras cada
+  cambio — solo cuando Esthiven lo pida explícitamente.
 - CORS: orígenes locales + regex `https://mine-link-[a-z0-9-]+\.vercel\.app` + FRONTEND_URL
   (ver `main.py`). Si la web pública no carga datos, revisar esto primero.
 
@@ -179,14 +120,15 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 ### Backend (desde `backend/`)
 ```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000   # servidor dev
-pytest -q                                                 # toda la suite
+pytest -q                                                 # toda la suite (~205 tests)
 pytest tests/test_scoring.py -q                           # un archivo
 pytest tests/test_smoke.py::test_post_diagnostico -q      # un test puntual
 pip install -r requirements.txt                           # dependencias (usar --break-system-packages en este entorno)
 ```
 Los tests (`tests/test_smoke.py`, `tests/test_scoring.py`) usan un engine SQLite en memoria propio
 vía `app.dependency_overrides[get_db]` — nunca tocan la base real (SQLite local ni Supabase),
-así que corren igual sin importar qué diga `DATABASE_URL`.
+así que corren igual sin importar qué diga `DATABASE_URL`. Además desactivan toda llamada
+externa: `MINELINK_RESOLVER_MAPS=0` (Google Maps) y `MINELINK_GEOCATMIN=0` (INGEMMET).
 
 ### Frontend (desde `frontend/`)
 ```bash
@@ -223,18 +165,16 @@ El backend soporta ambos motores sin cambiar código (`database.py`):
 - **Con `DATABASE_URL` en `backend/.env`** (cadena de Postgres de Supabase, formato
   `postgresql://...`) → usa esa. `backend/.env` NUNCA se comparte ni se sube a ningún repo
   (ver `.env.example` para la plantilla). Producción/el proyecto real ya está migrado a Supabase.
-- RLS (Row Level Security) está activado en las 5 tablas de Supabase, sin políticas — bloquea el
+  **⚠️ `backend/.env` apunta a producción: cualquier seed corrido localmente ejecuta contra la
+  base real — nunca correr uno sin confirmación explícita de Esthiven.**
+- RLS (Row Level Security) está activado en las tablas de Supabase, sin políticas — bloquea el
   acceso vía la API pública de PostgREST (anon key), pero no afecta al backend porque se conecta
   como el owner (`postgres`) de las tablas.
 - `backend/seeds/*.py` son scripts de migración/utilidad de un solo uso (correr con
-  `python -m seeds.<nombre>` desde `backend/`, con el servidor detenido salvo que el propio script
-  diga lo contrario). Incluyen migraciones de esquema SQLite (ADD COLUMN o rebuild de tabla cuando
-  SQLite no soporta ALTER COLUMN), la migración de datos a Supabase, activar RLS, e índices/WAL.
-  Antes de escribir una migración nueva, revisar si ya existe un script parecido para copiar el patrón.
-  **OJO**: los seeds antiguos usan `sqlite3` directo y solo tocan la SQLite local — para una
-  migración que deba correr contra la base real (Supabase), copiar el patrón de
-  `seeds/migrar_ubicacion_maps.py`, que usa el engine de `database.py` (respeta `DATABASE_URL`)
-  y funciona en ambos motores.
+  `python -m seeds.<nombre>` desde `backend/`). Antes de escribir una migración nueva, copiar el
+  patrón de `seeds/migrar_ubicacion_maps.py` (usa el engine de `database.py`, respeta
+  `DATABASE_URL`, funciona en ambos motores). Los seeds antiguos con `sqlite3` directo solo
+  tocan la SQLite local.
 - `backend/seeds/backup_db.py` respalda `minelink.db` + `uploads/` a `backend/backups/` (conserva
   los últimos 14). Uso seguro con el servidor corriendo (usa el backup API de sqlite3).
 
@@ -261,7 +201,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 ├── LIMPIEZA.md                ← cómo borrar datos de simulación de forma segura
 ├── INTERMEDIACION.md          ← filosofía de negocio del match minero-inversionista
 ├── context/
-│   ├── criterios_score.md     ← 22 preguntas, pesos, brecha→estudio
+│   ├── diagnostico_formalizacion.md ← SPEC ACTUAL: perfiles A/B/C/D, semáforos, madurez
+│   ├── criterios_score.md     ← reglas transversales (evidencia, equivalencias, catálogo,
+│   │                             scores) + resumen del modelo viejo en pausa
 │   └── perfil_usuario.md      ← quién es el minero, tono de UI
 ├── agents/
 │   ├── backend.md
@@ -273,50 +215,55 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── empresa-card/SKILL.md
 │   └── admin-panel/SKILL.md
 ├── backend/
-│   ├── main.py                ← registra los routers, crea tablas al arrancar
-│   ├── database.py            ← engine SQLite/Postgres, WAL, get_db()
-│   ├── models.py               ← modelos SQLAlchemy (Operacion, Lead, Empresa,
-│   │                              DocumentoOperacion, InteresInversion)
+│   ├── main.py                 ← registra los routers, crea tablas al arrancar
+│   ├── database.py             ← engine SQLite/Postgres, WAL, get_db()
+│   ├── models.py               ← SQLAlchemy: Operacion, Lead, Empresa, DocumentoOperacion,
+│   │                              InteresInversion, InteresEmpresa, Notificacion, Evento
 │   ├── schemas.py              ← Pydantic (request/response)
-│   ├── scoring.py               ← lógica pura de score/brechas (sin BD)
-│   ├── auth.py                  ← JWT admin/minero/inversionista, hashing de passwords
-│   ├── security.py              ← límite de intentos de login por IP (429) y validación
-│   │                              de firma real (magic bytes) de archivos subidos
-│   ├── storage.py               ← archivos en Supabase Storage (prod) o disco local (dev/tests)
-│   ├── imagenes.py              ← compresión automática de fotos subidas (máx 1600px, JPEG 80) y
-│   │                              conversión de PDF → foto de la 1ª hoja (PyMuPDF); máx 5 fotos de
-│   │                              mina por operación (uploads_config.py)
-│   ├── geoubicacion.py          ← enlace de Google Maps → coordenadas (prioriza el pin !3d!4d
-│   │                              sobre el centro de vista @) para el mapa incrustado
-│   ├── uploads_config.py        ← rutas y categorías de archivos subidos
-│   ├── requirements.txt
-│   ├── .env.example              ← plantilla; .env real nunca se comparte
+│   ├── catalogo_diagnostico.py ← catálogo del diagnóstico: ids, tipos, condicionales,
+│   │                              brecha→estudio (BRECHA_POR_PREGUNTA)
+│   ├── catalogo_inversion.py   ← Módulo INV: activación, ids por perfil, respaldos
+│   │                              declarados, brechas INV, alertas AL1-AL10
+│   ├── scoring.py              ← perfiles/semáforos/madurez/scores + estado_seguimiento
+│   │                              (lógica pura, `hoy` inyectable)
+│   ├── scoring_legacy.py       ← ⏸️ MineScore viejo (EN PAUSA, no importar)
+│   ├── auth.py                 ← JWT admin/minero/inversionista, hashing de passwords
+│   ├── security.py             ← rate-limit de logins y validación de magic bytes
+│   ├── storage.py              ← archivos en Supabase Storage (prod) o disco local (dev/tests)
+│   ├── imagenes.py             ← compresión de fotos y conversión PDF → foto (PyMuPDF)
+│   ├── geoubicacion.py         ← enlace de Google Maps → coordenadas (best-effort, con
+│   │                              auto-reparación al leer: reparar_ubicacion_coords)
+│   ├── geocatmin.py            ← INGEMMET por punto: catastro minero + geología (best-effort,
+│   │                              caché 30 días en datos_formalizacion_json["_geocatmin"])
+│   ├── uploads_config.py       ← categorías de archivos + equivalencias + fotos de perfil
+│   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
 │   ├── routers/
-│   │   ├── diagnostico.py        ← POST /diagnostico
-│   │   ├── eventos.py            ← POST /eventos (métricas de embudo, anónimas)
-│   │   ├── empresas.py           ← GET /empresas, /empresas/mejor-opcion, POST /consultores/postular
-│   │   ├── leads.py              ← POST /leads (registro del minero + su cuenta)
-│   │   ├── mineros.py            ← /mineros/login, /me, /perfil-inversion, /documentos
-│   │   ├── inversionistas.py     ← /inversionistas/login, /me
-│   │   ├── proyectos.py          ← vitrina pública /proyectos, /proyectos/{id}, /interes
-│   │   └── admin.py              ← todo lo protegido por JWT admin
-│   ├── seeds/                    ← migraciones y utilidades de un solo uso (ver arriba)
-│   ├── uploads/                  ← archivos subidos (cvs/, documentos_mineros/) — NUNCA `rm -f *`
-│   ├── backups/                  ← salida de seeds/backup_db.py
-│   └── tests/
-│       ├── test_smoke.py         ← flujo end-to-end de cada endpoint
-│       └── test_scoring.py       ← lógica pura de scoring.py
+│   │   ├── diagnostico.py      ← POST /diagnostico
+│   │   ├── eventos.py          ← POST /eventos (métricas de embudo, anónimas)
+│   │   ├── empresas.py         ← GET /empresas, POST /consultores/postular, /interes
+│   │   ├── leads.py            ← POST /leads (registro del minero + su cuenta)
+│   │   ├── mineros.py          ← login, /me, perfil-inversion, documentos, /inversion,
+│   │   │                          notificaciones
+│   │   ├── inversionistas.py   ← /inversionistas/login, /me
+│   │   ├── proyectos.py        ← cartera pública, ficha, indicadores, GEOCATMIN, /interes
+│   │   └── admin.py            ← todo lo protegido por JWT admin
+│   ├── seeds/                  ← migraciones/utilidades de un solo uso (⚠️ corren contra prod)
+│   ├── uploads/                ← archivos subidos — NUNCA `rm -f *`
+│   └── tests/                  ← test_smoke.py (end-to-end) + test_scoring.py (lógica pura)
 └── frontend/
-    ├── capacitor.config.ts        ← config de la app Android (androidScheme http para dev)
-    ├── android/                   ← proyecto nativo generado por Capacitor (no editar a mano
-    │                                  salvo AndroidManifest.xml)
+    ├── capacitor.config.ts     ← config de la app Android
+    ├── android/                ← proyecto nativo generado (no editar salvo AndroidManifest.xml)
     └── src/
-        ├── components/            ← incluye subcarpeta proyecto/ para la ficha pública
-        ├── pages/                 ← incluye admin/ para el panel
-        ├── context/                ← AuthContext (admin), MineroAuthContext, InversionistaAuthContext
-        ├── hooks/
+        ├── data/               ← espejos TS de los catálogos backend (preguntas.ts,
+        │                          preguntasInversion.ts, brechas.ts, estudiosPorDimension.ts)
+        │                          — ⚠️ los sets de ids DEBEN coincidir con el backend o el
+        │                          POST devuelve 422; preguntasPerfil.ts/perfilInformativo.ts
+        │                          están EN PAUSA (no borrar)
+        ├── components/         ← incluye proyecto/ para la ficha pública
+        ├── pages/              ← incluye admin/ para el panel
+        ├── context/            ← AuthContext (admin), MineroAuthContext, InversionistaAuthContext
         ├── types/
-        └── services/api.ts        ← todas las llamadas fetch al backend
+        └── services/api.ts     ← todas las llamadas fetch al backend
 ```
 
 ## Reglas de autonomía
@@ -329,9 +276,10 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 
 ### SIEMPRE confirma antes de
 - Borrar archivos o carpetas
-- Modificar el esquema de BD si ya tiene datos
+- Modificar el esquema de BD si ya tiene datos, y CORRER cualquier seed/migración
+  (ejecutan contra producción vía `backend/.env`)
 - Cambiar tsconfig.json, vite.config.ts o pyproject de forma sustancial
-- Conectar un servicio externo NUEVO (Supabase ya está conectado vía `backend/.env`,
+- Conectar un servicio externo NUEVO (Supabase y GEOCATMIN ya están conectados,
   eso no cuenta como "nuevo" — pero desplegar a un hosting, cambiar de proyecto de
   Supabase, o conectar otro servicio sí requiere confirmar)
 - Correr cualquier `rm`/borrado sobre `backend/uploads/` más allá de un archivo puntual
@@ -343,18 +291,24 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 3. Avisa: qué falló, qué intentaste, qué necesitas
 
 ## Reglas duras del negocio (NUNCA violar)
-- REINFO/proceso de formalización iniciado YA NO es requisito para aparecer
-  en la vitrina pública (cambio de política, julio 2026) — `bloqueado` sigue
-  calculándose y se muestra al minero como estado informativo, pero no
-  filtra `/proyectos`. Ver `context/criterios_score.md`
-- Las fotos de los documentos legales (RUC, catastro, contrato, título,
-  informe de leyes) SON públicas desde julio 2026 (decisión explícita del
-  cliente, revierte una regla de privacidad anterior) — se sirven sin login
-  vía `GET /proyectos/{id}/documentos/{doc_id}`. Solo se aceptan/guardan
+- **Regla de bloqueo**: un proyecto con semáforo legal ROJO nunca se muestra a
+  inversionistas; perfiles A/A_avanzado y filas del modelo viejo nunca listan en
+  `/proyectos`; publicar exige haber ENVIADO documentos de formalización + Módulo INV.
+  No hay visto bueno manual del admin — la publicación es automática al cumplir eso
+- **Privacidad de archivos**: liquidaciones de venta, estados financieros, registro
+  OPEX y fotos de TRABAJADORES son PRIVADOS para siempre (públicamente solo el hecho
+  verificado — `IndicadoresVerificadosOut`). Las fotos de documentos legales/estudios y
+  la galería sí son públicas (decisión explícita del cliente). Solo se aceptan/guardan
   como foto (PDF se convierte al subir), nunca como PDF crudo
+- El ✓ público de un requisito exige foto de respaldo subida — nunca solo la
+  declaración
 - El minero NUNCA ve datos de otros mineros
-- Los datos de contacto del minero (leads) solo son visibles en el panel admin
+- Los datos de contacto del minero (leads) solo son visibles en el panel admin —
+  ni empresas ni inversionistas los reciben directo; Esthiven intermedia siempre
 - No inventes empresas: solo se muestran las que Esthiven cargó
 - Todos los textos visibles al minero en lenguaje simple (ver perfil_usuario.md)
 - Un mismo WhatsApp o código REINFO no puede registrar dos leads (409 si se repite)
 - Un CIP (colegiatura) de consultor es único: no se puede postular dos veces con el mismo
+- Los datos de GEOCATMIN son siempre REFERENCIALES (el pin es aproximado; operar la
+  concesión de otro titular por contrato es legal) — nunca presentarlos como acusación
+- Las preguntas viejas EN PAUSA no se borran (decisión del dueño)
