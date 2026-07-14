@@ -18,6 +18,8 @@ from scoring import (
     estado_seguimiento,
     estudios_aplicables,
     respuestas_diagnostico_efectivas,
+    score_formalizacion,
+    score_inversion,
 )
 from catalogo_inversion import (
     activacion_inversion,
@@ -215,6 +217,8 @@ def _perfil_out(
             and b not in set(operacion.brechas_resueltas_json or [])
         ],
         datos_formalizacion=operacion.datos_formalizacion_json or {},
+        score_formalizacion=score_formalizacion(operacion),
+        score_inversion=score_inversion(operacion, lead),
         # Cuántos inversionistas dejaron su interés en este proyecto — solo
         # el conteo: sus datos de contacto siguen siendo exclusivos del
         # admin, que hace de intermediario.

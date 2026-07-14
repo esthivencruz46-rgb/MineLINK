@@ -627,6 +627,58 @@ def test_mineros_guarda_ley_promedio_sin_pisar_el_resto():
     assert body["capital_buscado"] == "USD 20,000"
 
 
+def test_scores_por_track_suben_con_el_avance():
+    # Score de Formalización 0-100: sube al resolver una brecha (subiendo
+    # su respaldo). Score de Inversión: None hasta que aplique el módulo,
+    # y sube al enviar el perfil INV.
+    respuestas_b = dict(RESPUESTAS_SIN_TRAMITE)
+    respuestas_b["B1_1"] = "debo_1"
+    respuestas_b["B1_4"] = "privado"
+    respuestas_b["B1_5"] = "no"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_b,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads", json=_lead_payload(diag["id"], username="minerscore", password="clave123")
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "minerscore", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = client.get("/mineros/me", headers=headers).json()
+    score_inicial = me["score_formalizacion"]
+    assert isinstance(score_inicial, int) and 0 <= score_inicial <= 100
+    assert me["brechas_pendientes"], "el fixture debe tener brechas"
+
+    # Resolver una brecha con respaldo debe SUBIR el score de formalización
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": me["brechas_pendientes"][0]},
+        files={"archivo": ("r.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    me = client.get("/mineros/me", headers=headers).json()
+    assert me["score_formalizacion"] > score_inicial
+
+    # Inversión: perfil B ofrece el módulo → score numérico; enviar sube
+    score_inv_inicial = me["score_inversion"]
+    assert isinstance(score_inv_inicial, int)
+    resp = client.post(
+        "/mineros/inversion", json={"respuestas": RESPUESTAS_INV_B}, headers=headers
+    )
+    assert resp.status_code == 200
+    me = client.get("/mineros/me", headers=headers).json()
+    assert me["score_inversion"] > score_inv_inicial
+    assert 0 <= me["score_inversion"] <= 100
+
+
 def test_mineros_guarda_fechas_de_formalizacion_por_clave():
     # datos_formalizacion se FUSIONA por clave: cada slot guarda su fecha
     # sin pisar las demás; un valor vacío borra solo esa clave.

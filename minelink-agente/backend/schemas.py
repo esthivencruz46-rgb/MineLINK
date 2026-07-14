@@ -636,6 +636,11 @@ class MineroPerfilOut(BaseModel):
     # Fechas declaradas junto a los slots de formalización (dict
     # categoria→valor, ver Operacion.datos_formalizacion_json).
     datos_formalizacion: dict[str, str] = {}
+    # Scores 0-100 por track (julio 2026) — resumen numérico de avance +
+    # evidencia; None = no calculable (diagnóstico viejo / módulo INV no
+    # ofrecido). Ver scoring.score_formalizacion / score_inversion.
+    score_formalizacion: Optional[int] = None
+    score_inversion: Optional[int] = None
     # Cuántos inversionistas dejaron interés en su proyecto (solo el
     # número; los contactos siguen siendo exclusivos del panel admin).
     intereses_recibidos: int = 0

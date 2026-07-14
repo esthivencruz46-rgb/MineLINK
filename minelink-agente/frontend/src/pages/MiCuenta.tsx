@@ -167,8 +167,21 @@ export function MiCuenta() {
           la sidebar queda debajo. */}
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
-            Formalización
+          <h2 className="flex items-center gap-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Formalización{" "}
+            {typeof perfil.score_formalizacion === "number" && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${
+                  perfil.score_formalizacion >= 70
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : perfil.score_formalizacion >= 40
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-red-500/15 text-red-500"
+                }`}
+              >
+                {perfil.score_formalizacion}/100
+              </span>
+            )}
           </h2>
 
           <SemaforoCard titulo="Track Legal" semaforo={semLegal} grande />
@@ -224,8 +237,21 @@ export function MiCuenta() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <h2 className="text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
-            Inversión
+          <h2 className="flex items-center gap-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+            Inversión{" "}
+            {typeof perfil.score_inversion === "number" && (
+              <span
+                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${
+                  perfil.score_inversion >= 70
+                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    : perfil.score_inversion >= 40
+                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                      : "bg-red-500/15 text-red-500"
+                }`}
+              >
+                {perfil.score_inversion}/100
+              </span>
+            )}
           </h2>
           <SeccionInversionista perfil={perfil} onAbrir={() => setMostrarInversion(true)} />
           {mostrarInversion && perfil.inversion_ofrecida && !perfil.inv_enviado && (

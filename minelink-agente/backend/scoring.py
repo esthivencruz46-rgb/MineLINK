@@ -348,6 +348,19 @@ def respuestas_con_brechas_resueltas(
         for id_pregunta in PREGUNTAS_POR_ESTUDIO.get(estudio, []):
             if id_pregunta in actualizadas:
                 actualizadas[id_pregunta] = VALOR_RESUELTO_POR_PREGUNTA[id_pregunta]
+
+    # El parche puede dejar respuestas HUÉRFANAS de preguntas condicionales
+    # (ej. resolver acreditacion_terreno cambia B1_4 a "propio" y B1_5 —
+    # que solo aplicaba con B1_4="privado" — deja de existir): se descartan
+    # SOLO las que aplicaban antes y dejaron de aplicar por el parche, para
+    # que el seguimiento no degrade a None por un ValueError de validación.
+    try:
+        antes = ids_esperados(respuestas)
+        despues = ids_esperados(actualizadas)
+        huerfanas = antes - despues
+        actualizadas = {k: v for k, v in actualizadas.items() if k not in huerfanas}
+    except (ValueError, TypeError):
+        pass  # respuestas del modelo viejo: se devuelven tal cual
     return actualizadas
 
 
@@ -495,6 +508,126 @@ def categorias_requeridas_out(operacion, categorias: list[str]) -> list[dict]:
         }
         for c in categorias
     ]
+
+
+# ---------------------------------------------------------------------
+# Scores 0-100 (julio 2026, pedido de Esthiven): un número por track para
+# comparar proyectos en la cartera — NO reemplazan a los semáforos ni al
+# Índice de Madurez (que siguen mandando en la regla de bloqueo), los
+# resumen. Derivados SOLO de datos reales; pesos PENDIENTES DE CALIBRAR.
+# ---------------------------------------------------------------------
+
+# Score de Formalización: avance del checklist (60) + semáforo legal (25)
+# + evidencia subida (15).
+PUNTOS_AVANCE_FORMALIZACION = 60
+PUNTOS_SEMAFORO_LEGAL = {"verde": 25, "amarillo": 12, "rojo": 0}
+PUNTOS_EVIDENCIA_FORMALIZACION = 15
+
+# Score de Inversión: perfil INV enviado (10) + datos duros completos
+# (30: 5 por cada uno de 6 datos) + respaldos subidos (35) − brechas
+# de inversión abiertas (hasta 25 si no hay ninguna).
+PUNTOS_INV_ENVIADO = 10
+PUNTOS_POR_DATO_INV = 5
+PUNTOS_RESPALDOS_INV = 35
+PUNTOS_SIN_BRECHAS_INV = 25
+CASTIGO_BRECHA_INV = 8
+CASTIGO_BRECHA_EN_PROCESO = 4
+
+
+def score_formalizacion(operacion) -> int | None:
+    """Score 0-100 del track de formalización: cuánto del camino legal ya
+    recorrió y respaldó. None para diagnósticos del modelo anterior (sin
+    perfil con que calcular)."""
+    seguimiento = estado_seguimiento(operacion)
+    if seguimiento.get("perfil") is None:
+        return None
+
+    total = len(operacion.brechas_json or [])
+    pendientes = len(seguimiento.get("brechas_pendientes") or [])
+    avance = 1.0 if total == 0 else (total - pendientes) / total
+    puntos = PUNTOS_AVANCE_FORMALIZACION * avance
+
+    puntos += PUNTOS_SEMAFORO_LEGAL.get(seguimiento.get("semaforo_legal") or "", 0)
+
+    aplicables = estudios_aplicables(operacion)
+    subidas = {d.categoria for d in (operacion.documentos or [])}
+    if aplicables:
+        con_respaldo = sum(1 for e in aplicables if e["codigo"] in subidas)
+        puntos += PUNTOS_EVIDENCIA_FORMALIZACION * con_respaldo / len(aplicables)
+    elif operacion.documentos_enviados_en is not None:
+        puntos += PUNTOS_EVIDENCIA_FORMALIZACION
+
+    return round(min(100.0, puntos))
+
+
+def score_inversion(operacion, lead=None) -> int | None:
+    """Score 0-100 del track de inversión: qué tan completo y respaldado
+    está el perfil que ve el inversionista. None si el Módulo INV no se
+    ofrece a este perfil (nada que puntuar)."""
+    from catalogo_inversion import (
+        activacion_inversion,
+        brechas_inversion,
+        brechas_inversion_en_proceso,
+        categorias_requeridas_inversion,
+        respaldos_declarados_inversion,
+    )
+
+    perfil = operacion.estado_formalizacion
+    if perfil is None:
+        return None
+    activacion = activacion_inversion(perfil, respuestas_diagnostico_efectivas(operacion))
+    if not activacion["ofrece"]:
+        return None
+
+    respuestas_inv = operacion.inv_respuestas_json or {}
+    subidas = {d.categoria for d in (operacion.documentos or [])}
+    resueltas = set(operacion.brechas_resueltas_json or [])
+    puntos = 0.0
+
+    if operacion.inv_enviado_en is not None:
+        puntos += PUNTOS_INV_ENVIADO
+
+    datos = [
+        getattr(lead, "capital_buscado", None) if lead is not None else None,
+        getattr(lead, "ubicacion_maps", None) if lead is not None else None,
+        getattr(lead, "capacidad_produccion", None) if lead is not None else None,
+        operacion.ley_promedio,
+        operacion.especie_mineral,
+        operacion.toneladas_estimadas,
+    ]
+    puntos += PUNTOS_POR_DATO_INV * sum(1 for d in datos if d and str(d).strip())
+
+    # Evidencia: qué proporción de lo declarado/requerido ya tiene archivo.
+    objetivo = {
+        d["codigo"] for d in respaldos_declarados_inversion(perfil, respuestas_inv)
+    } | set(categorias_requeridas_inversion(perfil, respuestas_inv))
+    if objetivo:
+        puntos += PUNTOS_RESPALDOS_INV * len(objetivo & subidas) / len(objetivo)
+    elif operacion.inv_enviado_en is not None:
+        puntos += PUNTOS_RESPALDOS_INV
+
+    # El bono "sin brechas" exige haber RESPONDIDO el módulo — sin
+    # respuestas no hay información, no un módulo impecable (si no,
+    # responder honestamente con carencias BAJARÍA el score).
+    if respuestas_inv:
+        abiertas = [
+            b
+            for b in brechas_inversion(respuestas_inv)
+            if b not in subidas and b not in resueltas
+        ]
+        en_proceso = [
+            b
+            for b in brechas_inversion_en_proceso(respuestas_inv)
+            if b not in subidas and b not in resueltas
+        ]
+        puntos += max(
+            0,
+            PUNTOS_SIN_BRECHAS_INV
+            - CASTIGO_BRECHA_INV * len(abiertas)
+            - CASTIGO_BRECHA_EN_PROCESO * len(en_proceso),
+        )
+
+    return round(min(100.0, puntos))
 
 
 def score_formalizacion_para_inversion(seguimiento: dict) -> int:

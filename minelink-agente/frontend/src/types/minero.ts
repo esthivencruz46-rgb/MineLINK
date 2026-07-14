@@ -137,6 +137,10 @@ export interface MineroPerfil {
   // Fechas declaradas junto a los slots de formalización (dict
   // categoria→valor ISO, ej. {"autorizacion_drem": "2024-03-15"}).
   datos_formalizacion?: Record<string, string>;
+  // Scores 0-100 por track (julio 2026) — resumen numérico de avance +
+  // evidencia; null = no calculable.
+  score_formalizacion?: number | null;
+  score_inversion?: number | null;
 }
 
 export interface Notificacion {
