@@ -17,6 +17,12 @@ export interface ProyectoPublico {
   docs_totales?: number | null;
   // ¿Vende con liquidación formal? (evidencia de flujo de caja, perfil C)
   vende_liquidacion?: boolean | null;
+  // Scores 0-100 por track (julio 2026) — para comparar proyectos de la
+  // cartera; los semáforos siguen mandando en la regla de bloqueo.
+  score_formalizacion?: number | null;
+  score_inversion?: number | null;
+  // ✓ declaró ventas con liquidación Y subió el respaldo (archivo privado)
+  ventas_verificadas?: boolean;
   bloqueado_actual: boolean;
   descripcion_operacion?: string | null;
   capacidad_produccion?: string | null;
@@ -29,6 +35,20 @@ export interface ProyectoPublico {
 export interface FotoPublica {
   id: number;
   url: string;
+}
+
+/** Señales públicas derivadas de documentos PRIVADOS: el hecho verificado
+ *  (existe respaldo, cuántos, de cuándo), nunca el documento en sí. */
+export interface IndicadoresVerificados {
+  ventas_liquidacion_verificada: boolean;
+  ventas_liquidacion_docs: number;
+  ventas_liquidacion_ultima?: string | null;
+  contabilidad?: string | null;
+  contabilidad_verificada: boolean;
+  opex_verificado: boolean;
+  opex_costo_aprox?: string | null;
+  num_trabajadores?: string | null;
+  maquinaria?: string | null;
 }
 
 export interface DimensionScore {
@@ -53,6 +73,8 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // aplica — solo se muestra el documento legal que corresponde (Título de
   // concesión O Contrato de explotación, nunca ambos).
   es_titular_concesion?: boolean | null;
+  // Señales verificadas derivadas de los documentos privados.
+  indicadores?: IndicadoresVerificados;
   // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
   // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;

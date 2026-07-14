@@ -458,13 +458,82 @@ export function ProyectoDetalle() {
                   </p>
                 )}
               </div>
-              {proyecto.vende_liquidacion != null && (
+              {/* Señales verificadas: el HECHO derivado de documentos
+                  privados (liquidaciones, estados financieros, OPEX) —
+                  nunca el documento en sí. Un ✓ = archivo subido. */}
+              {proyecto.indicadores?.ventas_liquidacion_verificada ? (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Ventas con liquidación
+                  </p>
+                  <p className="text-sm font-semibold text-emerald-500">
+                    ✓ Verificado — {proyecto.indicadores.ventas_liquidacion_docs} doc
+                    {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
+                    {proyecto.indicadores.ventas_liquidacion_ultima
+                      ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
+                      : ""}
+                  </p>
+                </div>
+              ) : proyecto.vende_liquidacion != null ? (
                 <div>
                   <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                     Producción con liquidación
                   </p>
                   <p className={`text-sm font-semibold ${proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}`}>
-                    {proyecto.vende_liquidacion ? "Sí, vende con liquidación" : "Sin liquidación formal"}
+                    {proyecto.vende_liquidacion
+                      ? "Declarada (sin respaldo aún)"
+                      : "Sin liquidación formal"}
+                  </p>
+                </div>
+              ) : null}
+              {proyecto.indicadores?.contabilidad && (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Finanzas
+                  </p>
+                  <p
+                    className={`text-sm font-semibold ${
+                      proyecto.indicadores.contabilidad_verificada
+                        ? "text-emerald-500"
+                        : ""
+                    }`}
+                  >
+                    {proyecto.indicadores.contabilidad_verificada ? "✓ " : ""}
+                    {{
+                      auditados: "Estados financieros auditados",
+                      contabilidad_formal: "Contabilidad formal (contador)",
+                      registro_interno: "Registro interno ordenado",
+                    }[proyecto.indicadores.contabilidad] ?? proyecto.indicadores.contabilidad}
+                  </p>
+                </div>
+              )}
+              {proyecto.indicadores?.opex_verificado && (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Costos operativos
+                  </p>
+                  <p className="text-sm font-semibold text-emerald-500">
+                    ✓ Documentados
+                    {proyecto.indicadores.opex_costo_aprox
+                      ? ` · ~S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
+                      : ""}
+                  </p>
+                </div>
+              )}
+              {(proyecto.indicadores?.num_trabajadores || proyecto.indicadores?.maquinaria) && (
+                <div>
+                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                    Equipo de trabajo
+                  </p>
+                  <p className="text-sm font-semibold">
+                    {[
+                      proyecto.indicadores.num_trabajadores
+                        ? `${proyecto.indicadores.num_trabajadores} trabajadores`
+                        : null,
+                      proyecto.indicadores.maquinaria,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
               )}

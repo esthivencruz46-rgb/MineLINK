@@ -671,6 +671,13 @@ class ProyectoPublicoOut(BaseModel):
     docs_totales: Optional[int] = None
     # ¿Vende con liquidación formal? (evidencia de flujo de caja, perfil C)
     vende_liquidacion: Optional[bool] = None
+    # Scores 0-100 por track (julio 2026) — comparación entre proyectos de
+    # la cartera; los semáforos siguen mandando en la regla de bloqueo.
+    score_formalizacion: Optional[int] = None
+    score_inversion: Optional[int] = None
+    # ✓ verificado: declaró ventas con liquidación Y subió el respaldo
+    # (el archivo sigue siendo privado — ver IndicadoresVerificadosOut).
+    ventas_verificadas: bool = False
     # Informativo (true = tiene un bloqueante legal activo); el listado ya
     # viene filtrado por la regla de bloqueo del spec.
     bloqueado_actual: bool = False
@@ -686,6 +693,29 @@ class ProyectoPublicoOut(BaseModel):
 class FotoPublicaOut(BaseModel):
     id: int
     url: str
+
+
+class IndicadoresVerificadosOut(BaseModel):
+    """Señales públicas derivadas de documentos PRIVADOS (julio 2026):
+    se publica el HECHO verificado (existe el respaldo, cuántos, de
+    cuándo), nunca el documento — liquidaciones y estados financieros
+    revelan facturación y exponen al minero (extorsión/competencia), y
+    las fotos de trabajadores tocan el derecho a la imagen de terceros.
+    El archivo en sí queda para la intermediación del admin."""
+
+    # Ventas con liquidación: declarado en INV_B2/C2/D2 + archivo subido
+    ventas_liquidacion_verificada: bool = False
+    ventas_liquidacion_docs: int = 0
+    ventas_liquidacion_ultima: Optional[str] = None  # "junio 2026"
+    # Cómo lleva sus finanzas (INV_D1) + si subió el respaldo
+    contabilidad: Optional[str] = None
+    contabilidad_verificada: bool = False
+    # OPEX documentado (INV_C4) + costo aproximado declarado por TN
+    opex_verificado: bool = False
+    opex_costo_aprox: Optional[str] = None
+    # Dimensión del equipo — número y lista, sin caras de terceros
+    num_trabajadores: Optional[str] = None
+    maquinaria: Optional[str] = None
 
 
 class DimensionOut(BaseModel):
@@ -717,6 +747,9 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # corresponde (Título de concesión O Contrato de explotación, nunca
     # ambos), igual que en su propia cuenta (julio 2026).
     es_titular_concesion: Optional[bool] = None
+    # Señales verificadas derivadas de los documentos privados (ver
+    # IndicadoresVerificadosOut) — el hecho, nunca el archivo.
+    indicadores: IndicadoresVerificadosOut = IndicadoresVerificadosOut()
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

@@ -1325,6 +1325,53 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     assert respaldos["estimacion_recursos"]["valor"] == "no_tengo"
 
 
+def test_detalle_publico_indicadores_verificados_sin_exponer_documentos():
+    # Los documentos sensibles (liquidaciones) generan una SEÑAL pública
+    # verificada (existe, cuántos, de cuándo) pero el archivo en sí NUNCA
+    # se sirve públicamente.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="indicadores1"))
+    _hacer_apto_inversionistas(diag["id"], "indicadores1", respuestas_inv=RESPUESTAS_INV_C)
+    token = client.post(
+        "/mineros/login", json={"username": "indicadores1", "password": "clave123"}
+    ).json()["access_token"]
+
+    # Subir liquidación + dato de OPEX + nº de trabajadores
+    doc = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "liquidaciones_venta"},
+        files={"archivo": ("liq.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "registro_opex"},
+        files={"archivo": ("opex.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    client.put(
+        "/mineros/perfil-inversion",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"datos_formalizacion": {"registro_opex": "120", "fotos_trabajadores": "8"}},
+    )
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    ind = detalle["indicadores"]
+    assert ind["ventas_liquidacion_verificada"] is True
+    assert ind["ventas_liquidacion_docs"] >= 1
+    assert ind["ventas_liquidacion_ultima"]
+    assert ind["opex_verificado"] is True
+    assert ind["opex_costo_aprox"] == "120"
+    assert ind["num_trabajadores"] == "8"
+
+    # El ARCHIVO de la liquidación sigue siendo privado: el endpoint
+    # público lo rechaza aunque el proyecto esté publicado.
+    resp = client.get(f"/proyectos/{diag['id']}/documentos/{doc['id']}")
+    assert resp.status_code == 404
+    resp = client.get(f"/proyectos/{diag['id']}/fotos/{doc['id']}")
+    assert resp.status_code == 404
+
+
 def test_mineros_notificaciones_requiere_jwt():
     resp = client.get("/mineros/notificaciones")
     assert resp.status_code == 403
@@ -1685,6 +1732,13 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     assert tarjeta["docs_completados"] == 6
     assert tarjeta["docs_totales"] == 6
     assert tarjeta["vende_liquidacion"] is True
+    # Cartera renovada (julio 2026): scores por track + ventas verificadas
+    # en la tarjeta. Perfil C puntúa dentro de su rango (55-80) y el ✓ de
+    # ventas aparece porque declaró INV_C2 y subió la liquidación (el
+    # documento en sí sigue siendo privado — ver IndicadoresVerificadosOut).
+    assert 55 <= tarjeta["score_formalizacion"] <= 80
+    assert isinstance(tarjeta["score_inversion"], int)
+    assert tarjeta["ventas_verificadas"] is True
 
 
 def test_proyectos_minerales_distintos():
@@ -2667,8 +2721,11 @@ def test_detalle_proyecto_incluye_descripcion_generada_y_ubicacion():
 
 
 def test_proyectos_ya_no_expone_scores_0_100():
-    # Spec julio 2026: los semáforos + Índice de Madurez REEMPLAZAN a los
-    # scores 0-100 — la tarjeta y el detalle público ya no los llevan.
+    # Spec julio 2026: los semáforos + Índice de Madurez reemplazaron al
+    # MineScore/Score de Atractivo viejos. La cartera renovada SÍ lleva los
+    # scores NUEVOS por track (score_formalizacion/score_inversion, anclados
+    # a la etapa del pipeline) — lo prohibido es que vuelva el modelo viejo
+    # (dimensiones con puntaje, score único sin etapa).
     diag = _crear_diagnostico().json()
     client.post(
         "/leads",
@@ -2679,7 +2736,8 @@ def test_proyectos_ya_no_expone_scores_0_100():
     proyectos = client.get("/proyectos").json()
     assert len(proyectos) == 1
     proyecto = proyectos[0]
-    assert "score_inversion" not in proyecto
+    assert isinstance(proyecto["score_formalizacion"], int)
+    assert isinstance(proyecto["score_inversion"], int)
     assert proyecto["semaforo_legal"] == "verde"
     assert proyecto["semaforo_tecnico"] is None  # Módulo INV en pausa
     assert proyecto["indice_madurez"] is None

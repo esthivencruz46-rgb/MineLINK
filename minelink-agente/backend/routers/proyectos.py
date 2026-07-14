@@ -10,7 +10,7 @@ import storage
 from auth import hash_password
 from database import get_db
 from routers.mineros import _es_titular_concesion
-from scoring import estado_seguimiento
+from scoring import estado_seguimiento, score_formalizacion, score_inversion
 from catalogo_diagnostico import ids_esperados, BRECHA_POR_PREGUNTA
 from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_FOTO_PERFIL, categoria_equivalente
 
@@ -25,9 +25,66 @@ CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
 # (mineral, camino de acceso, agua, energía) — antes solo se mostraban las
 # de fotos_mina, dejando invisibles públicamente fotos que el minero sí
 # había subido (julio 2026).
-CATEGORIAS_GALERIA = ["fotos_mina", *CATEGORIAS_FOTO_PERFIL]
+CATEGORIAS_GALERIA = [
+    "fotos_mina",
+    *CATEGORIAS_FOTO_PERFIL,
+    # Fotos del Módulo INV SIN personas (julio 2026): maquinaria, muestreo,
+    # labores antiguas, área del petitorio. Las fotos de TRABAJADORES se
+    # quedan privadas a propósito — derecho a la imagen de terceros que no
+    # dieron consentimiento; públicamente solo se muestra el número.
+    "fotos_equipo_maquinaria",
+    "muestreo_propio",
+    "fotos_labores_antiguas",
+    "fotos_area_petitorio",
+]
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
     return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"
+
+
+_MESES_ES = (
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+)
+
+
+def _indicadores_verificados(operacion: models.Operacion) -> schemas.IndicadoresVerificadosOut:
+    """Señales públicas derivadas de los documentos PRIVADOS del Módulo
+    INV: existencia/cantidad/fecha del respaldo, nunca su contenido (ver
+    IndicadoresVerificadosOut). Un ✓ solo aparece con archivo subido —
+    mismo criterio de evidencia que brechas_verificadas."""
+    r = operacion.inv_respuestas_json or {}
+    datos = operacion.datos_formalizacion_json or {}
+    docs = operacion.documentos or []
+
+    liquidaciones = [d for d in docs if d.categoria == "liquidaciones_venta"]
+    declara_ventas = (
+        r.get("INV_B2") == "si_registros"
+        or r.get("INV_C2") in ("completas", "parciales")
+        or r.get("INV_D2") in ("mas_12m", "6_12m", "menos_6m")
+    )
+    ultima = None
+    if liquidaciones:
+        reciente = max(d.created_at for d in liquidaciones if d.created_at)
+        ultima = f"{_MESES_ES[reciente.month - 1]} {reciente.year}"
+
+    contabilidad = r.get("INV_D1") if r.get("INV_D1") in (
+        "auditados", "contabilidad_formal", "registro_interno"
+    ) else None
+    tiene_financieros = any(d.categoria == "estados_financieros_libros" for d in docs)
+
+    tiene_opex = any(d.categoria == "registro_opex" for d in docs)
+
+    return schemas.IndicadoresVerificadosOut(
+        ventas_liquidacion_verificada=bool(declara_ventas and liquidaciones),
+        ventas_liquidacion_docs=len(liquidaciones),
+        ventas_liquidacion_ultima=ultima,
+        contabilidad=contabilidad,
+        contabilidad_verificada=bool(contabilidad and tiene_financieros),
+        opex_verificado=bool(r.get("INV_C4") == "detallado" and tiene_opex),
+        opex_costo_aprox=datos.get("registro_opex") or None,
+        num_trabajadores=datos.get("fotos_trabajadores") or None,
+        maquinaria=datos.get("fotos_equipo_maquinaria") or None,
+    )
 
 
 def _proyectos_visibles(db: Session):
@@ -70,6 +127,9 @@ def _proyecto_publico_out(
         docs_completados=urgencia.get("docs_completados") if urgencia else None,
         docs_totales=urgencia.get("docs_totales") if urgencia else None,
         vende_liquidacion=(respuestas.get("C4_2") == "siempre") if respuestas.get("C4_2") else None,
+        score_formalizacion=score_formalizacion(operacion),
+        score_inversion=score_inversion(operacion, lead),
+        ventas_verificadas=_indicadores_verificados(operacion).ventas_liquidacion_verificada,
         bloqueado_actual=not seguimiento.get("apto_inversionistas", False),
         descripcion_operacion=lead.descripcion_operacion,
         capacidad_produccion=lead.capacidad_produccion,
@@ -294,6 +354,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_verificadas=brechas_verificadas,
         es_titular_concesion=_es_titular_concesion(operacion),
         dimensiones=None,
+        indicadores=_indicadores_verificados(operacion),
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(

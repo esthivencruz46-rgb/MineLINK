@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { BASE_URL, obtenerProyectos } from "../services/api";
@@ -26,10 +26,19 @@ const PERFIL_RIESGO: Record<string, string> = {
   D: "Operación probada",
 };
 
+type OrdenCartera = "inversion" | "formalizacion" | "recientes";
+
+const ETIQUETA_ORDEN: Record<OrdenCartera, string> = {
+  inversion: "Mejor perfil de inversión",
+  formalizacion: "Más formalizados",
+  recientes: "Más recientes",
+};
+
 export function Proyectos() {
   const [proyectos, setProyectos] = useState<ProyectoPublico[]>([]);
   const [mineral, setMineral] = useState("");
   const [region, setRegion] = useState("");
+  const [orden, setOrden] = useState<OrdenCartera>("inversion");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,14 +53,24 @@ export function Proyectos() {
       .finally(() => setCargando(false));
   }, [mineral, region]);
 
-  // Orden del spec: semáforo legal (verde primero), luego madurez técnica
-  // descendente, luego fecha de registro.
+  // Orden de la cartera (julio 2026): semáforo legal siempre manda (verde
+  // primero — regla de bloqueo del spec), y dentro de eso el criterio que
+  // el inversionista elija: score de inversión, score de formalización o
+  // fecha de registro. Empates se resuelven con el otro score y la fecha.
   const ordenados = [...proyectos].sort((a, b) => {
     const pesoSem = (p: ProyectoPublico) => (p.semaforo_legal === "verde" ? 0 : 1);
     if (pesoSem(a) !== pesoSem(b)) return pesoSem(a) - pesoSem(b);
-    const madurez = (p: ProyectoPublico) => p.indice_madurez ?? -1;
-    if (madurez(a) !== madurez(b)) return madurez(b) - madurez(a);
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const inv = (p: ProyectoPublico) => p.score_inversion ?? -1;
+    const form = (p: ProyectoPublico) => p.score_formalizacion ?? -1;
+    const fecha = (p: ProyectoPublico) => new Date(p.created_at).getTime();
+    if (orden === "inversion") {
+      if (inv(a) !== inv(b)) return inv(b) - inv(a);
+      if (form(a) !== form(b)) return form(b) - form(a);
+    } else if (orden === "formalizacion") {
+      if (form(a) !== form(b)) return form(b) - form(a);
+      if (inv(a) !== inv(b)) return inv(b) - inv(a);
+    }
+    return fecha(b) - fecha(a);
   });
 
   const operando = ordenados.filter((p) => p.perfil === "C" || p.perfil === "D");
@@ -79,6 +98,18 @@ export function Proyectos() {
           onChange={setRegion}
           placeholder="Buscar departamento"
         />
+        <select
+          value={orden}
+          onChange={(e) => setOrden(e.target.value as OrdenCartera)}
+          aria-label="Ordenar proyectos"
+          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+        >
+          {(Object.keys(ETIQUETA_ORDEN) as OrdenCartera[]).map((o) => (
+            <option key={o} value={o}>
+              {ETIQUETA_ORDEN[o]}
+            </option>
+          ))}
+        </select>
       </div>
 
       {error && <p className="text-red-500">{error}</p>}
@@ -127,8 +158,28 @@ export function Proyectos() {
   );
 }
 
-/** Tarjeta del spec: Track Legal (semáforo + texto), Madurez técnica N/5,
- * liquidación, monto buscado y perfil de riesgo — sin scores 0-100. */
+/** Chip de score 0-100 por track — mismos umbrales de color que la cuenta
+ * del minero (≥70 verde, ≥40 ámbar, resto rojo). */
+function ScoreChip({ etiqueta, valor }: { etiqueta: string; valor?: number | null }) {
+  if (typeof valor !== "number") return null;
+  const clase =
+    valor >= 70
+      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      : valor >= 40
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : "bg-red-500/15 text-red-500";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${clase}`}
+      title={`${etiqueta}: ${valor} de 100`}
+    >
+      {etiqueta} {valor}
+    </span>
+  );
+}
+
+/** Tarjeta de la cartera: Track Legal (semáforo + texto), scores 0-100 por
+ * track, ventas verificadas con respaldo, monto buscado y perfil de riesgo. */
 function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
   const semLegal = semaforoDesdeColor(p.semaforo_legal);
   const perfil = p.perfil ?? "";
@@ -180,10 +231,25 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
               Madurez {p.indice_madurez}/5
             </span>
           )}
-          {p.vende_liquidacion && (
-            <span className="text-emerald-600 dark:text-emerald-400">
-              Vende con liquidación
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <ScoreChip etiqueta="Formalización" valor={p.score_formalizacion} />
+          <ScoreChip etiqueta="Inversión" valor={p.score_inversion} />
+          {p.ventas_verificadas ? (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
+              title="Declaró ventas con liquidación y subió el respaldo (verificado por MineLink; el documento es privado)"
+            >
+              <BadgeCheck size={12} strokeWidth={2.5} aria-hidden />
+              Ventas verificadas
             </span>
+          ) : (
+            p.vende_liquidacion && (
+              <span className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                Vende con liquidación
+              </span>
+            )
           )}
         </div>
 
