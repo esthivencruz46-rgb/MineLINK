@@ -331,9 +331,11 @@ export function ProyectoDetalle() {
         </button>
       </p>
 
-      {/* GALERÍA */}
+      {/* MOSAICO SUPERIOR: ubicación satelital en la parte ancha + fotos
+          del proyecto al costado (la tarjeta "Ubicación" aparte se
+          eliminó — vivía abajo y dejaba este espacio a medio usar). */}
       <div className="mt-6">
-        <GaleriaProyecto fotos={proyecto.fotos} />
+        <GaleriaProyecto fotos={proyecto.fotos} ubicacionCoords={proyecto.ubicacion_coords} />
       </div>
 
       {/* LAYOUT 2 COLUMNAS */}
@@ -491,44 +493,9 @@ export function ProyectoDetalle() {
             </Card>
           )}
 
-          {/* MAPA — solo si el titular registró su ubicación (sin ubicación
-              la tarjeta no se muestra: era un recuadro vacío que solo
-              ocupaba espacio). Vista satelital (t=k), no mapa de calles:
-              lo que el inversionista quiere ver es el terreno real. */}
-          {(proyecto.ubicacion_coords || proyecto.ubicacion_maps) && (
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Ubicación</h2>
-                {proyecto.ubicacion_maps && (
-                  <a
-                    href={proyecto.ubicacion_maps}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-semibold text-acento underline"
-                  >
-                    Abrir en Google Maps
-                  </a>
-                )}
-              </div>
-              {proyecto.ubicacion_coords && (
-                <>
-                  <div className="mt-3 overflow-hidden rounded-lg">
-                    <iframe
-                      title="Ubicación del proyecto (vista satelital)"
-                      src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=15&t=k&output=embed`}
-                      className="h-72 w-full border-0"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      allowFullScreen
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
-                    Vista satelital de la zona aproximada declarada por el titular.
-                  </p>
-                </>
-              )}
-            </Card>
-          )}
+          {/* La ubicación ya no tiene tarjeta propia: vive en el mosaico
+              superior (vista satelital) y el enlace a Google Maps sigue en
+              el encabezado. */}
         </div>
 
         {/* SIDEBAR */}
