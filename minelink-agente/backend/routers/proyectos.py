@@ -51,6 +51,39 @@ def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
     return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"
 
 
+# Credencial que PRUEBA que el proyecto existe, por perfil (julio 2026):
+# la foto del documento que ampara la etapa — autorización DREM/GREM para
+# un formal pleno, título de concesión para un concesionario. Se muestra
+# como mini-imagen en la tarjeta de la cartera (nunca es un PDF: todo se
+# convierte a foto de su primera hoja al subirse). Orden = prioridad.
+_CREDENCIAL_POR_PERFIL: dict[str, list[str]] = {
+    "D": ["autorizacion_drem", "titulo_concesion"],
+    "C": ["titulo_concesion", "contrato_explotacion"],
+    "B": ["titulo_concesion"],
+}
+_ETIQUETA_CREDENCIAL = {
+    "autorizacion_drem": "Autorización DREM/GREM",
+    "titulo_concesion": "Título de concesión",
+    "contrato_explotacion": "Contrato de explotación",
+}
+
+
+def _credencial_publica(operacion: models.Operacion, perfil: Optional[str]):
+    """(url, etiqueta) de la foto de la credencial del perfil, o (None, None)
+    si todavía no la subió. Usa el mismo endpoint público que ya sirve los
+    documentos legales de la ficha."""
+    prioridades = _CREDENCIAL_POR_PERFIL.get(perfil or "", [])
+    docs = operacion.documentos or []
+    for categoria in prioridades:
+        doc = next((d for d in docs if d.categoria == categoria), None)
+        if doc is not None:
+            return (
+                f"/proyectos/{operacion.id}/documentos/{doc.id}",
+                _ETIQUETA_CREDENCIAL[categoria],
+            )
+    return None, None
+
+
 _MESES_ES = (
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
@@ -122,6 +155,9 @@ def _proyecto_publico_out(
     liquidación — SIN scores 0-100 (retirados en julio 2026)."""
     respuestas = operacion.respuestas_json or {}
     urgencia = seguimiento.get("urgencia")
+    credencial_url, credencial_etiqueta = _credencial_publica(
+        operacion, seguimiento.get("perfil")
+    )
     return schemas.ProyectoPublicoOut(
         operacion_id=operacion.id,
         nombre_proyecto=_nombre_proyecto(lead, operacion),
@@ -140,6 +176,8 @@ def _proyecto_publico_out(
         score_formalizacion=score_formalizacion(operacion),
         score_inversion=score_inversion(operacion, lead),
         ventas_verificadas=_indicadores_verificados(operacion).ventas_liquidacion_verificada,
+        credencial_url=credencial_url,
+        credencial_etiqueta=credencial_etiqueta,
         bloqueado_actual=not seguimiento.get("apto_inversionistas", False),
         descripcion_operacion=lead.descripcion_operacion,
         capacidad_produccion=lead.capacidad_produccion,

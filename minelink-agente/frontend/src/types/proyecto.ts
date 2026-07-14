@@ -23,6 +23,10 @@ export interface ProyectoPublico {
   score_inversion?: number | null;
   // ✓ declaró ventas con liquidación Y subió el respaldo (archivo privado)
   ventas_verificadas?: boolean;
+  // Foto de la credencial que prueba que el proyecto existe (autorización
+  // DREM/GREM, título de concesión...) — mini-imagen en la tarjeta.
+  credencial_url?: string | null;
+  credencial_etiqueta?: string | null;
   bloqueado_actual: boolean;
   descripcion_operacion?: string | null;
   capacidad_produccion?: string | null;

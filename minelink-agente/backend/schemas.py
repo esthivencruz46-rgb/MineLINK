@@ -678,6 +678,12 @@ class ProyectoPublicoOut(BaseModel):
     # ✓ verificado: declaró ventas con liquidación Y subió el respaldo
     # (el archivo sigue siendo privado — ver IndicadoresVerificadosOut).
     ventas_verificadas: bool = False
+    # Foto de la credencial que prueba que el proyecto existe (autorización
+    # DREM/GREM para D, título de concesión para B/C) — mini-imagen en la
+    # tarjeta de la cartera. Nunca un PDF: todo se convierte a foto al
+    # subirse. None si el titular todavía no la subió.
+    credencial_url: Optional[str] = None
+    credencial_etiqueta: Optional[str] = None
     # Informativo (true = tiene un bloqueante legal activo); el listado ya
     # viene filtrado por la regla de bloqueo del spec.
     bloqueado_actual: bool = False

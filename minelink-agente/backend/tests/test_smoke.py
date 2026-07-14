@@ -1719,6 +1719,18 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     )
     _hacer_apto_inversionistas(diag_ok["id"], "verdevisible")
 
+    # Sube su título de concesión: la credencial que prueba que el
+    # proyecto existe, mostrada como mini-foto en la tarjeta.
+    token_credencial = client.post(
+        "/mineros/login", json={"username": "verdevisible", "password": "clave123"}
+    ).json()["access_token"]
+    client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token_credencial}"},
+        data={"categoria": "titulo_concesion"},
+        files={"archivo": ("titulo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+
     proyectos = client.get("/proyectos").json()
     ids = {p["operacion_id"] for p in proyectos}
     assert diag_ok["id"] in ids
@@ -1739,6 +1751,8 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
     assert 55 <= tarjeta["score_formalizacion"] <= 80
     assert isinstance(tarjeta["score_inversion"], int)
     assert tarjeta["ventas_verificadas"] is True
+    assert tarjeta["credencial_etiqueta"] == "Título de concesión"
+    assert tarjeta["credencial_url"].startswith(f"/proyectos/{diag_ok['id']}/documentos/")
 
 
 def test_proyectos_minerales_distintos():

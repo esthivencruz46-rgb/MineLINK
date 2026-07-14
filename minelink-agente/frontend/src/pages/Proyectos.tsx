@@ -253,6 +253,25 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           )}
         </div>
 
+        {/* Prueba de existencia: mini-foto de la credencial del perfil
+            (autorización DREM/GREM, título de concesión) — nunca un PDF,
+            todo se convierte a foto al subirse. Solo si el titular la
+            subió; en la ficha se ve completa. */}
+        {p.credencial_url && p.credencial_etiqueta && (
+          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1">
+            <img
+              src={`${BASE_URL}${p.credencial_url}`}
+              alt={p.credencial_etiqueta}
+              loading="lazy"
+              className="h-9 w-9 rounded object-cover"
+            />
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+              <BadgeCheck size={12} strokeWidth={2.5} aria-hidden />
+              {p.credencial_etiqueta} presentado
+            </span>
+          </div>
+        )}
+
         {p.capital_buscado && (
           <p className="mt-2 line-clamp-1 text-sm">
             Busca {formatearMonto(p.capital_buscado)}
