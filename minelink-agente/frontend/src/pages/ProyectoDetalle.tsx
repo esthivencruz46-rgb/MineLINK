@@ -5,7 +5,8 @@ import {
   BadgeCheck,
   Check,
   ChevronLeft,
-  ImageIcon,
+  ChevronRight,
+  Images,
   Map as MapIcon,
   MapPin,
   Minus,
@@ -31,7 +32,13 @@ export function ProyectoDetalle() {
   const [error, setError] = useState<string | null>(null);
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);
   const [enlaceCopiado, setEnlaceCopiado] = useState(false);
-  const [fotoAbierta, setFotoAbierta] = useState<{ url: string; etiqueta: string } | null>(null);
+  // Visor de documentos con navegación: todas las fotos del ítem abierto,
+  // no una sola — el inversionista pasa entre ángulos con las flechas.
+  const [visor, setVisor] = useState<{
+    fotos: FotoPublica[];
+    indice: number;
+    etiqueta: string;
+  } | null>(null);
   const [generandoPdf, setGenerandoPdf] = useState(false);
 
   async function compartir() {
@@ -383,49 +390,71 @@ export function ProyectoDetalle() {
               hay una foto de respaldo verificable, sin foto queda como
               pendiente aunque haya declarado que sí.
             </p>
-            <div className="mt-4 flex flex-col gap-5">
+            <div className="mt-4 flex flex-col gap-6">
               {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
                 const items = itemsFormalizacion.filter((item) => item.dim === dim);
                 if (items.length === 0 && !conReinfo) return null;
+                // Lo respaldado con foto se luce en tarjetas grandes; lo
+                // que aún no tiene foto se compacta en chips discretos.
+                const conFoto = items.filter((item) => item.fotos.length > 0);
+                const sinFoto = items.filter((item) => item.fotos.length === 0);
                 return (
                   <div key={dim}>
-                    <h3 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
                       {NOMBRES_DIMENSION[dim]}
                     </h3>
-                    <ul className="mt-2 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-                      {conReinfo && (
-                        <li className="flex items-center gap-2.5 text-sm">
-                          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
-                            <BadgeCheck
-                              size={14}
-                              strokeWidth={1.75}
-                              className="text-texto-suave dark:text-texto-suave-dark"
-                              aria-hidden
-                            />
+                    {conFoto.length > 0 && (
+                      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+                        {conFoto.map((item) => (
+                          <TarjetaDocumento
+                            key={item.etiqueta}
+                            etiqueta={item.etiqueta}
+                            fotos={item.fotos}
+                            completo={item.completo}
+                            onVer={() =>
+                              setVisor({ fotos: item.fotos, indice: 0, etiqueta: item.etiqueta })
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {(sinFoto.length > 0 || conReinfo) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {conReinfo && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                              !proyecto.bloqueado_actual
+                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                : "border border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                            }`}
+                          >
+                            {!proyecto.bloqueado_actual ? (
+                              <Check size={13} strokeWidth={2.5} aria-hidden />
+                            ) : (
+                              <Minus size={13} strokeWidth={2.5} aria-hidden />
+                            )}
+                            REINFO vigente
                           </span>
-                          <span className="flex-1">REINFO vigente</span>
-                          {!proyecto.bloqueado_actual ? (
-                            <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
-                          ) : (
-                            <Minus
-                              size={15}
-                              strokeWidth={2.5}
-                              className="shrink-0 text-texto-suave dark:text-texto-suave-dark"
-                              aria-hidden
-                            />
-                          )}
-                        </li>
-                      )}
-                      {items.map((item) => (
-                        <ItemChecklistFoto
-                          key={item.etiqueta}
-                          etiqueta={item.etiqueta}
-                          fotos={item.fotos}
-                          completo={item.completo}
-                          onVer={(url, etiqueta) => setFotoAbierta({ url, etiqueta })}
-                        />
-                      ))}
-                    </ul>
+                        )}
+                        {sinFoto.map((item) => (
+                          <span
+                            key={item.etiqueta}
+                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs ${
+                              item.completo
+                                ? "bg-emerald-500/10 font-semibold text-emerald-600 dark:text-emerald-400"
+                                : "border border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                            }`}
+                          >
+                            {item.completo ? (
+                              <Check size={13} strokeWidth={2.5} aria-hidden />
+                            ) : (
+                              <Minus size={13} strokeWidth={2.5} aria-hidden />
+                            )}
+                            {item.etiqueta}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -650,23 +679,53 @@ export function ProyectoDetalle() {
         />
       )}
 
-      {fotoAbierta && (
+      {visor && (
         <div
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
-          onClick={() => setFotoAbierta(null)}
+          onClick={() => setVisor(null)}
         >
           <button
-            onClick={() => setFotoAbierta(null)}
+            onClick={() => setVisor(null)}
             className="absolute right-4 top-4 min-h-[44px] rounded-lg bg-white/10 px-4 font-semibold text-white"
           >
             Cerrar
           </button>
           <img
-            src={fotoAbierta.url}
-            alt={fotoAbierta.etiqueta}
-            className="max-h-[85vh] max-w-full rounded-lg object-contain"
+            src={`${BASE_URL}${visor.fotos[visor.indice].url}`}
+            alt={visor.etiqueta}
+            className="max-h-[80vh] max-w-full rounded-lg object-contain"
           />
-          <p className="mt-3 text-sm text-white/80">{fotoAbierta.etiqueta}</p>
+          {visor.fotos.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVisor({
+                    ...visor,
+                    indice: (visor.indice - 1 + visor.fotos.length) % visor.fotos.length,
+                  });
+                }}
+                aria-label="Foto anterior"
+                className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/25"
+              >
+                <ChevronLeft size={22} strokeWidth={2.25} aria-hidden />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setVisor({ ...visor, indice: (visor.indice + 1) % visor.fotos.length });
+                }}
+                aria-label="Foto siguiente"
+                className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/25"
+              >
+                <ChevronRight size={22} strokeWidth={2.25} aria-hidden />
+              </button>
+            </>
+          )}
+          <p className="mt-3 text-sm font-medium text-white/90">
+            {visor.etiqueta}
+            {visor.fotos.length > 1 ? ` — ${visor.indice + 1} de ${visor.fotos.length}` : ""}
+          </p>
         </div>
       )}
     </div>
@@ -711,16 +770,11 @@ function Card({ children, acento }: { children: React.ReactNode; acento?: boolea
   );
 }
 
-const MAX_MINIATURAS_VISIBLES = 3;
-
-/** Ítem de checklist con sus miniaturas de respaldo (o un icono si
- * todavía no se subió ninguna foto) — reemplaza los recuadros aparte de
- * "Documentación Técnica" y "Documentos legales presentados": las mismas
- * fotos que verifican el ✓ se ven aquí mismo. El minero puede subir más
- * de una foto por categoría (ej. varios ángulos del catastro); se
- * muestran todas, no solo la primera — máximo 3 miniaturas visibles, con
- * un contador "+N" si hay más. */
-function ItemChecklistFoto({
+/** Tarjeta grande de documento (julio 2026): reemplaza las miniaturas de
+ * 32px del checklist. Foto en grande con degradado y el nombre encima,
+ * sello "Verificado" cuando el respaldo cuenta, y contador de fotos si el
+ * minero subió varios ángulos — clic abre el visor con navegación. */
+function TarjetaDocumento({
   etiqueta,
   fotos,
   completo,
@@ -729,49 +783,36 @@ function ItemChecklistFoto({
   etiqueta: string;
   fotos: FotoPublica[];
   completo: boolean;
-  onVer: (url: string, etiqueta: string) => void;
+  onVer: () => void;
 }) {
-  const visibles = fotos.slice(0, MAX_MINIATURAS_VISIBLES);
-  const restantes = fotos.length - visibles.length;
   return (
-    <li className="flex items-center gap-2.5 text-sm">
-      {visibles.length > 0 ? (
-        <span className="flex shrink-0 -space-x-2">
-          {visibles.map((foto, i) => (
-            <button
-              key={foto.id}
-              type="button"
-              onClick={() => onVer(`${BASE_URL}${foto.url}`, etiqueta)}
-              className="relative block h-8 w-8 overflow-hidden rounded-md border-2 border-tarjeta bg-black/5 dark:border-tarjeta-dark dark:bg-white/5"
-              style={{ zIndex: visibles.length - i }}
-            >
-              <img src={`${BASE_URL}${foto.url}`} alt={etiqueta} className="h-full w-full object-cover" />
-              {i === visibles.length - 1 && restantes > 0 && (
-                <span className="absolute inset-0 flex items-center justify-center bg-black/60 text-[10px] font-semibold text-white">
-                  +{restantes}
-                </span>
-              )}
-            </button>
-          ))}
-        </span>
-      ) : (
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/5">
-          <ImageIcon
-            size={14}
-            strokeWidth={1.75}
-            className="text-texto-suave dark:text-texto-suave-dark"
-            aria-hidden
-          />
+    <button
+      type="button"
+      onClick={onVer}
+      className="group relative block overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 transition duration-200 hover:shadow-md dark:ring-white/10"
+    >
+      <img
+        src={`${BASE_URL}${fotos[0].url}`}
+        alt={etiqueta}
+        loading="lazy"
+        className="h-36 w-full object-cover transition duration-300 group-hover:scale-105 md:h-44"
+      />
+      {/* degradado inferior con el nombre del documento */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent p-2.5 pt-10 text-left">
+        <p className="text-xs font-semibold leading-snug text-white drop-shadow">{etiqueta}</p>
+      </div>
+      {completo && (
+        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
+          <BadgeCheck size={11} strokeWidth={2.5} aria-hidden />
+          Verificado
         </span>
       )}
-      <span className={`flex-1 ${completo ? "" : "text-texto-suave dark:text-texto-suave-dark"}`}>
-        {etiqueta}
-      </span>
-      {completo ? (
-        <Check size={15} strokeWidth={2.5} className="shrink-0 text-emerald-500" aria-hidden />
-      ) : (
-        <Minus size={15} strokeWidth={2.5} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+      {fotos.length > 1 && (
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">
+          <Images size={11} strokeWidth={2.25} aria-hidden />
+          {fotos.length}
+        </span>
       )}
-    </li>
+    </button>
   );
 }
