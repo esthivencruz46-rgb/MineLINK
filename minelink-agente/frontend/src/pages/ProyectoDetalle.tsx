@@ -504,6 +504,99 @@ export function ProyectoDetalle() {
             </Card>
           )}
 
+          {/* COTEJO CON REGISTROS PÚBLICOS — datos oficiales de GEOCATMIN
+              (INGEMMET) consultados automáticamente con el pin declarado:
+              la concesión del catastro minero y la geología del punto. */}
+          {proyecto.geocatmin && (proyecto.geocatmin.concesion || proyecto.geocatmin.geologia) && (
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Cotejo con registros públicos</h2>
+                <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+                  GEOCATMIN · INGEMMET
+                </span>
+              </div>
+
+              {proyecto.geocatmin.concesion ? (
+                <div className="mt-3 rounded-lg bg-emerald-500/10 p-4">
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                    <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
+                    El punto declarado cae dentro de una concesión registrada en el
+                    catastro minero
+                  </p>
+                  <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                    <div>
+                      <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                        Concesión
+                      </dt>
+                      <dd className="text-sm font-medium">
+                        {proyecto.geocatmin.concesion.nombre}
+                        {proyecto.geocatmin.concesion.codigo
+                          ? ` (código ${proyecto.geocatmin.concesion.codigo})`
+                          : ""}
+                      </dd>
+                    </div>
+                    {proyecto.geocatmin.concesion.leyenda && (
+                      <div>
+                        <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Estado en el catastro
+                        </dt>
+                        <dd className="text-sm font-medium capitalize">
+                          {proyecto.geocatmin.concesion.leyenda.toLowerCase()}
+                        </dd>
+                      </div>
+                    )}
+                    {proyecto.geocatmin.concesion.hectareas != null && (
+                      <div>
+                        <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Extensión
+                        </dt>
+                        <dd className="text-sm font-medium">
+                          {Math.round(proyecto.geocatmin.concesion.hectareas)} hectáreas
+                        </dd>
+                      </div>
+                    )}
+                    {proyecto.geocatmin.concesion.titular && (
+                      <div>
+                        <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Titular registrado
+                        </dt>
+                        <dd className="text-sm font-medium">
+                          {proyecto.geocatmin.concesion.titular}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              ) : (
+                <p className="mt-3 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+                  El punto declarado no cae dentro de una concesión registrada en el
+                  catastro minero. El pin es aproximado, así que esto no descarta que la
+                  operación esté amparada — verificar con el titular.
+                </p>
+              )}
+
+              {proyecto.geocatmin.geologia && (
+                <div className="mt-3">
+                  <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Geología del punto (carta 1:100,000)
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium">
+                    {[proyecto.geocatmin.geologia.unidad, proyecto.geocatmin.geologia.descripcion]
+                      .filter(Boolean)
+                      .join(" — ")}
+                  </p>
+                </div>
+              )}
+
+              <p className="mt-3 text-[11px] leading-relaxed text-texto-suave dark:text-texto-suave-dark">
+                Consulta automática a GEOCATMIN (INGEMMET) según el pin declarado por el
+                titular{proyecto.geocatmin.consultado_en ? ` · ${proyecto.geocatmin.consultado_en}` : ""}.
+                Dato referencial: el titular registrado puede diferir de quien opera
+                (contratos de explotación son legales y comunes).
+              </p>
+            </Card>
+          )}
+
           {/* DATOS DE LA OPERACIÓN — cifras estructuradas que el minero
               escribe junto a sus archivos de respaldo. */}
           {filasOperacion.length > 0 && (

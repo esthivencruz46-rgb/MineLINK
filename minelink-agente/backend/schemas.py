@@ -763,6 +763,12 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # por perfil quedan privados. Valores crudos del catálogo; el frontend
     # los traduce con data/preguntasInversion.ts.
     respuestas_inversion_publicas: dict[str, Union[str, list[str]]] = {}
+    # Datos oficiales de GEOCATMIN (INGEMMET) en el pin declarado: la
+    # concesión del catastro minero y la geología del punto — referencial
+    # (el pin es aproximado). {coords, consultado_en, concesion|None,
+    # geologia|None} — ver geocatmin.consultar. None = sin pin o sin
+    # consulta exitosa todavía.
+    geocatmin: Optional[dict] = None
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None

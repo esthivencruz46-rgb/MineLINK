@@ -1,9 +1,11 @@
+from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+import geocatmin
 import models
 import schemas
 import storage
@@ -316,6 +318,36 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
     return fila
 
 
+def _geocatmin_cacheado(
+    db: Session, lead: models.Lead, operacion: models.Operacion
+) -> Optional[dict]:
+    """Datos oficiales de GEOCATMIN para el pin del proyecto, con caché en
+    la operación (clave interna "_geocatmin" de datos_formalizacion_json —
+    prefijo _ para distinguirla de las categorías que escribe el minero;
+    reusa la columna JSON existente, sin migración). Se reconsulta solo si
+    el pin cambió o el dato tiene más de DIAS_REFRESCO días; si INGEMMET
+    no responde, se conserva lo último cacheado."""
+    coords = lead.ubicacion_coords
+    if not coords:
+        return None
+    datos = operacion.datos_formalizacion_json or {}
+    cache = datos.get("_geocatmin")
+    if isinstance(cache, dict) and cache.get("coords") == coords:
+        try:
+            consultado = date.fromisoformat(cache.get("consultado_en", ""))
+            if date.today() - consultado <= timedelta(days=geocatmin.DIAS_REFRESCO):
+                return cache
+        except ValueError:
+            pass
+
+    consulta = geocatmin.consultar(coords)
+    if consulta is None:
+        return cache if isinstance(cache, dict) else None
+    operacion.datos_formalizacion_json = {**datos, "_geocatmin": consulta}
+    db.commit()
+    return consulta
+
+
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
 def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
@@ -418,6 +450,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
             for k, v in (operacion.inv_respuestas_json or {}).items()
             if k in IDS_INV_PUBLICOS
         },
+        geocatmin=_geocatmin_cacheado(db, lead, operacion),
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(

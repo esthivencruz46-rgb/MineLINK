@@ -55,6 +55,27 @@ export interface IndicadoresVerificados {
   maquinaria?: string | null;
 }
 
+/** Datos oficiales de GEOCATMIN (INGEMMET) consultados con el pin del
+ *  proyecto — referenciales: el pin lo declara el minero y es aproximado. */
+export interface GeocatminInfo {
+  coords?: string;
+  consultado_en?: string;
+  concesion?: {
+    codigo?: string | null;
+    nombre?: string | null;
+    titular?: string | null;
+    hectareas?: number | null;
+    estado?: string | null;
+    leyenda?: string | null;
+    distrito?: string | null;
+  } | null;
+  geologia?: {
+    unidad?: string | null;
+    descripcion?: string | null;
+    codigo?: string | null;
+  } | null;
+}
+
 export interface DimensionScore {
   puntaje: number;
   maximo: number;
@@ -86,6 +107,8 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // retorno, estructura legal, % a ceder, deudas) — valores crudos del
   // catálogo, traducir con data/preguntasInversion.ts.
   respuestas_inversion_publicas?: Record<string, string | string[]>;
+  // Concesión del catastro minero + geología del punto (GEOCATMIN).
+  geocatmin?: GeocatminInfo | null;
   // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
   // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;
