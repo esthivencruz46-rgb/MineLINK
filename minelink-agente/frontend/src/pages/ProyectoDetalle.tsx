@@ -101,14 +101,21 @@ export function ProyectoDetalle() {
   // muestran check ✓ en la ficha pública.
   const verificadas = new Set(proyecto.brechas_verificadas);
 
-  // Solo se muestra "Contrato de explotación" cuando NO es titular — si ya
-  // es titular, el título de concesión ya cubre eso (mismo criterio que en
-  // su propia cuenta, ver DocumentosMinero.tsx).
+  // Solo los estudios que APLICAN a este perfil (julio 2026): antes se
+  // pintaba el catálogo completo (~29 filas) y un formal pleno veía vacíos
+  // trámites que su autorización DREM/GREM ya engloba. Un estudio fuera de
+  // la lista solo entra si tiene foto subida (respaldo real que sí aporta).
+  // "Contrato de explotación" se oculta cuando ES titular — el título de
+  // concesión ya cubre eso (mismo criterio que en su propia cuenta).
+  const aplicables = new Set(proyecto.estudios_aplicables ?? []);
   const estudiosDe = (dim: NombreDimension) =>
     Object.keys(INFO_BRECHA).filter(
       (e) =>
         DIMENSION_POR_ESTUDIO[e] === dim &&
-        !(proyecto.es_titular_concesion === true && e === "contrato_explotacion")
+        !(proyecto.es_titular_concesion === true && e === "contrato_explotacion") &&
+        (aplicables.size === 0 || // filas del modelo viejo: sin lista, se muestra todo
+          aplicables.has(e) ||
+          (proyecto.documentos_estudios[e]?.length ?? 0) > 0)
     );
 
   // Un solo checklist cubre TODO el diagnóstico de formalización (antes
@@ -116,8 +123,10 @@ export function ProyectoDetalle() {
   // social y dejaba técnico y operativo en una tarjeta aparte con las
   // mismas fotos repetidas — julio 2026: se unificó en un solo lugar, cada
   // ítem con su propia miniatura, sin recuadros redundantes).
+  // La fila "REINFO vigente" solo aplica al perfil C — un formal pleno (D)
+  // ya salió del REINFO y un concesionario (B) todavía no entra a él.
   const BLOQUES_FORMALIZACION: { dim: NombreDimension; conReinfo?: boolean }[] = [
-    { dim: "legal", conReinfo: true },
+    { dim: "legal", conReinfo: proyecto.perfil === "C" },
     { dim: "ambiental" },
     { dim: "tecnico" },
     { dim: "seguridad" },
@@ -482,43 +491,44 @@ export function ProyectoDetalle() {
             </Card>
           )}
 
-          {/* MAPA */}
-          <Card>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Ubicación</h2>
-              {proyecto.ubicacion_maps && (
-                <a
-                  href={proyecto.ubicacion_maps}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm font-semibold text-acento underline"
-                >
-                  Abrir en Google Maps
-                </a>
-              )}
-            </div>
-            {proyecto.ubicacion_coords ? (
-              <>
-                <div className="mt-3 overflow-hidden rounded-lg">
-                  <iframe
-                    title="Ubicación del proyecto"
-                    src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=14&t=h&output=embed`}
-                    className="h-72 w-full border-0"
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                    allowFullScreen
-                  />
-                </div>
-                <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
-                  Zona aproximada declarada por el titular del proyecto.
-                </p>
-              </>
-            ) : (
-              <div className="mt-3 flex h-56 items-center justify-center rounded-lg border border-dashed border-black/10 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-                El titular aún no registró la ubicación de su operación
+          {/* MAPA — solo si el titular registró su ubicación (sin ubicación
+              la tarjeta no se muestra: era un recuadro vacío que solo
+              ocupaba espacio). Vista satelital (t=k), no mapa de calles:
+              lo que el inversionista quiere ver es el terreno real. */}
+          {(proyecto.ubicacion_coords || proyecto.ubicacion_maps) && (
+            <Card>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Ubicación</h2>
+                {proyecto.ubicacion_maps && (
+                  <a
+                    href={proyecto.ubicacion_maps}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm font-semibold text-acento underline"
+                  >
+                    Abrir en Google Maps
+                  </a>
+                )}
               </div>
-            )}
-          </Card>
+              {proyecto.ubicacion_coords && (
+                <>
+                  <div className="mt-3 overflow-hidden rounded-lg">
+                    <iframe
+                      title="Ubicación del proyecto (vista satelital)"
+                      src={`https://maps.google.com/maps?q=${proyecto.ubicacion_coords}&z=15&t=k&output=embed`}
+                      className="h-72 w-full border-0"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                      allowFullScreen
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Vista satelital de la zona aproximada declarada por el titular.
+                  </p>
+                </>
+              )}
+            </Card>
+          )}
         </div>
 
         {/* SIDEBAR */}

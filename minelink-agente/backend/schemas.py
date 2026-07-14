@@ -771,6 +771,11 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # las etiquetas legibles y a qué dimensión pertenece cada una.
     brechas_pendientes: list[str] = []
     brechas_resueltas: list[str] = []
+    # Estudios que APLICAN a este perfil según sus respuestas (julio 2026):
+    # el checklist público solo muestra estos — antes pintaba el catálogo
+    # completo (~29 filas) y un formal pleno veía vacíos trámites que su
+    # autorización DREM/GREM ya engloba.
+    estudios_aplicables: list[str] = []
     dimensiones: Optional[dict[str, DimensionOut]] = None
     # Desglose del Score de Atractivo de Inversión (Fase 2): formalizacion,
     # escala_economica, viabilidad_tecnica, riesgo_ambiental_social,

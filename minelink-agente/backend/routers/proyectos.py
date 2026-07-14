@@ -341,6 +341,11 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     estudios_aplicables: set[str] = {
         BRECHA_POR_PREGUNTA[i][1] for i in ids_aplicables if i in BRECHA_POR_PREGUNTA
     }
+    # La credencial del perfil D (autorización DREM/GREM) no nace de una
+    # brecha pero sí es parte de su checklist público — mismo criterio que
+    # scoring.estudios_aplicables.
+    if respuestas.get("M0_3") == "formal":
+        estudios_aplicables.add("autorizacion_drem")
     pendientes = set(seguimiento["brechas_pendientes"])
 
     def _tiene_respaldo(estudio: str) -> bool:
@@ -362,6 +367,7 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         brechas_verificadas=brechas_verificadas,
+        estudios_aplicables=sorted(estudios_aplicables),
         es_titular_concesion=_es_titular_concesion(operacion),
         dimensiones=None,
         indicadores=_indicadores_verificados(operacion),

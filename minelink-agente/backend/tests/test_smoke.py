@@ -2754,6 +2754,10 @@ def test_proyectos_ya_no_expone_scores_0_100():
     assert publicas["INV_0_11"] == "sin_deudas"
     assert "INV_0_6" not in publicas
     assert "INV_C2" not in publicas
+    # El checklist público solo lista los estudios del perfil, no el
+    # catálogo completo (los legacy sin pregunta, ej. sctr, ya no salen).
+    assert "igafom_aprobado" in detalle["estudios_aplicables"]
+    assert "sctr" not in detalle["estudios_aplicables"]
 
 
 def test_proyectos_expone_perfil_informativo_del_diagnostico():

@@ -65,6 +65,9 @@ export interface ProyectoDetalle extends ProyectoPublico {
   documentos_estudios: Record<string, FotoPublica[]>;
   brechas_pendientes: string[];
   brechas_resueltas: string[];
+  // Estudios que aplican a este perfil — el checklist público solo muestra
+  // estos (antes pintaba el catálogo completo con filas vacías).
+  estudios_aplicables?: string[];
   // Subconjunto de brechas_resueltas con foto de respaldo subida. El
   // diagnóstico es autodeclarado, así que el check ✓ público solo debe
   // mostrarse para brechas en esta lista, no para brechas_resueltas.
