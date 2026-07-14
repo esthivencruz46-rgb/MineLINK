@@ -309,9 +309,25 @@ def recuperar_password(
     return schemas.Token(access_token=create_minero_token(lead.id))
 
 
+def reparar_ubicacion_coords(db: Session, lead: models.Lead) -> None:
+    """Auto-reparación (julio 2026): si el minero guardó su enlace de Maps
+    pero la resolución a coordenadas falló en ese momento (enlace corto que
+    devolvió una página sin coordenadas, red caída...), el mapa de la ficha
+    pública quedaba vacío PARA SIEMPRE — se reintenta al leer y, si ahora
+    sí resuelve, se persiste. Best-effort: si vuelve a fallar, no rompe la
+    lectura."""
+    if not lead.ubicacion_maps or lead.ubicacion_coords:
+        return
+    coords = resolver_coordenadas(lead.ubicacion_maps)
+    if coords:
+        lead.ubicacion_coords = coords
+        db.commit()
+
+
 @router.get("/me", response_model=schemas.MineroPerfilOut)
 def perfil(db: Session = Depends(get_db), lead_id: int = Depends(get_current_lead_id)):
     lead, operacion = _operacion_del_lead(db, lead_id)
+    reparar_ubicacion_coords(db, lead)
     return _perfil_out(db, lead, operacion)
 
 

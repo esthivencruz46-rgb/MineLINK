@@ -9,7 +9,7 @@ import schemas
 import storage
 from auth import hash_password
 from database import get_db
-from routers.mineros import _es_titular_concesion
+from routers.mineros import _es_titular_concesion, reparar_ubicacion_coords
 from scoring import estado_seguimiento, score_formalizacion, score_inversion
 from catalogo_diagnostico import ids_esperados, BRECHA_POR_PREGUNTA
 from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_FOTO_PERFIL, categoria_equivalente
@@ -319,6 +319,10 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
 def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    # Si el enlace de Maps quedó guardado sin coordenadas (resolución
+    # fallida en su momento), se reintenta acá — el mapa satelital del
+    # mosaico es lo primero que ve el inversionista.
+    reparar_ubicacion_coords(db, lead)
     seguimiento = estado_seguimiento(operacion)
     base = _proyecto_publico_out(lead, operacion, seguimiento)
 

@@ -44,9 +44,23 @@ def resolver_coordenadas(enlace_maps: Optional[str]) -> Optional[str]:
         return coords
 
     # 2) Enlaces cortos (maps.app.goo.gl): seguir la redirección para
-    #    llegar a la URL completa, que sí trae coordenadas
+    #    llegar a la URL completa, que sí trae coordenadas. Con User-Agent
+    #    de navegador: al python-requests "pelado" Google a veces le
+    #    responde una página de consentimiento sin coordenadas y el enlace
+    #    quedaba guardado sin mapa (julio 2026).
     try:
-        r = requests.get(enlace_maps, allow_redirects=True, timeout=10)
+        r = requests.get(
+            enlace_maps,
+            allow_redirects=True,
+            timeout=10,
+            headers={
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+                ),
+                "Accept-Language": "es-PE,es;q=0.9",
+            },
+        )
         return _extraer(r.url) or _extraer(r.text[:200000])
     except requests.RequestException:
         return None
