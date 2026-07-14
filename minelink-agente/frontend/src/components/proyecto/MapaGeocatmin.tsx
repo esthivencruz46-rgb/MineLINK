@@ -151,6 +151,18 @@ export function MapaGeocatmin({
     mapa.on("moveend", actualizarGeologia50);
     actualizarGeologia50();
 
+    // Con el mouse ENCIMA del mapa la geología se ve al 100% (pedido del
+    // dueño, julio 2026); al salir vuelve a su transparencia normal para
+    // que el satélite siga leyéndose de un vistazo.
+    const opacidadGeologia = (llena: boolean) => {
+      geologia100.setOpacity(llena ? 1 : 0.4);
+      geologia50.setOpacity(llena ? 1 : 0.5);
+    };
+    const alEntrar = () => opacidadGeologia(true);
+    const alSalir = () => opacidadGeologia(false);
+    div.addEventListener("mouseenter", alEntrar);
+    div.addEventListener("mouseleave", alSalir);
+
     // Pin de la operación (circleMarker: no depende de los PNG del icono
     // por defecto de Leaflet, que Vite no sirve solo).
     L.circleMarker([lat, lng], {
@@ -162,9 +174,11 @@ export function MapaGeocatmin({
     }).addTo(mapa);
 
     return () => {
+      div.removeEventListener("mouseenter", alEntrar);
+      div.removeEventListener("mouseleave", alSalir);
       mapa.remove();
     };
   }, [coords, poligonoConcesion]);
 
-  return <div ref={contenedorRef} className="z-0 h-full min-h-64 w-full" />;
+  return <div ref={contenedorRef} className="mapa-geocatmin z-0 h-full min-h-64 w-full" />;
 }

@@ -13,3 +13,9 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+/* Mapa de la ficha (MapaGeocatmin): la geología pasa a opacidad 100% con
+   el mouse encima — la transición evita el salto brusco. */
+.mapa-geocatmin .leaflet-image-layer {
+  transition: opacity 0.3s ease;
+}
