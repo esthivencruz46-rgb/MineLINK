@@ -68,6 +68,9 @@ export interface GeocatminInfo {
     estado?: string | null;
     leyenda?: string | null;
     distrito?: string | null;
+    // Anillos del polígono en pares [lng, lat] (formato ArcGIS) — se
+    // dibuja resaltado en el mapa de la ficha.
+    poligono?: number[][][] | null;
   } | null;
   geologia?: {
     unidad?: string | null;

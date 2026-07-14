@@ -68,7 +68,7 @@ export function GaleriaProyecto({
   // iframe colapsaba a sus 150px por defecto dejando un hueco gigante.
   const mapa = ubicacionCoords ? (
     <div className="h-64 min-h-64 overflow-hidden rounded-xl shadow-sm md:h-auto md:flex-1">
-      <MapaGeocatmin coords={ubicacionCoords} />
+      <MapaGeocatmin coords={ubicacionCoords} poligonoConcesion={concesion?.poligono} />
     </div>
   ) : null;
 

@@ -35,8 +35,15 @@ _TIMEOUT = 12
 DIAS_REFRESCO = 30
 
 
-def _query_punto(servicio: str, capa: int, lng: float, lat: float, out_fields: str) -> Optional[dict]:
-    """Atributos del primer polígono que contiene el punto, o None."""
+def _query_punto(
+    servicio: str,
+    capa: int,
+    lng: float,
+    lat: float,
+    out_fields: str,
+    con_geometria: bool = False,
+) -> Optional[dict]:
+    """Primer polígono que contiene el punto ({attributes, geometry}), o None."""
     r = requests.get(
         f"{_BASE}/{servicio}/MapServer/{capa}/query",
         params={
@@ -44,14 +51,15 @@ def _query_punto(servicio: str, capa: int, lng: float, lat: float, out_fields: s
             "geometryType": "esriGeometryPoint",
             "spatialRel": "esriSpatialRelIntersects",
             "outFields": out_fields,
-            "returnGeometry": "false",
+            "returnGeometry": "true" if con_geometria else "false",
+            "outSR": 4326,
             "f": "json",
         },
         timeout=_TIMEOUT,
     )
     r.raise_for_status()
     features = r.json().get("features") or []
-    return features[0]["attributes"] if features else None
+    return features[0] if features else None
 
 
 def consultar(coords: Optional[str]) -> Optional[dict]:
@@ -67,6 +75,9 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
         return None
 
     resultado: dict = {
+        # Versión del formato del caché: subir cuando cambie el shape para
+        # que los cachés viejos (sin polígono) se reconsulten solos.
+        "v": 2,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
@@ -74,16 +85,18 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
     }
 
     try:
-        attrs = _query_punto(
+        feature = _query_punto(
             "SERV_CATASTRO_MINERO_WGS84",
             0,
             lng,
             lat,
             "CODIGOU,CONCESION,TIT_CONCES,HECTAGIS,D_ESTADO,LEYENDA,DEPA,PROVI,DISTRI",
+            con_geometria=True,
         )
     except requests.RequestException:
         return None
-    if attrs:
+    if feature:
+        attrs = feature.get("attributes") or {}
         resultado["concesion"] = {
             "codigo": attrs.get("CODIGOU"),
             "nombre": attrs.get("CONCESION"),
@@ -92,14 +105,18 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
             "estado": attrs.get("D_ESTADO"),
             "leyenda": attrs.get("LEYENDA"),
             "distrito": attrs.get("DISTRI"),
+            # Anillos del polígono en pares [lng, lat] (formato ArcGIS,
+            # outSR=4326) — el frontend los dibuja resaltados en el mapa.
+            "poligono": (feature.get("geometry") or {}).get("rings"),
         }
 
     # La geología es el complemento: si falla, se conserva lo demás.
     try:
-        attrs = _query_punto(
+        feature = _query_punto(
             "SERV_GEOLOGIA_100K_INTEGRADA", 6, lng, lat, "UNIDAD,DESCRIP,NAME"
         )
-        if attrs:
+        if feature:
+            attrs = feature.get("attributes") or {}
             resultado["geologia"] = {
                 "unidad": attrs.get("UNIDAD"),
                 "descripcion": attrs.get("DESCRIP"),

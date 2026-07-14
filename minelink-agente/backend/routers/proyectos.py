@@ -332,7 +332,8 @@ def _geocatmin_cacheado(
         return None
     datos = operacion.datos_formalizacion_json or {}
     cache = datos.get("_geocatmin")
-    if isinstance(cache, dict) and cache.get("coords") == coords:
+    # v: cachés de un formato anterior (ej. sin polígono) se reconsultan.
+    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 2:
         try:
             consultado = date.fromisoformat(cache.get("consultado_en", ""))
             if date.today() - consultado <= timedelta(days=geocatmin.DIAS_REFRESCO):

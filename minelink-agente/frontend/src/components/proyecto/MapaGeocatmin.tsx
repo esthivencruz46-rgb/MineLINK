@@ -12,7 +12,16 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
  * capas). Reemplaza al embed de Google Maps, que no acepta capas
  * externas. Los servicios ArcGIS se consumen como imágenes dinámicas
  * (mismo backend REST que usa backend/geocatmin.py para el cotejo). */
-export function MapaGeocatmin({ coords }: { coords: string }) {
+export function MapaGeocatmin({
+  coords,
+  poligonoConcesion,
+}: {
+  coords: string;
+  /** Anillos [lng, lat] de la concesión donde cae el pin (de GEOCATMIN,
+   * vía backend — el servidor de INGEMMET no permite pedirla directo
+   * desde el navegador por CORS). */
+  poligonoConcesion?: number[][][] | null;
+}) {
   const contenedorRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,12 +54,14 @@ export function MapaGeocatmin({ coords }: { coords: string }) {
       attribution: "GEOCATMIN · INGEMMET",
     }).addTo(mapa);
 
+    // Geología SIEMPRE visible por defecto (pedido del dueño, julio 2026);
+    // desde el control se puede apagar para ver el terreno limpio.
     const geologia = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer`,
       layers: [6],
       opacity: 0.45,
       f: "image",
-    });
+    }).addTo(mapa);
 
     L.control
       .layers(
@@ -59,6 +70,24 @@ export function MapaGeocatmin({ coords }: { coords: string }) {
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
+
+    // Polígono EXACTO de la concesión del proyecto, resaltado sobre las
+    // capas — anillos ArcGIS [lng, lat] → Leaflet [lat, lng]. El mapa se
+    // encuadra a la concesión completa (el pin queda dentro).
+    if (poligonoConcesion && poligonoConcesion.length > 0) {
+      const anillos = poligonoConcesion.map((anillo) =>
+        anillo.map(([x, y]) => [y, x] as [number, number])
+      );
+      const poligono = L.polygon(anillos, {
+        color: "#10b981",
+        weight: 3,
+        fillColor: "#10b981",
+        fillOpacity: 0.12,
+        dashArray: "6 4",
+      }).addTo(mapa);
+      poligono.bindTooltip("Concesión del proyecto", { sticky: true });
+      mapa.fitBounds(poligono.getBounds().pad(0.15));
+    }
 
     // Pin de la operación (circleMarker: no depende de los PNG del icono
     // por defecto de Leaflet, que Vite no sirve solo).
@@ -73,7 +102,7 @@ export function MapaGeocatmin({ coords }: { coords: string }) {
     return () => {
       mapa.remove();
     };
-  }, [coords]);
+  }, [coords, poligonoConcesion]);
 
   return <div ref={contenedorRef} className="z-0 h-full min-h-64 w-full" />;
 }
