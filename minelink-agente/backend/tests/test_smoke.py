@@ -196,6 +196,50 @@ def test_cuenta_lista_c2_presentado_y_subir_respaldo_lo_resuelve():
     assert perfil["semaforo_legal"] == "verde"
 
 
+def test_slot_de_c2_presentado_pasa_a_marcaste_aprobado_al_subir():
+    # Regresión (julio 2026): "Respalda tu declaración" mostraba
+    # "Marcaste: Presentado (en evaluación)" en el slot de expediente
+    # técnico — y seguía diciendo lo mismo PARA SIEMPRE incluso después de
+    # subir el archivo y auto-resolverse, porque el slot leía la
+    # declaración cruda en vez de la respuesta parchada. Debe pasar a
+    # "Marcaste: Aprobado".
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C2_5"] = "presentado"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "puno",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="expedientetecnico", password="clave123"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "expedientetecnico", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    slot = next(e for e in perfil["estudios_aplicables"] if e["codigo"] == "expediente_tecnico")
+    assert slot["valor"] == "presentado"  # aún sin subir nada
+
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "expediente_tecnico"},
+        files={"archivo": ("expediente.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    slot = next(e for e in perfil["estudios_aplicables"] if e["codigo"] == "expediente_tecnico")
+    assert slot["valor"] == "aprobado"
+    assert "expediente_tecnico" in perfil["brechas_resueltas"]
+
+
 def test_post_diagnostico_tajo_abierto():
     respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items()}
     respuestas["M0_1"] = "nada"  # Perfil A

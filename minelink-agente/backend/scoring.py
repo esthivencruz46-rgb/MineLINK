@@ -468,9 +468,15 @@ def estudios_aplicables(operacion) -> list[dict]:
 
     Vive en scoring.py (no en routers/mineros.py) porque routers/admin.py
     también la necesita, para validar el visto bueno de documentos, y un
-    router nunca debe importar de otro router."""
+    router nunca debe importar de otro router.
+
+    Usa las respuestas EFECTIVAS (con `brechas_resueltas_json` parcheado),
+    no la declaración cruda — si no, al subir el respaldo de un C2
+    "Presentado (en evaluación)" (auto-resuelto, ver routers/mineros.py
+    subir_documento) el slot seguía diciendo "Marcaste: Presentado" para
+    siempre en vez de pasar a "Marcaste: Aprobado" (julio 2026)."""
     situacion = operacion.situacion or "minero_artesanal"
-    respuestas = operacion.respuestas_json or {}
+    respuestas = respuestas_diagnostico_efectivas(operacion)
     try:
         ids = ids_esperados(respuestas)
     except (ValueError, TypeError):
