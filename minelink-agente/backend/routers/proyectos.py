@@ -337,7 +337,7 @@ def _geocatmin_cacheado(
     datos = operacion.datos_formalizacion_json or {}
     cache = datos.get("_geocatmin")
     # v: cachés de un formato anterior (ej. sin restricciones/ANP) se reconsultan.
-    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 3:
+    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 4:
         try:
             consultado = date.fromisoformat(cache.get("consultado_en", ""))
             if date.today() - consultado <= timedelta(days=geocatmin.DIAS_REFRESCO):

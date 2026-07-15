@@ -519,6 +519,43 @@ def test_post_leads_codigo_reinfo_duplicado_rechazado():
     assert resp.status_code == 409
 
 
+def test_mineros_puede_completar_codigo_reinfo_desde_su_cuenta():
+    # Julio 2026: si no dejó el código REINFO al registrarse, lo puede
+    # completar después desde su cuenta (activa el cotejo con el MINEM).
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="sincodigo"))
+    token = client.post(
+        "/mineros/login", json={"username": "sincodigo", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    assert client.get("/mineros/me", headers=headers).json()["codigo_reinfo"] is None
+
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        json={"codigo_reinfo": "REI-999"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["codigo_reinfo"] == "REI-999"
+
+    # Un código REINFO ya usado por otro minero se rechaza igual que en el registro.
+    diag2 = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag2["id"], username="otrominero", whatsapp="+51911223344"),
+    )
+    token2 = client.post(
+        "/mineros/login", json={"username": "otrominero", "password": "clave123"}
+    ).json()["access_token"]
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        json={"codigo_reinfo": "REI-999"},
+        headers={"Authorization": f"Bearer {token2}"},
+    )
+    assert resp.status_code == 409
+
+
 def test_mineros_recuperar_password_flujo_completo():
     diag = _crear_diagnostico().json()
     client.post(

@@ -77,6 +77,13 @@ export interface GeocatminInfo {
     descripcion?: string | null;
     codigo?: string | null;
   } | null;
+  // Geología a escala 1:50,000 (más detalle) — solo si INGEMMET tiene
+  // carta a esa escala en el punto; null = sin cobertura ahí.
+  geologia_50k?: {
+    unidad?: string | null;
+    litologia?: string | null;
+    descripcion?: string | null;
+  } | null;
   // Alertas de zona: áreas restringidas (GEOCATMIN) y ANP (SERNANP).
   restricciones?: { tipo: string; nombre?: string | null }[];
   anp?: {

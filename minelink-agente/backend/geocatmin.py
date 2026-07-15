@@ -5,7 +5,11 @@ que el minero declaró, trae datos OFICIALES de registros públicos:
   la que cae el punto — nombre, código único, titular registrado, estado
   (titulado / en trámite / extinguido) y hectáreas.
 - Geología integrada 100K (SERV_GEOLOGIA_100K_INTEGRADA, capa 6): la
-  unidad geológica y su litología en el punto.
+  unidad geológica y su litología en el punto — cobertura de TODO el país.
+- Geología 50K (SERV_GEOLOGIA_50K_INTEGRADA, capa 7 "Litología"): más
+  detalle, pero SOLO donde INGEMMET tiene carta a esa escala — se muestra
+  además de la 100K cuando existe, nunca en su lugar (la 100K es la base
+  garantizada).
 
 Es "best effort", igual que geoubicacion.py: si INGEMMET no responde se
 devuelve None y el caller conserva lo último cacheado — la ficha pública
@@ -34,6 +38,11 @@ _BASE = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services"
 # amortiguamiento. Campos: anp_nomb, anp_cate.
 _SERNANP = "https://geoservicios.sernanp.gob.pe/arcgis/rest/services/servicios_ogc"
 _TIMEOUT = 12
+# La 50K es notablemente más lenta que el resto (verificado: hasta ~25s en
+# algunas zonas) — se le da más margen porque es best-effort y el
+# resultado queda cacheado 30 días, así que un primer load lento es
+# aceptable a cambio de no perder el dato cuando sí existe.
+_TIMEOUT_50K = 25
 
 # Capas de SERV_AREA_RESERVADA que generan alerta si el pin cae dentro
 # (id de capa → etiqueta legible). La 2 ("Área de No Admisión de
@@ -66,6 +75,7 @@ def _query_punto(
     out_fields: str,
     con_geometria: bool = False,
     base: str = _BASE,
+    timeout: int = _TIMEOUT,
 ) -> Optional[dict]:
     """Primer polígono que contiene el punto ({attributes, geometry}), o None."""
     r = requests.get(
@@ -79,7 +89,7 @@ def _query_punto(
             "outSR": 4326,
             "f": "json",
         },
-        timeout=_TIMEOUT,
+        timeout=timeout,
     )
     r.raise_for_status()
     features = r.json().get("features") or []
@@ -100,12 +110,13 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
 
     resultado: dict = {
         # Versión del formato del caché: subir cuando cambie el shape para
-        # que los cachés viejos se reconsulten solos (v3: + restricciones/ANP).
-        "v": 3,
+        # que los cachés viejos se reconsulten solos (v4: + geología 50K).
+        "v": 4,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
         "geologia": None,
+        "geologia_50k": None,
         # Alertas de zona: [{tipo, nombre}] — áreas restringidas de
         # GEOCATMIN + ANP/amortiguamiento de SERNANP. Lista vacía = punto
         # limpio; solo-informativas (el pin es aproximado).
@@ -150,6 +161,29 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
                 "unidad": attrs.get("UNIDAD"),
                 "descripcion": attrs.get("DESCRIP"),
                 "codigo": attrs.get("NAME"),
+            }
+    except requests.RequestException:
+        pass
+
+    # Geología 50K (más detalle, solo donde existe carta a esa escala):
+    # timeout propio más largo porque el servicio es lento, y best-effort
+    # separado — si falla o no hay cobertura, la 100K de arriba ya cubrió
+    # el dato base.
+    try:
+        feature = _query_punto(
+            "SERV_GEOLOGIA_50K_INTEGRADA",
+            7,
+            lng,
+            lat,
+            "UNIDAD,LITOLOGIA,DESCRIP",
+            timeout=_TIMEOUT_50K,
+        )
+        if feature:
+            attrs = feature.get("attributes") or {}
+            resultado["geologia_50k"] = {
+                "unidad": attrs.get("UNIDAD"),
+                "litologia": attrs.get("LITOLOGIA"),
+                "descripcion": attrs.get("DESCRIP"),
             }
     except requests.RequestException:
         pass

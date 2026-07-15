@@ -899,6 +899,10 @@ class PerfilInversionUpdate(BaseModel):
     # {"autorizacion_drem": "2024-03-15"} no borra las otras fechas; un
     # valor vacío borra solo esa clave).
     datos_formalizacion: Optional[dict[str, str]] = None
+    # Código REINFO (julio 2026): si no se dejó en el registro, se puede
+    # completar después desde la cuenta — es lo que activa el cotejo
+    # automático contra el padrón del MINEM (ver backend/reinfo.py).
+    codigo_reinfo: Optional[str] = None
 
     @field_validator("ubicacion_maps")
     @classmethod

@@ -31,9 +31,12 @@ export function GaleriaProyecto({
 
   const concesion = geocatmin?.concesion;
   const geologia = geocatmin?.geologia;
+  const geologia50k = geocatmin?.geologia_50k;
   // Resumen GEOCATMIN dentro del propio bloque de ubicación — el dato
   // oficial al lado del mapa, no perdido más abajo. El detalle completo
   // (titular, código, disclaimer) sigue en "Cotejo con registros públicos".
+  // Geología en las DOS escalas cuando existen — 1:50,000 (más detalle)
+  // solo aparece donde INGEMMET tiene carta a esa escala.
   const panelGeocatmin =
     geocatmin && (concesion || geologia) ? (
       <div className="rounded-xl bg-tarjeta p-3 shadow-sm dark:bg-tarjeta-dark">
@@ -53,7 +56,12 @@ export function GaleriaProyecto({
         )}
         {geologia?.unidad && (
           <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-            Geología: {geologia.unidad}
+            Geología a escala 1:100,000: {geologia.unidad}
+          </p>
+        )}
+        {geologia50k?.unidad && (
+          <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+            Geología a escala 1:50,000: {geologia50k.unidad}
           </p>
         )}
         <p className="mt-1 text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">

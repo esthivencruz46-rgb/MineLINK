@@ -634,10 +634,31 @@ export function ProyectoDetalle() {
               {proyecto.geocatmin?.geologia && (
                 <div className="mt-3">
                   <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                    Geología del punto (carta 1:100,000)
+                    Geología a escala 1:100,000
                   </p>
                   <p className="mt-0.5 text-sm font-medium">
                     {[proyecto.geocatmin.geologia.unidad, proyecto.geocatmin.geologia.descripcion]
+                      .filter(Boolean)
+                      .join(" — ")}
+                  </p>
+                </div>
+              )}
+
+              {/* Escala 1:50,000 (más detalle): solo existe donde INGEMMET
+                  tiene carta a esa escala — si no hay cobertura, esta línea
+                  simplemente no aparece (la de 100K de arriba ya cubre el
+                  dato base en todo el país). */}
+              {proyecto.geocatmin?.geologia_50k && (
+                <div className="mt-3">
+                  <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Geología a escala 1:50,000
+                  </p>
+                  <p className="mt-0.5 text-sm font-medium">
+                    {[
+                      proyecto.geocatmin.geologia_50k.unidad,
+                      proyecto.geocatmin.geologia_50k.litologia ??
+                        proyecto.geocatmin.geologia_50k.descripcion,
+                    ]
                       .filter(Boolean)
                       .join(" — ")}
                   </p>

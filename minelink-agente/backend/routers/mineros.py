@@ -365,6 +365,19 @@ def actualizar_perfil_inversion(
         # Coordenadas para el mapa incrustado de la ficha pública;
         # best-effort: si no se resuelven, solo se muestra el botón de Maps.
         lead.ubicacion_coords = resolver_coordenadas(datos["ubicacion_maps"])
+    if "codigo_reinfo" in datos:
+        valor = (datos["codigo_reinfo"] or "").strip() or None
+        if valor and valor != lead.codigo_reinfo:
+            ya_con_reinfo = (
+                db.query(models.Lead)
+                .filter(models.Lead.codigo_reinfo == valor, models.Lead.id != lead.id)
+                .first()
+            )
+            if ya_con_reinfo is not None:
+                raise HTTPException(
+                    status_code=409, detail="Este código REINFO ya está registrado"
+                )
+        lead.codigo_reinfo = valor
     if "ley_promedio" in datos:
         operacion.ley_promedio = datos["ley_promedio"]
     if "especie_mineral" in datos:
