@@ -256,6 +256,45 @@ def test_gps_y_ruc_tienen_slot_propio_en_vez_de_ocultarse_por_equivalencia():
     assert "tramite_sunat" in codigos
 
 
+def test_contrato_con_el_titular_tiene_slot_propio():
+    # Regresión (julio 2026): "Contrato con el dueño de la concesión"
+    # (contrato_explotacion) equivalía a sí mismo en "Documentos legales"
+    # — pero esa sección está OCULTA en ambas ventanas del minero
+    # (ocultarDocumentosLegales), así que era un callejón sin salida: no
+    # existía en NINGÚN lugar de la cuenta donde subirlo, aunque sí se
+    # mostraba pendiente en la ficha pública. Perfil C que opera por
+    # contrato (C1_3="contrato") debe verlo en "Respalda tu declaración".
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C1_3"] = "contrato"
+    respuestas.pop("C2_3", None)  # no aplica a quien opera por contrato
+    respuestas["C2_7"] = "aprobado"  # SÍ aplica a quien opera por contrato (solo excluida para titular)
+    respuestas["C3_1"] = "firmado_inscrito"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "cusco",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads", json=_lead_payload(diag["id"], username="contratopropio", password="clave123")
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "contratopropio", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    slot = next(
+        (e for e in perfil["estudios_aplicables"] if e["codigo"] == "contrato_explotacion"),
+        None,
+    )
+    assert slot is not None
+    assert slot["valor"] == "firmado_inscrito"
+
+
 def test_ruc_minero_se_respalda_con_codigo_escrito_no_con_archivo():
     # "Activar tu RUC minero" no pide foto: el respaldo es el número de
     # RUC escrito. Escribirlo resuelve la brecha igual que subir un
@@ -1038,9 +1077,13 @@ def test_mineros_me_expone_estudios_aplicables_a_su_ruta():
     codigos = {a["codigo"] for a in aplicables}
     # Cada item trae la pregunta y el valor crudo que el minero declaró.
     assert all({"codigo", "pregunta_id", "valor"} <= set(a) for a in aplicables)
-    # No debe incluir estudios que equivalen a documentos legales fijos
-    # (ver uploads_config.categoria_equivalente)
-    assert "contrato_explotacion" not in codigos  # equivale a documento fijo
+    # puesta_en_produccion/analisis_laboratorio siguen equivaliendo a
+    # documentos legales fijos (fotos_mina/informe_leyes, sí visibles en
+    # la cuenta) — pero contrato_explotacion ya NO se oculta (julio 2026):
+    # "Documentos legales" está oculto en ambas ventanas del minero, así
+    # que ocultarlo por "equivalencia consigo mismo" lo dejaba sin ningún
+    # lugar donde subirse.
+    assert "contrato_explotacion" in codigos
 
 
 def test_mineros_perfil_b_expone_slots_pma_ppm_y_vigencia():
