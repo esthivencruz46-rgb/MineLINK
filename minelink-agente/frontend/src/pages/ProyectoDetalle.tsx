@@ -285,9 +285,6 @@ export function ProyectoDetalle() {
         <span className={`rounded-full bg-black/5 px-3 py-1 text-xs font-semibold dark:bg-white/10 ${semLegal.claseTexto}`}>
           {trackLegalTexto}
         </span>
-        <span className="rounded-full bg-black/5 px-3 py-1 text-xs font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
-          {proyecto.tipo_mina === "subterranea" ? "Subterránea" : "Tajo abierto"}
-        </span>
         {destacado && (
           <span className="inline-flex items-center gap-1 rounded-full bg-secundario/15 px-3 py-1 text-xs font-semibold text-secundario">
             <Star size={13} strokeWidth={2.25} fill="currentColor" aria-hidden />
