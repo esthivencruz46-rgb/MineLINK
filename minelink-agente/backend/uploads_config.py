@@ -73,6 +73,16 @@ CATEGORIAS_INVERSION = {
     # Respaldo de INV_C4 cuando el minero declara llevar un registro
     # detallado de sus costos operativos.
     "registro_opex": (_PDF_O_IMAGEN, "Registro de costos operativos (OPEX)"),
+    # Fotos de presentación de la operación (julio 2026, a pedido de
+    # Esthiven): mina desde afuera, concesión, panorámica — se ofrece SIN
+    # depender de ninguna respuesta puntual a perfiles C/D (ya operando,
+    # formal o con REINFO) porque toda operación en marcha tiene algo que
+    # mostrar de un vistazo. Pública (ver CATEGORIAS_GALERIA en
+    # routers/proyectos.py) — es justamente lo que se busca mostrar.
+    "fotos_presentacion": (
+        ("image/jpeg", "image/png", "image/webp"),
+        "Fotos de presentación (mina, concesión...)",
+    ),
 }
 
 # El diagnóstico Sí/No declara el estado de formalización, pero esa

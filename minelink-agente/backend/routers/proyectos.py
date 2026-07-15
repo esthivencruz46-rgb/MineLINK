@@ -39,6 +39,9 @@ CATEGORIAS_GALERIA = [
     "muestreo_propio",
     "fotos_labores_antiguas",
     "fotos_area_petitorio",
+    # Fotos de presentación (mina desde afuera, concesión) de perfiles C/D
+    # ya operando — es justamente lo que se busca mostrar al inversionista.
+    "fotos_presentacion",
 ]
 # Respuestas del Módulo INV públicas en la ficha del proyecto (julio 2026):
 # los datos de DECISIÓN del inversionista — capital, uso, qué ofrece/aporta,

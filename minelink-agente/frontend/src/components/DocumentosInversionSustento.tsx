@@ -21,6 +21,7 @@ const CATEGORIAS_SOLO_FOTO = new Set([
   "muestreo_propio",
   "fotos_area_petitorio",
   "fotos_labores_antiguas",
+  "fotos_presentacion",
 ]);
 
 // Qué es cada documento, en lenguaje simple — mismo tratamiento que la
@@ -39,6 +40,7 @@ const DESCRIPCION_CATEGORIA_INV: Record<string, string> = {
   fotos_labores_antiguas: "Fotos de las labores antiguas que demuestran la producción anterior.",
   registro_opex: "Tu registro de costos operativos mensuales.",
   contratos_offtake: "El contrato de venta u offtake que tienes vigente.",
+  fotos_presentacion: "Fotos de tu mina desde afuera, tu concesión — lo que mejor te presenta.",
 };
 
 interface CategoriaSustento {

@@ -265,6 +265,9 @@ export const MODULO_INV_B: PreguntaInv[] = [
 // -------------------------------------------------------------------
 
 export const MODULO_INV_C: PreguntaInv[] = [
+  // Mapeo geológico (julio 2026): operar con REINFO no garantiza tener un
+  // estudio geológico formal — mismo checklist que B1a/D3a.
+  { id: "INV_C0", tipo: "opcion", texto: "Mapeo geológico", opciones: OPCIONES_CHECKLIST },
   {
     id: "INV_C1",
     tipo: "opcion",
@@ -412,6 +415,7 @@ export const ETIQUETA_CATEGORIA_INV: Record<string, string> = {
   registro_opex: "Registro de costos operativos (OPEX)",
   contratos_offtake: "Contrato de venta / offtake",
   plan_expansion_documentado: "Plan de expansión documentado",
+  fotos_presentacion: "Fotos de presentación (mina, concesión...)",
 };
 
 /** Documentos de sustento que el admin debe ver APROBADOS antes de dar el

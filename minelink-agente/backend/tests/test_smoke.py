@@ -1139,6 +1139,7 @@ RESPUESTAS_INV_C = {
     "INV_0_9": "persona_natural",
     "INV_0_10": "20_40",
     "INV_0_11": "sin_deudas",
+    "INV_C0": "tengo",
     "INV_C1": "planta_formal",
     "INV_C2": "completas",
     "INV_C3": "lab_certificado",
@@ -1294,6 +1295,36 @@ def test_inversion_envio_completo_perfil_c():
     resp = client.get(f"/admin/operaciones/{operacion_id}/inversion", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.json()["respuestas"]["INV_C1"] == "planta_formal"
+
+
+def test_inversion_perfil_c_pide_mapeo_geologico_y_fotos_presentacion():
+    # Julio 2026 (pedido de Esthiven): C ya opera y vende, pero eso no
+    # garantiza tener un estudio geológico formal — se le pide el mismo
+    # checklist que a B/D. Además se le ofrece un slot de fotos de
+    # presentación (mina/concesión) SIN depender de ninguna respuesta,
+    # porque quien ya opera siempre tiene algo que mostrar.
+    _operacion_id, headers, _admin_headers = _minero_con_visto_bueno("invc0")
+    respuestas = dict(RESPUESTAS_INV_C)
+    respuestas["INV_C0"] = "no_tengo"
+
+    resp = client.post("/mineros/inversion", json={"respuestas": respuestas}, headers=headers)
+    assert resp.status_code == 200, resp.json()
+
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "informe_geologico" in me["brechas_inversion"]
+    assert any(
+        r["codigo"] == "fotos_presentacion" for r in me["respaldos_declarados_inversion"]
+    )
+
+    # Subir el mapeo geológico resuelve la brecha, igual que las demás.
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "informe_geologico"},
+        files={"archivo": ("mapeo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "informe_geologico" not in me["brechas_inversion"]
 
 
 def test_inversion_multi_opcion_respeta_maximo():

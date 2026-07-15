@@ -73,6 +73,11 @@ PREGUNTAS_INV: dict[str, tuple] = {
     "INV_B4": ("opcion", ("si_titularidad", "solo_socio", "no")),
 
     # ---------- INV_C: perfil C ----------
+    # Mapeo geológico (julio 2026, a pedido de Esthiven): operar con REINFO
+    # no garantiza tener un estudio geológico formal — se pedía a B y D
+    # pero se saltaba en C asumiendo que "ya vende" bastaba como proxy de
+    # conocer su yacimiento. No es lo mismo: mismo checklist que B1a/D3a.
+    "INV_C0": ("opcion", ("tengo", "en_proceso", "no_tengo")),  # mapeo geológico
     "INV_C1": ("opcion", ("planta_formal", "comprador_local", "acopiador", "no_vende")),
     "INV_C2": ("opcion", ("completas", "parciales", "no")),
     "INV_C3": ("opcion", ("lab_certificado", "analisis_comprador", "estimacion", "no_sabe")),
@@ -95,7 +100,7 @@ _IDS_PERFIL: dict[str, tuple[str, ...]] = {
     "A": ("INV_A1", "INV_A2", "INV_A3"),
     "A_avanzado": ("INV_A1", "INV_A2", "INV_A3"),
     "B": ("INV_B1a", "INV_B1b", "INV_B1c", "INV_B2", "INV_B3", "INV_B4"),
-    "C": ("INV_C1", "INV_C2", "INV_C3", "INV_C4", "INV_C5"),
+    "C": ("INV_C0", "INV_C1", "INV_C2", "INV_C3", "INV_C4", "INV_C5"),
     "D": ("INV_D1", "INV_D2", "INV_D3a", "INV_D3b", "INV_D3c", "INV_D4"),
 }
 
@@ -243,6 +248,7 @@ def categorias_requeridas_inversion(perfil: str, respuestas_inv: dict) -> list[s
 # el minero ya subió esa foto en "Respalda tu declaración" no se le pida
 # otra vez en "Respalda tu inversión".
 _CHECKLIST_ESTUDIO_POR_PREGUNTA: dict[str, str] = {
+    "INV_C0": "informe_geologico",
     "INV_B1a": "informe_geologico",
     "INV_B1b": "analisis_laboratorio",
     "INV_B1c": "estimacion_recursos",
@@ -351,6 +357,15 @@ def respaldos_declarados_inversion(
                 {"codigo": "registro_opex", "pregunta_id": "INV_C4", "valor": "detallado"}
             )
 
+    # Fotos de presentación (julio 2026): quien ya opera —perfil C con
+    # REINFO o D formal pleno— siempre tiene algo que mostrar de un
+    # vistazo (mina desde afuera, concesión), sin depender de una
+    # respuesta puntual — a diferencia del resto de slots de este módulo.
+    if perfil in ("C", "D"):
+        declarados.append(
+            {"codigo": "fotos_presentacion", "pregunta_id": "", "valor": ""}
+        )
+
     if perfil == "D":
         # INV_D1: declaró llevar registros financieros → que muestre los
         # estados/libros. "no" no pide nada.
@@ -409,6 +424,7 @@ def respaldos_declarados_inversion(
 _BRECHA_INV_POR_PREGUNTA: dict[str, tuple[tuple[str, ...], str]] = {
     "INV_0_8": (("sin_acuerdo", "no_se"), "acreditacion_terreno"),
     "INV_A1": (("ninguna",), "informe_geologico"),
+    "INV_C0": (("no_tengo",), "informe_geologico"),
     "INV_B1a": (("no_tengo",), "informe_geologico"),
     "INV_B1b": (("no_tengo",), "analisis_laboratorio"),
     "INV_B1c": (("no_tengo",), "estimacion_recursos"),
