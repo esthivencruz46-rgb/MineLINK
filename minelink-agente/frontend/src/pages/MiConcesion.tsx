@@ -164,7 +164,9 @@ export function MiConcesion() {
         </div>
       )}
 
-      {perfil.inversion_ofrecida && <PasosFormalizacionInversion perfil={perfil} />}
+      {perfil.inversion_ofrecida && (
+        <PasosFormalizacionInversion perfil={perfil} onGuardado={setPerfil} />
+      )}
 
       {/* Desktop web: dos columnas (formalización a la izquierda, cuenta +
           inversión a la derecha) — en celular/APK se apilan en una sola,
