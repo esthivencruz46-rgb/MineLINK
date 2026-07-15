@@ -456,6 +456,10 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     pendientes = set(seguimiento["brechas_pendientes"])
 
     def _tiene_respaldo(estudio: str) -> bool:
+        # "Activar tu RUC minero" no pide foto — el respaldo es el número
+        # de RUC escrito (ver DocumentosMinero.tsx / actualizar_perfil_inversion).
+        if estudio == "tramite_sunat":
+            return bool((operacion.datos_formalizacion_json or {}).get("tramite_sunat"))
         if estudio in categorias_presentadas:
             return True
         equivalente = categoria_equivalente(estudio, situacion)

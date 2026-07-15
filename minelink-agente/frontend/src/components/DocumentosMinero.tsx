@@ -291,6 +291,10 @@ export function DocumentosMinero({
   function bloqueCategoria(cat: CategoriaInfo) {
     const archivos = documentos.filter((d) => d.categoria === cat.categoria);
     const etiquetaFecha = FECHA_POR_CATEGORIA[cat.categoria];
+    // "Activar tu RUC minero" no pide foto (julio 2026, pedido explícito):
+    // el respaldo es el número de RUC escrito, no un archivo — el botón
+    // "+ Agregar" y el uploader se ocultan para esta categoría.
+    const esCampoRuc = (cat.categoria as string) === "tramite_sunat";
     return (
       <div key={cat.categoria} className="rounded-lg border border-black/10 p-3 dark:border-white/10">
         <div className="flex items-center justify-between gap-2">
@@ -304,9 +308,32 @@ export function DocumentosMinero({
             <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
               {cat.descripcion}
             </p>
-            <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
-              {cat.formatos}
-            </p>
+            {!esCampoRuc && (
+              <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                {cat.formatos}
+              </p>
+            )}
+            {esCampoRuc && (
+              <div className="mt-1.5">
+                <p className="flex items-center gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                  Número de RUC (11 dígitos):
+                  {guardandoFecha === cat.categoria && (
+                    <span className="text-acento">Guardando...</span>
+                  )}
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={11}
+                  placeholder="Ej: 10123456789"
+                  className="mt-0.5 min-h-[36px] w-40 rounded-lg border border-black/10 bg-transparent px-2 text-xs dark:border-white/10"
+                  defaultValue={fechas[cat.categoria] ?? ""}
+                  onBlur={(e) =>
+                    guardarFecha(cat.categoria, e.target.value.replace(/\D/g, ""))
+                  }
+                />
+              </div>
+            )}
             {etiquetaFecha && (
               <div className="mt-1.5">
                 <p className="flex items-center gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -324,26 +351,30 @@ export function DocumentosMinero({
               </div>
             )}
           </div>
-          <button
-            onClick={() => inputsRef.current[cat.categoria]?.click()}
-            disabled={subiendo === cat.categoria}
-            className="min-h-[36px] shrink-0 rounded-lg border border-acento px-3 text-xs font-semibold text-acento disabled:opacity-50"
-          >
-            {subiendo === cat.categoria ? "Subiendo..." : "+ Agregar"}
-          </button>
-          <input
-            ref={(el) => {
-              inputsRef.current[cat.categoria] = el;
-            }}
-            type="file"
-            accept={cat.accept}
-            className="hidden"
-            onChange={(e) => {
-              const archivo = e.target.files?.[0];
-              if (archivo) subir(cat.categoria, archivo);
-              e.target.value = "";
-            }}
-          />
+          {!esCampoRuc && (
+            <>
+              <button
+                onClick={() => inputsRef.current[cat.categoria]?.click()}
+                disabled={subiendo === cat.categoria}
+                className="min-h-[36px] shrink-0 rounded-lg border border-acento px-3 text-xs font-semibold text-acento disabled:opacity-50"
+              >
+                {subiendo === cat.categoria ? "Subiendo..." : "+ Agregar"}
+              </button>
+              <input
+                ref={(el) => {
+                  inputsRef.current[cat.categoria] = el;
+                }}
+                type="file"
+                accept={cat.accept}
+                className="hidden"
+                onChange={(e) => {
+                  const archivo = e.target.files?.[0];
+                  if (archivo) subir(cat.categoria, archivo);
+                  e.target.value = "";
+                }}
+              />
+            </>
+          )}
         </div>
 
         {archivos.length > 0 && (

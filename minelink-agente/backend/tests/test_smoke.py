@@ -240,6 +240,64 @@ def test_slot_de_c2_presentado_pasa_a_marcaste_aprobado_al_subir():
     assert "expediente_tecnico" in perfil["brechas_resueltas"]
 
 
+def test_gps_y_ruc_tienen_slot_propio_en_vez_de_ocultarse_por_equivalencia():
+    # Regresión (julio 2026, pedido explícito de Esthiven): "Medir tu labor
+    # con GPS (sinceramiento)" y "Activar tu RUC minero" quedaban ocultos
+    # de "Respalda tu declaración" porque se consideraban "la misma foto"
+    # que Catastro/RUC de Documentos legales — invisibles para el minero
+    # aunque nunca hubiera subido ninguno de los dos. Ahora tienen su
+    # propio slot, sin importar los documentos legales.
+    token = _token_minero(username="gpsyrucpropios")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    codigos = {e["codigo"] for e in perfil["estudios_aplicables"]}
+    assert "levantamiento_georreferenciado" in codigos
+    assert "tramite_sunat" in codigos
+
+
+def test_ruc_minero_se_respalda_con_codigo_escrito_no_con_archivo():
+    # "Activar tu RUC minero" no pide foto: el respaldo es el número de
+    # RUC escrito. Escribirlo resuelve la brecha igual que subir un
+    # archivo resuelve las demás, y el check público se activa sin que
+    # exista ningún documento subido.
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C2_6"] = "no_iniciado"  # brecha real de tramite_sunat
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "cusco",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads", json=_lead_payload(diag["id"], username="rucescrito", password="clave123")
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "rucescrito", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert "tramite_sunat" in perfil["brechas_pendientes"]
+
+    resp = client.put(
+        "/mineros/perfil-inversion",
+        json={"datos_formalizacion": {"tramite_sunat": "10123456789"}},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert "tramite_sunat" not in perfil["brechas_pendientes"]
+    assert "tramite_sunat" in perfil["brechas_resueltas"]
+    # Ningún archivo se subió para tramite_sunat — el respaldo fue el
+    # código escrito, no una foto.
+    assert not any(d["categoria"] == "tramite_sunat" for d in client.get("/mineros/documentos", headers=headers).json())
+
+
 def test_post_diagnostico_tajo_abierto():
     respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items()}
     respuestas["M0_1"] = "nada"  # Perfil A

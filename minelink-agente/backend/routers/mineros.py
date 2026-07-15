@@ -397,6 +397,16 @@ def actualizar_perfil_inversion(
             else:
                 actuales.pop(clave, None)
         operacion.datos_formalizacion_json = actuales
+        # Auto-resolución con evidencia (julio 2026): "Activar tu RUC
+        # minero" no pide foto, pide el número escrito — escribirlo
+        # resuelve la brecha/el "en proceso" igual que subir un archivo
+        # resuelve las demás (mismo criterio, otro tipo de evidencia).
+        if actuales.get("tramite_sunat"):
+            brechas = set(operacion.brechas_json or [])
+            en_proceso = set(estado_seguimiento(operacion).get("brechas_en_proceso") or [])
+            resueltas = set(operacion.brechas_resueltas_json or [])
+            if "tramite_sunat" in (brechas | en_proceso) and "tramite_sunat" not in resueltas:
+                operacion.brechas_resueltas_json = sorted(resueltas | {"tramite_sunat"})
     db.commit()
     db.refresh(lead)
 

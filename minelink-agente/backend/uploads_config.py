@@ -118,11 +118,16 @@ _EQUIVALENCIAS_ESTUDIO: dict[str, str] = {
     # vigencia_concesion tiene slot PROPIO (no equivale al título): el
     # comprobante de pago de vigencia es un recibo/constancia que se
     # renueva cada año, distinto del título que se emite una sola vez.
-    "tramite_sunat": "ruc",  # L4: activar el RUC = el mismo RUC escaneado
-    "levantamiento_georreferenciado": "catastro",  # L5: mismo plano/GPS que el catastro
     "puesta_en_produccion": "fotos_mina",  # O1: foto de la mina operando = fotos de la mina
     "analisis_laboratorio": "informe_leyes",  # T3: análisis de laboratorio = informe de leyes/ensayes
     "contrato_explotacion": "contrato_explotacion",  # L3: mismo nombre en ambos catálogos
+    # tramite_sunat (RUC minero) y levantamiento_georreferenciado (GPS/
+    # sinceramiento) tenían equivalencia con "ruc"/"catastro" y quedaban
+    # sin slot propio, invisibles en la cuenta del minero — julio 2026,
+    # pedido explícito de Esthiven: revisar caso por caso qué se
+    # discrimina y qué no, sin dar nada por sentado mientras no hay nada
+    # publicado. tramite_sunat además cambió de foto a código escrito
+    # (ver DocumentosMinero.tsx / routers/mineros.py).
     # Los estudios nuevos del pipeline (acreditacion_terreno, dj_arqueologica,
     # expediente_tecnico, declaracion_produccion_semestral) tienen slot
     # propio — no equivalen a ningún documento fijo.
