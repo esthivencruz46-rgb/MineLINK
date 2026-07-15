@@ -120,6 +120,11 @@ class DiagnosticoResponse(BaseModel):
     urgencia: Optional[dict] = None
     reloj_produccion: Optional[dict] = None
     brechas: list[str]
+    # Estudios (perfil C, checklist REINFO) marcados "Presentado (en
+    # evaluación)": ya se tramitaron, no son una brecha accionable (no se
+    # ofrece "buscar empresa"), pero tampoco están resueltos — es la razón
+    # real por la que el Track Legal queda en amarillo. Ver scoring.brechas_en_proceso_de.
+    brechas_en_proceso: list[str] = []
     salidas: list[str]
 
 

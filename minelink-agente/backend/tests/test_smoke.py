@@ -128,6 +128,30 @@ def test_post_diagnostico():
     assert body["apto_inversionistas"] is True
 
 
+def test_post_diagnostico_c2_presentado_no_es_brecha_pero_avisa_en_proceso():
+    # Regresión (julio 2026): marcar un requisito C2 como "Presentado (en
+    # evaluación)" no debe contar como brecha accionable (ya se tramitó,
+    # no hace falta buscar empresa) NI decir "no te falta ningún estudio"
+    # (sigue pendiente de que la entidad lo apruebe — por eso el semáforo
+    # queda en amarillo). Debe aparecer en brechas_en_proceso.
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C2_1"] = "presentado"
+    resp = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "puno",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["semaforo_legal"] == "amarillo"
+    assert body["brechas"] == []
+    assert body["brechas_en_proceso"] == ["igafom_aprobado"]
+
+
 def test_post_diagnostico_tajo_abierto():
     respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items()}
     respuestas["M0_1"] = "nada"  # Perfil A

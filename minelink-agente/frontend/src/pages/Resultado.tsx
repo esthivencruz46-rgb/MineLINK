@@ -114,6 +114,7 @@ export function Resultado() {
           <h2 className="mb-3 text-lg font-bold">Estudios que te faltan</h2>
           <ListaBrechas
             brechas={respuesta.brechas}
+            brechasEnProceso={respuesta.brechas_en_proceso}
             dimensiones={{}}
             onBuscarAyuda={() => navigate("/empresas")}
           />

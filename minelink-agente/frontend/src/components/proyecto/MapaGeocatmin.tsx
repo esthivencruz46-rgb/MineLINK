@@ -43,7 +43,8 @@ export function MapaGeocatmin({
     ).addTo(mapa);
 
     // Pila visual definida por el dueño (julio 2026): satélite al fondo →
-    // geología encima con 40% de transparencia (opacity 0.6) → el polígono
+    // geología encima muy tenue en reposo (opacity 0.25 = 25% visible) →
+    // al pasar el mouse sube a 100% (ver opacidadGeologia) → el polígono
     // de la concesión solo con su borde. El catastro completo (todas las
     // concesiones vecinas, con etiquetas) queda disponible en el control
     // de capas, apagado por defecto.
@@ -73,7 +74,7 @@ export function MapaGeocatmin({
     const geologia100 = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer`,
       layers: [6],
-      opacity: 0.6,
+      opacity: 0.25,
       f: "image",
       useCors: false,
       zIndex: 10,
@@ -82,7 +83,7 @@ export function MapaGeocatmin({
     const geologia50 = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_GEOLOGIA_50K_INTEGRADA/MapServer`,
       layers: [7], // Litología
-      opacity: 0.6,
+      opacity: 0.25,
       f: "image",
       useCors: false,
       zIndex: 11,
@@ -155,8 +156,8 @@ export function MapaGeocatmin({
     // dueño, julio 2026); al salir vuelve a su transparencia normal para
     // que el satélite siga leyéndose de un vistazo.
     const opacidadGeologia = (llena: boolean) => {
-      geologia100.setOpacity(llena ? 1 : 0.6);
-      geologia50.setOpacity(llena ? 1 : 0.6);
+      geologia100.setOpacity(llena ? 1 : 0.25);
+      geologia50.setOpacity(llena ? 1 : 0.25);
     };
     const alEntrar = () => opacidadGeologia(true);
     const alSalir = () => opacidadGeologia(false);

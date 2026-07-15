@@ -136,6 +136,10 @@ export interface DiagnosticoResponse {
     anios_restantes: number;
   } | null;
   brechas: string[];
+  // Estudios del checklist C2 (perfil C) marcados "Presentado (en
+  // evaluación)" — ya se tramitaron, no son brecha accionable pero
+  // tampoco están resueltos (por eso el Track Legal queda en amarillo).
+  brechas_en_proceso: string[];
   salidas: string[];
 }
 

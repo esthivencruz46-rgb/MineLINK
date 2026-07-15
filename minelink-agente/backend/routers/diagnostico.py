@@ -109,5 +109,6 @@ def crear_diagnostico(
         urgencia=resultado["urgencia"],
         reloj_produccion=resultado["reloj_produccion"],
         brechas=resultado["brechas"],
+        brechas_en_proceso=resultado["brechas_en_proceso"],
         salidas=resultado["salidas"],
     )

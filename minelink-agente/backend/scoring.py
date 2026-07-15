@@ -235,6 +235,22 @@ def brechas_de(respuestas: dict[str, str]) -> list[str]:
     return sorted(encontradas)
 
 
+def brechas_en_proceso_de(respuestas: dict[str, str]) -> list[str]:
+    """Estudios de los 7 requisitos C2 (perfil C) que el minero marcó
+    "Presentado (en evaluación)" — ya los tramitó, están en manos de la
+    entidad, así que NO son una brecha accionable (`brechas_de` los
+    excluye a propósito) pero TAMPOCO están resueltos: es la razón real
+    por la que el Track Legal queda en amarillo. Sin esta lista, el
+    resultado decía "no te falta ningún estudio" aunque hubiera trámites
+    pendientes de evaluación — mensaje engañoso (julio 2026)."""
+    encontrados = {
+        BRECHA_POR_PREGUNTA[id_pregunta][1]
+        for id_pregunta in IDS_DOCS_C2
+        if respuestas.get(id_pregunta) == "presentado" and id_pregunta in BRECHA_POR_PREGUNTA
+    }
+    return sorted(encontrados)
+
+
 def salidas_de(
     perfil: str,
     respuestas: dict[str, str],
@@ -335,6 +351,7 @@ def calcular_diagnostico(respuestas: dict[str, str], hoy: date | None = None) ->
         "urgencia": urgencia,
         "reloj_produccion": reloj,
         "brechas": brechas_de(respuestas),
+        "brechas_en_proceso": brechas_en_proceso_de(respuestas),
         "salidas": salidas_de(perfil, respuestas, color_legal, urgencia, reloj),
     }
 
@@ -413,6 +430,7 @@ def estado_seguimiento(operacion, hoy: date | None = None) -> dict:
             "apto_inversionistas": False,
             "urgencia": None,
             "reloj_produccion": None,
+            "brechas_en_proceso": [],
             "salidas": [],
         }
     resultado.pop("brechas", None)  # las brechas vigentes son `pendientes`
