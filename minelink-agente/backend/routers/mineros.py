@@ -678,9 +678,14 @@ async def subir_documento(
     # esperar a que Esthiven la "libere" desde el admin. El admin conserva
     # la supervisión por la revisión de documentos (puede rechazar el
     # archivo) y el marcado manual para lo que se entera por WhatsApp.
+    # También cubre los C2 "Presentado (en evaluación)": subir la
+    # constancia/cargo aprobado los saca de "en proceso" igual que a una
+    # brecha (mismo mecanismo — VALOR_RESUELTO_POR_PREGUNTA los parcha a
+    # "aprobado", ver scoring.estado_seguimiento).
     brechas = set(operacion.brechas_json or [])
+    en_proceso = set(estado_seguimiento(operacion).get("brechas_en_proceso") or [])
     resueltas = set(operacion.brechas_resueltas_json or [])
-    if categoria in brechas and categoria not in resueltas:
+    if categoria in (brechas | en_proceso) and categoria not in resueltas:
         operacion.brechas_resueltas_json = sorted(resueltas | {categoria})
 
     db.commit()

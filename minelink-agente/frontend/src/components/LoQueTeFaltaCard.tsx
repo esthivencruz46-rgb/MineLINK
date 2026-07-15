@@ -33,14 +33,16 @@ export function LoQueTeFaltaCard({
   const [error, setError] = useState<string | null>(null);
   const inputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
-  // "En trámite" (checklists del Módulo INV con "en proceso"): ya hay
-  // alguien haciéndolo — no se ofrece "¿Quién me ayuda?", solo subir el
-  // respaldo cuando termine. Además, si el diagnóstico de formalización
-  // lo marcó como brecha, la respuesta más reciente del Módulo INV manda:
-  // se muestra como en trámite, no como faltante.
+  // "En trámite" del Módulo INV: ya hay alguien haciéndolo — no se ofrece
+  // "¿Quién me ayuda?", solo subir el respaldo cuando termine.
   const enProceso = perfil.brechas_inversion_en_proceso ?? [];
+  // Requisitos C2 (perfil C) marcados "Presentado (en evaluación)" en el
+  // diagnóstico: a diferencia del "en trámite" del Módulo INV, aquí SÍ se
+  // ofrece "¿Quién me ayuda?" — la evaluación de la entidad puede trabarse
+  // y el minero puede necesitar ayuda igual (julio 2026, pedido explícito).
+  const enEvaluacion = mostrarFormalizacion ? perfil.brechas_en_proceso ?? [] : [];
   const brechasFormalizacion = (mostrarFormalizacion ? perfil.brechas_pendientes : []).filter(
-    (b) => !enProceso.includes(b)
+    (b) => !enProceso.includes(b) && !enEvaluacion.includes(b)
   );
   // Si una brecha ya está listada en formalización, no se repite en
   // inversión (ej. analisis_laboratorio puede salir de ambos cuestionarios).
@@ -73,6 +75,7 @@ export function LoQueTeFaltaCard({
     brechasFormalizacion.length === 0 &&
     brechasInversion.length === 0 &&
     enProceso.length === 0 &&
+    enEvaluacion.length === 0 &&
     resueltas.length === 0
   ) {
     if (!mostrarFormalizacion) return null;
@@ -86,21 +89,19 @@ export function LoQueTeFaltaCard({
     );
   }
 
-  function itemBrecha(b: string, enTramite = false) {
+  function itemBrecha(b: string, opts?: { chip?: string; ocultarAyuda?: boolean }) {
     return (
       <li key={b} className="rounded-lg px-1 py-1.5 hover:bg-black/5 dark:hover:bg-white/5">
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <span>• {INFO_BRECHA[b]?.texto ?? b}</span>
-          {enTramite && (
+          {opts?.chip && (
             <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-              En proceso
+              {opts.chip}
             </span>
           )}
         </p>
         <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 pl-3">
-          {/* En trámite ya hay alguien haciéndolo — no se ofrece buscar
-              empresas, solo subir el respaldo cuando termine. */}
-          {!enTramite && (
+          {!opts?.ocultarAyuda && (
             <button
               onClick={() =>
                 navigate("/empresas", {
@@ -152,13 +153,14 @@ export function LoQueTeFaltaCard({
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
 
-      {brechasFormalizacion.length > 0 && (
+      {(brechasFormalizacion.length > 0 || enEvaluacion.length > 0) && (
         <>
           <h3 className="mt-3 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
             Formalización
           </h3>
           <ul className="mt-1 flex flex-col gap-1">
             {brechasFormalizacion.map((b) => itemBrecha(b))}
+            {enEvaluacion.map((b) => itemBrecha(b, { chip: "Presentado — en evaluación" }))}
           </ul>
         </>
       )}
@@ -170,7 +172,7 @@ export function LoQueTeFaltaCard({
           </h3>
           <ul className="mt-1 flex flex-col gap-1">
             {brechasInversion.map((b) => itemBrecha(b))}
-            {enProceso.map((b) => itemBrecha(b, true))}
+            {enProceso.map((b) => itemBrecha(b, { chip: "En proceso", ocultarAyuda: true }))}
           </ul>
         </>
       )}

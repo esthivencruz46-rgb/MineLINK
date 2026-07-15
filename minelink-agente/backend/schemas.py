@@ -525,6 +525,14 @@ class MineroPerfilOut(BaseModel):
     apto_inversionistas: bool = False
     urgencia: Optional[dict] = None
     reloj_produccion: Optional[dict] = None
+    # Estudios del checklist C2 (perfil C) marcados "Presentado (en
+    # evaluación)": no son brecha accionable (`brechas_pendientes` los
+    # excluye a propósito — ya se tramitaron) pero tampoco están resueltos.
+    # Se muestran en "Lo que te falta" con AMBAS opciones (¿quién me
+    # ayuda? y subir respaldo) — a diferencia de los "en trámite" del
+    # Módulo INV, aquí sí puede convenir buscar ayuda si la evaluación se
+    # traba. Ver scoring.brechas_en_proceso_de (julio 2026).
+    brechas_en_proceso: list[str] = []
     salidas: list[str] = []
     # Perfil de inversión (opcional, ver PerfilInversionUpdate)
     descripcion_operacion: Optional[str] = None

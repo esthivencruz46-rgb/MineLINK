@@ -152,6 +152,50 @@ def test_post_diagnostico_c2_presentado_no_es_brecha_pero_avisa_en_proceso():
     assert body["brechas_en_proceso"] == ["igafom_aprobado"]
 
 
+def test_cuenta_lista_c2_presentado_y_subir_respaldo_lo_resuelve():
+    # Regresión (julio 2026): un C2 "presentado" debe verse en /mineros/me
+    # como brechas_en_proceso (no en brechas_pendientes) y, al subir el
+    # respaldo, auto-resolverse igual que una brecha normal — pasando a
+    # brechas_resueltas y desapareciendo de brechas_en_proceso.
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C2_1"] = "presentado"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas,
+            "region": "puno",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="c2presentado", password="clave123"),
+    )
+    token = client.post(
+        "/mineros/login", json={"username": "c2presentado", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert perfil["brechas_en_proceso"] == ["igafom_aprobado"]
+    assert "igafom_aprobado" not in perfil["brechas_pendientes"]
+    assert perfil["semaforo_legal"] == "amarillo"
+
+    resp = client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "igafom_aprobado"},
+        files={"archivo": ("igafom.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp.status_code == 201, resp.json()
+
+    perfil = client.get("/mineros/me", headers=headers).json()
+    assert perfil["brechas_en_proceso"] == []
+    assert "igafom_aprobado" in perfil["brechas_resueltas"]
+    assert perfil["semaforo_legal"] == "verde"
+
+
 def test_post_diagnostico_tajo_abierto():
     respuestas = {k: v for k, v in RESPUESTAS_COMPLETAS.items()}
     respuestas["M0_1"] = "nada"  # Perfil A

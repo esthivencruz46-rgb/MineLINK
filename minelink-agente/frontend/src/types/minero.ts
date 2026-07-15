@@ -15,6 +15,9 @@ export interface MineroPerfil {
   brechas: string[];
   brechas_resueltas: string[];
   brechas_pendientes: string[];
+  // Requisitos C2 (perfil C) marcados "Presentado (en evaluación)" en el
+  // diagnóstico — no son brecha accionable pero tampoco están resueltos.
+  brechas_en_proceso?: string[];
   score_actual: number;
   bloqueado_actual: boolean;
   // Track Legal / Track Técnico (julio 2026) — reemplazan score_actual/
