@@ -95,26 +95,26 @@ export function DocumentosMinero({
   const { authFetch } = useMineroAuth();
   const [documentos, setDocumentos] = useState<DocumentoOperacion[]>([]);
   const [fechas, setFechas] = useState<Record<string, string>>(datosFormalizacion ?? {});
-  const debouncesFechaRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
-  useEffect(() => () => {
-    Object.values(debouncesFechaRef.current).forEach(clearTimeout);
-  }, []);
+  const [guardandoFecha, setGuardandoFecha] = useState<string | null>(null);
 
   /** Autoguardado de la fecha declarada de un slot — el endpoint fusiona
-   *  por clave, así que cada slot viaja solo sin pisar a los demás. */
+   *  por clave, así que cada slot viaja solo sin pisar a los demás.
+   *  Guarda de INMEDIATO (sin debounce): un <input type="date"> solo
+   *  dispara onChange cuando el usuario TERMINA de elegir la fecha (no
+   *  por cada tecla, a diferencia de un input de texto), así que no hace
+   *  falta esperar. Con debounce, el botón "Guardar" del header
+   *  remontaba toda la página (key={recarga}) antes de que el timer
+   *  disparara, CANCELANDO el guardado — bug real reportado julio 2026. */
   function guardarFecha(categoria: string, valor: string) {
     setFechas((f) => ({ ...f, [categoria]: valor }));
-    if (debouncesFechaRef.current[categoria]) {
-      clearTimeout(debouncesFechaRef.current[categoria]);
-    }
-    debouncesFechaRef.current[categoria] = setTimeout(() => {
-      authFetch("/mineros/perfil-inversion", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ datos_formalizacion: { [categoria]: valor } }),
-      }).catch(() => {});
-    }, 600);
+    setGuardandoFecha(categoria);
+    authFetch("/mineros/perfil-inversion", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ datos_formalizacion: { [categoria]: valor } }),
+    })
+      .catch(() => {})
+      .finally(() => setGuardandoFecha((c) => (c === categoria ? null : c)));
   }
   const [miniaturas, setMiniaturas] = useState<Record<number, string>>({});
   const [cargando, setCargando] = useState(true);
@@ -309,8 +309,11 @@ export function DocumentosMinero({
             </p>
             {etiquetaFecha && (
               <div className="mt-1.5">
-                <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                <p className="flex items-center gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
                   {etiquetaFecha}:
+                  {guardandoFecha === cat.categoria && (
+                    <span className="text-acento">Guardando...</span>
+                  )}
                 </p>
                 <input
                   type="date"
