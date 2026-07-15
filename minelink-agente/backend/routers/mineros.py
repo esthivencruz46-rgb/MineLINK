@@ -44,6 +44,7 @@ from uploads_config import (
     CATEGORIAS_INVERSION,
     DOCUMENTO_TAMANO_MAXIMO_BYTES,
     FOTOS_MINA_MAXIMO,
+    FOTOS_PRESENTACION_MAXIMO,
     TIPOS_PDF_O_IMAGEN,
     categoria_equivalente,
     categorias_perfil_foto_aplicables,
@@ -639,6 +640,23 @@ async def subir_documento(
             raise HTTPException(
                 422,
                 f"Ya tienes {FOTOS_MINA_MAXIMO} fotos (el máximo). "
+                "Elimina alguna para subir una nueva.",
+            )
+
+    if categoria == "fotos_presentacion":
+        # Sin mínimo, máximo 5 (julio 2026) — es una vitrina, no un álbum.
+        fotos_actuales = (
+            db.query(models.DocumentoOperacion)
+            .filter(
+                models.DocumentoOperacion.operacion_id == operacion.id,
+                models.DocumentoOperacion.categoria == "fotos_presentacion",
+            )
+            .count()
+        )
+        if fotos_actuales >= FOTOS_PRESENTACION_MAXIMO:
+            raise HTTPException(
+                422,
+                f"Ya tienes {FOTOS_PRESENTACION_MAXIMO} fotos de presentación (el máximo). "
                 "Elimina alguna para subir una nueva.",
             )
 

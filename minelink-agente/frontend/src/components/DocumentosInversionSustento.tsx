@@ -439,6 +439,7 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
     for (const d of declarados) {
       if (mapa.has(d.codigo)) continue;
       const soloFoto = CATEGORIAS_SOLO_FOTO.has(d.codigo);
+      const formatos = soloFoto ? FORMATOS_SOLO_FOTO : FORMATOS_FOTO_O_PDF;
       mapa.set(d.codigo, {
         categoria: d.codigo,
         etiqueta: etiquetaCategoria(d.codigo),
@@ -446,7 +447,12 @@ export function DocumentosInversionSustento({ perfil, onGuardado, declarados }: 
         descripcion:
           DESCRIPCION_CATEGORIA_INV[d.codigo] ?? INFO_BRECHA[d.codigo]?.resuelve ?? "",
         accept: soloFoto ? ACCEPT_SOLO_FOTO : ACCEPT_FOTO_O_PDF,
-        formatos: soloFoto ? FORMATOS_SOLO_FOTO : FORMATOS_FOTO_O_PDF,
+        // Sin mínimo, máximo 5 imágenes (julio 2026) — es una vitrina, no
+        // un álbum completo (backend/uploads_config.FOTOS_PRESENTACION_MAXIMO).
+        formatos:
+          d.codigo === "fotos_presentacion"
+            ? `${formatos}. Sin mínimo, máximo 5 imágenes.`
+            : formatos,
       });
     }
     return [...mapa.values()];

@@ -3443,6 +3443,32 @@ def test_proyectos_lista_incluye_foto_portada():
     assert "/fotos/" in proyectos[0]["foto_portada_url"]
 
 
+def test_maximo_fotos_de_presentacion():
+    # Julio 2026: sin mínimo, máximo 5 — es una vitrina, no un álbum.
+    from uploads_config import FOTOS_PRESENTACION_MAXIMO
+
+    token = _token_minero(username="minerofotospresentacion")
+    headers = {"Authorization": f"Bearer {token}"}
+
+    for i in range(FOTOS_PRESENTACION_MAXIMO):
+        resp = client.post(
+            "/mineros/documentos",
+            data={"categoria": "fotos_presentacion"},
+            files={"archivo": (f"p{i}.jpg", b"\xff\xd8\xfffoto", "image/jpeg")},
+            headers=headers,
+        )
+        assert resp.status_code == 201
+
+    resp = client.post(
+        "/mineros/documentos",
+        data={"categoria": "fotos_presentacion"},
+        files={"archivo": ("p6.jpg", b"\xff\xd8\xfffoto", "image/jpeg")},
+        headers=headers,
+    )
+    assert resp.status_code == 422
+    assert "máximo" in resp.json()["detail"].lower()
+
+
 def test_maximo_fotos_de_mina():
     from uploads_config import FOTOS_MINA_MAXIMO
 

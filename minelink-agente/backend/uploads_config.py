@@ -22,6 +22,11 @@ DOCUMENTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 # energía, ver CATEGORIAS_FOTO_PERFIL).
 FOTOS_MINA_MAXIMO = 10
 
+# Fotos de presentación del Módulo INV (julio 2026): sin mínimo, máximo 5
+# — es una vitrina, no un álbum completo (esas fotos ya viven en "Fotos de
+# tu operación"/fotos_mina).
+FOTOS_PRESENTACION_MAXIMO = 5
+
 # categoría → (tipos de contenido aceptados, etiqueta legible)
 # Los documentos legales aceptan PDF O una foto del documento (imagen) —
 # muchos mineros no tienen un escaneo, solo pueden fotografiarlo con el
