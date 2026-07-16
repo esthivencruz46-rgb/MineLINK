@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CampoPassword } from "./CampoPassword";
+import { FuerzaPassword } from "./FuerzaPassword";
 import { BASE_URL } from "../config/apiUrl";
 
 interface Props {
@@ -85,6 +86,8 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
         <input
           className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
           placeholder="Tu usuario"
+          name="username"
+          autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoFocus
@@ -114,11 +117,16 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
       />
       <CampoPassword
         placeholder="Nueva contraseña (mín. 6 caracteres)"
+        name="new-password"
+        autoComplete="new-password"
         value={nuevaPassword}
         onChange={setNuevaPassword}
       />
+      <FuerzaPassword password={nuevaPassword} />
       <CampoPassword
         placeholder="Repite la nueva contraseña"
+        name="new-password"
+        autoComplete="new-password"
         value={confirmarPassword}
         onChange={setConfirmarPassword}
       />

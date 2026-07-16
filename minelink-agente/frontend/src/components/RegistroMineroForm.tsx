@@ -2,6 +2,7 @@ import { useState } from "react";
 import { CampoPassword } from "./CampoPassword";
 import { CampoPreguntaSeguridad } from "./CampoPreguntaSeguridad";
 import { CampoTelefono } from "./CampoTelefono";
+import { FuerzaPassword } from "./FuerzaPassword";
 import { DEPARTAMENTOS } from "../data/departamentos";
 
 export interface DatosRegistroMinero {
@@ -64,8 +65,25 @@ export function RegistroMineroForm({
     preguntaSeguridad.trim().length > 0 &&
     respuestaSeguridad.trim().length > 0;
 
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!valido || enviando) return;
+    onEnviar({
+      nombre: nombre.trim(),
+      whatsapp: `+51${whatsapp}`,
+      region,
+      email: email.trim(),
+      nombreOperacion: nombreOperacion.trim(),
+      codigoReinfo: codigoReinfo.trim(),
+      username: username.trim(),
+      password,
+      preguntaSeguridad: preguntaSeguridad.trim(),
+      respuestaSeguridad: respuestaSeguridad.trim(),
+    });
+  }
+
   return (
-    <>
+    <form onSubmit={handleSubmit}>
       <div className="mt-4 flex flex-col gap-3">
         <input
           className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
@@ -121,16 +139,23 @@ export function RegistroMineroForm({
         <input
           className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
           placeholder="Elige un usuario (mín. 3 caracteres)"
+          name="username"
+          autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
         />
         <CampoPassword
           placeholder="Elige una contraseña (mín. 6 caracteres)"
+          name="new-password"
+          autoComplete="new-password"
           value={password}
           onChange={setPassword}
         />
+        <FuerzaPassword password={password} />
         <CampoPassword
           placeholder="Repite la contraseña"
+          name="new-password"
+          autoComplete="new-password"
           value={confirmarPassword}
           onChange={setConfirmarPassword}
         />
@@ -151,6 +176,7 @@ export function RegistroMineroForm({
       <div className="mt-5 flex gap-3">
         {onCancelar && (
           <button
+            type="button"
             onClick={onCancelar}
             className="min-h-[44px] flex-1 rounded-lg border border-black/10 font-semibold dark:border-white/10"
           >
@@ -158,26 +184,13 @@ export function RegistroMineroForm({
           </button>
         )}
         <button
+          type="submit"
           disabled={!valido || enviando}
-          onClick={() =>
-            onEnviar({
-              nombre: nombre.trim(),
-              whatsapp: `+51${whatsapp}`,
-              region,
-              email: email.trim(),
-              nombreOperacion: nombreOperacion.trim(),
-              codigoReinfo: codigoReinfo.trim(),
-              username: username.trim(),
-              password,
-              preguntaSeguridad: preguntaSeguridad.trim(),
-              respuestaSeguridad: respuestaSeguridad.trim(),
-            })
-          }
           className="min-h-[44px] flex-1 rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
         >
           {enviando ? "Enviando..." : "Registrarme"}
         </button>
       </div>
-    </>
+    </form>
   );
 }

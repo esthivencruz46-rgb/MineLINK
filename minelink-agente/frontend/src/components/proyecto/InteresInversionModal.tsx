@@ -4,6 +4,7 @@ import { CampoPassword } from "../CampoPassword";
 import { CampoPreguntaSeguridad } from "../CampoPreguntaSeguridad";
 import { CampoTelefono } from "../CampoTelefono";
 import { CampoMonto } from "../CampoMonto";
+import { FuerzaPassword } from "../FuerzaPassword";
 import { registrarInteresInversion } from "../../services/api";
 
 interface Props {
@@ -87,7 +88,13 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
             </button>
           </div>
         ) : (
-          <>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!valido || enviando) return;
+              enviar();
+            }}
+          >
             <h2 className="text-lg font-semibold">Contactar sobre este proyecto</h2>
             <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
               Nunca compartimos el contacto directo del proyecto. El equipo de
@@ -145,14 +152,19 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
               <input
                 className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
                 placeholder="Elige un usuario (mín. 3 caracteres)"
+                name="username"
+                autoComplete="username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
               <CampoPassword
                 placeholder="Elige una contraseña (mín. 6 caracteres)"
+                name="new-password"
+                autoComplete="new-password"
                 value={password}
                 onChange={setPassword}
               />
+              <FuerzaPassword password={password} />
 
               <CampoPreguntaSeguridad
                 pregunta={preguntaSeguridad}
@@ -166,20 +178,21 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
 
             <div className="mt-5 flex gap-3">
               <button
+                type="button"
                 onClick={onCerrar}
                 className="min-h-[44px] flex-1 rounded-lg border border-black/10 font-semibold dark:border-white/10"
               >
                 Cancelar
               </button>
               <button
+                type="submit"
                 disabled={!valido || enviando}
-                onClick={enviar}
                 className="min-h-[44px] flex-1 rounded-lg bg-secundario font-semibold text-white transition duration-200 hover:opacity-90 disabled:opacity-50"
               >
                 {enviando ? "Enviando..." : "Enviar"}
               </button>
             </div>
-          </>
+          </form>
         )}
       </div>
     </div>

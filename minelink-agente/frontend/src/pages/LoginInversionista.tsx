@@ -39,11 +39,19 @@ export function LoginInversionista() {
         <input
           className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
           placeholder="Usuario"
+          name="username"
+          autoComplete="username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoFocus
         />
-        <CampoPassword placeholder="Contraseña" value={password} onChange={setPassword} />
+        <CampoPassword
+          placeholder="Contraseña"
+          name="current-password"
+          autoComplete="current-password"
+          value={password}
+          onChange={setPassword}
+        />
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           disabled={enviando || !username || !password}

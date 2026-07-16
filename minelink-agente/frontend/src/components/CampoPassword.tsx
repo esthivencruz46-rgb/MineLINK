@@ -5,9 +5,21 @@ interface Props {
   value: string;
   onChange: (valor: string) => void;
   autoFocus?: boolean;
+  /** "new-password" al elegir/cambiar contraseña, "current-password" al
+   *  iniciar sesión — le dice al navegador si debe ofrecer GUARDAR una
+   *  contraseña nueva o AUTOCOMPLETAR la que ya tiene guardada. */
+  autoComplete?: "new-password" | "current-password";
+  name?: string;
 }
 
-export function CampoPassword({ placeholder, value, onChange, autoFocus }: Props) {
+export function CampoPassword({
+  placeholder,
+  value,
+  onChange,
+  autoFocus,
+  autoComplete,
+  name,
+}: Props) {
   const [visible, setVisible] = useState(false);
 
   return (
@@ -19,6 +31,8 @@ export function CampoPassword({ placeholder, value, onChange, autoFocus }: Props
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoFocus={autoFocus}
+        autoComplete={autoComplete}
+        name={name}
       />
       <button
         type="button"
