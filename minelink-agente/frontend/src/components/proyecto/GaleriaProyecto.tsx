@@ -43,7 +43,7 @@ export function GaleriaProyecto({
   // solo aparece donde INGEMMET tiene carta a esa escala.
   const panelGeocatmin =
     geocatmin && (concesion || geologia) ? (
-      <div className="rounded-b-xl bg-tarjeta p-3 shadow-sm dark:bg-tarjeta-dark">
+      <div className="h-full rounded-xl bg-tarjeta p-3 shadow-sm dark:bg-tarjeta-dark">
         {concesion ? (
           <p className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             <BadgeCheck size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden />
@@ -75,23 +75,19 @@ export function GaleriaProyecto({
     ) : null;
 
   // Bloque de UBICACIÓN: el mapa a todo lo ancho, con altura propia fija
-  // (no depende de cuántas fotos haya) y el panel GEOCATMIN pegado abajo,
-  // como si fuera una sola tarjeta con dos secciones.
+  // (no depende de cuántas fotos haya).
   const bloqueUbicacion = ubicacionCoords ? (
-    <div className="overflow-hidden rounded-xl shadow-sm">
-      <div className="h-72 sm:h-96 md:h-[28rem]">
-        <MapaGeocatmin coords={ubicacionCoords} poligonoConcesion={concesion?.poligono} />
-      </div>
-      {panelGeocatmin}
+    <div className="h-72 overflow-hidden rounded-xl shadow-sm sm:h-96 md:h-[28rem]">
+      <MapaGeocatmin coords={ubicacionCoords} poligonoConcesion={concesion?.poligono} />
     </div>
   ) : null;
 
   // Tira de miniaturas pequeñas (fotos de presentación) — nunca intenta
-  // igualar la altura del mapa: cada una mide lo mismo (cuadrada) sin
+  // igualar la altura del panel: cada una mide lo mismo (cuadrada) sin
   // importar cuántas haya. La última visible lleva el sello "+N" si sobran.
   const tiraFotos =
     fotos.length > 0 ? (
-      <div className="mt-3 grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+      <div className="grid flex-1 grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
         {fotos.slice(0, MAX_MINIATURAS_VISIBLES).map((foto, i) => {
           const esUltimaVisible = i === MAX_MINIATURAS_VISIBLES - 1;
           const restantes = esUltimaVisible ? fotos.length - MAX_MINIATURAS_VISIBLES : 0;
@@ -121,7 +117,15 @@ export function GaleriaProyecto({
   return (
     <>
       {bloqueUbicacion}
-      {tiraFotos}
+      {/* Panel GEOCATMIN al costado de las fotos de presentación (pedido
+          explícito, julio 2026) — no una debajo de la otra. En móvil se
+          apilan (el panel primero) porque no entran lado a lado. */}
+      {(panelGeocatmin || tiraFotos) && (
+        <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-stretch">
+          {panelGeocatmin && <div className="md:w-2/5">{panelGeocatmin}</div>}
+          {tiraFotos}
+        </div>
+      )}
 
       {indiceAbierto !== null && (
         <div
