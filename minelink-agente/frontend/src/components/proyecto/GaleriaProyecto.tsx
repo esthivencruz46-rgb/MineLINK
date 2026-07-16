@@ -88,12 +88,15 @@ export function GaleriaProyecto({
     </div>
   ) : null;
 
-  // Tira de miniaturas pequeñas (fotos de presentación) — nunca intenta
-  // igualar la altura del panel: cada una mide lo mismo (cuadrada) sin
-  // importar cuántas haya. La última visible lleva el sello "+N" si sobran.
+  // Tira de miniaturas pequeñas (fotos de presentación) — tamaño FIJO por
+  // miniatura (no se estira para llenar el espacio libre) y pegada al
+  // extremo derecho de la fila con `justify-end`: con pocas fotos (ej. 3)
+  // quedan agrupadas contra el borde derecho, dejando el espacio vacío
+  // junto al panel de la izquierda, en vez de empezar pegadas a él
+  // (pedido explícito, julio 2026).
   const tiraFotos =
     fotosOrdenadas.length > 0 ? (
-      <div className="grid flex-1 grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+      <div className="flex flex-1 flex-wrap justify-end gap-3">
         {fotosOrdenadas.slice(0, MAX_MINIATURAS_VISIBLES).map((foto, i) => {
           const esUltimaVisible = i === MAX_MINIATURAS_VISIBLES - 1;
           const restantes = esUltimaVisible
@@ -103,7 +106,7 @@ export function GaleriaProyecto({
             <button
               key={foto.id}
               onClick={() => setIndiceAbierto(i)}
-              className="group relative aspect-square overflow-hidden rounded-lg shadow-sm transition duration-200"
+              className="group relative aspect-square w-20 shrink-0 overflow-hidden rounded-lg shadow-sm transition duration-200 sm:w-24 md:w-28"
             >
               <img
                 src={`${BASE_URL}${foto.url}`}
