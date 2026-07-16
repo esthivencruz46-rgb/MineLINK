@@ -497,6 +497,7 @@ export function ProyectoDetalle() {
               (INGEMMET) consultados automáticamente con el pin declarado:
               la concesión del catastro minero y la geología del punto. */}
           {(proyecto.reinfo ||
+            proyecto.reinfo_verificado_manual ||
             (proyecto.geocatmin &&
               (proyecto.geocatmin.concesion ||
                 proyecto.geocatmin.geologia ||
@@ -509,6 +510,24 @@ export function ProyectoDetalle() {
                   INGEMMET · MINEM · SERNANP
                 </span>
               </div>
+
+              {/* Verificación MANUAL del código REINFO por el equipo de
+                  MineLink — el cotejo automático de abajo está desactivado
+                  (ver backend/reinfo.py), así que esta es la fuente real
+                  hoy. */}
+              {proyecto.reinfo_verificado_manual && (
+                <div className="mt-3 rounded-lg bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                  <p className="flex items-center gap-1.5">
+                    <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
+                    Código REINFO verificado por el equipo de MineLink
+                  </p>
+                  {proyecto.codigo_reinfo && (
+                    <p className="mt-1 text-xs font-normal">
+                      Código: {proyecto.codigo_reinfo}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* REINFO cotejado contra el padrón oficial del MINEM */}
               {proyecto.reinfo && (
@@ -537,25 +556,50 @@ export function ProyectoDetalle() {
                   {proyecto.reinfo.derecho && (
                     <p className="mt-1 text-xs font-normal">
                       Derecho: {proyecto.reinfo.derecho}
-                      {proyecto.reinfo.distrito ? ` · ${proyecto.reinfo.distrito}` : ""}
+                      {[proyecto.reinfo.distrito, proyecto.reinfo.provincia, proyecto.reinfo.departamento]
+                        .filter(Boolean)
+                        .join(", ") &&
+                        ` · ${[proyecto.reinfo.distrito, proyecto.reinfo.provincia, proyecto.reinfo.departamento]
+                          .filter(Boolean)
+                          .join(", ")}`}
                       {` · código ${proyecto.reinfo.codigo}`}
                     </p>
+                  )}
+                  {/* El RUC ya es público de por sí (las fotos de "Documentos
+                      legales" con RUC también lo son) — el nombre del
+                      declarante NO se muestra, se queda como en el resto
+                      de la ficha (privacidad del contacto). */}
+                  {proyecto.reinfo.ruc && (
+                    <p className="mt-0.5 text-xs font-normal">RUC: {proyecto.reinfo.ruc}</p>
                   )}
                 </div>
               )}
 
-              {/* Alertas de zona: ANP (SERNANP) y áreas restringidas */}
+              {/* Alertas de zona: ANP (SERNANP) y áreas restringidas.
+                  "fuera" es una confirmación explícita (se consultó y el
+                  punto está limpio), no solo ausencia de alerta — por eso
+                  se muestra en verde en vez de omitirse. */}
               {proyecto.geocatmin?.anp && (
                 <p
-                  className={`mt-3 rounded-lg p-4 text-sm font-semibold ${
+                  className={`mt-3 flex items-center gap-1.5 rounded-lg p-4 text-sm font-semibold ${
                     proyecto.geocatmin.anp.zona === "dentro"
                       ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                      : proyecto.geocatmin.anp.zona === "amortiguamiento"
+                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
                   }`}
                 >
-                  {proyecto.geocatmin.anp.zona === "dentro"
-                    ? `⚠ El punto cae dentro de un Área Natural Protegida (${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""}) — la actividad minera está prohibida ahí.`
-                    : `El punto cae en la zona de amortiguamiento del ${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""} — la actividad tiene condiciones especiales.`}
+                  {proyecto.geocatmin.anp.zona === "dentro" ? (
+                    `⚠ El punto cae dentro de un Área Natural Protegida (${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""}) — la actividad minera está prohibida ahí.`
+                  ) : proyecto.geocatmin.anp.zona === "amortiguamiento" ? (
+                    `El punto cae en la zona de amortiguamiento del ${proyecto.geocatmin.anp.categoria ?? "ANP"} ${proyecto.geocatmin.anp.nombre ?? ""} — la actividad tiene condiciones especiales.`
+                  ) : (
+                    <>
+                      <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
+                      El punto NO cae en ningún Área Natural Protegida (SERNANP) ni su
+                      zona de amortiguamiento.
+                    </>
+                  )}
                 </p>
               )}
               {(proyecto.geocatmin?.restricciones?.length ?? 0) > 0 && (
@@ -683,9 +727,23 @@ export function ProyectoDetalle() {
                 const fecha = proyecto.geocatmin?.consultado_en ?? proyecto.reinfo?.consultado_en;
                 return (
                   <p className="mt-3 text-[11px] leading-relaxed text-texto-suave dark:text-texto-suave-dark">
-                    Consulta automática a {listaFuentes} según lo declarado por el titular
-                    {fecha ? ` · ${fecha}` : ""}. Dato referencial: el titular registrado puede
-                    diferir de quien opera (contratos de explotación son legales y comunes).
+                    {fuentes.length > 0 && (
+                      <>
+                        Consulta automática a {listaFuentes} según lo declarado por el titular
+                        {fecha ? ` · ${fecha}` : ""}.{" "}
+                      </>
+                    )}
+                    {proyecto.reinfo_verificado_manual && (
+                      <>
+                        El código REINFO fue verificado a mano por el equipo de MineLink
+                        {proyecto.reinfo_verificado_en
+                          ? ` · ${new Date(proyecto.reinfo_verificado_en).toLocaleDateString("es-PE")}`
+                          : ""}
+                        .{" "}
+                      </>
+                    )}
+                    Dato referencial: el titular registrado puede diferir de quien opera
+                    (contratos de explotación son legales y comunes).
                   </p>
                 );
               })()}

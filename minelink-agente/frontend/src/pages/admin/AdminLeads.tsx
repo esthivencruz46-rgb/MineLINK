@@ -315,6 +315,28 @@ export function AdminLeads() {
     );
   }
 
+  async function alternarReinfoVerificado(lead: LeadConDiagnostico) {
+    const verificado = !lead.reinfo_verificado_manual;
+    const resp = await authFetch(`/admin/operaciones/${lead.operacion_id}/reinfo-verificado`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ verificado }),
+    });
+    if (!resp.ok) return;
+    const datos = await resp.json();
+    setLeads((actuales) =>
+      actuales.map((l) =>
+        l.id === lead.id
+          ? {
+              ...l,
+              reinfo_verificado_manual: datos.reinfo_verificado_manual,
+              reinfo_verificado_en: datos.reinfo_verificado_en,
+            }
+          : l
+      )
+    );
+  }
+
   function verDocumentos(lead: LeadConDiagnostico) {
     setLeadDetalle(lead);
     setCargandoDocs(true);
@@ -580,14 +602,39 @@ export function AdminLeads() {
                     </td>
                     <td className="p-3">
                       {lead.codigo_reinfo ? (
-                        <a
-                          href="https://pad.minem.gob.pe"
-                          target="_blank"
-                          rel="noreferrer"
-                          className="font-mono text-xs text-acento underline"
-                        >
-                          {lead.codigo_reinfo}
-                        </a>
+                        <div className="flex flex-col items-start gap-1">
+                          <a
+                            href="https://pad.minem.gob.pe/REINFO_WEB/Index.aspx"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="font-mono text-xs text-acento underline"
+                          >
+                            {lead.codigo_reinfo}
+                          </a>
+                          <button
+                            onClick={() => alternarReinfoVerificado(lead)}
+                            className={`flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${
+                              lead.reinfo_verificado_manual
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                                : "bg-gray-100 text-texto-suave hover:bg-gray-200 dark:bg-black/20 dark:text-texto-suave-dark"
+                            }`}
+                            title={
+                              lead.reinfo_verificado_manual
+                                ? `Verificado el ${new Date(
+                                    lead.reinfo_verificado_en ?? ""
+                                  ).toLocaleDateString("es-PE")} — clic para desmarcar`
+                                : "Verificar a mano contra el padrón del MINEM (código único o RUC) y marcar aquí"
+                            }
+                          >
+                            {lead.reinfo_verificado_manual ? (
+                              <>
+                                <Check size={12} /> Verificado
+                              </>
+                            ) : (
+                              "Marcar verificado"
+                            )}
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
                           —

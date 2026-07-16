@@ -358,7 +358,7 @@ def _geocatmin_necesita_refresco(operacion: models.Operacion, coords: Optional[s
         return False
     cache = (operacion.datos_formalizacion_json or {}).get("_geocatmin")
     # v: cachés de un formato anterior (ej. sin restricciones/ANP) se reconsultan.
-    if not isinstance(cache, dict) or cache.get("coords") != coords or cache.get("v") != 4:
+    if not isinstance(cache, dict) or cache.get("coords") != coords or cache.get("v") != 5:
         return True
     try:
         consultado = date.fromisoformat(cache.get("consultado_en", ""))
@@ -394,7 +394,7 @@ def _reinfo_necesita_refresco(operacion: models.Operacion, codigo: Optional[str]
     if not codigo:
         return False
     cache = (operacion.datos_formalizacion_json or {}).get("_reinfo")
-    if not isinstance(cache, dict) or cache.get("codigo") != codigo:
+    if not isinstance(cache, dict) or cache.get("codigo") != codigo or cache.get("v") != 2:
         return True
     try:
         consultado = date.fromisoformat(cache.get("consultado_en", ""))
@@ -542,6 +542,9 @@ def detalle_proyecto(
         },
         geocatmin=_geocatmin_desde_cache(operacion, lead.ubicacion_coords),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
+        reinfo_verificado_manual=operacion.reinfo_verificado_manual,
+        reinfo_verificado_en=operacion.reinfo_verificado_en,
+        codigo_reinfo=codigo_reinfo,
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(

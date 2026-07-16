@@ -787,6 +787,13 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # declarante, derecho, distrito} — ver reinfo.consultar_reinfo. None =
     # sin código declarado o sin consulta exitosa todavía.
     reinfo: Optional[dict] = None
+    # Verificación MANUAL del código REINFO por Esthiven (julio 2026): el
+    # cotejo automático de arriba está desactivado (falsos "no_encontrado",
+    # ver reinfo.py). True = Esthiven confirmó el código a mano contra el
+    # padrón del MINEM.
+    reinfo_verificado_manual: bool = False
+    reinfo_verificado_en: Optional[datetime] = None
+    codigo_reinfo: Optional[str] = None
     # Enlace de Google Maps que dejó el minero (público a propósito:
     # el inversionista necesita saber la zona; el contacto sigue privado)
     ubicacion_maps: Optional[str] = None
@@ -1097,6 +1104,10 @@ class LeadConDiagnostico(BaseModel):
     nombre_operacion: Optional[str] = None
     region: str
     codigo_reinfo: Optional[str] = None
+    # Verificación manual del código REINFO por Esthiven (el cotejo
+    # automático contra el MINEM está desactivado, ver reinfo.py).
+    reinfo_verificado_manual: bool = False
+    reinfo_verificado_en: Optional[datetime] = None
     created_at: datetime
     # Declaración original del minero — INMUTABLE, nunca se edita
     score_total: int
@@ -1193,6 +1204,10 @@ class ActualizarEstadoContactoRequest(BaseModel):
 
 class ActualizarBrechasResueltasRequest(BaseModel):
     brechas_resueltas: list[str]
+
+
+class ActualizarReinfoVerificadoRequest(BaseModel):
+    verificado: bool
 
 
 class OperacionSeguimientoOut(BaseModel):

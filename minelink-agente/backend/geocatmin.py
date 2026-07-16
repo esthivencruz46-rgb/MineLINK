@@ -110,8 +110,9 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
 
     resultado: dict = {
         # Versión del formato del caché: subir cuando cambie el shape para
-        # que los cachés viejos se reconsulten solos (v4: + geología 50K).
-        "v": 4,
+        # que los cachés viejos se reconsulten solos (v4: + geología 50K;
+        # v5: anp explícito {zona:"fuera"} en vez de quedar en null).
+        "v": 5,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
@@ -202,6 +203,11 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
 
     # ...y las Áreas Naturales Protegidas de SERNANP (dentro de una ANP la
     # minería está prohibida; en zona de amortiguamiento hay condiciones).
+    # Si AMBAS consultas responden (aunque no encuentren nada), se deja
+    # constancia explícita de "fuera" — antes `anp=None` significaba tanto
+    # "no cae en ninguna" como "no se pudo consultar", y la ficha pública
+    # se quedaba muda en el caso más común (el punto está limpio) en vez de
+    # confirmarlo. `anp=None` ahora es SOLO "no se pudo verificar".
     try:
         feature = _query_punto(
             "peru_sernanp_0102", 0, lng, lat, "*", base=_SERNANP
@@ -224,6 +230,8 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
                     "categoria": attrs.get("anp_cate"),
                     "zona": "amortiguamiento",
                 }
+            else:
+                resultado["anp"] = {"nombre": None, "categoria": None, "zona": "fuera"}
     except requests.RequestException:
         pass
 

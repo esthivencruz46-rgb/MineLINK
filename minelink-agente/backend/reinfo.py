@@ -22,8 +22,16 @@ from typing import Optional
 
 import requests
 
-# Los tests lo desactivan para no hacer llamadas externas reales.
-_DESACTIVADO = os.environ.get("MINELINK_REINFO") == "0"
+# Confirmado (julio 2026, sesión de trazado con navegador real) que
+# `requests` NO dispara el evento onchange/blur que el WebForms del MINEM
+# necesita antes del postback de búsqueda: toda consulta CON código o RUC
+# vuelve "no_encontrado" aunque el código sea real y esté vigente — un falso
+# negativo, peor que no mostrar nada. Mientras no se reemplace por un
+# navegador real (Playwright, más pesado — decisión pendiente de Esthiven),
+# queda DESACTIVADO por defecto; Esthiven verifica el código a mano y lo
+# marca en el admin (Operacion.reinfo_verificado_manual). Activar de nuevo
+# con MINELINK_REINFO=1 si se reemplaza el mecanismo.
+_DESACTIVADO = os.environ.get("MINELINK_REINFO") != "1"
 
 _URL = "https://pad.minem.gob.pe/REINFO_WEB/Index.aspx"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
@@ -73,12 +81,21 @@ def consultar_reinfo(codigo: Optional[str]) -> Optional[dict]:
         return None
 
     resultado: dict = {
+        # Versión del formato del caché: subir cuando cambie el shape para
+        # que los cachés viejos se reconsulten solos (v2: + ruc/dpto/provincia).
+        "v": 2,
         "codigo": codigo,
         "consultado_en": date.today().isoformat(),
         "estado": "no_encontrado",
         "declarante": None,
         "derecho": None,
         "distrito": None,
+        # Datos adicionales del padrón (julio 2026, a pedido de Esthiven):
+        # el mismo Código Único ya trae el RUC del declarante y su
+        # ubicación completa — antes se leían del grid y se descartaban.
+        "ruc": None,
+        "departamento": None,
+        "provincia": None,
     }
     # Filas del grid: [n, RUC, declarante, código derecho, nombre derecho,
     # dpto, provincia, distrito, ESTADO]
@@ -91,8 +108,11 @@ def consultar_reinfo(codigo: Optional[str]) -> Optional[dict]:
             resultado.update(
                 {
                     "estado": tds[8].upper() or "no_encontrado",
+                    "ruc": tds[1] or None,
                     "declarante": tds[2] or None,
                     "derecho": tds[4] or None,
+                    "departamento": tds[5] or None,
+                    "provincia": tds[6] or None,
                     "distrito": tds[7] or None,
                 }
             )

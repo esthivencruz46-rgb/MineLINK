@@ -1645,7 +1645,7 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     def geocatmin_falso(coords):
         llamadas["geocatmin"] += 1
         return {
-            "v": 4, "coords": coords, "consultado_en": "2026-07-16",
+            "v": 5, "coords": coords, "consultado_en": "2026-07-16",
             "concesion": None, "geologia": None, "geologia_50k": None,
             "restricciones": [], "anp": None,
         }
@@ -1653,8 +1653,9 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     def reinfo_falso(codigo):
         llamadas["reinfo"] += 1
         return {
-            "codigo": codigo, "consultado_en": "2026-07-16",
+            "v": 2, "codigo": codigo, "consultado_en": "2026-07-16",
             "estado": "VIGENTE", "declarante": None, "derecho": None, "distrito": None,
+            "ruc": None, "departamento": None, "provincia": None,
         }
 
     monkeypatch.setattr(geocatmin_modulo, "consultar", geocatmin_falso)
@@ -1687,6 +1688,57 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     assert detalle["geocatmin"]["concesion"] is None  # viene del fake, pero YA está poblado
     assert detalle["reinfo"]["estado"] == "VIGENTE"
     assert llamadas == {"geocatmin": 1, "reinfo": 1}  # con caché fresco, no se repite
+
+
+def test_admin_marca_y_desmarca_reinfo_verificado_manual():
+    # Julio 2026: el cotejo automático contra el MINEM quedó desactivado
+    # (ver reinfo.py) porque da falsos "no_encontrado" — Esthiven verifica
+    # el código a mano y lo marca aquí; la ficha pública lo muestra.
+    diag = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="reinfomanual1", codigo_reinfo="010253815"),
+    )
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["reinfo_verificado_manual"] is False
+    assert detalle["reinfo_verificado_en"] is None
+
+    resp = client.put(
+        f"/admin/operaciones/{diag['id']}/reinfo-verificado",
+        json={"verificado": True},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["reinfo_verificado_manual"] is True
+    assert resp.json()["reinfo_verificado_en"] is not None
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["reinfo_verificado_manual"] is True
+    assert detalle["reinfo_verificado_en"] is not None
+    assert detalle["codigo_reinfo"] == "010253815"
+
+    leads = client.get("/admin/leads", headers=admin_headers).json()
+    lead = next(l for l in leads if l["operacion_id"] == diag["id"])
+    assert lead["reinfo_verificado_manual"] is True
+
+    resp = client.put(
+        f"/admin/operaciones/{diag['id']}/reinfo-verificado",
+        json={"verificado": False},
+        headers=admin_headers,
+    )
+    assert resp.json()["reinfo_verificado_manual"] is False
+    assert resp.json()["reinfo_verificado_en"] is None
+
+
+def test_admin_reinfo_verificado_requiere_jwt():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="reinfomanual2"))
+    resp = client.put(
+        f"/admin/operaciones/{diag['id']}/reinfo-verificado", json={"verificado": True}
+    )
+    assert resp.status_code == 403
 
 
 def test_detalle_publico_indicadores_verificados_sin_exponer_documentos():

@@ -64,6 +64,8 @@ def listar_leads(
             nombre_operacion=lead.nombre_operacion,
             region=lead.region,
             codigo_reinfo=lead.codigo_reinfo,
+            reinfo_verificado_manual=operacion.reinfo_verificado_manual,
+            reinfo_verificado_en=operacion.reinfo_verificado_en,
             created_at=lead.created_at,
             score_total=operacion.score_total,
             bloqueado=operacion.bloqueado,
@@ -183,6 +185,30 @@ def actualizar_estado_contacto(
     lead.estado_contacto = payload.estado_contacto
     db.commit()
     return {"id": lead.id, "estado_contacto": lead.estado_contacto}
+
+
+@router.put("/operaciones/{operacion_id}/reinfo-verificado", status_code=200)
+def actualizar_reinfo_verificado(
+    operacion_id: str,
+    payload: schemas.ActualizarReinfoVerificadoRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Esthiven verifica a mano el código REINFO (código único o RUC) contra
+    el padrón del MINEM y lo marca aquí — el cotejo automático está
+    desactivado (ver reinfo.py). La ficha pública muestra "REINFO verificado"
+    solo cuando esto es True."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+    operacion.reinfo_verificado_manual = payload.verificado
+    operacion.reinfo_verificado_en = datetime.now(timezone.utc) if payload.verificado else None
+    db.commit()
+    return {
+        "operacion_id": operacion.id,
+        "reinfo_verificado_manual": operacion.reinfo_verificado_manual,
+        "reinfo_verificado_en": operacion.reinfo_verificado_en,
+    }
 
 
 @router.delete("/leads/{lead_id}", status_code=204)

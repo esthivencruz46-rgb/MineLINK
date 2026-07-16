@@ -86,10 +86,12 @@ export interface GeocatminInfo {
   } | null;
   // Alertas de zona: áreas restringidas (GEOCATMIN) y ANP (SERNANP).
   restricciones?: { tipo: string; nombre?: string | null }[];
+  // "fuera" = se consultó y el punto NO cae en ninguna ANP ni su
+  // amortiguamiento (confirmación explícita, no solo ausencia de dato).
   anp?: {
     nombre?: string | null;
     categoria?: string | null;
-    zona?: "dentro" | "amortiguamiento";
+    zona?: "dentro" | "amortiguamiento" | "fuera";
   } | null;
 }
 
@@ -101,6 +103,9 @@ export interface ReinfoVerificado {
   declarante?: string | null;
   derecho?: string | null;
   distrito?: string | null;
+  ruc?: string | null;
+  departamento?: string | null;
+  provincia?: string | null;
 }
 
 export interface DimensionScore {
@@ -138,6 +143,11 @@ export interface ProyectoDetalle extends ProyectoPublico {
   geocatmin?: GeocatminInfo | null;
   // Cotejo del código REINFO contra el padrón del MINEM.
   reinfo?: ReinfoVerificado | null;
+  // Verificación MANUAL del código REINFO por Esthiven — el cotejo
+  // automático de arriba está desactivado (ver backend/reinfo.py).
+  reinfo_verificado_manual?: boolean;
+  reinfo_verificado_en?: string | null;
+  codigo_reinfo?: string | null;
   // Legacy (siempre null/vacío desde julio 2026 — los semáforos y la
   // madurez reemplazaron a los scores por dimensión).
   dimensiones: Record<string, DimensionScore> | null;

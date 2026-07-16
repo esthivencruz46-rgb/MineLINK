@@ -7,6 +7,10 @@ export interface LeadConDiagnostico {
   nombre_operacion?: string | null;
   region: string;
   codigo_reinfo?: string | null;
+  // Verificación manual del código REINFO por Esthiven (el cotejo
+  // automático contra el MINEM está desactivado, ver backend/reinfo.py).
+  reinfo_verificado_manual: boolean;
+  reinfo_verificado_en?: string | null;
   created_at: string;
   // Declaración original del minero — inmutable
   score_total: number;

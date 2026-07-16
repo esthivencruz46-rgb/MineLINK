@@ -21,6 +21,14 @@ class Operacion(Base):
     id = Column(String, primary_key=True, default=_uuid)
     nombre_minero = Column(String, nullable=True)
     codigo_reinfo = Column(String, nullable=True)
+    # Verificación MANUAL del código REINFO por Esthiven (julio 2026): el
+    # cotejo automático contra el padrón del MINEM quedó desactivado (ver
+    # reinfo.py — el scraper con `requests` da falsos "no_encontrado").
+    # Esthiven confirma el código a mano (código único o RUC) desde el
+    # admin; reinfo_verificado_en queda null mientras no se confirme, y se
+    # limpia si el admin desmarca la verificación.
+    reinfo_verificado_manual = Column(Boolean, nullable=False, default=False)
+    reinfo_verificado_en = Column(DateTime, nullable=True)
     region = Column(String, nullable=False, index=True)
     mineral = Column(String, nullable=False, index=True)
     tipo_mina = Column(String, nullable=False, default="subterranea")  # "subterranea" | "tajo_abierto"
