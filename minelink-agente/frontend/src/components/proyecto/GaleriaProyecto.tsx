@@ -81,7 +81,7 @@ export function GaleriaProyecto({
   ) : null;
 
   const bloqueUbicacion = mapa ? (
-    <div className="flex flex-col gap-3 md:h-[30rem]">
+    <div className="flex min-h-0 flex-col gap-3 overflow-hidden md:h-[30rem]">
       {mapa}
       {panelGeocatmin}
     </div>
@@ -93,11 +93,17 @@ export function GaleriaProyecto({
   // existiera. El visor a pantalla completa ya recorre TODAS las fotos
   // (fotos[], no solo las 2 visibles), así que el sello es solo la
   // señal que faltaba para saber que hay más y poder abrirlas.
+  // min-h-0 es OBLIGATORIO en cada celda de un grid con alto fijo: sin él,
+  // el tamaño natural de la imagen (min-height:auto por defecto en grid)
+  // gana y la foto se desborda de su fila, pintando encima del contenido
+  // de abajo (Resumen Ejecutivo, panel de score) — bug real reportado con
+  // captura (julio 2026). overflow-hidden en el botón es el segundo
+  // seguro: aunque algo se recalcule mal, nunca pinta fuera de su celda.
   const miniatura = (foto: FotoPublica, indice: number, alto: string, restantes = 0) => (
     <button
       key={foto.id}
       onClick={() => setIndiceAbierto(indice)}
-      className={`group relative overflow-hidden rounded-xl shadow-sm transition duration-200 ${alto}`}
+      className={`group relative min-h-0 overflow-hidden rounded-xl shadow-sm transition duration-200 ${alto}`}
     >
       <img
         src={`${BASE_URL}${foto.url}`}
@@ -123,12 +129,12 @@ export function GaleriaProyecto({
           // espacio completo en vez de dejar una fila vacía; con 3+, la
           // 2ª miniatura lleva el sello "+N" en vez de perder las demás
           // en silencio.
-          <div className="grid grid-cols-1 gap-3 md:h-[30rem] md:grid-cols-[2fr_3fr]">
+          <div className="grid grid-cols-1 gap-3 overflow-hidden md:h-[30rem] md:grid-cols-[2fr_3fr]">
             {bloqueUbicacion}
             {fotos.length === 1 ? (
               miniatura(fotos[0], 0, "h-64 md:h-full")
             ) : (
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:grid-rows-2">
+              <div className="grid min-h-0 grid-cols-2 gap-3 md:grid-cols-1 md:grid-rows-2">
                 {fotos
                   .slice(0, 2)
                   .map((foto, i) =>
