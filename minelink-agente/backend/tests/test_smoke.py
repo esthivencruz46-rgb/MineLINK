@@ -256,6 +256,18 @@ def test_gps_y_ruc_tienen_slot_propio_en_vez_de_ocultarse_por_equivalencia():
     assert "tramite_sunat" in codigos
 
 
+def test_analisis_laboratorio_ya_no_equivale_a_informe_leyes():
+    # Julio 2026: analisis_laboratorio (de B3_2, hoy en pausa) equivalía a
+    # informe_leyes de "Documentos legales" — sección OCULTA en ambas
+    # ventanas del minero, mismo callejón sin salida que contrato_explotacion.
+    # Sin efecto visible HOY (B3_1/B3_2 están en pausa, no se preguntan),
+    # pero deja listo el terreno para cuando se reactiven.
+    from uploads_config import categoria_equivalente
+
+    assert categoria_equivalente("analisis_laboratorio", "minero_artesanal") is None
+    assert categoria_equivalente("analisis_laboratorio", "concesionario") is None
+
+
 def test_contrato_con_el_titular_tiene_slot_propio():
     # Regresión (julio 2026): "Contrato con el dueño de la concesión"
     # (contrato_explotacion) equivalía a sí mismo en "Documentos legales"

@@ -119,21 +119,22 @@ _EQUIVALENCIAS_ESTUDIO: dict[str, str] = {
     # comprobante de pago de vigencia es un recibo/constancia que se
     # renueva cada año, distinto del título que se emite una sola vez.
     "puesta_en_produccion": "fotos_mina",  # O1: foto de la mina operando = fotos de la mina
-    "analisis_laboratorio": "informe_leyes",  # T3: análisis de laboratorio = informe de leyes/ensayes
     # tramite_sunat (RUC minero), levantamiento_georreferenciado (GPS/
-    # sinceramiento) y contrato_explotacion (contrato con el dueño de la
-    # concesión) tenían equivalencia con "ruc"/"catastro"/sí mismo y
-    # quedaban sin slot propio — invisibles en AMBAS ventanas del minero,
-    # porque además "Documentos legales" (donde vivía la categoría
-    # equivalente) está oculto en MiCuenta.tsx y MiConcesion.tsx
-    # (`ocultarDocumentosLegales`). Sin ningún lugar donde subirlo, era un
-    # callejón sin salida real, no una simplificación — julio 2026, pedido
-    # explícito de Esthiven: revisar caso por caso qué se discrimina y qué
-    # no, sin dar nada por sentado mientras no hay nada publicado.
-    # tramite_sunat además cambió de foto a código escrito (ver
-    # DocumentosMinero.tsx / routers/mineros.py). puesta_en_produccion y
-    # analisis_laboratorio arriba SIGUEN equivalentes por ahora (fotos_mina
-    # SÍ es visible en la cuenta) — pendiente de confirmar caso a caso.
+    # sinceramiento), contrato_explotacion (contrato con el dueño de la
+    # concesión) y analisis_laboratorio (B3_2) tenían equivalencia con
+    # "ruc"/"catastro"/sí mismo/"informe_leyes" y quedaban sin slot propio
+    # — invisibles en AMBAS ventanas del minero, porque además "Documentos
+    # legales" (donde vivía la categoría equivalente) está oculto en
+    # MiCuenta.tsx y MiConcesion.tsx (`ocultarDocumentosLegales`). Sin
+    # ningún lugar donde subirlo, era un callejón sin salida real, no una
+    # simplificación — julio 2026, pedido explícito de Esthiven: revisar
+    # caso por caso qué se discrimina y qué no, sin dar nada por sentado
+    # mientras no hay nada publicado. tramite_sunat además cambió de foto
+    # a código escrito (ver DocumentosMinero.tsx / routers/mineros.py).
+    # ⚠️ puesta_en_produccion (arriba) sigue equivalente a fotos_mina, pero
+    # OJO: fotos_mina TAMPOCO tiene UI de subida en ninguna ventana hoy
+    # (`ocultarFotosOperacion` en ambas) — mismo problema en potencia,
+    # pendiente de decisión explícita (no se tocó todavía).
     # Los estudios nuevos del pipeline (acreditacion_terreno, dj_arqueologica,
     # expediente_tecnico, declaracion_produccion_semestral) tienen slot
     # propio — no equivalen a ningún documento fijo.

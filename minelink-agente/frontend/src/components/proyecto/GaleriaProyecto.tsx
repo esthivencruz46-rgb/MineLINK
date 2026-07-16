@@ -87,11 +87,17 @@ export function GaleriaProyecto({
     </div>
   ) : null;
 
-  const miniatura = (foto: FotoPublica, indice: number, alto: string) => (
+  // `restantes` > 0 dibuja un sello "+N" encima de esa miniatura — sin
+  // esto, subir una 3ª foto (o más) la dejaba invisible SIN AVISO: no
+  // desaparecía del proyecto, pero no había ningún indicio de que
+  // existiera. El visor a pantalla completa ya recorre TODAS las fotos
+  // (fotos[], no solo las 2 visibles), así que el sello es solo la
+  // señal que faltaba para saber que hay más y poder abrirlas.
+  const miniatura = (foto: FotoPublica, indice: number, alto: string, restantes = 0) => (
     <button
       key={foto.id}
       onClick={() => setIndiceAbierto(indice)}
-      className={`group overflow-hidden rounded-xl shadow-sm transition duration-200 ${alto}`}
+      className={`group relative overflow-hidden rounded-xl shadow-sm transition duration-200 ${alto}`}
     >
       <img
         src={`${BASE_URL}${foto.url}`}
@@ -99,6 +105,11 @@ export function GaleriaProyecto({
         loading="lazy"
         className="h-full w-full object-cover transition duration-200 group-hover:scale-105"
       />
+      {restantes > 0 && (
+        <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-lg font-bold text-white">
+          +{restantes}
+        </span>
+      )}
     </button>
   );
 
@@ -107,26 +118,39 @@ export function GaleriaProyecto({
       {bloqueUbicacion ? (
         fotos.length > 0 ? (
           // Alto fijo compartido (md:h-[30rem]): el bloque de ubicación
-          // (mapa vertical + panel GEOCATMIN) y las 2 fotos apiladas
-          // terminan exactamente en la misma línea.
+          // (mapa vertical + panel GEOCATMIN) y las fotos terminan
+          // exactamente en la misma línea. Con 1 sola foto, ocupa el
+          // espacio completo en vez de dejar una fila vacía; con 3+, la
+          // 2ª miniatura lleva el sello "+N" en vez de perder las demás
+          // en silencio.
           <div className="grid grid-cols-1 gap-3 md:h-[30rem] md:grid-cols-[2fr_3fr]">
             {bloqueUbicacion}
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:grid-rows-2">
-              {fotos.slice(0, 2).map((foto, i) => miniatura(foto, i, "h-32 md:h-full"))}
-            </div>
+            {fotos.length === 1 ? (
+              miniatura(fotos[0], 0, "h-64 md:h-full")
+            ) : (
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-1 md:grid-rows-2">
+                {fotos
+                  .slice(0, 2)
+                  .map((foto, i) =>
+                    miniatura(foto, i, "h-32 md:h-full", i === 1 ? fotos.length - 2 : 0)
+                  )}
+              </div>
+            )}
           </div>
         ) : (
           bloqueUbicacion
         )
       ) : (
-        // Sin ubicación: las fotos ocupan todo el rectángulo.
+        // Sin ubicación: las fotos ocupan todo el rectángulo. Con 4+ fotos,
+        // la última miniatura visible lleva el sello "+N" en vez de perder
+        // el resto en silencio.
         <div className="grid grid-cols-1 gap-3 md:grid-cols-[7fr_3fr]">
           {miniatura(fotos[0], 0, "h-64 md:h-96")}
           {fotos.length > 1 && (
             <div className="grid grid-cols-2 gap-3 md:grid-cols-1">
-              {fotos
-                .slice(1, 3)
-                .map((foto, i) => miniatura(foto, i + 1, "h-32 md:h-[186px]"))}
+              {fotos.slice(1, 3).map((foto, i) =>
+                miniatura(foto, i + 1, "h-32 md:h-[186px]", i === 1 ? fotos.length - 3 : 0)
+              )}
             </div>
           )}
         </div>
