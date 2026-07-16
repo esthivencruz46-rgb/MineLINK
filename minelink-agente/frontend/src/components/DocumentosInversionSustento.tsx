@@ -40,7 +40,8 @@ const DESCRIPCION_CATEGORIA_INV: Record<string, string> = {
   fotos_labores_antiguas: "Fotos de las labores antiguas que demuestran la producción anterior.",
   registro_opex: "Tu registro de costos operativos mensuales.",
   contratos_offtake: "El contrato de venta u offtake que tienes vigente.",
-  fotos_presentacion: "Fotos de tu mina desde afuera, tu concesión — lo que mejor te presenta.",
+  fotos_presentacion:
+    "Fotos que mejor te presenten: tu concesión, el terreno, el acceso, o tu mina desde afuera si ya operas.",
 };
 
 interface CategoriaSustento {

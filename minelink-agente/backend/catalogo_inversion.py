@@ -357,11 +357,14 @@ def respaldos_declarados_inversion(
                 {"codigo": "registro_opex", "pregunta_id": "INV_C4", "valor": "detallado"}
             )
 
-    # Fotos de presentación (julio 2026): quien ya opera —perfil C con
-    # REINFO o D formal pleno— siempre tiene algo que mostrar de un
-    # vistazo (mina desde afuera, concesión), sin depender de una
-    # respuesta puntual — a diferencia del resto de slots de este módulo.
-    if perfil in ("C", "D"):
+    # Fotos de presentación (julio 2026, ampliado a B en esta misma sesión
+    # a pedido de Esthiven): no solo quien ya opera —perfil C con REINFO o
+    # D formal pleno— tiene algo que mostrar de un vistazo. Un
+    # concesionario sin operar (B) también tiene concesión, terreno,
+    # acceso — prueba de que el proyecto es real aunque no haya
+    # producción todavía. Sin depender de una respuesta puntual, a
+    # diferencia del resto de slots de este módulo.
+    if perfil in ("B", "C", "D"):
         declarados.append(
             {"codigo": "fotos_presentacion", "pregunta_id": "", "valor": ""}
         )

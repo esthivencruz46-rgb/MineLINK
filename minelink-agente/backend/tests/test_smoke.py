@@ -1587,6 +1587,14 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     categorias = {c["categoria"]: c for c in resp.json()["categorias_requeridas"]}
     assert categorias["titulo_concesion"]["aprobado"] is False
 
+    # julio 2026 (a pedido de Esthiven): perfil B también puede mostrar
+    # fotos de presentación (concesión, terreno, acceso) aunque no opere
+    # todavía — antes era exclusivo de C/D.
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "fotos_presentacion" in {
+        r["codigo"] for r in me["respaldos_declarados_inversion"]
+    }
+
     doc = client.post(
         "/mineros/documentos",
         headers=headers,
