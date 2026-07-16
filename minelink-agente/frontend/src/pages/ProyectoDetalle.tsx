@@ -325,13 +325,33 @@ export function ProyectoDetalle() {
 
       {/* MOSAICO SUPERIOR: ubicación satelital en la parte ancha + fotos
           del proyecto al costado (la tarjeta "Ubicación" aparte se
-          eliminó — vivía abajo y dejaba este espacio a medio usar). */}
-      <div className="mt-6">
-        <GaleriaProyecto
-          fotos={proyecto.fotos}
-          ubicacionCoords={proyecto.ubicacion_coords}
-          geocatmin={proyecto.geocatmin}
-        />
+          eliminó — vivía abajo y dejaba este espacio a medio usar). El
+          recuadro de puntuación (antes solo en el sidebar, más abajo) sube
+          al costado del mapa (pedido explícito, julio 2026): el mapa queda
+          menos ancho y las miniaturas se corren más a la izquierda. */}
+      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-stretch">
+        <div className="md:w-2/3">
+          <GaleriaProyecto
+            fotos={proyecto.fotos}
+            ubicacionCoords={proyecto.ubicacion_coords}
+            geocatmin={proyecto.geocatmin}
+          />
+        </div>
+        {(typeof proyecto.score_formalizacion === "number" ||
+          typeof proyecto.score_inversion === "number") && (
+          <div className="flex flex-col gap-3 rounded-xl bg-tarjeta p-4 shadow-sm dark:bg-tarjeta-dark md:w-1/3">
+            <div className="flex flex-col gap-2 border-b border-black/5 pb-3 dark:border-white/10">
+              <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
+              <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                Track Legal
+              </p>
+              <p className={`text-lg font-bold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* LAYOUT 2 COLUMNAS */}
@@ -777,19 +797,6 @@ export function ProyectoDetalle() {
         <div className="h-fit md:sticky md:top-6">
           <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark">
             <div className="flex flex-col gap-4">
-              {(typeof proyecto.score_formalizacion === "number" ||
-                typeof proyecto.score_inversion === "number") && (
-                <div className="flex flex-col gap-2 border-b border-black/5 pb-4 dark:border-white/10">
-                  <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
-                  <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
-                </div>
-              )}
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Track Legal
-                </p>
-                <p className={`text-lg font-bold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
-              </div>
               <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Madurez técnica
