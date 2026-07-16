@@ -33,6 +33,12 @@ export function GaleriaProyecto({
     );
   }
 
+  // Más reciente primero (julio 2026, a pedido de Esthiven): el backend
+  // devuelve las fotos en orden de subida (la más vieja primero) — se
+  // invierte acá para que la última foto subida aparezca primero en la
+  // tira y en el visor, sin tocar el orden real de subida en la BD.
+  const fotosOrdenadas = [...fotos].reverse();
+
   const concesion = geocatmin?.concesion;
   const geologia = geocatmin?.geologia;
   const geologia50k = geocatmin?.geologia_50k;
@@ -86,11 +92,13 @@ export function GaleriaProyecto({
   // igualar la altura del panel: cada una mide lo mismo (cuadrada) sin
   // importar cuántas haya. La última visible lleva el sello "+N" si sobran.
   const tiraFotos =
-    fotos.length > 0 ? (
+    fotosOrdenadas.length > 0 ? (
       <div className="grid flex-1 grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-        {fotos.slice(0, MAX_MINIATURAS_VISIBLES).map((foto, i) => {
+        {fotosOrdenadas.slice(0, MAX_MINIATURAS_VISIBLES).map((foto, i) => {
           const esUltimaVisible = i === MAX_MINIATURAS_VISIBLES - 1;
-          const restantes = esUltimaVisible ? fotos.length - MAX_MINIATURAS_VISIBLES : 0;
+          const restantes = esUltimaVisible
+            ? fotosOrdenadas.length - MAX_MINIATURAS_VISIBLES
+            : 0;
           return (
             <button
               key={foto.id}
@@ -133,12 +141,12 @@ export function GaleriaProyecto({
           onClick={() => setIndiceAbierto(null)}
         >
           <img
-            src={`${BASE_URL}${fotos[indiceAbierto].url}`}
+            src={`${BASE_URL}${fotosOrdenadas[indiceAbierto].url}`}
             alt="Foto del proyecto"
             className="max-h-[85vh] max-w-full rounded-lg object-contain"
           />
           <div className="mt-4 flex gap-2">
-            {fotos.map((_, i) => (
+            {fotosOrdenadas.map((_, i) => (
               <button
                 key={i}
                 onClick={(e) => {

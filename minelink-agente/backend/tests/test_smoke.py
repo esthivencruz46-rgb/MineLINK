@@ -3344,10 +3344,12 @@ def test_proyectos_check_publico_acepta_categoria_equivalente():
     assert len(detalle_final["documentos_estudios"].get(primera_brecha, [])) == 1
 
 
-def test_mineros_me_expone_fotos_perfil_condicionadas():
-    # Fotos pedidas según lo que el minero YA declaró (mineral, camino de
-    # acceso, agua, energía) — no genéricas, con su propia respuesta en la
-    # etiqueta, y solo en Ruta 1 (Ruta 2 no opera todavía).
+def test_mineros_me_ya_no_ofrece_fotos_perfil_pausadas():
+    # ⏸️ EN PAUSA (julio 2026, a pedido de Esthiven): las "fotos sueltas"
+    # (mineral/acceso/agua/energía) ya no se ofrecen a nadie —
+    # fotos_presentacion las reemplaza. El upload directo a esas categorías
+    # sigue aceptándose (fotos ya subidas por mineros anteriores no se
+    # rompen), solo se dejó de sugerir el slot.
     diag = client.post(
         "/diagnostico",
         json={
@@ -3372,13 +3374,9 @@ def test_mineros_me_expone_fotos_perfil_condicionadas():
 
     resp = client.get("/mineros/me", headers=headers)
     assert resp.status_code == 200
-    fotos = {f["categoria"]: f["etiqueta"] for f in resp.json()["fotos_perfil"]}
-    assert fotos["foto_mineral"] == "Foto del mineral que extraes (Cobre)"
-    assert fotos["foto_acceso"] == "Foto del camino de acceso (Trocha)"
-    assert "foto_agua" in fotos
-    assert "foto_energia" in fotos
+    assert resp.json()["fotos_perfil"] == []
 
-    # Se puede subir a esas categorías nuevas igual que cualquier otra.
+    # El upload directo a esas categorías sigue aceptándose (backward compat).
     resp = client.post(
         "/mineros/documentos",
         headers=headers,

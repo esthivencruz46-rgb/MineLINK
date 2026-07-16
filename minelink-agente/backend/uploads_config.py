@@ -162,11 +162,14 @@ _ETIQUETAS_ACCESO_LOGISTICO = {
 
 
 def categorias_perfil_foto_aplicables(operacion) -> list[tuple[str, str]]:
-    """Exclusivo de Ruta 1 (minero_artesanal) — Ruta 2 todavía no opera, no
-    tiene un camino/fuente de agua/energía real de su propia labor que
-    fotografiar. Devuelve (categoria, etiqueta) solo para lo que el minero
-    efectivamente declaró en el perfil, con su propia respuesta en la
-    etiqueta."""
+    """⏸️ EN PAUSA (julio 2026, a pedido de Esthiven): estas "fotos sueltas"
+    (mineral/acceso/agua/energía) ya no se ofrecen a nadie — `fotos_presentacion`
+    (perfiles B/C/D) las reemplaza como el espacio genérico de fotos de la
+    operación. No se borra el código ni las fotos ya subidas por mineros
+    anteriores (siguen viéndose en la ficha pública vía CATEGORIAS_GALERIA);
+    solo se dejó de ofrecer el slot para subir nuevas."""
+    return []
+    # ---- código anterior, conservado por si se reactiva ----
     if (getattr(operacion, "situacion", None) or "minero_artesanal") != "minero_artesanal":
         return []
 
