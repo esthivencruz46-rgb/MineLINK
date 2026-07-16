@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { BadgeCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
 import { BASE_URL } from "../../services/api";
 import { MapaGeocatmin } from "./MapaGeocatmin";
 import type { FotoPublica, GeocatminInfo } from "../../types/proyecto";
@@ -25,6 +25,32 @@ export function GaleriaProyecto({
 }) {
   const [indiceAbierto, setIndiceAbierto] = useState<number | null>(null);
 
+  // Más reciente primero (julio 2026, a pedido de Esthiven): el backend
+  // devuelve las fotos en orden de subida (la más vieja primero) — se
+  // invierte acá para que la última foto subida aparezca primero en la
+  // tira y en el visor, sin tocar el orden real de subida en la BD.
+  // Declarado ANTES del early return de abajo porque el useEffect de
+  // navegación por teclado (también antes del return) lo necesita — los
+  // hooks no pueden depender de un return condicional previo.
+  const fotosOrdenadas = [...fotos].reverse();
+
+  // Flechas ← → del teclado navegan el visor cuando está abierto (además
+  // de los botones en pantalla, para desktop).
+  useEffect(() => {
+    if (indiceAbierto === null || fotosOrdenadas.length === 0) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "ArrowLeft") {
+        setIndiceAbierto((i) => (i === null ? i : (i - 1 + fotosOrdenadas.length) % fotosOrdenadas.length));
+      } else if (e.key === "ArrowRight") {
+        setIndiceAbierto((i) => (i === null ? i : (i + 1) % fotosOrdenadas.length));
+      } else if (e.key === "Escape") {
+        setIndiceAbierto(null);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [indiceAbierto, fotosOrdenadas.length]);
+
   if (fotos.length === 0 && !ubicacionCoords) {
     return (
       <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-black/10 bg-tarjeta text-sm text-texto-suave dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-suave-dark">
@@ -32,12 +58,6 @@ export function GaleriaProyecto({
       </div>
     );
   }
-
-  // Más reciente primero (julio 2026, a pedido de Esthiven): el backend
-  // devuelve las fotos en orden de subida (la más vieja primero) — se
-  // invierte acá para que la última foto subida aparezca primero en la
-  // tira y en el visor, sin tocar el orden real de subida en la BD.
-  const fotosOrdenadas = [...fotos].reverse();
 
   const concesion = geocatmin?.concesion;
   const geologia = geocatmin?.geologia;
@@ -143,11 +163,37 @@ export function GaleriaProyecto({
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 p-4"
           onClick={() => setIndiceAbierto(null)}
         >
+          {fotosOrdenadas.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIndiceAbierto((i) =>
+                  i === null ? i : (i - 1 + fotosOrdenadas.length) % fotosOrdenadas.length
+                );
+              }}
+              aria-label="Foto anterior"
+              className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70 sm:left-6"
+            >
+              <ChevronLeft size={28} />
+            </button>
+          )}
           <img
             src={`${BASE_URL}${fotosOrdenadas[indiceAbierto].url}`}
             alt="Foto del proyecto"
             className="max-h-[85vh] max-w-full rounded-lg object-contain"
           />
+          {fotosOrdenadas.length > 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIndiceAbierto((i) => (i === null ? i : (i + 1) % fotosOrdenadas.length));
+              }}
+              aria-label="Foto siguiente"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white transition hover:bg-black/70 sm:right-6"
+            >
+              <ChevronRight size={28} />
+            </button>
+          )}
           <div className="mt-4 flex gap-2">
             {fotosOrdenadas.map((_, i) => (
               <button
