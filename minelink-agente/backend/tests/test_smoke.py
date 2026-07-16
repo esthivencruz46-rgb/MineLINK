@@ -21,6 +21,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+import database
 import models
 from database import Base, get_db
 from main import app
@@ -44,6 +45,13 @@ def override_get_db():
 
 
 app.dependency_overrides[get_db] = override_get_db
+# Código que abre su propia sesión FUERA de un endpoint (background tasks
+# de proyectos.py: el refresco de GEOCATMIN/REINFO corre después de que
+# la sesión de la petición ya se cerró, así que no puede reusarla) no pasa
+# por `Depends(get_db)` y por lo tanto no ve `dependency_overrides` — solo
+# sustituir `database.SessionLocal` en sí hace que también use la BD en
+# memoria de los tests en vez de la real (backend/.env apunta a producción).
+database.SessionLocal = TestingSessionLocal
 # El límite de intentos por IP se desactiva en tests (todos comparten la IP
 # "testclient" y lo dispararían); su lógica se prueba aparte más abajo.
 app.dependency_overrides[limitar_intentos_login] = lambda: None
@@ -1619,6 +1627,66 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     assert "estimacion_recursos" not in me["brechas_inversion"]
     respaldos = {r["codigo"]: r for r in me["respaldos_declarados_inversion"]}
     assert respaldos["estimacion_recursos"]["valor"] == "no_tengo"
+
+
+def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
+    # Regresión (julio 2026, reportado como "se demora un montón" al abrir
+    # un proyecto): antes GEOCATMIN/REINFO se consultaban EN VIVO dentro de
+    # la misma petición — hasta 11 llamadas seguidas a servidores lentos
+    # del Estado antes de responder. Ahora la 1ª visita responde con
+    # geocatmin/reinfo en None (nada que mostrar todavía, pero SIN
+    # esperar la red) y el refresco real corre en segundo plano
+    # (BackgroundTasks) — la 2ª visita ya lo tiene cacheado.
+    import geocatmin as geocatmin_modulo
+    import reinfo as reinfo_modulo
+
+    llamadas = {"geocatmin": 0, "reinfo": 0}
+
+    def geocatmin_falso(coords):
+        llamadas["geocatmin"] += 1
+        return {
+            "v": 4, "coords": coords, "consultado_en": "2026-07-16",
+            "concesion": None, "geologia": None, "geologia_50k": None,
+            "restricciones": [], "anp": None,
+        }
+
+    def reinfo_falso(codigo):
+        llamadas["reinfo"] += 1
+        return {
+            "codigo": codigo, "consultado_en": "2026-07-16",
+            "estado": "VIGENTE", "declarante": None, "derecho": None, "distrito": None,
+        }
+
+    monkeypatch.setattr(geocatmin_modulo, "consultar", geocatmin_falso)
+    monkeypatch.setattr(reinfo_modulo, "consultar_reinfo", reinfo_falso)
+
+    diag = _crear_diagnostico().json()
+    client.post(
+        "/leads",
+        json=_lead_payload(diag["id"], username="fichasinred", codigo_reinfo="REI-FICHA-1"),
+    )
+    # MINELINK_RESOLVER_MAPS=0 en tests desactiva la resolución real del
+    # enlace — se fija ubicacion_coords directo en la BD (equivalente a un
+    # enlace que sí resolvió) para poder probar el camino de GEOCATMIN.
+    db = TestingSessionLocal()
+    lead_db = db.query(models.Lead).filter(models.Lead.username == "fichasinred").first()
+    lead_db.ubicacion_coords = "-12.5,-76.7"
+    db.commit()
+    db.close()
+
+    # 1ª visita: sin caché todavía — la ficha responde con geocatmin/reinfo
+    # en None, NO con el resultado (aunque el fake fuera instantáneo, el
+    # punto es que el camino síncrono nunca lo llama).
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["geocatmin"] is None
+    assert detalle["reinfo"] is None
+    assert llamadas == {"geocatmin": 1, "reinfo": 1}  # sí se agendó, en background
+
+    # 2ª visita: el background task de la 1ª ya guardó el caché.
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["geocatmin"]["concesion"] is None  # viene del fake, pero YA está poblado
+    assert detalle["reinfo"]["estado"] == "VIGENTE"
+    assert llamadas == {"geocatmin": 1, "reinfo": 1}  # con caché fresco, no se repite
 
 
 def test_detalle_publico_indicadores_verificados_sin_exponer_documentos():

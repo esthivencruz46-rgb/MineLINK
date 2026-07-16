@@ -1,10 +1,11 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+import database
 import geocatmin
 import models
 import reinfo
@@ -322,67 +323,106 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
     return fila
 
 
-def _geocatmin_cacheado(
-    db: Session, lead: models.Lead, operacion: models.Operacion
-) -> Optional[dict]:
-    """Datos oficiales de GEOCATMIN para el pin del proyecto, con caché en
-    la operación (clave interna "_geocatmin" de datos_formalizacion_json —
-    prefijo _ para distinguirla de las categorías que escribe el minero;
-    reusa la columna JSON existente, sin migración). Se reconsulta solo si
-    el pin cambió o el dato tiene más de DIAS_REFRESCO días; si INGEMMET
-    no responde, se conserva lo último cacheado."""
-    coords = lead.ubicacion_coords
+# GEOCATMIN/REINFO son best-effort pero antes se consultaban EN VIVO,
+# dentro de la misma petición HTTP — hasta 11 llamadas seguidas a
+# servidores lentos del Estado (INGEMMET, SERNANP, MINEM) antes de que el
+# inversionista viera la ficha (julio 2026, reportado como "se demora un
+# montón"). Ahora la respuesta SIEMPRE usa lo que ya haya en caché al
+# instante (None la primera vez, nunca espera a la red) y, si el caché
+# falta o venció, el refresco real se agenda con BackgroundTasks.
+#
+# El background task abre su PROPIA sesión — verificado en la práctica
+# (no solo supuesto) que `finally: db.close()` de una dependencia `yield`
+# corre ANTES de que los background tasks se ejecuten, no después: la
+# sesión de la petición ya no sirve para cuando esto corre. Se usa
+# `database.SessionLocal()` (módulo completo, no `from database import
+# SessionLocal`) para que los tests puedan sustituir
+# `database.SessionLocal` por su motor en memoria — con `from ... import`
+# el nombre queda copiado en este archivo desde el momento del import y
+# ya no se entera de la sustitución, así que el background task terminaría
+# escribiendo contra la base de PRODUCCIÓN real (backend/.env) en vez de
+# la de prueba — se detectó así, con un test que probaba justo este camino.
+
+
+def _geocatmin_desde_cache(operacion: models.Operacion, coords: Optional[str]) -> Optional[dict]:
+    """Lectura pura, sin red — lo último guardado para este pin, aunque
+    esté vencido (mejor mostrar un dato de hace semanas que nada)."""
     if not coords:
         return None
-    datos = operacion.datos_formalizacion_json or {}
-    cache = datos.get("_geocatmin")
-    # v: cachés de un formato anterior (ej. sin restricciones/ANP) se reconsultan.
-    if isinstance(cache, dict) and cache.get("coords") == coords and cache.get("v") == 4:
-        try:
-            consultado = date.fromisoformat(cache.get("consultado_en", ""))
-            if date.today() - consultado <= timedelta(days=geocatmin.DIAS_REFRESCO):
-                return cache
-        except ValueError:
-            pass
+    cache = (operacion.datos_formalizacion_json or {}).get("_geocatmin")
+    return cache if isinstance(cache, dict) and cache.get("coords") == coords else None
 
+
+def _geocatmin_necesita_refresco(operacion: models.Operacion, coords: Optional[str]) -> bool:
+    if not coords:
+        return False
+    cache = (operacion.datos_formalizacion_json or {}).get("_geocatmin")
+    # v: cachés de un formato anterior (ej. sin restricciones/ANP) se reconsultan.
+    if not isinstance(cache, dict) or cache.get("coords") != coords or cache.get("v") != 4:
+        return True
+    try:
+        consultado = date.fromisoformat(cache.get("consultado_en", ""))
+    except ValueError:
+        return True
+    return date.today() - consultado > timedelta(days=geocatmin.DIAS_REFRESCO)
+
+
+def _refrescar_geocatmin_en_segundo_plano(operacion_id: str, coords: str) -> None:
     consulta = geocatmin.consultar(coords)
     if consulta is None:
-        return cache if isinstance(cache, dict) else None
-    operacion.datos_formalizacion_json = {**datos, "_geocatmin": consulta}
-    db.commit()
-    return consulta
+        return
+    db = database.SessionLocal()
+    try:
+        operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+        if operacion is None:
+            return
+        datos = operacion.datos_formalizacion_json or {}
+        operacion.datos_formalizacion_json = {**datos, "_geocatmin": consulta}
+        db.commit()
+    finally:
+        db.close()
 
 
-def _reinfo_cacheado(
-    db: Session, lead: models.Lead, operacion: models.Operacion
-) -> Optional[dict]:
-    """Verificación del código REINFO contra el padrón del MINEM, con el
-    mismo patrón de caché que _geocatmin_cacheado (clave interna
-    "_reinfo"). Se reconsulta si el código cambió o pasaron
-    reinfo.DIAS_REFRESCO días; si MINEM no responde, se conserva lo último."""
-    codigo = (lead.codigo_reinfo or operacion.codigo_reinfo or "").strip()
+def _reinfo_desde_cache(operacion: models.Operacion, codigo: Optional[str]) -> Optional[dict]:
     if not codigo:
         return None
-    datos = operacion.datos_formalizacion_json or {}
-    cache = datos.get("_reinfo")
-    if isinstance(cache, dict) and cache.get("codigo") == codigo:
-        try:
-            consultado = date.fromisoformat(cache.get("consultado_en", ""))
-            if date.today() - consultado <= timedelta(days=reinfo.DIAS_REFRESCO):
-                return cache
-        except ValueError:
-            pass
+    cache = (operacion.datos_formalizacion_json or {}).get("_reinfo")
+    return cache if isinstance(cache, dict) and cache.get("codigo") == codigo else None
 
+
+def _reinfo_necesita_refresco(operacion: models.Operacion, codigo: Optional[str]) -> bool:
+    if not codigo:
+        return False
+    cache = (operacion.datos_formalizacion_json or {}).get("_reinfo")
+    if not isinstance(cache, dict) or cache.get("codigo") != codigo:
+        return True
+    try:
+        consultado = date.fromisoformat(cache.get("consultado_en", ""))
+    except ValueError:
+        return True
+    return date.today() - consultado > timedelta(days=reinfo.DIAS_REFRESCO)
+
+
+def _refrescar_reinfo_en_segundo_plano(operacion_id: str, codigo: str) -> None:
     consulta = reinfo.consultar_reinfo(codigo)
     if consulta is None:
-        return cache if isinstance(cache, dict) else None
-    operacion.datos_formalizacion_json = {**datos, "_reinfo": consulta}
-    db.commit()
-    return consulta
+        return
+    db = database.SessionLocal()
+    try:
+        operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+        if operacion is None:
+            return
+        datos = operacion.datos_formalizacion_json or {}
+        operacion.datos_formalizacion_json = {**datos, "_reinfo": consulta}
+        db.commit()
+    finally:
+        db.close()
 
 
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
-def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
+def detalle_proyecto(
+    operacion_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+):
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
     # Si el enlace de Maps quedó guardado sin coordenadas (resolución
     # fallida en su momento), se reintenta acá — el mapa satelital del
@@ -469,6 +509,19 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
         e for e in estudios_aplicables if e not in pendientes and _tiene_respaldo(e)
     )
 
+    # Refresco de GEOCATMIN/REINFO en segundo plano (ver comentario arriba
+    # de _geocatmin_desde_cache): la respuesta ya lleva lo cacheado, así
+    # que esto NUNCA demora al inversionista — corre después de responder.
+    codigo_reinfo = lead.codigo_reinfo or operacion.codigo_reinfo
+    if _geocatmin_necesita_refresco(operacion, lead.ubicacion_coords):
+        background_tasks.add_task(
+            _refrescar_geocatmin_en_segundo_plano, operacion.id, lead.ubicacion_coords
+        )
+    if _reinfo_necesita_refresco(operacion, codigo_reinfo):
+        background_tasks.add_task(
+            _refrescar_reinfo_en_segundo_plano, operacion.id, codigo_reinfo
+        )
+
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),
         fotos=fotos,
@@ -487,8 +540,8 @@ def detalle_proyecto(operacion_id: str, db: Session = Depends(get_db)):
             for k, v in (operacion.inv_respuestas_json or {}).items()
             if k in IDS_INV_PUBLICOS
         },
-        geocatmin=_geocatmin_cacheado(db, lead, operacion),
-        reinfo=_reinfo_cacheado(db, lead, operacion),
+        geocatmin=_geocatmin_desde_cache(operacion, lead.ubicacion_coords),
+        reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
         ubicacion_maps=lead.ubicacion_maps,
         ubicacion_coords=lead.ubicacion_coords,
         descripcion_generada=_generar_descripcion(
