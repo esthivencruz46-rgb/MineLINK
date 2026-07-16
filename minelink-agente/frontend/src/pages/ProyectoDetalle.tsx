@@ -665,13 +665,30 @@ export function ProyectoDetalle() {
                 </div>
               )}
 
-              <p className="mt-3 text-[11px] leading-relaxed text-texto-suave dark:text-texto-suave-dark">
-                Consulta automática a los registros públicos (GEOCATMIN/INGEMMET, padrón
-                REINFO del MINEM, ANP de SERNANP) según lo declarado por el titular
-                {proyecto.geocatmin?.consultado_en ? ` · ${proyecto.geocatmin.consultado_en}` : ""}.
-                Dato referencial: el titular registrado puede diferir de quien opera
-                (contratos de explotación son legales y comunes).
-              </p>
+              {/* Solo se nombran las fuentes que de verdad aportaron un dato
+                  esta vez — antes decía siempre "GEOCATMIN, MINEM, SERNANP"
+                  aunque, por ejemplo, REINFO todavía no tuviera resultado
+                  cacheado: prometía algo que la tarjeta no mostraba arriba
+                  (julio 2026, reportado por el dueño). */}
+              {(() => {
+                const fuentes = [
+                  proyecto.geocatmin ? "GEOCATMIN/INGEMMET" : null,
+                  proyecto.reinfo ? "el padrón REINFO del MINEM" : null,
+                  proyecto.geocatmin?.anp ? "SERNANP" : null,
+                ].filter((f): f is string => f !== null);
+                const listaFuentes =
+                  fuentes.length <= 1
+                    ? fuentes[0]
+                    : `${fuentes.slice(0, -1).join(", ")} y ${fuentes[fuentes.length - 1]}`;
+                const fecha = proyecto.geocatmin?.consultado_en ?? proyecto.reinfo?.consultado_en;
+                return (
+                  <p className="mt-3 text-[11px] leading-relaxed text-texto-suave dark:text-texto-suave-dark">
+                    Consulta automática a {listaFuentes} según lo declarado por el titular
+                    {fecha ? ` · ${fecha}` : ""}. Dato referencial: el titular registrado puede
+                    diferir de quien opera (contratos de explotación son legales y comunes).
+                  </p>
+                );
+              })()}
             </Card>
           )}
 
