@@ -1,16 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Briefcase,
-  Download,
-  EyeOff,
-  Handshake,
-  Pickaxe,
-  ShieldCheck,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import { Briefcase, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
 interface TarjetaPerfil {
   Icono: LucideIcon;
@@ -52,10 +43,10 @@ const PERFILES: TarjetaPerfil[] = [
   },
 ];
 
-const CONFIANZA: { Icono: LucideIcon; texto: string }[] = [
-  { Icono: ShieldCheck, texto: "100% gratis para mineros" },
-  { Icono: Handshake, texto: "Sin tramitadores de por medio" },
-  { Icono: EyeOff, texto: "Tu contacto nunca se muestra públicamente" },
+const CONFIANZA = [
+  "100% gratis para mineros",
+  "Sin tramitadores de por medio",
+  "Tu contacto nunca se muestra públicamente",
 ];
 
 export function Inicio() {
@@ -63,77 +54,73 @@ export function Inicio() {
 
   return (
     <div className="flex flex-col items-center">
-      {/* Hero: franja con degradado sutil verde→bronce, propio de la marca
-          (julio 2026) — antes la portada abría directo con el título sobre
-          fondo plano, sin ningún elemento que la distinguiera de una página
-          interna cualquiera. */}
-      <section className="relative w-full overflow-hidden">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.07] dark:opacity-[0.12]"
-          style={{
-            background:
-              "radial-gradient(circle at 15% 20%, #0c6b58 0%, transparent 45%), radial-gradient(circle at 85% 15%, #a8752e 0%, transparent 40%)",
-          }}
-        />
-        <div className="relative mx-auto max-w-4xl px-4 pb-10 pt-12 text-center md:pb-14 md:pt-16">
-          <span className="inline-block rounded-full border border-acento/25 bg-acento/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-acento">
+      {/* julio 2026, segunda pasada tras feedback directo de Esthiven
+          ("quiero más profesionalismo"): fuera los globos de color, las
+          insignias en burbuja y las sombras — línea editorial más
+          institucional (borde fino, un solo acento, jerarquía por peso
+          tipográfico en vez de por color). */}
+      <section className="w-full border-b border-black/10 dark:border-white/10">
+        <div className="mx-auto max-w-4xl px-4 pb-12 pt-14 text-center md:pb-16 md:pt-20">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-texto-suave dark:text-texto-suave-dark">
             Formalización minera artesanal · Perú
-          </span>
-          <h1 className="mt-4 text-3xl font-bold leading-tight md:text-5xl">
-            Conectamos la <span className="text-acento">minería artesanal</span> con su
-            formalización
+          </p>
+          <h1 className="mx-auto mt-5 max-w-2xl text-3xl font-semibold leading-[1.15] tracking-tight md:text-[2.75rem]">
+            Conectamos la minería artesanal con su formalización
           </h1>
-          <p className="mx-auto mt-4 max-w-xl text-base text-texto-suave dark:text-texto-suave-dark">
+          <p className="mx-auto mt-5 max-w-xl text-base text-texto-suave dark:text-texto-suave-dark">
             Diagnóstico gratuito para mineros, proyectos verificados para
             inversionistas y clientes reales para consultores.
           </p>
           <Link
             to="/como-funciona"
-            className="mt-3 inline-block text-sm font-semibold text-acento underline underline-offset-2"
+            className="mt-4 inline-block border-b border-acento text-sm font-medium text-acento"
           >
             ¿Cómo funciona {MARCA}?
           </Link>
         </div>
       </section>
 
-      <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-8 px-4 pb-10">
-        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-10 px-4 py-10">
+        <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
           {PERFILES.map((p) => (
             <div
               key={p.titulo}
-              className={`flex flex-col rounded-xl p-5 text-left transition ${
-                p.destacada
-                  ? "border-2 border-acento bg-acento/5 shadow-sm md:col-span-2"
-                  : "border border-transparent bg-tarjeta shadow-sm hover:border-acento/20 dark:bg-tarjeta-dark"
+              className={`flex flex-col gap-4 p-6 sm:flex-row sm:items-center ${
+                p.destacada ? "bg-acento/[0.035]" : ""
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
-                  <p.Icono size={20} strokeWidth={2} aria-hidden />
-                </span>
-                <h2 className="text-lg font-bold">{p.titulo}</h2>
+              <div className="flex flex-1 items-start gap-3.5">
+                <p.Icono
+                  size={20}
+                  strokeWidth={1.75}
+                  className="mt-0.5 shrink-0 text-acento"
+                  aria-hidden
+                />
+                <div>
+                  <h2 className="font-semibold">{p.titulo}</h2>
+                  <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
+                    {p.descripcion}
+                  </p>
+                  {p.sesion && (
+                    <Link
+                      to={p.sesion.ruta}
+                      className="mt-2 inline-block text-sm text-texto-suave underline underline-offset-2 dark:text-texto-suave-dark"
+                    >
+                      {p.sesion.texto}
+                    </Link>
+                  )}
+                </div>
               </div>
-              <p className="mt-2 flex-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-                {p.descripcion}
-              </p>
               <button
                 onClick={() => navigate(p.ruta)}
-                className={`mt-4 min-h-[44px] rounded-lg px-4 font-semibold transition duration-200 hover:opacity-90 ${
+                className={`min-h-[44px] shrink-0 px-5 text-sm font-semibold transition ${
                   p.destacada
-                    ? "bg-acento text-white"
-                    : "border border-acento text-acento"
+                    ? "bg-acento text-white hover:bg-acento/90"
+                    : "border border-black/15 text-texto hover:border-acento/40 hover:text-acento dark:border-white/15 dark:text-texto-dark"
                 }`}
               >
                 {p.accion}
               </button>
-              {p.sesion && (
-                <Link
-                  to={p.sesion.ruta}
-                  className="mt-2 text-center text-sm text-texto-suave underline dark:text-texto-suave-dark"
-                >
-                  {p.sesion.texto}
-                </Link>
-              )}
             </div>
           ))}
         </div>
@@ -142,10 +129,10 @@ export function Inicio() {
         {!Capacitor.isNativePlatform() && (
           <a
             href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
-            className="flex w-full max-w-md flex-col items-center rounded-xl border border-acento/30 bg-tarjeta p-4 text-center transition hover:opacity-90 dark:bg-tarjeta-dark"
+            className="flex w-full max-w-md flex-col items-center self-center border border-black/10 p-4 text-center transition hover:border-acento/30 dark:border-white/10"
           >
-            <span className="flex items-center justify-center gap-1.5 font-semibold text-acento">
-              <Download size={18} strokeWidth={2} aria-hidden />
+            <span className="flex items-center justify-center gap-1.5 text-sm font-semibold">
+              <Download size={16} strokeWidth={1.75} aria-hidden />
               Descargar la app para Android (APK)
             </span>
             <span className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -155,17 +142,9 @@ export function Inicio() {
           </a>
         )}
 
-        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-          {CONFIANZA.map(({ Icono, texto }) => (
-            <span
-              key={texto}
-              className="flex items-center gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark"
-            >
-              <Icono size={14} strokeWidth={2} className="text-acento" aria-hidden />
-              {texto}
-            </span>
-          ))}
-        </div>
+        <p className="text-center text-xs text-texto-suave dark:text-texto-suave-dark">
+          {CONFIANZA.join("  ·  ")}
+        </p>
       </div>
     </div>
   );
