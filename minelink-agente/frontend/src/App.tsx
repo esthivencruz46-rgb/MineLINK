@@ -77,6 +77,9 @@ const AdminLeads = lazy(() =>
 const AdminLogin = lazy(() =>
   import("./pages/admin/AdminLogin").then((m) => ({ default: m.AdminLogin }))
 );
+const NoEncontrada = lazy(() =>
+  import("./pages/NoEncontrada").then((m) => ({ default: m.NoEncontrada }))
+);
 
 function PublicHeader() {
   return (
@@ -197,6 +200,9 @@ export function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Cualquier ruta no reconocida — antes quedaba en blanco. */}
+            <Route path="*" element={<NoEncontrada />} />
           </Routes>
           </Suspense>
         </main>
