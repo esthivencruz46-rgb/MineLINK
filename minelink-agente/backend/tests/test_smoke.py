@@ -1848,6 +1848,47 @@ def test_mineros_marca_no_llevo_registro_opex_y_luego_sube_evidencia():
     assert respaldos["costos_opex"]["pregunta_id"] == ""
 
 
+def test_proyectos_detalle_contrato_explotacion_se_ve_en_documentos_estudios():
+    # Caso real reportado (perfil C, "Minera Santa Luisa", opera por
+    # contrato con el dueño de la concesión): contrato_explotacion está en
+    # CATEGORIAS_LEGALES Y en CATEGORIAS_ESTUDIO a la vez. Con el `elif`
+    # viejo, el documento caía SOLO en documentos_legales (que ninguna
+    # pantalla del frontend renderiza) y el checklist de Formalización
+    # (que solo lee documentos_estudios) lo mostraba como pendiente sin
+    # foto, aunque el archivo estuviera subido y servible.
+    respuestas_contrato = dict(RESPUESTAS_COMPLETAS)
+    respuestas_contrato["C1_3"] = "contrato"
+    respuestas_contrato["C2_7"] = "aprobado"
+    respuestas_contrato["C3_1"] = "firmado_inscrito"
+    respuestas_contrato.pop("C2_3")
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_contrato,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="contratoexplot1"))
+    token = client.post(
+        "/mineros/login", json={"username": "contratoexplot1", "password": "clave123"}
+    ).json()["access_token"]
+    client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "contrato_explotacion"},
+        files={"archivo": ("contrato.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    _hacer_apto_inversionistas(diag["id"], "contratoexplot1")
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert len(detalle["documentos_legales"]["contrato_explotacion"]) >= 1
+    assert len(detalle["documentos_estudios"]["contrato_explotacion"]) >= 1
+    resp_foto = client.get(detalle["documentos_estudios"]["contrato_explotacion"][0]["url"])
+    assert resp_foto.status_code == 200
+
+
 def test_proyectos_detalle_muestra_certificado_ley_publico():
     # Julio 2026 (reportado por Esthiven): certificado_ley (el análisis o
     # certificado de ley del mineral, INV_C3) se subía pero nunca se

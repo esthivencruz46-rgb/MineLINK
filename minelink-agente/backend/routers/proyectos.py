@@ -473,15 +473,23 @@ def detalle_proyecto(
         c: [] for c in CATEGORIAS_INVERSION_PUBLICAS
     }
     for d in documentos:
+        # if/if, NO elif (julio 2026, hallazgo real: "Minera Santa Luisa"):
+        # contrato_explotacion está en CATEGORIAS_LEGALES Y en
+        # CATEGORIAS_ESTUDIO a la vez (es documento legal fijo Y estudio del
+        # checklist de Formalización). Con elif, el documento solo caía en
+        # documentos_legales — que ninguna pantalla del frontend renderiza
+        # (verificado) — y el checklist de Formalización, que SOLO lee
+        # documentos_estudios, mostraba el ítem como pendiente (chip sin
+        # foto) aunque el archivo estuviera subido y servible.
         if d.categoria in documentos_legales:
             documentos_legales[d.categoria].append(
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )
-        elif d.categoria in documentos_estudios:
+        if d.categoria in documentos_estudios:
             documentos_estudios[d.categoria].append(
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )
-        elif d.categoria in documentos_inversion:
+        if d.categoria in documentos_inversion:
             documentos_inversion[d.categoria].append(
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )

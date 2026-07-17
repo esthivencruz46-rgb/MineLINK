@@ -107,10 +107,25 @@ export function ProyectoDetalle() {
   // muestran check ✓ en la ficha pública.
   const verificadas = new Set(proyecto.brechas_verificadas);
 
+  // Estudios que también puede pedir el Módulo INV (mapeo geológico,
+  // análisis de laboratorio, estimación de recursos) — cuando el minero
+  // los sube desde ahí y NO son parte del checklist de formalización de su
+  // perfil, van a "Documentos de inversión" en vez de mezclarse en
+  // Formalización (julio 2026, hallazgo real: perfil C no tiene mapeo
+  // geológico en su checklist, pero como comparte código de estudio con
+  // INV_C0, colaba igual con foto y todo — confundía cuál pestaña era cuál).
+  const ESTUDIOS_TAMBIEN_DE_INVERSION = new Set([
+    "informe_geologico",
+    "analisis_laboratorio",
+    "estimacion_recursos",
+  ]);
+
   // Solo los estudios que APLICAN a este perfil (julio 2026): antes se
   // pintaba el catálogo completo (~29 filas) y un formal pleno veía vacíos
   // trámites que su autorización DREM/GREM ya engloba. Un estudio fuera de
-  // la lista solo entra si tiene foto subida (respaldo real que sí aporta).
+  // la lista solo entra si tiene foto subida (respaldo real que sí aporta)
+  // Y no es de los que también pertenecen al Módulo INV (esos se muestran
+  // en "Documentos de inversión" en su lugar, no aquí).
   // "Contrato de explotación" se oculta cuando ES titular — el título de
   // concesión ya cubre eso (mismo criterio que en su propia cuenta).
   const aplicables = new Set(proyecto.estudios_aplicables ?? []);
@@ -121,8 +136,16 @@ export function ProyectoDetalle() {
         !(proyecto.es_titular_concesion === true && e === "contrato_explotacion") &&
         (aplicables.size === 0 || // filas del modelo viejo: sin lista, se muestra todo
           aplicables.has(e) ||
-          (proyecto.documentos_estudios[e]?.length ?? 0) > 0)
+          (!ESTUDIOS_TAMBIEN_DE_INVERSION.has(e) &&
+            (proyecto.documentos_estudios[e]?.length ?? 0) > 0))
     );
+
+  // El espejo de arriba: estos 3 estudios con foto pero SIN estar en el
+  // checklist de formalización de este perfil se muestran como evidencia
+  // de inversión en su lugar.
+  const documentosInversionExtra = [...ESTUDIOS_TAMBIEN_DE_INVERSION].filter(
+    (e) => !aplicables.has(e) && (proyecto.documentos_estudios[e]?.length ?? 0) > 0
+  );
 
   // Un solo checklist cubre TODO el diagnóstico de formalización (antes
   // "Estado de Formalización" solo mostraba legal/ambiental/seguridad/
@@ -613,7 +636,8 @@ export function ProyectoDetalle() {
               inversionista quiere ver). Antes vivía mezclado dentro de
               "Oportunidad de inversión"; ahora tiene su propia tarjeta,
               igual de clara que el checklist de Formalización. */}
-          {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
+          {((proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 ||
+            documentosInversionExtra.length > 0) && (
             <Card>
               <h2 className="text-lg font-semibold">Documentos de inversión</h2>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -621,18 +645,35 @@ export function ProyectoDetalle() {
                 formalización.
               </p>
               <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
-                <TarjetaDocumento
-                  etiqueta="Certificado de ley del mineral"
-                  fotos={proyecto.documentos_inversion!.certificado_ley}
-                  completo
-                  onVer={() =>
-                    setVisor({
-                      fotos: proyecto.documentos_inversion!.certificado_ley,
-                      indice: 0,
-                      etiqueta: "Certificado de ley del mineral",
-                    })
-                  }
-                />
+                {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
+                  <TarjetaDocumento
+                    etiqueta="Certificado de ley del mineral"
+                    fotos={proyecto.documentos_inversion!.certificado_ley}
+                    completo
+                    onVer={() =>
+                      setVisor({
+                        fotos: proyecto.documentos_inversion!.certificado_ley,
+                        indice: 0,
+                        etiqueta: "Certificado de ley del mineral",
+                      })
+                    }
+                  />
+                )}
+                {documentosInversionExtra.map((e) => (
+                  <TarjetaDocumento
+                    key={e}
+                    etiqueta={INFO_BRECHA[e]?.texto ?? e}
+                    fotos={proyecto.documentos_estudios[e]}
+                    completo
+                    onVer={() =>
+                      setVisor({
+                        fotos: proyecto.documentos_estudios[e],
+                        indice: 0,
+                        etiqueta: INFO_BRECHA[e]?.texto ?? e,
+                      })
+                    }
+                  />
+                ))}
               </div>
             </Card>
           )}
