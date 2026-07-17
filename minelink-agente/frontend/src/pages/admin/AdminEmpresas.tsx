@@ -295,9 +295,9 @@ export function AdminEmpresas() {
   return (
     <AdminLayout>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold">Empresas y consultores</h1>
+        <h1 className="text-2xl font-semibold">Empresas y consultores</h1>
         <div className="flex gap-2">
-          <label className="flex min-h-[44px] cursor-pointer items-center rounded-lg border border-acento px-4 font-semibold text-acento">
+          <label className="flex min-h-[44px] cursor-pointer items-center border border-acento px-4 font-semibold text-acento">
             Importar CSV
             <input
               type="file"
@@ -312,7 +312,7 @@ export function AdminEmpresas() {
           </label>
           <button
             onClick={abrirNueva}
-            className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white"
+            className="min-h-[44px] bg-acento px-4 font-semibold text-white"
           >
             + Nuevo
           </button>
@@ -325,7 +325,7 @@ export function AdminEmpresas() {
       </p>
 
       {pendientes.length > 0 && (
-        <p className="mb-4 rounded-lg bg-secundario/15 p-3 text-sm text-secundario">
+        <p className="mb-4 bg-secundario/15 p-3 text-sm text-secundario">
           Tienes {pendientes.length} postulación(es) de consultor independiente pendiente(s)
           de revisión (aparecen como "Inactiva" abajo).
         </p>
@@ -336,7 +336,7 @@ export function AdminEmpresas() {
 
       {!cargando && (
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="flex overflow-hidden rounded-lg border border-black/10 text-sm font-semibold dark:border-white/10">
+          <div className="flex overflow-hidden border border-black/10 text-sm font-semibold dark:border-white/10">
             <button
               onClick={() => setVista("bloques")}
               className={`min-h-[36px] px-3 ${
@@ -359,7 +359,7 @@ export function AdminEmpresas() {
             <select
               value={orden}
               onChange={(e) => setOrden(e.target.value as Orden)}
-              className="min-h-[36px] rounded-lg border border-black/10 bg-tarjeta px-2 dark:border-white/10 dark:bg-tarjeta-dark"
+              className="min-h-[36px] border border-black/10 bg-tarjeta px-2 dark:border-white/10 dark:bg-tarjeta-dark"
             >
               {ORDENES.map((o) => (
                 <option key={o.valor} value={o.valor}>
@@ -377,7 +377,7 @@ export function AdminEmpresas() {
         <div className="flex flex-col gap-6">
           {bloques.map((b) => (
             <div key={b.dim}>
-              <h2 className="mb-2 text-lg font-bold">
+              <h2 className="mb-2 text-lg font-semibold">
                 {b.titulo}{" "}
                 <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                   ({b.lista.length})
@@ -388,7 +388,7 @@ export function AdminEmpresas() {
           ))}
           {sinClasificar.length > 0 && (
             <div>
-              <h2 className="mb-2 text-lg font-bold">
+              <h2 className="mb-2 text-lg font-semibold">
                 Sin estudios asignados{" "}
                 <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                   ({sinClasificar.length})
@@ -412,7 +412,7 @@ export function AdminEmpresas() {
   // Tabla reutilizada por la vista de lista y por cada bloque de dimensión
   function renderTabla(lista: Empresa[]) {
     return (
-      <div className="overflow-x-auto rounded-lg bg-tarjeta dark:bg-tarjeta-dark">
+      <div className="overflow-x-auto bg-tarjeta dark:bg-tarjeta-dark">
         <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-black/10 dark:border-white/10">
@@ -431,7 +431,7 @@ export function AdminEmpresas() {
               {lista.map((e) => (
                 <tr key={e.id} className="border-b border-black/5 dark:border-white/5">
                   <td className="p-3">
-                    <span className="rounded-full bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
+                    <span className="bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
                       {e.tipo === "consultor" ? "Consultor" : "Empresa"}
                     </span>
                   </td>
@@ -452,7 +452,7 @@ export function AdminEmpresas() {
                   <td className="p-3 capitalize">{e.regiones_json.join(", ")}</td>
                   <td className="p-3">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      className={`px-2 py-0.5 text-xs font-semibold ${
                         e.activa
                           ? "bg-emerald-500/15 text-emerald-500"
                           : "bg-red-500/15 text-red-500"
@@ -512,8 +512,8 @@ export function AdminEmpresas() {
       <>
       {mostrarForm && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-lg rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
-            <h2 className="mb-4 text-lg font-bold">
+          <div className="my-8 w-full max-w-lg bg-tarjeta p-6 dark:bg-tarjeta-dark">
+            <h2 className="mb-4 text-lg font-semibold">
               {editandoId ? "Editar" : "Nuevo"}
             </h2>
 
@@ -539,7 +539,7 @@ export function AdminEmpresas() {
 
               <div>
                 <input
-                  className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                  className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                   placeholder={form.tipo === "empresa" ? "Nombre de la empresa" : "Nombre del consultor"}
                   value={form.nombre}
                   onChange={(e) => setForm({ ...form, nombre: e.target.value })}
@@ -550,7 +550,7 @@ export function AdminEmpresas() {
               {form.tipo === "empresa" ? (
                 <div>
                   <input
-                    className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                    className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                     placeholder="RUC (11 dígitos)"
                     value={form.ruc}
                     onChange={(e) => setForm({ ...form, ruc: e.target.value })}
@@ -560,7 +560,7 @@ export function AdminEmpresas() {
               ) : (
                 <div>
                   <input
-                    className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                    className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                     placeholder="N° de colegiatura (solo el número, ej. 123456)"
                     value={form.colegiatura}
                     onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
@@ -575,7 +575,7 @@ export function AdminEmpresas() {
                 <input
                   type="number"
                   min={0}
-                  className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                  className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                   placeholder="Años de servicio"
                   value={form.anios_servicio}
                   onChange={(e) => setForm({ ...form, anios_servicio: e.target.value })}
@@ -592,7 +592,7 @@ export function AdminEmpresas() {
                     min={0}
                     max={5}
                     step={0.1}
-                    className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                    className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                     placeholder="Rating 0-5 (ej. 4.5)"
                     value={form.rating}
                     onChange={(e) => setForm({ ...form, rating: e.target.value })}
@@ -604,7 +604,7 @@ export function AdminEmpresas() {
                 <input
                   type="number"
                   min={0}
-                  className="min-h-[44px] flex-1 rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                  className="min-h-[44px] flex-1 border border-black/10 bg-transparent px-3 dark:border-white/10"
                   placeholder="N° de reseñas"
                   value={form.num_resenas}
                   onChange={(e) => setForm({ ...form, num_resenas: e.target.value })}
@@ -622,7 +622,7 @@ export function AdminEmpresas() {
               </div>
 
               <input
-                className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
                 placeholder="Email (opcional)"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -649,7 +649,7 @@ export function AdminEmpresas() {
 
               <div>
                 <p className="mb-1 text-sm font-medium">Estudios que realiza</p>
-                <div className="flex max-h-64 flex-col gap-3 overflow-y-auto rounded-lg border border-black/10 p-3 dark:border-white/10">
+                <div className="flex max-h-64 flex-col gap-3 overflow-y-auto border border-black/10 p-3 dark:border-white/10">
                   {ORDEN_DIMENSIONES.map((dim) => (
                     <div key={dim}>
                       <p className="mb-1 text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
@@ -690,14 +690,14 @@ export function AdminEmpresas() {
             <div className="mt-5 flex gap-3">
               <button
                 onClick={() => setMostrarForm(false)}
-                className="min-h-[44px] flex-1 rounded-lg border border-black/10 font-semibold dark:border-white/10"
+                className="min-h-[44px] flex-1 border border-black/10 font-semibold dark:border-white/10"
               >
                 Cancelar
               </button>
               <button
                 disabled={guardando}
                 onClick={guardar}
-                className="min-h-[44px] flex-1 rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+                className="min-h-[44px] flex-1 bg-acento font-semibold text-white disabled:opacity-50"
               >
                 {guardando ? "Guardando..." : "Guardar"}
               </button>
@@ -712,7 +712,7 @@ export function AdminEmpresas() {
             <p className="font-medium">CV de {cvNombre}</p>
             <button
               onClick={cerrarCV}
-              className="min-h-[44px] rounded-lg bg-white/10 px-4 font-semibold"
+              className="min-h-[44px] bg-white/10 px-4 font-semibold"
             >
               Cerrar
             </button>
@@ -720,7 +720,7 @@ export function AdminEmpresas() {
           <iframe
             src={cvUrl}
             title={`CV de ${cvNombre}`}
-            className="flex-1 rounded-lg bg-white"
+            className="flex-1 bg-white"
           />
         </div>
       )}

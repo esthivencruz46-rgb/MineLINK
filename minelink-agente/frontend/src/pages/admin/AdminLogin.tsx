@@ -31,10 +31,10 @@ export function AdminLogin() {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center gap-4 px-4">
-      <h1 className="text-xl font-bold">Panel de administración</h1>
+      <h1 className="text-xl font-semibold">Panel de administración</h1>
       <form onSubmit={enviar} className="flex flex-col gap-3">
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 dark:border-white/10"
           placeholder="Usuario"
           name="username"
           autoComplete="username"
@@ -52,7 +52,7 @@ export function AdminLogin() {
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           disabled={enviando || !username || !password}
-          className="min-h-[44px] rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+          className="min-h-[44px] bg-acento font-semibold text-white disabled:opacity-50"
         >
           {enviando ? "Ingresando..." : "Ingresar"}
         </button>

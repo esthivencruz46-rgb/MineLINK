@@ -465,18 +465,18 @@ export function AdminLeads() {
   return (
     <AdminLayout>
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Leads</h1>
+        <h1 className="text-2xl font-semibold">Leads</h1>
         <div className="flex gap-2">
           <button
             onClick={cargar}
-            className="min-h-[44px] rounded-lg border border-black/10 px-4 font-semibold dark:border-white/10"
+            className="min-h-[44px] border border-black/10 px-4 font-semibold dark:border-white/10"
           >
             Actualizar
           </button>
           <button
             disabled={leads.length === 0}
             onClick={() => exportarCSV(leads)}
-            className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+            className="min-h-[44px] bg-acento px-4 font-semibold text-white disabled:opacity-50"
           >
             Exportar CSV
           </button>
@@ -486,18 +486,18 @@ export function AdminLeads() {
       <div className="mb-5 flex flex-wrap gap-3">
         <input
           type="date"
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           value={desde}
           onChange={(e) => setDesde(e.target.value)}
         />
         <input
           type="date"
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           value={hasta}
           onChange={(e) => setHasta(e.target.value)}
         />
         <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           value={region}
           onChange={(e) => setRegion(e.target.value)}
         >
@@ -511,7 +511,7 @@ export function AdminLeads() {
           ))}
         </select>
         <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           value={situacion}
           onChange={(e) => setSituacion(e.target.value)}
         >
@@ -537,7 +537,7 @@ export function AdminLeads() {
       )}
 
       {!cargando && leads.length > 0 && (
-        <div className="overflow-x-auto rounded-lg bg-tarjeta dark:bg-tarjeta-dark">
+        <div className="overflow-x-auto bg-tarjeta dark:bg-tarjeta-dark">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-black/10 dark:border-white/10">
@@ -780,7 +780,7 @@ export function AdminLeads() {
           <button
             onClick={() => setPagina((p) => Math.max(0, p - 1))}
             disabled={pagina === 0}
-            className="min-h-[36px] rounded-lg border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
+            className="min-h-[36px] border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
           >
             ← Anterior
           </button>
@@ -790,7 +790,7 @@ export function AdminLeads() {
           <button
             onClick={() => setPagina((p) => p + 1)}
             disabled={(pagina + 1) * POR_PAGINA >= total}
-            className="min-h-[36px] rounded-lg border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
+            className="min-h-[36px] border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
           >
             Siguiente →
           </button>
@@ -799,9 +799,9 @@ export function AdminLeads() {
 
       {leadDetalle && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+          <div className="my-8 w-full max-w-md bg-tarjeta p-6 dark:bg-tarjeta-dark">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Datos del minero</h2>
+              <h2 className="text-lg font-semibold">Datos del minero</h2>
               <button
                 onClick={() => setLeadDetalle(null)}
                 className="text-sm font-semibold text-acento underline"
@@ -810,7 +810,7 @@ export function AdminLeads() {
               </button>
             </div>
 
-            <div className="mb-4 flex flex-col gap-2 rounded-lg border border-black/10 p-3 text-sm dark:border-white/10">
+            <div className="mb-4 flex flex-col gap-2 border border-black/10 p-3 text-sm dark:border-white/10">
               <p className="text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
                 Perfil del diagnóstico ({leadDetalle.situacion === "concesionario" ? "concesión que inicia" : "operación activa"})
               </p>
@@ -847,7 +847,7 @@ export function AdminLeads() {
               leadDetalle.capacidad_produccion ||
               leadDetalle.capital_buscado ||
               leadDetalle.uso_fondos) && (
-              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-black/10 p-3 text-sm dark:border-white/10">
+              <div className="mb-4 flex flex-col gap-2 border border-black/10 p-3 text-sm dark:border-white/10">
                 <p className="text-xs font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
                   Perfil de inversión
                 </p>
@@ -878,7 +878,7 @@ export function AdminLeads() {
             {!cargandoDocs && docs.length > 0 && (
               <ul className="flex flex-col gap-3">
                 {docs.map((doc) => (
-                  <li key={doc.id} className="rounded-lg border border-black/10 p-2 text-sm dark:border-white/10">
+                  <li key={doc.id} className="border border-black/10 p-2 text-sm dark:border-white/10">
                     <div className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <p className="truncate font-medium">{doc.nombre_original}</p>
@@ -939,9 +939,9 @@ export function AdminLeads() {
 
       {leadInversion && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+          <div className="my-8 w-full max-w-md bg-tarjeta p-6 dark:bg-tarjeta-dark">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Perfil de inversión</h2>
+              <h2 className="text-lg font-semibold">Perfil de inversión</h2>
               <button
                 onClick={() => setLeadInversion(null)}
                 className="text-sm font-semibold text-acento underline"
@@ -961,7 +961,7 @@ export function AdminLeads() {
             {!cargandoInversion && inversion && inversion.enviado && (
               <>
                 {inversion.alertas.length > 0 && (
-                  <div className="mb-4 flex flex-col gap-1 rounded-lg bg-amber-500/10 p-3">
+                  <div className="mb-4 flex flex-col gap-1 bg-amber-500/10 p-3">
                     <p className="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400">
                       Alertas
                     </p>
@@ -1020,9 +1020,9 @@ export function AdminLeads() {
 
       {leadIntereses && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+          <div className="my-8 w-full max-w-md bg-tarjeta p-6 dark:bg-tarjeta-dark">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Inversionistas interesados</h2>
+              <h2 className="text-lg font-semibold">Inversionistas interesados</h2>
               <button
                 onClick={() => setLeadIntereses(null)}
                 className="text-sm font-semibold text-acento underline"
@@ -1042,7 +1042,7 @@ export function AdminLeads() {
                 {intereses.map((interes) => (
                   <li
                     key={interes.id}
-                    className="rounded-lg border border-black/10 p-3 text-sm dark:border-white/10"
+                    className="border border-black/10 p-3 text-sm dark:border-white/10"
                   >
                     <p className="font-medium">{interes.nombre}</p>
                     {interes.telefono && (
@@ -1091,9 +1091,9 @@ export function AdminLeads() {
 
       {leadInteresesEmpresas && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
-          <div className="my-8 w-full max-w-md rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
+          <div className="my-8 w-full max-w-md bg-tarjeta p-6 dark:bg-tarjeta-dark">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-bold">Empresas de interés</h2>
+              <h2 className="text-lg font-semibold">Empresas de interés</h2>
               <button
                 onClick={() => setLeadInteresesEmpresas(null)}
                 className="text-sm font-semibold text-acento underline"
@@ -1118,7 +1118,7 @@ export function AdminLeads() {
                 {interesesEmpresas.map((interes) => (
                   <li
                     key={interes.id}
-                    className="rounded-lg border border-black/10 p-3 text-sm dark:border-white/10"
+                    className="border border-black/10 p-3 text-sm dark:border-white/10"
                   >
                     <p className="font-medium">{interes.empresa_nombre}</p>
                     <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -1201,7 +1201,7 @@ export function AdminLeads() {
             <p className="font-medium">Vista previa</p>
             <button
               onClick={cerrarVista}
-              className="min-h-[44px] rounded-lg bg-white/10 px-4 font-semibold"
+              className="min-h-[44px] bg-white/10 px-4 font-semibold"
             >
               Cerrar
             </button>
@@ -1209,7 +1209,7 @@ export function AdminLeads() {
           {vistaTipo.startsWith("image/") ? (
             <img src={vistaUrl} className="mx-auto max-h-full max-w-full object-contain" />
           ) : (
-            <iframe src={vistaUrl} title="Vista previa" className="flex-1 rounded-lg bg-white" />
+            <iframe src={vistaUrl} title="Vista previa" className="flex-1 bg-white" />
           )}
         </div>
       )}

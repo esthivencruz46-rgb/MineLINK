@@ -16,6 +16,10 @@ interface Seccion {
   ruta: string;
 }
 
+// julio 2026: reescrita para reflejar el modelo actual (perfiles A/B/C/D,
+// dos semáforos + Índice de Madurez, Módulo INV, publicación automática y
+// "Con respaldo" solo tras revisión del equipo) — la versión anterior
+// describía el diagnóstico viejo de puntaje único 0-100, que ya no existe.
 const SECCIONES: Seccion[] = [
   {
     Icono: Pickaxe,
@@ -23,21 +27,27 @@ const SECCIONES: Seccion[] = [
     pasos: [
       {
         numero: "1",
-        titulo: "Responde el cuestionario (5 minutos, gratis)",
+        titulo: "Responde 4 preguntas filtro (2 minutos, gratis y anónimo)",
         detalle:
-          "Preguntas simples de sí o no sobre tus papeles y tu labor. Es anónimo: nadie sabe quién eres hasta que tú decidas dejar tu contacto.",
+          "Te ubican en tu situación exacta: recién empezando, con concesión pero sin operar, operando con REINFO, o ya formal. Nadie sabe quién eres hasta que tú decidas dejar tu contacto.",
       },
       {
         numero: "2",
-        titulo: "Recibe tu puntaje y tu lista de pendientes",
+        titulo: "Recibe tu diagnóstico completo, no un solo número",
         detalle:
-          "Te decimos exactamente qué te falta para formalizarte, explicado en palabras simples — sin jerga legal ni letras chiquitas.",
+          "Dos semáforos independientes — uno legal y otro técnico, con tu Índice de Madurez — más el checklist exacto de tu etapa: qué ya cumples y qué te falta, sin jerga legal.",
       },
       {
         numero: "3",
-        titulo: "Te conectamos con quien te puede ayudar",
+        titulo: "Crea tu cuenta y sube tus respaldos",
         detalle:
-          "Profesionales de confianza que hacen justo los estudios que te faltan, y si buscas inversión, tu proyecto puede aparecer ante inversionistas (sin mostrar tu nombre ni tu número).",
+          "Cada trámite pendiente te dice qué estudio necesitas y qué empresas o consultores lo hacen en tu región. Sube la foto de cada documento que ya tienes — resuelve tu pendiente al instante.",
+      },
+      {
+        numero: "4",
+        titulo: "Publicación automática ante inversionistas",
+        detalle:
+          "En cuanto envías tus documentos y tu perfil de inversión, y no tienes ningún problema legal activo, tu proyecto aparece solo en la cartera — sin trámite manual de por medio.",
       },
     ],
     accion: "Empezar mi diagnóstico",
@@ -49,21 +59,21 @@ const SECCIONES: Seccion[] = [
     pasos: [
       {
         numero: "1",
-        titulo: "Explora proyectos verificados",
+        titulo: "Explora proyectos con su situación legal en orden",
         detalle:
-          "Solo se muestran operaciones con REINFO, con fotos reales, puntaje de formalización, ubicación en el mapa y documentos presentados.",
+          "Un proyecto con un problema legal activo (REINFO suspendido, concesión vencida) nunca se muestra — se oculta hasta que el minero lo resuelve. Lo que ves ya pasó ese primer filtro.",
       },
       {
         numero: "2",
-        titulo: "Deja tu interés en el proyecto que te guste",
+        titulo: "Revisa la ficha completa, no solo fotos",
         detalle:
-          "Nos cuentas tu motivo, el capital que manejas y qué información necesitas. Nunca compartimos tu contacto públicamente.",
+          `Semáforos y checklist de formalización, cotejo automático contra el catastro minero y la geología del punto (INGEMMET), y verificación del código REINFO. El sello "Con respaldo" solo aparece en documentos que el equipo de ${MARCA} ya revisó — el resto se ve pero conviene revisarlo con cuidado.`,
       },
       {
         numero: "3",
-        titulo: `${MARCA} te presenta con el titular`,
+        titulo: "Deja tu interés — nosotros intermediamos",
         detalle:
-          "Filtramos y coordinamos la presentación formal entre tú y el minero. Acompañamos la conversación para que ambos negocien con confianza.",
+          "Nos cuentas tu motivo y qué necesitas saber. Nunca compartimos el contacto del minero directamente: coordinamos la presentación formal para que ambos negocien con confianza.",
       },
     ],
     accion: "Ver proyectos",
@@ -77,19 +87,19 @@ const SECCIONES: Seccion[] = [
         numero: "1",
         titulo: "Postula con tu colegiatura y tu CV",
         detalle:
-          "Ingenieros, geólogos y profesionales colegiados con al menos 3 años de experiencia. La postulación es gratuita.",
+          "Ingenieros, geólogos y profesionales colegiados. Marcas en qué trámites y estudios puedes ayudar. La postulación es gratuita.",
       },
       {
         numero: "2",
         titulo: "Revisamos y aprobamos tu perfil",
         detalle:
-          "Verificamos tu experiencia para proteger a los mineros de malos tramitadores — esa confianza también te beneficia a ti.",
+          "Verificamos tu colegiatura y tu CV para proteger a los mineros de malos tramitadores — esa confianza también te beneficia a ti.",
       },
       {
         numero: "3",
         titulo: "Te llegan clientes precalificados",
         detalle:
-          "Cuando un minero necesita exactamente lo que tú ofreces y en tu región, apareces como su opción recomendada.",
+          "Cuando un minero tiene exactamente la brecha que tú resuelves y está en tu región, te aparece como su opción recomendada.",
       },
     ],
     accion: "Postular mis servicios",
@@ -101,7 +111,9 @@ export function ComoFunciona() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold">¿Cómo funciona {MARCA}?</h1>
+        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
+          ¿Cómo funciona {MARCA}?
+        </h1>
         <p className="mx-auto mt-2 max-w-xl text-texto-suave dark:text-texto-suave-dark">
           Tres caminos, un mismo objetivo: que la minería artesanal del Perú se
           formalice y crezca.
@@ -109,18 +121,16 @@ export function ComoFunciona() {
       </div>
 
       {SECCIONES.map((s) => (
-        <div key={s.titulo} className="rounded-xl bg-tarjeta p-6 dark:bg-tarjeta-dark">
-          <h2 className="flex items-center gap-2.5 text-xl font-bold">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
-              <s.Icono size={20} strokeWidth={2} aria-hidden />
-            </span>
+        <div key={s.titulo} className="border border-black/10 p-6 dark:border-white/10">
+          <h2 className="flex items-center gap-2.5 text-xl font-semibold">
+            <s.Icono size={22} strokeWidth={1.75} className="shrink-0 text-acento" aria-hidden />
             {s.titulo}
           </h2>
-          <div className="mt-4 flex flex-col gap-4">
+          <div className="mt-5 flex flex-col divide-y divide-black/10 dark:divide-white/10">
             {s.pasos.map((paso) => (
-              <div key={paso.numero} className="flex gap-3">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-acento/15 font-bold text-acento">
-                  {paso.numero}
+              <div key={paso.numero} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+                <span className="shrink-0 text-sm font-semibold text-acento">
+                  {paso.numero.padStart(2, "0")}
                 </span>
                 <div>
                   <h3 className="font-semibold">{paso.titulo}</h3>
@@ -133,7 +143,7 @@ export function ComoFunciona() {
           </div>
           <Link
             to={s.ruta}
-            className="mt-5 flex min-h-[44px] items-center justify-center rounded-lg bg-acento px-4 font-semibold text-white transition duration-200 hover:opacity-90"
+            className="mt-5 flex min-h-[44px] items-center justify-center bg-acento px-4 font-semibold text-white transition hover:bg-acento/90"
           >
             {s.accion}
           </Link>
