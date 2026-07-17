@@ -239,26 +239,36 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
 
 
 _ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+# Misma proporción que el recuadro de portada del PDF (178mm × 62mm ≈
+# 2.87:1) — así el recorte "cover" de fotoEnCaja() casi no necesita
+# recortar arriba/abajo, y el pin (que se dibuja centrado, ver abajo)
+# nunca queda fuera de cuadro (julio 2026, reportado por Esthiven: "se ve
+# feo" — el mapa salía en 1200×700 ≈ 1.7:1, mucho más cuadrado que el
+# recuadro del PDF, así que el recorte se comía buena parte del mapa).
+_ASPECTO_PDF = 178 / 62
 _ANCHO_MAPA = 1200
-_ALTO_MAPA = 700
+_ALTO_MAPA = round(_ANCHO_MAPA / _ASPECTO_PDF)
 
 
 def _bbox_de(coords: str, poligono: Optional[list]) -> tuple[float, float, float, float]:
-    """xmin, ymin, xmax, ymax en grados — encuadra la concesión completa
-    (con margen, igual que fitBounds().pad(0.15) del mapa interactivo) si
-    hay polígono; si no, una caja fija de ~1.6km alrededor del pin (mismo
-    encuadre aproximado que el zoom=14 por defecto del mapa web)."""
+    """xmin, ymin, xmax, ymax en grados — SIEMPRE centrado en el PIN (no en
+    el centro de la concesión, que puede quedar lejos del pin dentro de un
+    polígono grande) y con la proporción de _ASPECTO_PDF, agrandado lo
+    necesario para que la concesión completa quepa si hay polígono. Sin
+    polígono, una caja fija de ~1.6km de alto alrededor del pin (similar
+    al zoom=14 por defecto del mapa web)."""
     lat, lng = (float(p.strip()) for p in coords.split(","))
+    medio_lat = 0.006  # ~650m — caja mínima cuando no hay polígono
     if poligono:
         anillo = poligono[0]
         lngs = [p[0] for p in anillo]
         lats = [p[1] for p in anillo]
-        xmin, xmax = min(lngs), max(lngs)
-        ymin, ymax = min(lats), max(lats)
-        padx = (xmax - xmin) * 0.15 or 0.01
-        pady = (ymax - ymin) * 0.15 or 0.01
-        return xmin - padx, ymin - pady, xmax + padx, ymax + pady
-    return lng - 0.008, lat - 0.008, lng + 0.008, lat + 0.008
+        medio_lng_necesario = max(abs(lng - min(lngs)), abs(max(lngs) - lng))
+        medio_lat_necesario = max(abs(lat - min(lats)), abs(max(lats) - lat))
+        medio_lat = max(medio_lat, medio_lat_necesario, medio_lng_necesario / _ASPECTO_PDF)
+    medio_lat *= 1.25  # margen, igual que el pad(0.15/1.1) del mapa interactivo
+    medio_lng = medio_lat * _ASPECTO_PDF
+    return lng - medio_lng, lat - medio_lat, lng + medio_lng, lat + medio_lat
 
 
 def _exportar_capa(url: str, bbox: tuple, layers: Optional[str] = None) -> Optional["Image.Image"]:
