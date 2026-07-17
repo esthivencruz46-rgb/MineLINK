@@ -1634,7 +1634,13 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     me = client.get("/mineros/me", headers=headers).json()
     assert "estimacion_recursos" not in me["brechas_inversion"]
     respaldos = {r["codigo"]: r for r in me["respaldos_declarados_inversion"]}
-    assert respaldos["estimacion_recursos"]["valor"] == "no_tengo"
+    # julio 2026 (reportado por Esthiven): valor/pregunta_id vacíos a
+    # propósito — el valor crudo detrás de este slot es siempre una
+    # respuesta NEGATIVA ("no_tengo"), y mostrar "Marcaste: No tengo" al
+    # lado de un archivo YA subido es contradictorio. Sin pregunta_id el
+    # frontend no arma la línea "Marcaste: X".
+    assert respaldos["estimacion_recursos"]["valor"] == ""
+    assert respaldos["estimacion_recursos"]["pregunta_id"] == ""
 
 
 def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
@@ -1807,6 +1813,39 @@ def test_mineros_completar_inversion_requiere_haber_enviado_antes():
         json={"respuestas": {"INV_C0": "tengo"}},
     )
     assert resp.status_code == 422
+
+
+def test_mineros_marca_no_llevo_registro_opex_y_luego_sube_evidencia():
+    # Caso real reportado (perfil C, "Minera Santa Luisa"): INV_C4="no"
+    # ("No llevo registro") — subir un respaldo desde "Lo que te falta" ya
+    # NO debe mostrar "Marcaste: No llevo registro" al lado del archivo
+    # (contradictorio); solo debe verse el slot con su archivo.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="opexnoregistro1"))
+    token = client.post(
+        "/mineros/login", json={"username": "opexnoregistro1", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    respuestas_c = dict(RESPUESTAS_INV_C)
+    respuestas_c["INV_C4"] = "no"
+    resp = client.post("/mineros/inversion", json={"respuestas": respuestas_c}, headers=headers)
+    assert resp.status_code == 200
+
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "costos_opex" in me["brechas_inversion"]
+    assert "costos_opex" not in {r["codigo"] for r in me["respaldos_declarados_inversion"]}
+
+    client.post(
+        "/mineros/documentos",
+        headers=headers,
+        data={"categoria": "costos_opex"},
+        files={"archivo": ("opex.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    me = client.get("/mineros/me", headers=headers).json()
+    assert "costos_opex" not in me["brechas_inversion"]
+    respaldos = {r["codigo"]: r for r in me["respaldos_declarados_inversion"]}
+    assert respaldos["costos_opex"]["valor"] == ""
+    assert respaldos["costos_opex"]["pregunta_id"] == ""
 
 
 def test_proyectos_detalle_muestra_certificado_ley_publico():

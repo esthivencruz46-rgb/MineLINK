@@ -468,7 +468,16 @@ def respaldos_declarados_inversion(
             and codigo in categorias_con_archivo
             and not any(d["codigo"] == codigo for d in declarados)
         ):
-            declarados.append({"codigo": codigo, "pregunta_id": pregunta_id, "valor": valor})
+            # pregunta_id/valor vacíos a propósito (julio 2026, reportado por
+            # Esthiven): el valor crudo acá SIEMPRE es una respuesta negativa
+            # ("no_tengo", "no", "en_proceso" — lo positivo ya se declaró
+            # arriba). Mostrar "Marcaste: No llevo registro" al lado de un
+            # archivo YA subido es contradictorio — el minero consiguió el
+            # respaldo después de declarar que no lo tenía, no tiene sentido
+            # seguir mostrando la negación. Sin pregunta_id, el frontend
+            # (etiquetaValorDeclarado) no encuentra opción que traducir y
+            # simplemente omite la línea "Marcaste:".
+            declarados.append({"codigo": codigo, "pregunta_id": "", "valor": ""})
 
     return declarados
 
