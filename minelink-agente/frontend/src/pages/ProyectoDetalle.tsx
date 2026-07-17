@@ -207,7 +207,7 @@ export function ProyectoDetalle() {
   const puntosAFavor: string[] = [];
   if (proyecto.semaforo_legal === "verde") puntosAFavor.push("Sin pendientes legales en su etapa");
   if (proyecto.indicadores?.ventas_liquidacion_verificada) {
-    puntosAFavor.push("Ventas con liquidación verificadas");
+    puntosAFavor.push("Ventas con liquidación respaldadas");
   } else if (proyecto.vende_liquidacion) {
     puntosAFavor.push("Vende con liquidación formal");
   }
@@ -280,7 +280,7 @@ export function ProyectoDetalle() {
       <div className="mt-4 flex flex-wrap gap-2">
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
           <BadgeCheck size={14} strokeWidth={2.25} aria-hidden />
-          Proyecto Verificado
+          Con documentos de respaldo
         </span>
         <span className={`rounded-full bg-black/5 px-3 py-1 text-xs font-semibold dark:bg-white/10 ${semLegal.claseTexto}`}>
           {trackLegalTexto}
@@ -395,7 +395,7 @@ export function ProyectoDetalle() {
                   Ventas con liquidación
                 </p>
                 <p className="text-sm font-semibold text-emerald-500">
-                  ✓ Verificado — {proyecto.indicadores.ventas_liquidacion_docs} doc
+                  ✓ Con respaldo — {proyecto.indicadores.ventas_liquidacion_docs} doc
                   {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
                   {proyecto.indicadores.ventas_liquidacion_ultima
                     ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
@@ -1025,8 +1025,12 @@ function Card({ children, acento }: { children: React.ReactNode; acento?: boolea
 
 /** Tarjeta grande de documento (julio 2026): reemplaza las miniaturas de
  * 32px del checklist. Foto en grande con degradado y el nombre encima,
- * sello "Verificado" cuando el respaldo cuenta, y contador de fotos si el
- * minero subió varios ángulos — clic abre el visor con navegación. */
+ * sello "Con respaldo" cuando la foto cuenta, y contador de fotos si el
+ * minero subió varios ángulos — clic abre el visor con navegación.
+ * "Con respaldo" (no "Verificado", julio 2026): subir la foto no la pasa
+ * por ninguna revisión humana ni automática de contenido — solo confirma
+ * que el minero adjuntó algo. "Verificado" prometía más de lo que el
+ * proceso realmente hace (reportado por el dueño). */
 function TarjetaDocumento({
   etiqueta,
   fotos,
@@ -1057,7 +1061,7 @@ function TarjetaDocumento({
       {completo && (
         <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
           <BadgeCheck size={11} strokeWidth={2.5} aria-hidden />
-          Verificado
+          Con respaldo
         </span>
       )}
       {fotos.length > 1 && (
