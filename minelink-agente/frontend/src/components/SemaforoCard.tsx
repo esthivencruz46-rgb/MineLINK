@@ -25,7 +25,7 @@ export function SemaforoCard({
   const tinte = TINTES[semaforo.color] ?? "border-black/10 bg-tarjeta dark:border-white/10 dark:bg-tarjeta-dark";
 
   return (
-    <div className={`rounded-lg border text-center ${tinte} ${grande ? "p-6" : "p-4"}`}>
+    <div className={`border text-center ${tinte} ${grande ? "p-6" : "p-4"}`}>
       <p
         className={`mb-2 font-medium text-texto-suave dark:text-texto-suave-dark ${
           grande ? "text-sm" : "text-xs"
@@ -44,7 +44,7 @@ export function SemaforoCard({
                 : "bg-gray-400"
         }`}
       />
-      <p className={`font-bold ${semaforo.claseTexto} ${grande ? "text-xl" : "text-sm"}`}>
+      <p className={`font-semibold ${semaforo.claseTexto} ${grande ? "text-xl" : "text-sm"}`}>
         {semaforo.etiqueta}
       </p>
       {subtitulo && (

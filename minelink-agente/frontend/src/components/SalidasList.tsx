@@ -20,7 +20,7 @@ export function SalidasList({
 
   return (
     <div>
-      <h3 className="mb-3 text-lg font-bold">¿Qué sigue?</h3>
+      <h3 className="mb-3 text-lg font-semibold">¿Qué sigue?</h3>
       <div className="flex flex-col gap-2">
         {salidas.map((codigo) => {
           const info = TEXTO_SALIDA[codigo];
@@ -31,7 +31,7 @@ export function SalidasList({
               type="button"
               disabled={!accionable}
               onClick={accionable ? onBuscarAyuda : undefined}
-              className={`flex w-full items-center justify-between gap-3 rounded-lg bg-tarjeta p-4 text-left dark:bg-tarjeta-dark ${
+              className={`flex w-full items-center justify-between gap-3 border border-black/10 p-4 text-left dark:border-white/10 ${
                 accionable ? "active:opacity-90" : "cursor-default"
               }`}
             >

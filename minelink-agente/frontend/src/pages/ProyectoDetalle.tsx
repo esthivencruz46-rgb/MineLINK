@@ -328,22 +328,22 @@ export function ProyectoDetalle() {
 
       {/* HEADER */}
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-500">
-          <BadgeCheck size={14} strokeWidth={2.25} aria-hidden />
+        <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <BadgeCheck size={13} strokeWidth={2} aria-hidden />
           Con documentos de respaldo
         </span>
-        <span className={`rounded-full bg-black/5 px-3 py-1 text-xs font-semibold dark:bg-white/10 ${semLegal.claseTexto}`}>
+        <span className={`border border-black/10 px-2.5 py-1 text-xs font-medium dark:border-white/10 ${semLegal.claseTexto}`}>
           {trackLegalTexto}
         </span>
         {destacado && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-secundario/15 px-3 py-1 text-xs font-semibold text-secundario">
-            <Star size={13} strokeWidth={2.25} fill="currentColor" aria-hidden />
+          <span className="inline-flex items-center gap-1 border border-secundario/30 px-2.5 py-1 text-xs font-medium text-secundario">
+            <Star size={12} strokeWidth={2} fill="currentColor" aria-hidden />
             Destacado
           </span>
         )}
       </div>
 
-      <h1 className="mt-3 text-3xl font-bold md:text-4xl">
+      <h1 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
         {proyecto.nombre_proyecto}{" "}
         <span className="text-texto-suave dark:text-texto-suave-dark">
           — {cap(proyecto.mineral)}
@@ -357,16 +357,16 @@ export function ProyectoDetalle() {
         </span>
         <button
           onClick={compartir}
-          className="inline-flex items-center gap-1 rounded-full bg-secundario/10 px-3 py-1 text-xs font-semibold text-secundario hover:bg-secundario/20"
+          className="inline-flex items-center gap-1 border border-black/10 px-2.5 py-1 text-xs font-medium hover:border-acento/40 dark:border-white/10"
         >
           {enlaceCopiado ? (
             <>
-              <Check size={14} strokeWidth={2.25} aria-hidden />
+              <Check size={13} strokeWidth={2} aria-hidden />
               Enlace copiado
             </>
           ) : (
             <>
-              <ArrowUpRight size={14} strokeWidth={2.25} aria-hidden />
+              <ArrowUpRight size={13} strokeWidth={2} aria-hidden />
               Compartir
             </>
           )}
@@ -392,9 +392,9 @@ export function ProyectoDetalle() {
             typeof proyecto.score_formalizacion === "number" ||
             typeof proyecto.score_inversion === "number";
           return (
-          <div className="flex flex-col gap-3 rounded-xl bg-tarjeta p-4 shadow-sm dark:bg-tarjeta-dark md:w-1/3">
+          <div className="flex flex-col gap-3 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark md:w-1/3">
             {hayScores && (
-              <div className="flex flex-col gap-2 border-b border-black/5 pb-3 dark:border-white/10">
+              <div className="flex flex-col gap-2 border-b border-black/10 pb-3 dark:border-white/10">
                 <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
                 <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
               </div>
@@ -403,7 +403,7 @@ export function ProyectoDetalle() {
               <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                 Track Legal
               </p>
-              <p className={`text-lg font-bold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
+              <p className={`text-lg font-semibold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
             </div>
             {/* Madurez técnica (antes en el sidebar de abajo, dejaba un
                 espacio en blanco acá) — pedido explícito, julio 2026. */}
@@ -511,7 +511,7 @@ export function ProyectoDetalle() {
             <div className="mt-2 flex flex-col gap-2.5">
               <button
                 onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
-                className="min-h-[44px] rounded-lg bg-acento font-semibold text-white transition duration-200 hover:opacity-90"
+                className="min-h-[44px] bg-acento font-semibold text-white transition hover:bg-acento/90"
               >
                 Me interesa este proyecto
               </button>
@@ -525,7 +525,7 @@ export function ProyectoDetalle() {
                   }
                 }}
                 disabled={generandoPdf}
-                className="min-h-[44px] rounded-lg border border-black/10 font-semibold transition duration-200 disabled:opacity-50 dark:border-white/10"
+                className="min-h-[44px] border border-black/10 font-semibold transition disabled:opacity-50 dark:border-white/10"
               >
                 {generandoPdf ? "Generando PDF..." : "Descargar Información (PDF)"}
               </button>
@@ -555,9 +555,9 @@ export function ProyectoDetalle() {
                 {puntosAFavor.map((texto) => (
                   <span
                     key={texto}
-                    className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+                    className="inline-flex items-center gap-1 border border-emerald-500/25 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400"
                   >
-                    <Check size={12} strokeWidth={2.5} aria-hidden />
+                    <Check size={12} strokeWidth={2} aria-hidden />
                     {texto}
                   </span>
                 ))}
@@ -621,16 +621,16 @@ export function ProyectoDetalle() {
                       <div className="mt-3 flex flex-wrap gap-2">
                         {conReinfo && (
                           <span
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${
+                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium ${
                               !proyecto.bloqueado_actual
-                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                                : "border border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                                ? "border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
+                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
                             }`}
                           >
                             {!proyecto.bloqueado_actual ? (
-                              <Check size={13} strokeWidth={2.5} aria-hidden />
+                              <Check size={13} strokeWidth={2} aria-hidden />
                             ) : (
-                              <Minus size={13} strokeWidth={2.5} aria-hidden />
+                              <Minus size={13} strokeWidth={2} aria-hidden />
                             )}
                             REINFO vigente
                           </span>
@@ -638,16 +638,16 @@ export function ProyectoDetalle() {
                         {sinFoto.map((item) => (
                           <span
                             key={item.etiqueta}
-                            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs ${
+                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs ${
                               item.completo
-                                ? "bg-emerald-500/10 font-semibold text-emerald-600 dark:text-emerald-400"
-                                : "border border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                                ? "border-emerald-500/25 font-medium text-emerald-600 dark:text-emerald-400"
+                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
                             }`}
                           >
                             {item.completo ? (
-                              <Check size={13} strokeWidth={2.5} aria-hidden />
+                              <Check size={13} strokeWidth={2} aria-hidden />
                             ) : (
-                              <Minus size={13} strokeWidth={2.5} aria-hidden />
+                              <Minus size={13} strokeWidth={2} aria-hidden />
                             )}
                             {item.etiqueta}
                           </span>
@@ -725,12 +725,12 @@ export function ProyectoDetalle() {
               {(capitalTrato || valorInv("INV_0_3") || valorInv("INV_0_10")) && (
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   {capitalTrato && (
-                    <div className="rounded-xl bg-acento/10 p-4 sm:col-span-1">
-                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-acento">
-                        <HandCoins size={14} strokeWidth={2.25} aria-hidden />
+                    <div className="border border-acento/25 bg-acento/[0.04] p-4 sm:col-span-1">
+                      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-acento">
+                        <HandCoins size={14} strokeWidth={1.75} aria-hidden />
                         Capital buscado
                       </p>
-                      <p className="mt-1.5 text-xl font-bold leading-tight text-acento">
+                      <p className="mt-1.5 text-xl font-semibold leading-tight text-acento">
                         {capitalTrato}
                       </p>
                       {proyecto.uso_fondos && (
@@ -741,9 +741,9 @@ export function ProyectoDetalle() {
                     </div>
                   )}
                   {valorInv("INV_0_3") && (
-                    <div className="rounded-xl bg-black/[0.03] p-4 dark:bg-white/5">
-                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
-                        <Handshake size={14} strokeWidth={2.25} aria-hidden />
+                    <div className="border border-black/10 p-4 dark:border-white/10">
+                      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+                        <Handshake size={14} strokeWidth={1.75} aria-hidden />
                         Qué ofrece a cambio
                       </p>
                       <p className="mt-1.5 text-base font-semibold leading-snug">
@@ -752,9 +752,9 @@ export function ProyectoDetalle() {
                     </div>
                   )}
                   {valorInv("INV_0_10") && (
-                    <div className="rounded-xl bg-black/[0.03] p-4 dark:bg-white/5">
-                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
-                        <Percent size={14} strokeWidth={2.25} aria-hidden />
+                    <div className="border border-black/10 p-4 dark:border-white/10">
+                      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+                        <Percent size={14} strokeWidth={1.75} aria-hidden />
                         Dispuesto a ceder
                       </p>
                       <p className="mt-1.5 text-base font-semibold leading-snug">
@@ -778,19 +778,20 @@ export function ProyectoDetalle() {
                     return (
                       <div
                         key={f.id}
-                        className="flex items-start gap-3 rounded-xl bg-black/[0.03] p-3.5 dark:bg-white/5"
+                        className="flex items-start gap-3 border border-black/10 p-3.5 dark:border-white/10"
                       >
-                        <span
-                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                        <Icono
+                          size={18}
+                          strokeWidth={1.75}
+                          className={`mt-0.5 shrink-0 ${
                             sinDeudas
-                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              ? "text-emerald-600 dark:text-emerald-400"
                               : esDeuda
-                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                                : "bg-acento/10 text-acento"
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-acento"
                           }`}
-                        >
-                          <Icono size={17} strokeWidth={2} aria-hidden />
-                        </span>
+                          aria-hidden
+                        />
                         <div className="min-w-0">
                           <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
                             {f.etiqueta}
@@ -828,7 +829,7 @@ export function ProyectoDetalle() {
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-lg font-semibold">Cotejo con registros públicos</h2>
-                <span className="rounded-full bg-black/5 px-2.5 py-0.5 text-[11px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+                <span className="border border-black/10 px-2.5 py-0.5 text-[11px] font-medium text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
                   INGEMMET · MINEM · SERNANP
                 </span>
               </div>
@@ -838,7 +839,7 @@ export function ProyectoDetalle() {
                   (ver backend/reinfo.py), así que esta es la fuente real
                   hoy. */}
               {proyecto.reinfo_verificado_manual && (
-                <div className="mt-3 rounded-lg bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                <div className="mt-3 border border-emerald-500/25 p-4 text-sm font-medium text-emerald-600 dark:text-emerald-400">
                   <p className="flex items-center gap-1.5">
                     <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
                     Código REINFO verificado por el equipo de {MARCA}
@@ -854,12 +855,12 @@ export function ProyectoDetalle() {
               {/* REINFO cotejado contra el padrón oficial del MINEM */}
               {proyecto.reinfo && (
                 <div
-                  className={`mt-3 rounded-lg p-4 text-sm font-semibold ${
+                  className={`mt-3 border p-4 text-sm font-medium ${
                     proyecto.reinfo.estado === "VIGENTE"
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      ? "border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
                       : proyecto.reinfo.estado === "SUSPENDIDO"
-                        ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                        : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        ? "border-red-500/25 text-red-600 dark:text-red-400"
+                        : "border-amber-500/25 text-amber-700 dark:text-amber-400"
                   }`}
                 >
                   {proyecto.reinfo.estado === "VIGENTE" ? (
@@ -903,12 +904,12 @@ export function ProyectoDetalle() {
                   se muestra en verde en vez de omitirse. */}
               {proyecto.geocatmin?.anp && (
                 <p
-                  className={`mt-3 flex items-center gap-1.5 rounded-lg p-4 text-sm font-semibold ${
+                  className={`mt-3 flex items-center gap-1.5 border p-4 text-sm font-medium ${
                     proyecto.geocatmin.anp.zona === "dentro"
-                      ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                      ? "border-red-500/25 text-red-600 dark:text-red-400"
                       : proyecto.geocatmin.anp.zona === "amortiguamiento"
-                        ? "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                        ? "border-amber-500/25 text-amber-700 dark:text-amber-400"
+                        : "border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
                   }`}
                 >
                   {proyecto.geocatmin.anp.zona === "dentro" ? (
@@ -929,7 +930,7 @@ export function ProyectoDetalle() {
                   {proyecto.geocatmin!.restricciones!.map((r) => (
                     <span
                       key={`${r.tipo}-${r.nombre}`}
-                      className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                      className="border border-amber-500/25 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400"
                     >
                       {r.tipo}
                       {r.nombre ? `: ${r.nombre}` : ""}
@@ -939,7 +940,7 @@ export function ProyectoDetalle() {
               )}
 
               {proyecto.geocatmin?.concesion ? (
-                <div className="mt-3 rounded-lg bg-emerald-500/10 p-4">
+                <div className="mt-3 border border-emerald-500/25 p-4">
                   <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                     <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
                     El punto declarado cae dentro de una concesión registrada en el
@@ -990,7 +991,7 @@ export function ProyectoDetalle() {
                   </dl>
                 </div>
               ) : proyecto.geocatmin ? (
-                <p className="mt-3 rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+                <p className="mt-3 border border-amber-500/25 p-4 text-sm text-amber-700 dark:text-amber-400">
                   El punto declarado no cae dentro de una concesión registrada en el
                   catastro minero. El pin es aproximado, así que esto no descarta que la
                   operación esté amparada — verificar con el titular.
@@ -1084,11 +1085,9 @@ export function ProyectoDetalle() {
                 {filasOperacion.map((f) => (
                   <div
                     key={f.etiqueta}
-                    className="flex items-start gap-3 rounded-xl bg-black/[0.03] p-3.5 dark:bg-white/5"
+                    className="flex items-start gap-3 border border-black/10 p-3.5 dark:border-white/10"
                   >
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acento/10 text-acento">
-                      <f.icono size={17} strokeWidth={2} aria-hidden />
-                    </span>
+                    <f.icono size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-acento" aria-hidden />
                     <div className="min-w-0">
                       <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
                         {f.etiqueta}
@@ -1178,18 +1177,16 @@ function FilaScore({ etiqueta, valor }: { etiqueta: string; valor?: number | nul
   if (typeof valor !== "number") return null;
   const clase =
     valor >= 70
-      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      ? "text-emerald-600 dark:text-emerald-400"
       : valor >= 40
-        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-        : "bg-red-500/15 text-red-500";
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-500";
   return (
     <div className="flex items-center justify-between gap-2">
       <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
         {etiqueta}
       </p>
-      <span className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${clase}`}>
-        {valor}/100
-      </span>
+      <span className={`text-sm font-semibold ${clase}`}>{valor}/100</span>
     </div>
   );
 }
@@ -1197,8 +1194,8 @@ function FilaScore({ etiqueta, valor }: { etiqueta: string; valor?: number | nul
 function Card({ children, acento }: { children: React.ReactNode; acento?: boolean }) {
   return (
     <div
-      className={`rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark ${
-        acento ? "border-l-4 border-secundario" : ""
+      className={`border border-black/10 bg-tarjeta p-6 dark:border-white/10 dark:bg-tarjeta-dark ${
+        acento ? "border-l-[3px] border-l-secundario" : ""
       }`}
     >
       {children}
@@ -1229,7 +1226,7 @@ function TarjetaDocumento({
     <button
       type="button"
       onClick={onVer}
-      className="group relative block overflow-hidden rounded-xl shadow-sm ring-1 ring-black/5 transition duration-200 hover:shadow-md dark:ring-white/10"
+      className="group relative block overflow-hidden border border-black/10 transition hover:border-acento/40 dark:border-white/10"
     >
       <img
         src={`${BASE_URL}${fotos[0].url}`}
@@ -1242,14 +1239,14 @@ function TarjetaDocumento({
         <p className="text-xs font-semibold leading-snug text-white drop-shadow">{etiqueta}</p>
       </div>
       {completo && (
-        <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-bold text-white shadow">
-          <BadgeCheck size={11} strokeWidth={2.5} aria-hidden />
+        <span className="absolute right-2 top-2 inline-flex items-center gap-1 bg-emerald-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+          <BadgeCheck size={11} strokeWidth={2} aria-hidden />
           Con respaldo
         </span>
       )}
       {fotos.length > 1 && (
-        <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">
-          <Images size={11} strokeWidth={2.25} aria-hidden />
+        <span className="absolute left-2 top-2 inline-flex items-center gap-1 bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white">
+          <Images size={11} strokeWidth={2} aria-hidden />
           {fotos.length}
         </span>
       )}

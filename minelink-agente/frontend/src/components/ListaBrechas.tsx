@@ -22,7 +22,7 @@ export function ListaBrechas({
 }: Props) {
   if (brechas.length === 0 && brechasEnProceso.length === 0) {
     return (
-      <p className="rounded-lg bg-tarjeta p-4 text-center dark:bg-tarjeta-dark">
+      <p className="border border-black/10 p-4 text-center dark:border-white/10">
         No te falta ningún estudio. ¡Vas muy bien!
       </p>
     );
@@ -48,7 +48,7 @@ export function ListaBrechas({
           bien" — eso es exactamente lo que tiene el Track Legal en
           amarillo (ya se presentaron, están en evaluación de la entidad). */}
       {brechas.length === 0 && brechasEnProceso.length > 0 && (
-        <p className="rounded-lg bg-amber-500/10 p-4 text-sm text-amber-700 dark:text-amber-400">
+        <p className="border border-amber-500/25 p-4 text-sm text-amber-700 dark:text-amber-400">
           No te falta iniciar ningún estudio — ya presentaste{" "}
           {brechasEnProceso.length === 1 ? "el que faltaba" : "todos"}. Por eso tu Track
           Legal está en amarillo: siguen en evaluación de la entidad, no resueltos aún.
@@ -59,7 +59,7 @@ export function ListaBrechas({
         return (
           <div
             key={etiqueta}
-            className="rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark"
+            className="border border-black/10 p-4 dark:border-white/10"
           >
             <p className="font-semibold">{info?.texto ?? etiqueta}</p>
             {info?.resuelve && (
@@ -75,11 +75,11 @@ export function ListaBrechas({
         return (
           <div
             key={etiqueta}
-            className="rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark"
+            className="border border-black/10 p-4 dark:border-white/10"
           >
             <p className="flex flex-wrap items-center gap-2 font-semibold">
               {info?.texto ?? etiqueta}
-              <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+              <span className="border border-amber-500/25 px-2 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
                 Presentado — en evaluación
               </span>
             </p>
@@ -93,7 +93,7 @@ export function ListaBrechas({
       {brechas.length > 0 && (
         <button
           onClick={onBuscarAyuda}
-          className="mt-2 min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white active:opacity-90"
+          className="mt-2 min-h-[44px] bg-acento px-6 py-3 font-semibold text-white transition hover:bg-acento/90"
         >
           Buscar quién me ayuda con esto
         </button>

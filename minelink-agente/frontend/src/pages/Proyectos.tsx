@@ -79,15 +79,17 @@ export function Proyectos() {
   const enPreparacion = ordenados.filter((p) => p.perfil !== "C" && p.perfil !== "D");
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
-      <h1 className="text-2xl font-bold">Proyectos mineros</h1>
-      <p className="text-texto-suave dark:text-texto-suave-dark">
-        Proyectos con su situación legal en orden — los que tienen un
-        bloqueante legal activo no se muestran hasta resolverlo. Búscalos por
-        mineral o departamento.
-      </p>
+    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Proyectos mineros</h1>
+        <p className="mt-1 text-texto-suave dark:text-texto-suave-dark">
+          Proyectos con su situación legal en orden — los que tienen un
+          bloqueante legal activo no se muestran hasta resolverlo. Búscalos por
+          mineral o departamento.
+        </p>
+      </div>
 
-      <div className="flex flex-col gap-3 md:flex-row">
+      <div className="flex flex-col gap-3 border border-black/10 p-3 dark:border-white/10 md:flex-row">
         <Autocomplete
           opciones={ELEMENTOS}
           value={mineral}
@@ -104,7 +106,7 @@ export function Proyectos() {
           value={orden}
           onChange={(e) => setOrden(e.target.value as OrdenCartera)}
           aria-label="Ordenar proyectos"
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
         >
           {(Object.keys(ETIQUETA_ORDEN) as OrdenCartera[]).map((o) => (
             <option key={o} value={o}>
@@ -128,35 +130,35 @@ export function Proyectos() {
       )}
 
       {!cargando && proyectos.length === 0 && (
-        <p className="rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
+        <p className="border border-black/10 p-6 text-center dark:border-white/10">
           Todavía no hay proyectos que calcen con esta búsqueda.
         </p>
       )}
 
       {!cargando && proyectos.length > 0 && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {[
             { titulo: "Operaciones en marcha", grupo: operando, icono: "pickaxe" },
             { titulo: "Concesiones en preparación", grupo: enPreparacion, icono: "mapa" },
           ].map(({ titulo, grupo, icono }) => (
             <div key={titulo} className="flex flex-col gap-4">
-              <h2 className="flex items-center gap-2 text-lg font-bold">
+              <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 font-semibold dark:border-white/10">
                 {icono === "pickaxe" ? (
-                  <Pickaxe size={19} strokeWidth={2} className="text-acento" aria-hidden />
+                  <Pickaxe size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
                 ) : (
-                  <MapPin size={19} strokeWidth={2} className="text-acento" aria-hidden />
+                  <MapPin size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
                 )}
                 {titulo}
-                <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
+                <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
                   ({grupo.length})
                 </span>
               </h2>
               {grupo.length === 0 ? (
-                <p className="rounded-lg bg-tarjeta p-4 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+                <p className="border border-black/10 p-4 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
                   Todavía no hay proyectos en este grupo.
                 </p>
               ) : (
-                <div className="flex flex-col gap-4">
+                <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
                   {grupo.map((p) => (
                     <ProyectoCard key={p.operacion_id} proyecto={p} />
                   ))}
@@ -176,13 +178,13 @@ function ScoreChip({ etiqueta, valor }: { etiqueta: string; valor?: number | nul
   if (typeof valor !== "number") return null;
   const clase =
     valor >= 70
-      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      ? "text-emerald-600 dark:text-emerald-400"
       : valor >= 40
-        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-        : "bg-red-500/15 text-red-500";
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-500";
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${clase}`}
+      className={`inline-flex items-center gap-1 border border-current/25 px-1.5 py-0.5 text-[11px] font-medium ${clase}`}
       title={`${etiqueta}: ${valor} de 100`}
     >
       {etiqueta} {valor}
@@ -203,17 +205,17 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
   return (
     <Link
       to={`/proyectos/${p.operacion_id}`}
-      className="flex gap-4 rounded-lg bg-tarjeta p-5 transition hover:opacity-90 dark:bg-tarjeta-dark"
+      className="flex gap-4 p-5 transition hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
     >
       {p.foto_portada_url ? (
         <img
           src={`${BASE_URL}${p.foto_portada_url}`}
           alt={`Foto de ${p.nombre_proyecto}`}
           loading="lazy"
-          className="h-24 w-24 shrink-0 rounded-lg object-cover"
+          className="h-24 w-24 shrink-0 object-cover"
         />
       ) : (
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-lg bg-black/5 dark:bg-white/5">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center bg-black/5 dark:bg-white/5">
           <Pickaxe size={28} strokeWidth={1.75} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
         </div>
       )}
@@ -221,7 +223,7 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
         <div className="flex items-start justify-between gap-3">
           <h2 className="font-semibold">{p.nombre_proyecto}</h2>
           {PERFIL_RIESGO[perfil] && (
-            <span className="shrink-0 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-semibold text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark">
+            <span className="shrink-0 border border-black/10 px-2 py-0.5 text-[11px] font-medium text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
               {PERFIL_RIESGO[perfil]}
             </span>
           )}
@@ -250,10 +252,10 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           <ScoreChip etiqueta="Inversión" valor={p.score_inversion} />
           {p.ventas_verificadas ? (
             <span
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
+              className="inline-flex items-center gap-1 border border-emerald-500/25 px-1.5 py-0.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
               title={`Declaró ventas con liquidación y subió el respaldo (verificado por ${MARCA}; el documento es privado)`}
             >
-              <BadgeCheck size={12} strokeWidth={2.5} aria-hidden />
+              <BadgeCheck size={12} strokeWidth={2} aria-hidden />
               Ventas verificadas
             </span>
           ) : (
@@ -270,15 +272,15 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
             todo se convierte a foto al subirse. Solo si el titular la
             subió; en la ficha se ve completa. */}
         {p.credencial_url && p.credencial_etiqueta && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-2 py-1">
+          <div className="mt-2 inline-flex items-center gap-2 border border-emerald-500/25 px-2 py-1">
             <img
               src={`${BASE_URL}${p.credencial_url}`}
               alt={p.credencial_etiqueta}
               loading="lazy"
-              className="h-9 w-9 rounded object-cover"
+              className="h-9 w-9 object-cover"
             />
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-              <BadgeCheck size={12} strokeWidth={2.5} aria-hidden />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              <BadgeCheck size={12} strokeWidth={2} aria-hidden />
               {p.credencial_etiqueta} presentado
             </span>
           </div>

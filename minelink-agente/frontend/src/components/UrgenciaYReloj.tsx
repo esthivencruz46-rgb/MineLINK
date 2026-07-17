@@ -27,7 +27,7 @@ export function UrgenciaYReloj({
   return (
     <>
       {urgencia && (
-        <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
+        <div className="border border-amber-500/25 bg-amber-50 p-4 dark:bg-amber-900/20">
           <h3 className="mb-2 flex items-center gap-2 font-semibold">
             <Clock size={18} /> Reloj REINFO
           </h3>
@@ -47,7 +47,7 @@ export function UrgenciaYReloj({
       )}
 
       {relojProduccion && (
-        <div className="rounded-lg bg-amber-50 p-4 dark:bg-amber-900/20">
+        <div className="border border-amber-500/25 bg-amber-50 p-4 dark:bg-amber-900/20">
           <h3 className="mb-2 flex items-center gap-2 font-semibold">
             <Clock size={18} /> Reloj de producción mínima
           </h3>

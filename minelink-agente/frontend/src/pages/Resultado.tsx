@@ -41,14 +41,12 @@ export function Resultado() {
           cualquier pantalla del wizard — ahora marca claramente que el
           diagnóstico TERMINÓ y entrega algo concreto (julio 2026). */}
       <div className="text-center">
-        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-acento/15 text-acento">
-          <PartyPopper size={22} strokeWidth={2} aria-hidden />
-        </span>
-        <h1 className="mt-3 text-xl font-bold">Este es tu diagnóstico</h1>
+        <PartyPopper size={22} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
+        <h1 className="mt-3 text-xl font-semibold tracking-tight">Este es tu diagnóstico</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           Basado en lo que nos contaste, así está tu situación hoy.
         </p>
-        <span className="mt-3 inline-block rounded-full bg-acento/15 px-4 py-1 text-sm font-semibold text-acento">
+        <span className="mt-3 inline-block border border-acento/30 px-3 py-1 text-sm font-medium text-acento">
           {NOMBRE_PERFIL[respuesta.perfil] ?? respuesta.perfil}
         </span>
         {respuesta.clasificacion && (
@@ -80,7 +78,7 @@ export function Resultado() {
 
       {/* Bloqueantes */}
       {respuesta.etiquetas_bloqueantes.length > 0 && (
-        <div className="rounded-lg bg-red-900/10 p-4">
+        <div className="border border-red-500/25 bg-red-500/5 p-4">
           <h3 className="mb-2 flex items-center gap-2 font-semibold text-red-600">
             <AlertTriangle size={18} /> Primero resolvamos esto
           </h3>
@@ -105,7 +103,7 @@ export function Resultado() {
           Código REINFO (opcional)
         </label>
         <input
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
           placeholder="Tu código REINFO, si lo tienes"
           value={codigoReinfo}
           onChange={(e) => {
@@ -118,7 +116,7 @@ export function Resultado() {
       {/* Brechas */}
       {muestraEstudios && (
         <div>
-          <h2 className="mb-3 text-lg font-bold">Estudios que te faltan</h2>
+          <h2 className="mb-3 text-lg font-semibold">Estudios que te faltan</h2>
           <ListaBrechas
             brechas={respuesta.brechas}
             brechasEnProceso={respuesta.brechas_en_proceso}
@@ -131,10 +129,8 @@ export function Resultado() {
       {/* Registro: la caja gris de antes competía visualmente con todo lo
           demás; ahora es la tarjeta con más peso de la página —
           intencional, es la acción que más nos importa que tome. */}
-      <div className="rounded-xl border-2 border-acento bg-acento/5 p-5 text-center dark:bg-acento/10">
-        <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-acento/15 text-acento">
-          <UserPlus size={20} strokeWidth={2} aria-hidden />
-        </span>
+      <div className="border border-acento bg-acento/[0.04] p-5 text-center">
+        <UserPlus size={20} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
         <p className="mt-3 text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
           {respuesta.perfil === "A" || respuesta.perfil === "A_avanzado"
             ? "Guarda tu avance con una cuenta: cuando tengas tu concesión, ya estarás dentro."
@@ -142,7 +138,7 @@ export function Resultado() {
         </p>
         <button
           onClick={() => navigate("/registro")}
-          className="mt-4 min-h-[44px] w-full rounded-lg bg-acento px-6 py-3 font-semibold text-white transition hover:opacity-90"
+          className="mt-4 min-h-[44px] w-full bg-acento px-6 py-3 font-semibold text-white transition hover:bg-acento/90"
         >
           Registrarme gratis
         </button>

@@ -92,7 +92,7 @@ export function Empresas() {
       </button>
 
       <div>
-        <h1 className="text-2xl font-bold">Empresas que te pueden ayudar</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Empresas que te pueden ayudar</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           Filtradas por lo que a ti te falta — contacta directo o deja tu
           interés y nosotros intermediamos.
@@ -100,13 +100,13 @@ export function Empresas() {
       </div>
 
       {esDemo && (
-        <p className="rounded-lg bg-secundario/15 p-3 text-sm text-secundario">
+        <p className="border border-secundario/25 p-3 text-sm text-secundario">
           No pudimos conectar con el servidor. Estas son empresas de ejemplo.
         </p>
       )}
 
-      <div className="flex flex-col gap-3 rounded-xl border border-black/10 bg-tarjeta p-3 dark:border-white/10 dark:bg-tarjeta-dark md:flex-row">
-        <div className="flex min-h-[44px] flex-1 items-center gap-2 rounded-lg border border-black/10 px-3 dark:border-white/10">
+      <div className="flex flex-col gap-3 border border-black/10 bg-tarjeta p-3 dark:border-white/10 dark:bg-tarjeta-dark md:flex-row">
+        <div className="flex min-h-[44px] flex-1 items-center gap-2 border border-black/10 px-3 dark:border-white/10">
           <MapPin size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
           <select
             className="min-h-[44px] w-full bg-transparent text-texto dark:text-texto-dark"
@@ -124,12 +124,12 @@ export function Empresas() {
           </select>
         </div>
 
-        <details className="relative min-h-[44px] flex-1 rounded-lg border border-black/10 px-3 py-2 dark:border-white/10">
+        <details className="relative min-h-[44px] flex-1 border border-black/10 px-3 py-2 dark:border-white/10">
           <summary className="flex cursor-pointer select-none items-center gap-2">
             <SlidersHorizontal size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
             Tipo de estudio ({estudiosFiltro.length})
           </summary>
-          <div className="absolute left-0 top-full z-10 mt-2 flex max-h-52 w-72 max-w-[90vw] flex-col gap-1 overflow-y-auto rounded-lg border border-black/10 bg-tarjeta p-3 shadow-lg dark:border-white/10 dark:bg-tarjeta-dark">
+          <div className="absolute left-0 top-full z-10 mt-2 flex max-h-52 w-72 max-w-[90vw] flex-col gap-1 overflow-y-auto border border-black/10 bg-tarjeta p-3 dark:border-white/10 dark:bg-tarjeta-dark">
             {TODOS_LOS_ESTUDIOS.map((e) => (
               <label key={e} className="flex items-center gap-2 text-sm">
                 <input
@@ -152,15 +152,13 @@ export function Empresas() {
       )}
 
       {!cargando && empresas.length === 0 && (
-        <div className="rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
-          <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-acento/10 text-acento">
-            <SearchX size={20} strokeWidth={2} aria-hidden />
-          </span>
+        <div className="border border-black/10 p-6 text-center dark:border-white/10">
+          <SearchX size={22} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
           <p className="mt-3">Aún no tenemos empresas registradas para esto en tu departamento.</p>
           {!yaTieneCuenta && (
             <button
               onClick={() => setMostrarModal(true)}
-              className="mt-4 min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
+              className="mt-4 min-h-[44px] bg-acento px-6 font-semibold text-white transition hover:bg-acento/90"
             >
               Avísenme cuando haya
             </button>
@@ -182,14 +180,12 @@ export function Empresas() {
         if (bloque.length === 0) return null;
         return (
           <div key={tipo} className="flex flex-col gap-4">
-            <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 text-lg font-bold dark:border-white/10">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
-                {tipo === "empresa" ? (
-                  <Building2 size={17} strokeWidth={2} aria-hidden />
-                ) : (
-                  <Wrench size={17} strokeWidth={2} aria-hidden />
-                )}
-              </span>
+            <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 text-lg font-semibold dark:border-white/10">
+              {tipo === "empresa" ? (
+                <Building2 size={18} strokeWidth={1.75} className="text-acento" aria-hidden />
+              ) : (
+                <Wrench size={18} strokeWidth={1.75} className="text-acento" aria-hidden />
+              )}
               {tipo === "empresa" ? "Empresas" : "Consultores independientes"}
               <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                 ({bloque.length})
@@ -211,7 +207,7 @@ export function Empresas() {
       {!yaTieneCuenta && !cargando && empresas.length > 0 && (
         <button
           onClick={() => setMostrarModal(true)}
-          className="min-h-[44px] rounded-lg border border-acento px-6 font-semibold text-acento"
+          className="min-h-[44px] border border-acento px-6 font-semibold text-acento transition hover:bg-acento/5"
         >
           Registrarme para que me ayuden
         </button>

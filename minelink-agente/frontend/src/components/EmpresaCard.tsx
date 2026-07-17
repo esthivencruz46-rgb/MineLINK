@@ -51,18 +51,18 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
   }
 
   return (
-    <div className="rounded-xl bg-tarjeta p-4 shadow-sm dark:bg-tarjeta-dark">
+    <div className="border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark">
       <div className="mb-1 flex flex-wrap items-center gap-2">
         {demo && (
-          <span className="inline-block rounded bg-secundario px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="inline-block border border-secundario px-2 py-0.5 text-xs font-medium text-secundario">
             EJEMPLO
           </span>
         )}
-        <span className="inline-block rounded bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
+        <span className="inline-block border border-acento/25 px-2 py-0.5 text-xs font-medium text-acento">
           {empresa.tipo === "consultor" ? "Consultor independiente" : "Empresa"}
         </span>
       </div>
-      <h3 className="text-lg font-bold">{empresa.nombre}</h3>
+      <h3 className="text-lg font-semibold">{empresa.nombre}</h3>
       <p className="font-mono text-xs text-texto-suave dark:text-texto-suave-dark">
         {empresa.tipo === "consultor"
           ? `Colegiatura ${empresa.colegiatura}`
@@ -78,7 +78,7 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
       )}
 
       {coincidentes.length > 0 && (
-        <span className="mt-2 inline-block rounded-full bg-acento/15 px-3 py-1 text-sm font-semibold text-acento">
+        <span className="mt-2 inline-block border border-acento/25 px-2.5 py-1 text-sm font-medium text-acento">
           Resuelve {coincidentes.length} de tus {brechasMinero.length} pendientes
         </span>
       )}
@@ -87,7 +87,7 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
         {coincidentes.map((e) => (
           <span
             key={e}
-            className="rounded-full bg-acento px-2.5 py-1 text-xs font-medium text-white"
+            className="border border-acento bg-acento px-2.5 py-1 text-xs font-medium text-white"
           >
             {INFO_BRECHA[e]?.texto ?? e}
           </span>
@@ -95,7 +95,7 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
         {otros.map((e) => (
           <span
             key={e}
-            className="rounded-full bg-black/5 px-2.5 py-1 text-xs text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
+            className="border border-black/10 px-2.5 py-1 text-xs text-texto-suave dark:border-white/10 dark:text-texto-suave-dark"
           >
             {INFO_BRECHA[e]?.texto ?? e}
           </span>
@@ -107,7 +107,7 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
       </p>
 
       {enviado ? (
-        <p className="mt-4 flex items-center justify-center gap-1.5 rounded-lg bg-emerald-500/15 px-4 py-2.5 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+        <p className="mt-4 flex items-center justify-center gap-1.5 border border-emerald-500/25 px-4 py-2.5 text-sm font-medium text-emerald-600 dark:text-emerald-400">
           <Check size={16} strokeWidth={2.5} aria-hidden />
           Listo, te contactamos pronto
         </p>
@@ -118,20 +118,20 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
             placeholder="Tu nombre"
             value={nombre}
             onChange={(e) => setNombre(e.target.value)}
-            className="min-h-[40px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+            className="min-h-[40px] border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
           />
           <input
             type="tel"
             placeholder="Tu WhatsApp"
             value={whatsapp}
             onChange={(e) => setWhatsapp(e.target.value)}
-            className="min-h-[40px] rounded-lg border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
+            className="min-h-[40px] border border-black/10 bg-tarjeta px-3 text-sm dark:border-white/10 dark:bg-tarjeta-dark"
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
           <button
             onClick={enviar}
             disabled={enviando}
-            className="min-h-[44px] rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+            className="min-h-[44px] bg-acento px-4 font-semibold text-white transition hover:bg-acento/90 disabled:opacity-50"
           >
             {enviando ? "Enviando..." : "Enviar"}
           </button>
@@ -140,7 +140,7 @@ export function EmpresaCard({ empresa, brechasMinero, operacionId, demo }: Props
         <button
           onClick={() => setMostrarForm(true)}
           disabled={demo || !operacionId}
-          className="mt-4 flex min-h-[44px] w-full items-center justify-center rounded-lg bg-acento px-4 font-semibold text-white disabled:opacity-50"
+          className="mt-4 flex min-h-[44px] w-full items-center justify-center bg-acento px-4 font-semibold text-white transition hover:bg-acento/90 disabled:opacity-50"
         >
           Me interesa
         </button>
