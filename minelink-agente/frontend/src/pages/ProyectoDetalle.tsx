@@ -543,7 +543,13 @@ export function ProyectoDetalle() {
                       {NOMBRES_DIMENSION[dim]}
                     </h3>
                     {conFoto.length > 0 && (
-                      <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
+                      // auto-fit (no auto-fill) en vez de un número fijo de
+                      // columnas: como las columnas vacías se colapsan, las
+                      // tarjetas existentes se estiran para llenar la fila
+                      // completa sin dejar huecos, sea cual sea la cantidad
+                      // de fotos (pedido explícito, julio 2026: "que
+                      // abarquen en una fila" cuando por ejemplo hay 4).
+                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
                         {conFoto.map((item) => (
                           <TarjetaDocumento
                             key={item.etiqueta}
@@ -614,7 +620,7 @@ export function ProyectoDetalle() {
                 Evidencia que respalda tu perfil de inversión — separada de los trámites de
                 formalización.
               </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+              <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
                 <TarjetaDocumento
                   etiqueta="Certificado de ley del mineral"
                   fotos={proyecto.documentos_inversion!.certificado_ley}
