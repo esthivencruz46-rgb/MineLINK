@@ -600,12 +600,41 @@ export function ProyectoDetalle() {
             </div>
           </Card>
 
+          {/* DOCUMENTOS DE INVERSIÓN — separado de Formalización (pedido
+              explícito, julio 2026): evidencia del Módulo INV que sí es
+              pública (certificado_ley — no es información financiera
+              sensible como liquidaciones/OPEX, es justo la prueba que un
+              inversionista quiere ver). Antes vivía mezclado dentro de
+              "Oportunidad de inversión"; ahora tiene su propia tarjeta,
+              igual de clara que el checklist de Formalización. */}
+          {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
+            <Card>
+              <h2 className="text-lg font-semibold">Documentos de inversión</h2>
+              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Evidencia que respalda tu perfil de inversión — separada de los trámites de
+                formalización.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
+                <TarjetaDocumento
+                  etiqueta="Certificado de ley del mineral"
+                  fotos={proyecto.documentos_inversion!.certificado_ley}
+                  completo
+                  onVer={() =>
+                    setVisor({
+                      fotos: proyecto.documentos_inversion!.certificado_ley,
+                      indice: 0,
+                      etiqueta: "Certificado de ley del mineral",
+                    })
+                  }
+                />
+              </div>
+            </Card>
+          )}
+
           {/* OPORTUNIDAD DE INVERSIÓN — las respuestas públicas del Módulo
               INV: lo que el inversionista necesita para decidir. Reemplaza
               al perfil informativo del modelo viejo (julio 2026). */}
-          {(filasOportunidad.length > 0 ||
-            proyecto.capital_buscado ||
-            (proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0) && (
+          {(filasOportunidad.length > 0 || proyecto.capital_buscado) && (
             <Card>
               <h2 className="text-lg font-semibold">Oportunidad de inversión</h2>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
@@ -642,28 +671,6 @@ export function ProyectoDetalle() {
                     </div>
                   ))}
               </dl>
-              {/* Evidencia del Módulo INV que sí es pública (certificado_ley)
-                  — antes se subía pero nunca se mostraba al inversionista,
-                  no estaba en ningún set de categorías públicas (julio 2026,
-                  reportado por Esthiven). No es información financiera
-                  sensible como liquidaciones/OPEX, es justo la prueba que
-                  un inversionista quiere ver. */}
-              {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
-                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-black/5 pt-4 dark:border-white/10 lg:grid-cols-3">
-                  <TarjetaDocumento
-                    etiqueta="Certificado de ley del mineral"
-                    fotos={proyecto.documentos_inversion!.certificado_ley}
-                    completo
-                    onVer={() =>
-                      setVisor({
-                        fotos: proyecto.documentos_inversion!.certificado_ley,
-                        indice: 0,
-                        etiqueta: "Certificado de ley del mineral",
-                      })
-                    }
-                  />
-                </div>
-              )}
             </Card>
           )}
 
