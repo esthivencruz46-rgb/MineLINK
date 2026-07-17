@@ -102,7 +102,7 @@ export function Postular() {
   if (enviado) {
     return (
       <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 className="text-2xl font-bold">¡Gracias por postular!</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">¡Gracias por postular!</h1>
         <p className="text-texto-suave dark:text-texto-suave-dark">
           Esthiven revisará tus datos y credenciales. Si todo está en orden, tu perfil
           se activará y los mineros podrán contactarte por WhatsApp.
@@ -114,7 +114,7 @@ export function Postular() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">Quiero ser consultor en {MARCA}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Quiero ser consultor en {MARCA}</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           Para postular necesitas colegiatura vigente y tu CV actualizado.
           Tu perfil queda pendiente de revisión antes de aparecer públicamente.
@@ -127,7 +127,7 @@ export function Postular() {
         <div className="flex flex-col gap-5">
       <div>
         <input
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           placeholder="Tu nombre completo"
           value={form.nombre}
           onChange={(e) => setForm({ ...form, nombre: e.target.value })}
@@ -137,7 +137,7 @@ export function Postular() {
 
       <div>
         <input
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           placeholder="N° de colegiatura (solo el número, ej. 123456)"
           value={form.colegiatura}
           onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
@@ -159,7 +159,7 @@ export function Postular() {
       <div>
         <input
           type="email"
-          className="min-h-[44px] w-full rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           placeholder="Tu email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -178,7 +178,7 @@ export function Postular() {
             {todosMarcados ? "Quitar todos" : "Todos los departamentos"}
           </button>
         </div>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 rounded-lg border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
           {DEPARTAMENTOS.map((d) => (
             <label key={d} className="flex items-center gap-1.5 text-xs">
               <input
@@ -198,7 +198,7 @@ export function Postular() {
 
       <div>
         <p className="mb-1 text-sm font-medium">Tu CV (PDF, máx. 5MB)</p>
-        <label className="flex min-h-[44px] w-full cursor-pointer items-center rounded-lg border border-dashed border-black/20 bg-tarjeta px-3 text-sm dark:border-white/20 dark:bg-tarjeta-dark">
+        <label className="flex min-h-[44px] w-full cursor-pointer items-center border border-dashed border-black/20 bg-tarjeta px-3 text-sm dark:border-white/20 dark:bg-tarjeta-dark">
           <input
             type="file"
             accept="application/pdf"
@@ -227,9 +227,9 @@ export function Postular() {
             ).map((dim) => (
               <div
                 key={dim}
-                className="rounded-lg border border-black/10 p-3 dark:border-white/10"
+                className="border border-black/10 p-3 dark:border-white/10"
               >
-                <p className="mb-2 text-xs font-bold uppercase tracking-wide text-acento">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-acento">
                   {NOMBRES_DIMENSION[dim]}
                 </p>
                 <div className="flex flex-col gap-1.5">
@@ -259,7 +259,7 @@ export function Postular() {
       <button
         disabled={enviando}
         onClick={enviar}
-        className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+        className="min-h-[44px] bg-acento px-6 py-3 font-semibold text-white transition hover:bg-acento/90 disabled:opacity-50"
       >
         {enviando ? "Enviando..." : "Enviar postulación"}
       </button>
