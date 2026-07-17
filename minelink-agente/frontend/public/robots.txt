@@ -1,0 +1,13 @@
+# MineLink — qué puede indexar Google (y qué no).
+# Las cuentas privadas y el panel admin no aportan nada en un buscador
+# (además exigen login: Google solo vería una pantalla de ingreso).
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /mi-cuenta
+Disallow: /mi-concesion
+Disallow: /mi-inversion
+Disallow: /mi-cuenta-inversionista
+Disallow: /documentos-enviados
+
+Sitemap: https://mine-link-seven.vercel.app/sitemap.xml

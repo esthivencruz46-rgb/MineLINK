@@ -1,15 +1,29 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
+  AlertTriangle,
   ArrowUpRight,
   BadgeCheck,
+  Boxes,
   Check,
   ChevronLeft,
   ChevronRight,
+  Coins,
+  Gem,
+  HandCoins,
+  Handshake,
+  HardHat,
   Images,
   MapPin,
   Minus,
+  Mountain,
+  Percent,
+  Scale,
+  ShieldCheck,
   Star,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
 } from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
@@ -253,33 +267,42 @@ export function ProyectoDetalle() {
     }
     return etiquetaInv(id, v);
   };
+  // Los TÉRMINOS del trato (capital / qué ofrece / % a ceder) van
+  // destacados en su propia franja arriba de la tarjeta — es lo primero
+  // que un inversionista quiere saber; el resto baja como fichas con
+  // ícono (rediseño julio 2026, pedido explícito: "presentar mejor").
+  const capitalTrato = proyecto.capital_buscado
+    ? formatearMonto(proyecto.capital_buscado)
+    : valorInv("INV_0_1");
   const filasOportunidad = [
-    { id: "INV_0_1", etiqueta: "Capital que busca" },
-    { id: "INV_0_2", etiqueta: "Uso del capital" },
-    { id: "INV_0_3", etiqueta: "Qué ofrece a cambio" },
-    { id: "INV_0_4", etiqueta: "Qué aporta el titular" },
-    { id: "INV_0_5", etiqueta: "Retorno estimado por el titular" },
-    { id: "INV_0_9", etiqueta: "Estructura legal" },
-    { id: "INV_0_10", etiqueta: "Dispuesto a ceder" },
-    { id: "INV_0_11", etiqueta: "Deudas declaradas" },
+    { id: "INV_0_2", etiqueta: "Uso del capital", icono: Wallet },
+    { id: "INV_0_4", etiqueta: "Qué aporta el titular", icono: Handshake },
+    { id: "INV_0_5", etiqueta: "Retorno estimado por el titular", icono: TrendingUp },
+    { id: "INV_0_9", etiqueta: "Estructura legal", icono: Scale },
+    { id: "INV_0_11", etiqueta: "Deudas declaradas", icono: ShieldCheck },
   ]
     .map((f) => ({ ...f, valor: valorInv(f.id) }))
-    .filter((f): f is { id: string; etiqueta: string; valor: string } => f.valor != null);
+    .filter(
+      (f): f is { id: string; etiqueta: string; icono: LucideIcon; valor: string } =>
+        f.valor != null
+    );
 
   // Datos estructurados de la operación (los escribe el minero junto a sus
   // archivos de respaldo — ver DocumentosInversionSustento).
   const filasOperacion = [
-    { etiqueta: "Ley promedio del mineral", valor: proyecto.ley_promedio },
-    { etiqueta: "Minerales y litología", valor: proyecto.especie_mineral },
-    { etiqueta: "Reservas estimadas", valor: proyecto.toneladas_estimadas },
+    { etiqueta: "Ley promedio del mineral", valor: proyecto.ley_promedio, icono: Gem },
+    { etiqueta: "Minerales y litología", valor: proyecto.especie_mineral, icono: Mountain },
+    { etiqueta: "Reservas estimadas", valor: proyecto.toneladas_estimadas, icono: Boxes },
     {
       etiqueta: "Costo operativo aproximado",
+      icono: Coins,
       valor: proyecto.indicadores?.opex_costo_aprox
         ? `S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
         : null,
     },
     {
       etiqueta: "Equipo de trabajo",
+      icono: HardHat,
       valor:
         [
           proyecto.indicadores?.num_trabajadores
@@ -290,7 +313,9 @@ export function ProyectoDetalle() {
           .filter(Boolean)
           .join(" · ") || null,
     },
-  ].filter((f): f is { etiqueta: string; valor: string } => Boolean(f.valor));
+  ].filter(
+    (f): f is { etiqueta: string; valor: string; icono: LucideIcon } => Boolean(f.valor)
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-8">
@@ -685,43 +710,106 @@ export function ProyectoDetalle() {
           {/* OPORTUNIDAD DE INVERSIÓN — las respuestas públicas del Módulo
               INV: lo que el inversionista necesita para decidir. Reemplaza
               al perfil informativo del modelo viejo (julio 2026). */}
-          {(filasOportunidad.length > 0 || proyecto.capital_buscado) && (
+          {(filasOportunidad.length > 0 || capitalTrato) && (
             <Card>
               <h2 className="text-lg font-semibold">Oportunidad de inversión</h2>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                 Declarado por el titular en su perfil de inversión.
               </p>
-              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
-                {proyecto.capital_buscado && (
-                  <div className="sm:col-span-2">
-                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                      Capital buscado
-                    </dt>
-                    <dd className="text-sm font-medium">
-                      {formatearMonto(proyecto.capital_buscado)}
-                      {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
-                    </dd>
-                  </div>
-                )}
-                {filasOportunidad
-                  .filter((f) => !(f.id === "INV_0_1" && proyecto.capital_buscado))
-                  .map((f) => (
-                    <div key={f.id}>
-                      <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                        {f.etiqueta}
-                      </dt>
-                      <dd
-                        className={`text-sm font-medium ${
-                          f.id === "INV_0_11" && inv.INV_0_11 === "sin_deudas"
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : ""
-                        }`}
-                      >
-                        {f.valor}
-                      </dd>
+
+              {/* Los términos del trato — capital / qué ofrece / % a
+                  ceder — en una franja destacada: es lo primero que un
+                  inversionista evalúa. El capital lleva el acento. */}
+              {(capitalTrato || valorInv("INV_0_3") || valorInv("INV_0_10")) && (
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {capitalTrato && (
+                    <div className="rounded-xl bg-acento/10 p-4 sm:col-span-1">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-acento">
+                        <HandCoins size={14} strokeWidth={2.25} aria-hidden />
+                        Capital buscado
+                      </p>
+                      <p className="mt-1.5 text-xl font-bold leading-tight text-acento">
+                        {capitalTrato}
+                      </p>
+                      {proyecto.uso_fondos && (
+                        <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                          {proyecto.uso_fondos}
+                        </p>
+                      )}
                     </div>
-                  ))}
-              </dl>
+                  )}
+                  {valorInv("INV_0_3") && (
+                    <div className="rounded-xl bg-black/[0.03] p-4 dark:bg-white/5">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+                        <Handshake size={14} strokeWidth={2.25} aria-hidden />
+                        Qué ofrece a cambio
+                      </p>
+                      <p className="mt-1.5 text-base font-semibold leading-snug">
+                        {valorInv("INV_0_3")}
+                      </p>
+                    </div>
+                  )}
+                  {valorInv("INV_0_10") && (
+                    <div className="rounded-xl bg-black/[0.03] p-4 dark:bg-white/5">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+                        <Percent size={14} strokeWidth={2.25} aria-hidden />
+                        Dispuesto a ceder
+                      </p>
+                      <p className="mt-1.5 text-base font-semibold leading-snug">
+                        {valorInv("INV_0_10")}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* El resto del perfil de inversión, como fichas con ícono.
+                  "Sin deudas" se pinta en verde (es una buena señal);
+                  cualquier otra respuesta de deudas va en ámbar para que
+                  no pase desapercibida. */}
+              {filasOportunidad.length > 0 && (
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {filasOportunidad.map((f) => {
+                    const esDeuda = f.id === "INV_0_11";
+                    const sinDeudas = esDeuda && inv.INV_0_11 === "sin_deudas";
+                    const Icono = esDeuda && !sinDeudas ? AlertTriangle : f.icono;
+                    return (
+                      <div
+                        key={f.id}
+                        className="flex items-start gap-3 rounded-xl bg-black/[0.03] p-3.5 dark:bg-white/5"
+                      >
+                        <span
+                          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                            sinDeudas
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : esDeuda
+                                ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                : "bg-acento/10 text-acento"
+                          }`}
+                        >
+                          <Icono size={17} strokeWidth={2} aria-hidden />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                            {f.etiqueta}
+                          </p>
+                          <p
+                            className={`text-sm font-semibold leading-snug ${
+                              sinDeudas
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : esDeuda
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : ""
+                            }`}
+                          >
+                            {f.valor}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           )}
 
@@ -987,16 +1075,27 @@ export function ProyectoDetalle() {
           {filasOperacion.length > 0 && (
             <Card>
               <h2 className="text-lg font-semibold">Datos de la operación</h2>
-              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Cifras declaradas por el titular junto a sus archivos de respaldo.
+              </p>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filasOperacion.map((f) => (
-                  <div key={f.etiqueta}>
-                    <dt className="text-xs text-texto-suave dark:text-texto-suave-dark">
-                      {f.etiqueta}
-                    </dt>
-                    <dd className="text-sm font-medium">{f.valor}</dd>
+                  <div
+                    key={f.etiqueta}
+                    className="flex items-start gap-3 rounded-xl bg-black/[0.03] p-3.5 dark:bg-white/5"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acento/10 text-acento">
+                      <f.icono size={17} strokeWidth={2} aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                        {f.etiqueta}
+                      </p>
+                      <p className="text-sm font-semibold leading-snug">{f.valor}</p>
+                    </div>
                   </div>
                 ))}
-              </dl>
+              </div>
             </Card>
           )}
 
