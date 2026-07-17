@@ -3003,11 +3003,41 @@ def test_admin_dashboard():
     assert body["diagnosticos_hoy"] == 1
     assert body["leads_total"] == 1
     assert body["leads_hoy"] == 1
-    # score_total = 0 en el nuevo sistema (placeholder), promedio = 0.0
-    assert body["score_promedio"] == 0.0
+    # Conteo por perfil (julio 2026): reemplaza al score_promedio legacy,
+    # que promediaba el score_total viejo (0 en el modelo A/B/C/D).
+    assert body["conteo_por_perfil"] == {"C": 1}
     # Profile C con todo aprobado no tiene brechas
     assert body["top_brechas"] == []
     assert body["ultimos_leads"][0]["nombre"] == "Ana"
+    assert body["ultimos_leads"][0]["perfil"] == "C"
+
+
+def test_admin_leads_pagina_y_expone_el_total():
+    # Paginación (julio 2026): el panel pide de a `limit` leads con
+    # `offset`, y el total real viaja en el header X-Total-Count para
+    # pintar las páginas — antes se cargaban TODOS los leads (cada uno
+    # recalcula su diagnóstico completo) en cada visita al panel.
+    for n in range(3):
+        diag = _crear_diagnostico().json()
+        client.post(
+            "/leads",
+            json=_lead_payload(
+                diag["id"], username=f"paginado{n}", whatsapp=f"+5190000090{n}"
+            ),
+        )
+    headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    resp = client.get("/admin/leads?limit=2&offset=0", headers=headers)
+    assert resp.status_code == 200
+    assert resp.headers["X-Total-Count"] == "3"
+    assert len(resp.json()) == 2
+
+    resp = client.get("/admin/leads?limit=2&offset=2", headers=headers)
+    assert len(resp.json()) == 1
+
+    # Sin parámetros usa el default (50) — con 3 leads devuelve todo.
+    resp = client.get("/admin/leads", headers=headers)
+    assert len(resp.json()) == 3
 
 
 def test_admin_dashboard_requiere_jwt():

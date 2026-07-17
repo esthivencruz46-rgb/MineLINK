@@ -1256,7 +1256,10 @@ class TopBrecha(BaseModel):
 class UltimoLead(BaseModel):
     nombre: str
     region: str
-    score_total: int
+    # Perfil del pipeline (A/A_avanzado/B/C/D) — reemplaza al score_total
+    # legacy que salía 0 en todas las filas del modelo nuevo (julio 2026).
+    # None = diagnóstico del modelo viejo.
+    perfil: Optional[str] = None
     created_at: datetime
 
 
@@ -1265,7 +1268,12 @@ class DashboardOut(BaseModel):
     diagnosticos_total: int
     leads_hoy: int
     leads_total: int
-    score_promedio: float
+    # Conteo de diagnósticos por perfil del pipeline (ej. {"C": 40,
+    # "B": 12}) — reemplaza al score_promedio legacy, que promediaba el
+    # score_total viejo (0 en todas las filas del modelo A/B/C/D) y por
+    # eso siempre mostraba un número sin sentido (julio 2026). La clave
+    # "modelo_viejo" agrupa las filas anteriores al rediseño.
+    conteo_por_perfil: dict[str, int] = {}
     top_brechas: list[TopBrecha]
     ultimos_leads: list[UltimoLead]
     # Embudo: dónde se caen los usuarios (iniciado → completado → registrado)

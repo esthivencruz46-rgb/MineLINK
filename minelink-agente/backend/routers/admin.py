@@ -2,7 +2,7 @@ from collections import Counter
 from datetime import date, datetime, time, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -33,10 +33,19 @@ def login(payload: schemas.AdminLogin, _: None = Depends(limitar_intentos_login)
 
 @router.get("/leads", response_model=list[schemas.LeadConDiagnostico])
 def listar_leads(
+    response: Response,
     desde: Optional[date] = None,
     hasta: Optional[date] = None,
     region: Optional[str] = None,
     situacion: Optional[str] = None,
+    # Paginación (julio 2026, hallazgo de auditoría): antes se cargaban y
+    # serializaban TODOS los leads en cada visita al panel — cada fila
+    # recalcula su diagnóstico completo (estado_seguimiento), así que con
+    # cientos de leads el panel se arrastraría. El total real viaja en el
+    # header X-Total-Count para que la UI pinte las páginas sin cambiar la
+    # forma de la respuesta (sigue siendo una lista).
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
     _admin: str = Depends(get_current_admin),
 ):
@@ -52,7 +61,10 @@ def listar_leads(
     if situacion:
         query = query.filter(models.Operacion.situacion == situacion)
 
-    filas = query.order_by(models.Lead.created_at.desc()).all()
+    response.headers["X-Total-Count"] = str(query.count())
+    filas = (
+        query.order_by(models.Lead.created_at.desc()).offset(offset).limit(limit).all()
+    )
 
     return [
         schemas.LeadConDiagnostico(
@@ -331,10 +343,12 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
     diagnosticos_hoy = sum(1 for o in operaciones if o.created_at >= inicio_hoy)
     leads_total = len(leads)
     leads_hoy = sum(1 for l in leads if l.created_at >= inicio_hoy)
-    score_promedio = (
-        round(sum(o.score_total for o in operaciones) / diagnosticos_total, 1)
-        if diagnosticos_total > 0
-        else 0.0
+    # Conteo por perfil del pipeline — reemplaza al score_promedio legacy
+    # (promediaba score_total, que es 0 en todas las filas del modelo
+    # A/B/C/D, así que siempre daba un número sin sentido). La columna del
+    # perfil se llama estado_formalizacion por historia (ver models.py).
+    conteo_por_perfil = dict(
+        Counter(o.estado_formalizacion or "modelo_viejo" for o in operaciones)
     )
 
     # Brechas PENDIENTES (no las ya marcadas como resueltas): así el
@@ -356,7 +370,7 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         schemas.UltimoLead(
             nombre=lead.nombre,
             region=lead.region,
-            score_total=operaciones_por_id[lead.operacion_id].score_total,
+            perfil=operaciones_por_id[lead.operacion_id].estado_formalizacion,
             created_at=lead.created_at,
         )
         for lead in ultimos
@@ -373,7 +387,7 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         diagnosticos_total=diagnosticos_total,
         leads_hoy=leads_hoy,
         leads_total=leads_total,
-        score_promedio=score_promedio,
+        conteo_por_perfil=conteo_por_perfil,
         top_brechas=top_brechas,
         ultimos_leads=ultimos_leads,
         diagnosticos_iniciados=diagnosticos_iniciados,

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AdminLayout } from "../../components/AdminLayout";
 import { useAuth } from "../../context/AuthContext";
 import { INFO_BRECHA } from "../../data/brechas";
-import { calcularSemaforo } from "../../utils/semaforo";
+import { NOMBRE_PERFIL } from "../../data/preguntas";
 import type { DashboardOut } from "../../types/admin";
 
 function Tarjeta({ titulo, valor }: { titulo: string; valor: string | number }) {
@@ -48,8 +48,33 @@ export function AdminDashboard() {
               titulo="Leads (hoy / total)"
               valor={`${datos.leads_hoy} / ${datos.leads_total}`}
             />
-            <Tarjeta titulo="Score promedio" valor={datos.score_promedio} />
             <Tarjeta titulo="Brechas distintas" valor={datos.top_brechas.length} />
+            {/* Conteo por perfil del pipeline — reemplaza al "Score
+                promedio" legacy, que promediaba el score viejo (0 en
+                todas las filas del modelo A/B/C/D) y siempre mostraba un
+                número sin sentido (julio 2026). */}
+            <div className="rounded-xl bg-tarjeta p-4 dark:bg-tarjeta-dark">
+              <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                Diagnósticos por perfil
+              </p>
+              {Object.keys(datos.conteo_por_perfil).length === 0 ? (
+                <p className="mt-1 font-mono text-3xl font-bold">0</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {Object.entries(datos.conteo_por_perfil)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([perfil, conteo]) => (
+                      <span
+                        key={perfil}
+                        title={NOMBRE_PERFIL[perfil] ?? perfil}
+                        className="rounded-full bg-acento/10 px-2.5 py-0.5 text-sm font-bold text-acento"
+                      >
+                        {perfil === "modelo_viejo" ? "viejo" : perfil}: {conteo}
+                      </span>
+                    ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div>
@@ -115,26 +140,34 @@ export function AdminDashboard() {
                     <tr className="border-b border-black/10 dark:border-white/10">
                       <th className="p-3">Nombre</th>
                       <th className="p-3">Región</th>
-                      <th className="p-3">Score</th>
+                      <th className="p-3">Perfil</th>
                       <th className="p-3">Hora</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {datos.ultimos_leads.map((l, i) => {
-                      const semaforo = calcularSemaforo(l.score_total, false);
-                      return (
-                        <tr key={i} className="border-b border-black/5 dark:border-white/5">
-                          <td className="p-3">{l.nombre}</td>
-                          <td className="p-3 capitalize">{l.region}</td>
-                          <td className={`p-3 font-mono font-semibold ${semaforo.claseTexto}`}>
-                            {l.score_total}
-                          </td>
-                          <td className="p-3">
-                            {new Date(l.created_at).toLocaleString("es-PE")}
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {datos.ultimos_leads.map((l, i) => (
+                      <tr key={i} className="border-b border-black/5 dark:border-white/5">
+                        <td className="p-3">{l.nombre}</td>
+                        <td className="p-3 capitalize">{l.region}</td>
+                        <td className="p-3">
+                          {l.perfil ? (
+                            <span
+                              title={NOMBRE_PERFIL[l.perfil] ?? l.perfil}
+                              className="rounded-full bg-acento/10 px-2.5 py-0.5 text-xs font-bold text-acento"
+                            >
+                              {l.perfil}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                              modelo viejo
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-3">
+                          {new Date(l.created_at).toLocaleString("es-PE")}
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>

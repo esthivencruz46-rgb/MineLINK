@@ -198,6 +198,12 @@ export function AdminLeads() {
   const [cargandoInteresesEmpresas, setCargandoInteresesEmpresas] = useState(false);
   const [vistaUrl, setVistaUrl] = useState<string | null>(null);
   const [vistaTipo, setVistaTipo] = useState("");
+  // Paginación (julio 2026): el backend ahora devuelve de a POR_PAGINA
+  // leads y el total real en el header X-Total-Count — antes cada visita
+  // al panel cargaba y recalculaba TODOS los diagnósticos de golpe.
+  const POR_PAGINA = 50;
+  const [pagina, setPagina] = useState(0);
+  const [total, setTotal] = useState(0);
 
   function cargar() {
     setCargando(true);
@@ -206,10 +212,13 @@ export function AdminLeads() {
     if (hasta) params.set("hasta", hasta);
     if (region) params.set("region", region);
     if (situacion) params.set("situacion", situacion);
+    params.set("limit", String(POR_PAGINA));
+    params.set("offset", String(pagina * POR_PAGINA));
 
     authFetch(`/admin/leads?${params.toString()}`)
       .then((r) => {
         if (!r.ok) throw new Error();
+        setTotal(Number(r.headers.get("X-Total-Count") ?? "0"));
         return r.json();
       })
       .then((data) => {
@@ -220,7 +229,10 @@ export function AdminLeads() {
       .finally(() => setCargando(false));
   }
 
-  useEffect(cargar, [desde, hasta, region, situacion]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(cargar, [desde, hasta, region, situacion, pagina]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Cambiar un filtro vuelve a la primera página — si no, podrías quedar
+  // parado en una página que ya no existe con el filtro nuevo.
+  useEffect(() => setPagina(0), [desde, hasta, region, situacion]);
 
   async function alternarBrechaResuelta(lead: LeadConDiagnostico, estudio: string) {
     const yaResuelta = lead.brechas_resueltas.includes(estudio);
@@ -759,6 +771,28 @@ export function AdminLeads() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!cargando && total > POR_PAGINA && (
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <button
+            onClick={() => setPagina((p) => Math.max(0, p - 1))}
+            disabled={pagina === 0}
+            className="min-h-[36px] rounded-lg border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
+          >
+            ← Anterior
+          </button>
+          <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+            {pagina * POR_PAGINA + 1}–{Math.min((pagina + 1) * POR_PAGINA, total)} de {total}
+          </p>
+          <button
+            onClick={() => setPagina((p) => p + 1)}
+            disabled={(pagina + 1) * POR_PAGINA >= total}
+            className="min-h-[36px] rounded-lg border border-black/10 px-3 text-sm font-semibold disabled:opacity-40 dark:border-white/10"
+          >
+            Siguiente →
+          </button>
         </div>
       )}
 

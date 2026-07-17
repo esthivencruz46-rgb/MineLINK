@@ -97,7 +97,8 @@ export interface TopBrecha {
 export interface UltimoLead {
   nombre: string;
   region: string;
-  score_total: number;
+  // Perfil del pipeline (A/A_avanzado/B/C/D) — null = modelo viejo.
+  perfil?: string | null;
   created_at: string;
 }
 
@@ -106,7 +107,9 @@ export interface DashboardOut {
   diagnosticos_total: number;
   leads_hoy: number;
   leads_total: number;
-  score_promedio: number;
+  // Conteo de diagnósticos por perfil (ej. {"C": 40, "B": 12}) —
+  // reemplaza al score_promedio legacy (julio 2026).
+  conteo_por_perfil: Record<string, number>;
   top_brechas: TopBrecha[];
   ultimos_leads: UltimoLead[];
   diagnosticos_iniciados: number;
