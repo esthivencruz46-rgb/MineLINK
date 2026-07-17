@@ -1,4 +1,4 @@
-# Perfil del usuario: minero artesanal — MineLink
+# Perfil del usuario: minero artesanal — Qorilink
 
 ## Quién es
 Minero artesanal o pequeño minero peruano, inscrito (o intentando
@@ -14,7 +14,7 @@ Está presionado, confundido por trámites, y desconfía de "tramitadores"
 que le han cobrado sin resultados. Históricamente solo ~2.4% de los
 inscritos logró formalizarse: no es flojera, es falta de orientación.
 
-## Qué busca al entrar a MineLink
+## Qué busca al entrar a Qorilink
 1. Saber QUÉ le falta exactamente, gratis
 2. Saber con QUIÉN resolverlo (empresas serias, no tramitadores)
 3. No sentirse juzgado por estar "incompleto"

@@ -1,4 +1,4 @@
-# Sistema de Diagnóstico y Ruteo — Formalización Minera (MineLink)
+# Sistema de Diagnóstico y Ruteo — Formalización Minera (Qorilink)
 
 > **FUENTE DE VERDAD** del diagnóstico desde julio 2026 (reemplaza el modelo de 22 preguntas
 > Sí/No + MineScore descrito históricamente en criterios_score.md). Entregado por Esthiven.

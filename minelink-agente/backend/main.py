@@ -9,7 +9,7 @@ from routers import admin, diagnostico, empresas, eventos, inversionistas, leads
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="MineLink API")
+app = FastAPI(title="Qorilink API")
 
 origenes = [
     "http://127.0.0.1:5173",

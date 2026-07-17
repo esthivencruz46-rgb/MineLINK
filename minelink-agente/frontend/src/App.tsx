@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { MARCA } from "./config/marca";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedRouteMinero } from "./components/ProtectedRouteMinero";
@@ -81,7 +82,7 @@ function PublicHeader() {
   return (
     <header className="flex items-center justify-between px-4 py-3">
       <Link to="/" className="font-bold text-acento">
-        MineLink
+        {MARCA}
       </Link>
       <ThemeToggle />
     </header>

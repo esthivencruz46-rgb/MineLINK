@@ -45,7 +45,7 @@ Still pending:
 
 ## What this repository is
 
-**MineLink**: a web platform where Peruvian artisanal miners take a formalization diagnostic,
+**Qorilink**: a web platform where Peruvian artisanal miners take a formalization diagnostic,
 get placed in their exact stage of the legal pipeline with a checklist and semáforos, and get
 matched with companies/consultants who provide exactly the studies/procedures they lack. It
 also has a public "Proyectos" showcase for investors and an admin panel. Full backend

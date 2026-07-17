@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MARCA } from "../../config/marca";
 import { Check, Mail, MapPin, Phone, Pickaxe } from "lucide-react";
 import { AdminLayout } from "../../components/AdminLayout";
 import { enlaceWhatsApp } from "../../config/whatsapp";
@@ -168,7 +169,7 @@ function exportarCSV(leads: LeadConDiagnostico[]) {
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;
-  enlace.download = `leads_minelink_${new Date().toISOString().slice(0, 10)}.csv`;
+  enlace.download = `leads_qorilink_${new Date().toISOString().slice(0, 10)}.csv`;
   enlace.click();
   URL.revokeObjectURL(url);
 }
@@ -305,7 +306,7 @@ export function AdminLeads() {
       return;
     }
     const datos = await resp.json();
-    const mensaje = `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de MineLink. Tu nueva contraseña es: ${datos.password_temporal} (tu usuario sigue siendo: ${datos.username}). Entra en https://mine-link-seven.vercel.app/ingresar`;
+    const mensaje = `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de ${MARCA}. Tu nueva contraseña es: ${datos.password_temporal} (tu usuario sigue siendo: ${datos.username}). Entra en https://mine-link-seven.vercel.app/ingresar`;
     if (
       window.confirm(
         `Contraseña nueva de ${lead.nombre}: ${datos.password_temporal}\n\n(usuario: ${datos.username})\n\n¿Abrir WhatsApp para enviársela?`
@@ -689,7 +690,7 @@ export function AdminLeads() {
                         href={enlaceWhatsApp(
                           lead.whatsapp,
                           [
-                            `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de MineLink.`,
+                            `Hola ${lead.nombre.split(" ")[0]} 👋 Te escribe el equipo de ${MARCA}.`,
                             `Tu diagnóstico de formalización salió con ${lead.score_actual}/100.`,
                             lead.brechas_pendientes.length > 0
                               ? `Te falta: ${lead.brechas_pendientes
@@ -1149,7 +1150,7 @@ export function AdminLeads() {
                       <a
                         href={enlaceWhatsApp(
                           interes.empresa_whatsapp,
-                          `Hola, les escribe el equipo de MineLink. Tenemos un minero (${interes.nombre}, WhatsApp ${interes.whatsapp}) interesado en sus servicios${
+                          `Hola, les escribe el equipo de ${MARCA}. Tenemos un minero (${interes.nombre}, WhatsApp ${interes.whatsapp}) interesado en sus servicios${
                             interes.brecha
                               ? ` para ${INFO_BRECHA[interes.brecha]?.texto ?? interes.brecha}`
                               : ""

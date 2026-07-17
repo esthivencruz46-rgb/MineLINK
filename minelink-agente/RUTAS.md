@@ -1,4 +1,4 @@
-# Rutas principales — MineLink
+# Rutas principales — Qorilink
 
 Base local del frontend (con `npm run dev` corriendo): `http://127.0.0.1:5173`
 

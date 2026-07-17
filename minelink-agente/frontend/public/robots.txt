@@ -1,4 +1,4 @@
-# MineLink — qué puede indexar Google (y qué no).
+# Qorilink — qué puede indexar Google (y qué no).
 # Las cuentas privadas y el panel admin no aportan nada en un buscador
 # (además exigen login: Google solo vería una pantalla de ingreso).
 User-agent: *

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { MARCA } from "../config/marca";
 import { Briefcase, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
 interface Paso {
@@ -60,7 +61,7 @@ const SECCIONES: Seccion[] = [
       },
       {
         numero: "3",
-        titulo: "MineLink te presenta con el titular",
+        titulo: `${MARCA} te presenta con el titular`,
         detalle:
           "Filtramos y coordinamos la presentación formal entre tú y el minero. Acompañamos la conversación para que ambos negocien con confianza.",
       },
@@ -100,7 +101,7 @@ export function ComoFunciona() {
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8">
       <div className="text-center">
-        <h1 className="text-3xl font-bold">¿Cómo funciona MineLink?</h1>
+        <h1 className="text-3xl font-bold">¿Cómo funciona {MARCA}?</h1>
         <p className="mx-auto mt-2 max-w-xl text-texto-suave dark:text-texto-suave-dark">
           Tres caminos, un mismo objetivo: que la minería artesanal del Perú se
           formalice y crezca.

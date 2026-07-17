@@ -1,4 +1,4 @@
-# Checklist de despliegue — MineLink
+# Checklist de despliegue — Qorilink
 
 Guía para el día que se contrate hosting (y opcionalmente dominio).
 Todo el código ya está preparado: solo hay que pegar URLs en los lugares

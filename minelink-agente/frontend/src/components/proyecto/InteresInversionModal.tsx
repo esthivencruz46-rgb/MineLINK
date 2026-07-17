@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MARCA } from "../../config/marca";
 import { Check } from "lucide-react";
 import { CampoPassword } from "../CampoPassword";
 import { CampoPreguntaSeguridad } from "../CampoPreguntaSeguridad";
@@ -76,7 +77,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
             </div>
             <h2 className="text-lg font-semibold">Solicitud enviada</h2>
             <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-              El equipo de MineLink revisará tu interés y te contactará para
+              El equipo de {MARCA} revisará tu interés y te contactará para
               coordinar con el proyecto. Ya puedes iniciar sesión con tu
               usuario y contraseña cuando quieras.
             </p>
@@ -98,7 +99,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
             <h2 className="text-lg font-semibold">Contactar sobre este proyecto</h2>
             <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
               Nunca compartimos el contacto directo del proyecto. El equipo de
-              MineLink revisa tu solicitud y hace de intermediario.
+              {MARCA} revisa tu solicitud y hace de intermediario.
             </p>
 
             <div className="mt-4 flex flex-col gap-3">

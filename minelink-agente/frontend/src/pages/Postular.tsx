@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { MARCA } from "../config/marca";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
@@ -113,7 +114,7 @@ export function Postular() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-bold">Quiero ser consultor en MineLink</h1>
+        <h1 className="text-2xl font-bold">Quiero ser consultor en {MARCA}</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           Para postular necesitas colegiatura vigente y tu CV actualizado.
           Tu perfil queda pendiente de revisión antes de aparecer públicamente.

@@ -1,4 +1,4 @@
-# MineLink — Motor de Búsqueda de Formalización Minera
+# Qorilink — Motor de Búsqueda de Formalización Minera
 
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:

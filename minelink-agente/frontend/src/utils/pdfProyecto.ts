@@ -1,4 +1,5 @@
 import { BASE_URL } from "../services/api";
+import { MARCA } from "../config/marca";
 import { INFO_BRECHA } from "../data/brechas";
 import { formatearMonto } from "./formato";
 import { ETIQUETAS_DOCUMENTO_LEGAL, type FotoPublica, type ProyectoDetalle } from "../types/proyecto";
@@ -129,7 +130,7 @@ function encabezado(doc: jsPDF): void {
   doc.setFontSize(11);
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
-  doc.text("MINELINK", MARGEN, 9);
+  doc.text(MARCA.toUpperCase(), MARGEN, 9);
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.text("Ficha de inversión — minería artesanal formalizándose en Perú", ANCHO - MARGEN, 9, {
@@ -148,7 +149,7 @@ function pie(doc: jsPDF, proyecto: ProyectoDetalle, pagina: number, total: numbe
   doc.setFont("helvetica", "normal");
   doc.text(
     "Datos autodeclarados por el titular. El sello \"Con respaldo\" solo aparece en documentos " +
-      "ya revisados y aprobados por el equipo de MineLink — los demás son visibles pero aún sin revisar.",
+      `ya revisados y aprobados por el equipo de ${MARCA} — los demás son visibles pero aún sin revisar.`,
     MARGEN,
     ALTO - 12,
     { maxWidth: ANCHO_UTIL }
@@ -516,7 +517,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   }
 
   // Cotejo con registros públicos — GEOCATMIN (catastro + geología) y
-  // REINFO (verificado a mano por MineLink) — agregado julio 2026.
+  // REINFO (verificado a mano por Qorilink) — agregado julio 2026.
   const geocatmin = proyecto.geocatmin;
   const tieneCotejo =
     geocatmin?.concesion || geocatmin?.geologia || proyecto.reinfo_verificado_manual;
@@ -550,7 +551,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
       doc.setTextColor(...VERDE);
       doc.setFont("helvetica", "bold");
       doc.text(
-        `Código REINFO verificado por el equipo de MineLink${
+        `Código REINFO verificado por el equipo de ${MARCA}${
           proyecto.codigo_reinfo ? ` (${proyecto.codigo_reinfo})` : ""
         }`,
         MARGEN,
@@ -589,6 +590,6 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     pie(doc, proyecto, p, totalPaginas);
   }
 
-  const nombreArchivo = `MineLink-${proyecto.nombre_proyecto.replace(/[^a-z0-9]+/gi, "-")}.pdf`;
+  const nombreArchivo = `${MARCA}-${proyecto.nombre_proyecto.replace(/[^a-z0-9]+/gi, "-")}.pdf`;
   doc.save(nombreArchivo);
 }

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.minelink.app",
-  appName: "MineLink",
+  appName: "Qorilink",
   webDir: "dist",
   // El backend de producción (Render) tiene HTTPS real, así que se usa el
   // esquema https por defecto de Capacitor. Si algún día se prueba contra

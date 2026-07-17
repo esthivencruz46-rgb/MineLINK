@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
 import { Briefcase, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
@@ -59,7 +60,7 @@ export function Inicio() {
           to="/como-funciona"
           className="mt-2 inline-block text-sm font-semibold text-acento underline"
         >
-          ¿Cómo funciona MineLink?
+          ¿Cómo funciona {MARCA}?
         </Link>
       </div>
 

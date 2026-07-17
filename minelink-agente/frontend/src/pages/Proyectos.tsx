@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MARCA } from "../config/marca";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
@@ -239,7 +240,7 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           {p.ventas_verificadas ? (
             <span
               className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400"
-              title="Declaró ventas con liquidación y subió el respaldo (verificado por MineLink; el documento es privado)"
+              title={`Declaró ventas con liquidación y subió el respaldo (verificado por ${MARCA}; el documento es privado)`}
             >
               <BadgeCheck size={12} strokeWidth={2.5} aria-hidden />
               Ventas verificadas

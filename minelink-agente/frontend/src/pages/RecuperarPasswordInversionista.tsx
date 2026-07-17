@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { MARCA } from "../config/marca";
 import { RecuperarPasswordForm } from "../components/RecuperarPasswordForm";
 import { WHATSAPP_ADMIN, enlaceWhatsApp } from "../config/whatsapp";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
@@ -24,7 +25,7 @@ export function RecuperarPasswordInversionista() {
       <a
         href={enlaceWhatsApp(
           WHATSAPP_ADMIN,
-          "Hola MineLink 👋 No pude recuperar mi contraseña de inversionista. Mi usuario es: "
+          `Hola ${MARCA} 👋 No pude recuperar mi contraseña de inversionista. Mi usuario es: `
         )}
         target="_blank"
         rel="noopener noreferrer"

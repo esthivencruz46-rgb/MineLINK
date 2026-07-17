@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MARCA } from "../config/marca";
 import { Link, useParams } from "react-router-dom";
 import {
   AlertTriangle,
@@ -57,7 +58,7 @@ export function ProyectoDetalle() {
   async function compartir() {
     if (!proyecto) return;
     const url = window.location.href;
-    const texto = `Mira este proyecto minero en MineLink: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region})`;
+    const texto = `Mira este proyecto minero en ${MARCA}: ${proyecto.nombre_proyecto} (${proyecto.mineral}, ${proyecto.region})`;
     // En celular abre el menú nativo de compartir (WhatsApp, etc.);
     // en PC copia el enlace al portapapeles.
     if (navigator.share) {
@@ -577,7 +578,7 @@ export function ProyectoDetalle() {
               <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
                 Con respaldo
               </strong>{" "}
-              ya fueron revisados y confirmados por el equipo de MineLink. Los que no lo tienen
+              ya fueron revisados y confirmados por el equipo de {MARCA}. Los que no lo tienen
               igual se pueden ver, pero todavía no fueron revisados — revísalos con cuidado antes
               de confiar en ellos.
             </p>
@@ -832,14 +833,14 @@ export function ProyectoDetalle() {
               </div>
 
               {/* Verificación MANUAL del código REINFO por el equipo de
-                  MineLink — el cotejo automático de abajo está desactivado
+                  Qorilink — el cotejo automático de abajo está desactivado
                   (ver backend/reinfo.py), así que esta es la fuente real
                   hoy. */}
               {proyecto.reinfo_verificado_manual && (
                 <div className="mt-3 rounded-lg bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
                   <p className="flex items-center gap-1.5">
                     <BadgeCheck size={16} strokeWidth={2.25} aria-hidden />
-                    Código REINFO verificado por el equipo de MineLink
+                    Código REINFO verificado por el equipo de {MARCA}
                   </p>
                   {proyecto.codigo_reinfo && (
                     <p className="mt-1 text-xs font-normal">
@@ -1055,7 +1056,7 @@ export function ProyectoDetalle() {
                     )}
                     {proyecto.reinfo_verificado_manual && (
                       <>
-                        El código REINFO fue verificado a mano por el equipo de MineLink
+                        El código REINFO fue verificado a mano por el equipo de {MARCA}
                         {proyecto.reinfo_verificado_en
                           ? ` · ${new Date(proyecto.reinfo_verificado_en).toLocaleDateString("es-PE")}`
                           : ""}
