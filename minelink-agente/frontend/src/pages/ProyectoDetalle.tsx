@@ -337,13 +337,18 @@ export function ProyectoDetalle() {
             geocatmin={proyecto.geocatmin}
           />
         </div>
-        {(typeof proyecto.score_formalizacion === "number" ||
-          typeof proyecto.score_inversion === "number") && (
+        {(() => {
+          const hayScores =
+            typeof proyecto.score_formalizacion === "number" ||
+            typeof proyecto.score_inversion === "number";
+          return (
           <div className="flex flex-col gap-3 rounded-xl bg-tarjeta p-4 shadow-sm dark:bg-tarjeta-dark md:w-1/3">
-            <div className="flex flex-col gap-2 border-b border-black/5 pb-3 dark:border-white/10">
-              <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
-              <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
-            </div>
+            {hayScores && (
+              <div className="flex flex-col gap-2 border-b border-black/5 pb-3 dark:border-white/10">
+                <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
+                <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
+              </div>
+            )}
             <div>
               <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                 Track Legal
@@ -378,16 +383,113 @@ export function ProyectoDetalle() {
                 </p>
               )}
             </div>
+
+            {/* Señales verificadas + acciones (antes en el sidebar de más
+                abajo, quedaba un espacio en blanco acá) — pedido
+                explícito, julio 2026. El HECHO derivado de documentos
+                privados (liquidaciones, estados financieros, OPEX), nunca
+                el documento en sí. Un ✓ = archivo subido. */}
+            {proyecto.indicadores?.ventas_liquidacion_verificada ? (
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Ventas con liquidación
+                </p>
+                <p className="text-sm font-semibold text-emerald-500">
+                  ✓ Verificado — {proyecto.indicadores.ventas_liquidacion_docs} doc
+                  {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
+                  {proyecto.indicadores.ventas_liquidacion_ultima
+                    ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
+                    : ""}
+                </p>
+              </div>
+            ) : proyecto.vende_liquidacion != null ? (
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Producción con liquidación
+                </p>
+                <p className={`text-sm font-semibold ${proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}`}>
+                  {proyecto.vende_liquidacion
+                    ? "Declarada (sin respaldo aún)"
+                    : "Sin liquidación formal"}
+                </p>
+              </div>
+            ) : null}
+            {proyecto.indicadores?.contabilidad && (
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Finanzas
+                </p>
+                <p
+                  className={`text-sm font-semibold ${
+                    proyecto.indicadores.contabilidad_verificada ? "text-emerald-500" : ""
+                  }`}
+                >
+                  {proyecto.indicadores.contabilidad_verificada ? "✓ " : ""}
+                  {{
+                    auditados: "Estados financieros auditados",
+                    contabilidad_formal: "Contabilidad formal (contador)",
+                    registro_interno: "Registro interno ordenado",
+                  }[proyecto.indicadores.contabilidad] ?? proyecto.indicadores.contabilidad}
+                </p>
+              </div>
+            )}
+            {proyecto.indicadores?.opex_verificado && (
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Costos operativos
+                </p>
+                <p className="text-sm font-semibold text-emerald-500">
+                  ✓ Documentados
+                  {proyecto.indicadores.opex_costo_aprox
+                    ? ` · ~S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
+                    : ""}
+                </p>
+              </div>
+            )}
+            {proyecto.capital_buscado && (
+              <div>
+                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                  Busca
+                </p>
+                <p className="text-sm font-semibold">
+                  {formatearMonto(proyecto.capital_buscado)}
+                  {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
+                </p>
+              </div>
+            )}
+
+            <div className="mt-2 flex flex-col gap-2.5">
+              <button
+                onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
+                className="min-h-[44px] rounded-lg bg-acento font-semibold text-white transition duration-200 hover:opacity-90"
+              >
+                Me interesa este proyecto
+              </button>
+              <button
+                onClick={async () => {
+                  setGenerandoPdf(true);
+                  try {
+                    await generarPdfProyecto(proyecto);
+                  } finally {
+                    setGenerandoPdf(false);
+                  }
+                }}
+                disabled={generandoPdf}
+                className="min-h-[44px] rounded-lg border border-black/10 font-semibold transition duration-200 disabled:opacity-50 dark:border-white/10"
+              >
+                {generandoPdf ? "Generando PDF..." : "Descargar Información (PDF)"}
+              </button>
+            </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
-      {/* LAYOUT 2 COLUMNAS */}
-      <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-[7fr_3fr]">
-        {/* CONTENIDO PRINCIPAL — ordenado igual que las barras del panel
-            lateral: Formalización primero, luego las 5 dimensiones del
-            Score de Atractivo de Inversión, para que el orden de lectura
-            coincida con el orden del puntaje. */}
+      {/* CONTENIDO PRINCIPAL — el panel lateral (indicadores + botones)
+          subió al recuadro de puntuación junto al mapa (pedido explícito,
+          julio 2026), así que esto ya no necesita ser un grid de 2
+          columnas — todo el contenido va a ancho completo. */}
+      <div className="mt-8">
         <div className="flex flex-col gap-6">
           {/* RESUMEN EJECUTIVO */}
           <Card acento>
@@ -819,110 +921,6 @@ export function ProyectoDetalle() {
           {/* La ubicación ya no tiene tarjeta propia: vive en el mosaico
               superior (vista satelital) y el enlace a Google Maps sigue en
               el encabezado. */}
-        </div>
-
-        {/* SIDEBAR */}
-        <div className="h-fit md:sticky md:top-6">
-          <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark">
-            <div className="flex flex-col gap-4">
-              {/* Señales verificadas: el HECHO derivado de documentos
-                  privados (liquidaciones, estados financieros, OPEX) —
-                  nunca el documento en sí. Un ✓ = archivo subido. */}
-              {proyecto.indicadores?.ventas_liquidacion_verificada ? (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Ventas con liquidación
-                  </p>
-                  <p className="text-sm font-semibold text-emerald-500">
-                    ✓ Verificado — {proyecto.indicadores.ventas_liquidacion_docs} doc
-                    {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
-                    {proyecto.indicadores.ventas_liquidacion_ultima
-                      ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
-                      : ""}
-                  </p>
-                </div>
-              ) : proyecto.vende_liquidacion != null ? (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Producción con liquidación
-                  </p>
-                  <p className={`text-sm font-semibold ${proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}`}>
-                    {proyecto.vende_liquidacion
-                      ? "Declarada (sin respaldo aún)"
-                      : "Sin liquidación formal"}
-                  </p>
-                </div>
-              ) : null}
-              {proyecto.indicadores?.contabilidad && (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Finanzas
-                  </p>
-                  <p
-                    className={`text-sm font-semibold ${
-                      proyecto.indicadores.contabilidad_verificada
-                        ? "text-emerald-500"
-                        : ""
-                    }`}
-                  >
-                    {proyecto.indicadores.contabilidad_verificada ? "✓ " : ""}
-                    {{
-                      auditados: "Estados financieros auditados",
-                      contabilidad_formal: "Contabilidad formal (contador)",
-                      registro_interno: "Registro interno ordenado",
-                    }[proyecto.indicadores.contabilidad] ?? proyecto.indicadores.contabilidad}
-                  </p>
-                </div>
-              )}
-              {proyecto.indicadores?.opex_verificado && (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Costos operativos
-                  </p>
-                  <p className="text-sm font-semibold text-emerald-500">
-                    ✓ Documentados
-                    {proyecto.indicadores.opex_costo_aprox
-                      ? ` · ~S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
-                      : ""}
-                  </p>
-                </div>
-              )}
-              {proyecto.capital_buscado && (
-                <div>
-                  <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                    Busca
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {formatearMonto(proyecto.capital_buscado)}
-                    {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-2 flex flex-col gap-2.5">
-              <button
-                onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
-                className="min-h-[44px] rounded-lg bg-acento font-semibold text-white transition duration-200 hover:opacity-90"
-              >
-                Me interesa este proyecto
-              </button>
-              <button
-                onClick={async () => {
-                  setGenerandoPdf(true);
-                  try {
-                    await generarPdfProyecto(proyecto);
-                  } finally {
-                    setGenerandoPdf(false);
-                  }
-                }}
-                disabled={generandoPdf}
-                className="min-h-[44px] rounded-lg border border-black/10 font-semibold transition duration-200 disabled:opacity-50 dark:border-white/10"
-              >
-                {generandoPdf ? "Generando PDF..." : "Descargar Información (PDF)"}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
 
