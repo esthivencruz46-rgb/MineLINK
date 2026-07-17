@@ -122,6 +122,10 @@ export interface MineroPerfil {
   inversion_ofrecida: boolean;
   inversion_prioridad?: string | null;
   inv_enviado: boolean;
+  // Preguntas del Módulo INV agregadas al catálogo DESPUÉS de que este
+  // minero ya había enviado (ej. INV_C0 "mapeo geológico") — se completan
+  // con POST /mineros/inversion/completar sin rehacer todo el cuestionario.
+  inv_preguntas_pendientes: string[];
   // Documentos de sustento de inversión (liquidaciones de venta, etc.) —
   // se muestran en la cuenta igual que "Respalda tu declaración".
   categorias_requeridas_inversion: { categoria: string; etiqueta: string; aprobado: boolean }[];

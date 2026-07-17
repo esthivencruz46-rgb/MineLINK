@@ -178,6 +178,30 @@ def activacion_inversion(perfil: str, respuestas_diagnostico: dict) -> dict:
     return {"ofrece": False, "prioridad": None, "motivo": "Tu perfil no tiene módulo de inversión."}
 
 
+def _validar_valor(id_pregunta: str, valor) -> None:
+    """Valida un solo valor contra su tipo/regla en PREGUNTAS_INV. Levanta
+    ValueError si no es válido. Compartido por validar_respuestas_inversion
+    (envío completo) y validar_respuestas_inversion_parcial (respuestas
+    tardías a preguntas nuevas del catálogo, ver preguntas_pendientes_inversion)."""
+    tipo, regla = PREGUNTAS_INV[id_pregunta]
+    if tipo == "opcion":
+        if valor not in regla:
+            raise ValueError(f"{id_pregunta}: valor inválido")
+    elif tipo == "multi_opcion":
+        valores_validos, maximo = regla
+        if not isinstance(valor, list) or not valor:
+            raise ValueError(f"{id_pregunta}: debes elegir al menos una opción")
+        if not set(valor) <= set(valores_validos):
+            raise ValueError(f"{id_pregunta}: valor inválido")
+        if maximo is not None and len(valor) > maximo:
+            raise ValueError(f"{id_pregunta}: máximo {maximo} opciones")
+    elif tipo == "texto_corto":
+        if not isinstance(valor, str) or not valor.strip():
+            raise ValueError(f"{id_pregunta}: no puede estar vacío")
+        if len(valor) > regla:
+            raise ValueError(f"{id_pregunta}: máximo {regla} caracteres")
+
+
 def validar_respuestas_inversion(
     perfil: str, respuestas_diagnostico: dict, respuestas_inv: dict
 ) -> None:
@@ -201,23 +225,52 @@ def validar_respuestas_inversion(
         raise ValueError("Respuestas incompletas o inválidas — " + "; ".join(detalle))
 
     for id_pregunta, valor in respuestas_inv.items():
-        tipo, regla = PREGUNTAS_INV[id_pregunta]
-        if tipo == "opcion":
-            if valor not in regla:
-                raise ValueError(f"{id_pregunta}: valor inválido")
-        elif tipo == "multi_opcion":
-            valores_validos, maximo = regla
-            if not isinstance(valor, list) or not valor:
-                raise ValueError(f"{id_pregunta}: debes elegir al menos una opción")
-            if not set(valor) <= set(valores_validos):
-                raise ValueError(f"{id_pregunta}: valor inválido")
-            if maximo is not None and len(valor) > maximo:
-                raise ValueError(f"{id_pregunta}: máximo {maximo} opciones")
-        elif tipo == "texto_corto":
-            if not isinstance(valor, str) or not valor.strip():
-                raise ValueError(f"{id_pregunta}: no puede estar vacío")
-            if len(valor) > regla:
-                raise ValueError(f"{id_pregunta}: máximo {regla} caracteres")
+        _validar_valor(id_pregunta, valor)
+
+
+def preguntas_pendientes_inversion(
+    perfil: str, respuestas_diagnostico: dict, respuestas_inv: dict
+) -> list[str]:
+    """Preguntas del catálogo ACTUAL que el minero nunca respondió — pasa
+    cuando el catálogo crece (ej. INV_C0 "mapeo geológico" agregado en
+    julio 2026 al bloque de perfil C) después de que ya había enviado su
+    Módulo INV (`inv_enviado_en` ya seteado, ver routers/mineros.py). Antes
+    esas preguntas nuevas quedaban invisibles para siempre: ni aparecían
+    como "te falta" ni se podían responder, porque `inv_enviado` ya estaba
+    en True y el wizard completo no se vuelve a mostrar. Se completan
+    aparte (ver validar_respuestas_inversion_parcial), sin rehacer todo el
+    cuestionario."""
+    respuestas_inv = respuestas_inv or {}
+    if not respuestas_inv:
+        return []  # nunca envió nada — el wizard completo ya lo cubre
+    activacion = activacion_inversion(perfil, respuestas_diagnostico)
+    if not activacion["ofrece"]:
+        return []
+    esperados = ids_esperados_inversion(perfil, respuestas_inv)
+    return sorted(esperados - set(respuestas_inv.keys()))
+
+
+def validar_respuestas_inversion_parcial(
+    perfil: str,
+    respuestas_diagnostico: dict,
+    respuestas_inv_actuales: dict,
+    respuestas_nuevas: dict,
+) -> None:
+    """Valida un envío PARCIAL para completar preguntas_pendientes_inversion
+    — cada id de respuestas_nuevas debe estar entre las pendientes reales
+    (no se puede colar una respuesta a algo ya respondido ni a un id que
+    no existe), y cada valor debe ser válido para su tipo."""
+    pendientes = set(
+        preguntas_pendientes_inversion(perfil, respuestas_diagnostico, respuestas_inv_actuales)
+    )
+    recibidos = set(respuestas_nuevas.keys())
+    if not recibidos:
+        raise ValueError("No enviaste ninguna respuesta.")
+    si_sobran = recibidos - pendientes
+    if si_sobran:
+        raise ValueError(f"Estas preguntas no están pendientes: {sorted(si_sobran)}")
+    for id_pregunta, valor in respuestas_nuevas.items():
+        _validar_valor(id_pregunta, valor)
 
 
 def categorias_requeridas_inversion(perfil: str, respuestas_inv: dict) -> list[str]:

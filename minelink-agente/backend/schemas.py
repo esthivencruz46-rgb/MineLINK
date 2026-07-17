@@ -421,6 +421,15 @@ class EnviarInversionRequest(BaseModel):
     respuestas: dict[str, str | list[str]]
 
 
+class CompletarInversionRequest(BaseModel):
+    """Body de POST /mineros/inversion/completar — respuestas a preguntas
+    del Módulo INV agregadas al catálogo DESPUÉS de que el minero ya había
+    enviado (ver catalogo_inversion.preguntas_pendientes_inversion). Solo
+    los ids realmente pendientes, no el cuestionario completo."""
+
+    respuestas: dict[str, str | list[str]]
+
+
 class CategoriaRequeridaOut(BaseModel):
     categoria: str
     etiqueta: str
@@ -628,6 +637,11 @@ class MineroPerfilOut(BaseModel):
     inversion_ofrecida: bool = False
     inversion_prioridad: Optional[str] = None
     inv_enviado: bool = False
+    # Preguntas del catálogo ACTUAL que el minero nunca respondió porque se
+    # agregaron DESPUÉS de que ya había enviado su Módulo INV (ej. INV_C0
+    # "mapeo geológico", agregado julio 2026 a perfil C) — se completan con
+    # POST /mineros/inversion/completar sin rehacer todo el cuestionario.
+    inv_preguntas_pendientes: list[str] = []
     # Documentos de sustento del Módulo INV (liquidaciones de venta, etc.)
     # — para que la cuenta los muestre igual que "Respalda tu declaración"
     # de formalización, no solo dentro del wizard de /mi-inversion.

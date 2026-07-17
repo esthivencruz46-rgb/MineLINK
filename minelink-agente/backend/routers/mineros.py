@@ -26,8 +26,10 @@ from catalogo_inversion import (
     brechas_inversion,
     brechas_inversion_en_proceso,
     categorias_requeridas_inversion,
+    preguntas_pendientes_inversion,
     respaldos_declarados_inversion,
     validar_respuestas_inversion,
+    validar_respuestas_inversion_parcial,
 )
 from security import (
     contenido_coincide_con_tipo,
@@ -188,6 +190,11 @@ def _perfil_out(
         inversion_ofrecida=_activacion_inversion_de(operacion)["ofrece"],
         inversion_prioridad=_activacion_inversion_de(operacion)["prioridad"],
         inv_enviado=operacion.inv_enviado_en is not None,
+        inv_preguntas_pendientes=preguntas_pendientes_inversion(
+            operacion.estado_formalizacion,
+            operacion.respuestas_json or {},
+            operacion.inv_respuestas_json or {},
+        ),
         categorias_requeridas_inversion=categorias_requeridas_out(
             operacion,
             categorias_requeridas_inversion(
@@ -587,6 +594,44 @@ def enviar_inversion(
             categorias_requeridas_inversion(perfil, operacion.inv_respuestas_json),
         ),
     )
+
+
+@router.post("/inversion/completar", response_model=schemas.MineroPerfilOut)
+def completar_inversion(
+    payload: schemas.CompletarInversionRequest,
+    db: Session = Depends(get_db),
+    lead_id: int = Depends(get_current_lead_id),
+):
+    """Responde preguntas del Módulo INV que se agregaron al catálogo
+    DESPUÉS de que el minero ya había enviado (`inv_enviado_en` seteado) —
+    ver catalogo_inversion.preguntas_pendientes_inversion. Antes esas
+    preguntas nuevas quedaban invisibles para siempre (reportado por
+    Esthiven: un minero con Módulo INV ya enviado no tenía forma de ver ni
+    responder la pregunta de "mapeo geológico" agregada más tarde a perfil
+    C). Se FUSIONA en inv_respuestas_json (no sobreescribe lo ya
+    respondido) y no toca inv_enviado_en — no es un reenvío completo."""
+    lead, operacion = _operacion_del_lead(db, lead_id)
+    if operacion.inv_enviado_en is None:
+        raise HTTPException(
+            422, "Todavía no enviaste el Módulo INV — usa el cuestionario completo primero."
+        )
+    perfil = operacion.estado_formalizacion
+    respuestas_actuales = operacion.inv_respuestas_json or {}
+
+    try:
+        validar_respuestas_inversion_parcial(
+            perfil,
+            respuestas_diagnostico_efectivas(operacion),
+            respuestas_actuales,
+            payload.respuestas,
+        )
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+    operacion.inv_respuestas_json = {**respuestas_actuales, **payload.respuestas}
+    db.commit()
+    db.refresh(operacion)
+    return _perfil_out(db, lead, operacion)
 
 
 @router.post(

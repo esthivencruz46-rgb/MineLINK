@@ -1742,6 +1742,73 @@ def test_admin_marca_y_desmarca_reinfo_verificado_manual():
     assert resp.json()["reinfo_verificado_en"] is None
 
 
+def test_mineros_completa_pregunta_inv_agregada_despues_del_envio():
+    # Reproduce el caso real reportado (perfil C, "Minera Santa Luisa"):
+    # su Módulo INV se envió ANTES de que INV_C0 (mapeo geológico) existiera
+    # en el catálogo. Antes de este fix, esa pregunta quedaba invisible
+    # para siempre — ni aparecía en "lo que te falta" ni había forma de
+    # responderla, porque inv_enviado ya era True y el wizard completo no
+    # se vuelve a mostrar.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="pendienteinv1"))
+    _hacer_apto_inversionistas(diag["id"], "pendienteinv1")
+
+    # Simula el envío "viejo" (sin INV_C0) escribiendo directo a la BD —
+    # como si el minero hubiera enviado antes de julio 2026.
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    respuestas_sin_c0 = dict(operacion.inv_respuestas_json)
+    del respuestas_sin_c0["INV_C0"]
+    operacion.inv_respuestas_json = respuestas_sin_c0
+    db.commit()
+    db.close()
+
+    token = client.post(
+        "/mineros/login", json={"username": "pendienteinv1", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    me = client.get("/mineros/me", headers=headers).json()
+    assert me["inv_enviado"] is True
+    assert me["inv_preguntas_pendientes"] == ["INV_C0"]
+
+    # Responderla con un id que NO está pendiente → 422.
+    resp = client.post(
+        "/mineros/inversion/completar",
+        headers=headers,
+        json={"respuestas": {"INV_C1": "planta_formal"}},
+    )
+    assert resp.status_code == 422
+
+    # Responderla de verdad.
+    resp = client.post(
+        "/mineros/inversion/completar",
+        headers=headers,
+        json={"respuestas": {"INV_C0": "en_proceso"}},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["inv_preguntas_pendientes"] == []
+
+    me = client.get("/mineros/me", headers=headers).json()
+    assert me["inv_preguntas_pendientes"] == []
+    # El resto de las respuestas viejas se conservó (fusión, no reemplazo).
+    assert me["datos_formalizacion"] is not None  # smoke: la cuenta sigue íntegra
+
+
+def test_mineros_completar_inversion_requiere_haber_enviado_antes():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="pendienteinv2"))
+    token = client.post(
+        "/mineros/login", json={"username": "pendienteinv2", "password": "clave123"}
+    ).json()["access_token"]
+    resp = client.post(
+        "/mineros/inversion/completar",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"respuestas": {"INV_C0": "tengo"}},
+    )
+    assert resp.status_code == 422
+
+
 def test_admin_reinfo_verificado_requiere_jwt():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="reinfomanual2"))

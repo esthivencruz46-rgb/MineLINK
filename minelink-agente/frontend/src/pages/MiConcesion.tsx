@@ -7,6 +7,7 @@ import { CuestionarioInversionInline } from "../components/CuestionarioInversion
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
 import { DocumentosMinero } from "../components/DocumentosMinero";
 import { ResumenInversionRespuestas } from "../components/ResumenInversionRespuestas";
+import { PreguntasInversionPendientes } from "../components/PreguntasInversionPendientes";
 import { NotificacionesBell } from "../components/NotificacionesBell";
 import { PasosFormalizacionInversion } from "../components/PasosFormalizacionInversion";
 import { PerfilInversionForm } from "../components/PerfilInversionForm";
@@ -270,6 +271,9 @@ export function MiConcesion() {
               }}
               onCerrar={() => setMostrarInversion(false)}
             />
+          )}
+          {perfil.inv_enviado && (
+            <PreguntasInversionPendientes perfil={perfil} onGuardado={setPerfil} />
           )}
           {perfil.inv_enviado && (
             <ResumenInversionRespuestas
