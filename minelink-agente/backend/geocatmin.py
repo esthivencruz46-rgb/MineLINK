@@ -236,3 +236,111 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
         pass
 
     return resultado
+
+
+_ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+_ANCHO_MAPA = 1200
+_ALTO_MAPA = 700
+
+
+def _bbox_de(coords: str, poligono: Optional[list]) -> tuple[float, float, float, float]:
+    """xmin, ymin, xmax, ymax en grados — encuadra la concesión completa
+    (con margen, igual que fitBounds().pad(0.15) del mapa interactivo) si
+    hay polígono; si no, una caja fija de ~1.6km alrededor del pin (mismo
+    encuadre aproximado que el zoom=14 por defecto del mapa web)."""
+    lat, lng = (float(p.strip()) for p in coords.split(","))
+    if poligono:
+        anillo = poligono[0]
+        lngs = [p[0] for p in anillo]
+        lats = [p[1] for p in anillo]
+        xmin, xmax = min(lngs), max(lngs)
+        ymin, ymax = min(lats), max(lats)
+        padx = (xmax - xmin) * 0.15 or 0.01
+        pady = (ymax - ymin) * 0.15 or 0.01
+        return xmin - padx, ymin - pady, xmax + padx, ymax + pady
+    return lng - 0.008, lat - 0.008, lng + 0.008, lat + 0.008
+
+
+def _exportar_capa(url: str, bbox: tuple, layers: Optional[str] = None) -> Optional["Image.Image"]:
+    """Pide una imagen estática a un MapServer de ArcGIS (export) para el
+    bbox dado — mismo mecanismo que usan los tiles del mapa interactivo,
+    pero server-side (sin problema de CORS: acá no aplica, es una llamada
+    HTTP normal, no un <img> de navegador)."""
+    from PIL import Image
+    from io import BytesIO
+
+    params = {
+        "bbox": ",".join(str(v) for v in bbox),
+        "bboxSR": 4326,
+        "imageSR": 4326,
+        "size": f"{_ANCHO_MAPA},{_ALTO_MAPA}",
+        "format": "png32",
+        "transparent": "true",
+        "f": "image",
+    }
+    if layers:
+        params["layers"] = layers
+    r = requests.get(f"{url}/export", params=params, timeout=_TIMEOUT)
+    r.raise_for_status()
+    return Image.open(BytesIO(r.content)).convert("RGBA")
+
+
+def imagen_mapa_cotejo(coords: Optional[str], poligono: Optional[list]) -> Optional[bytes]:
+    """Compone satélite (Esri) + catastro minero + geología 100K + el pin
+    de la operación en una sola imagen JPEG — usada como portada del PDF
+    (pedido explícito de Esthiven: "la imagen inicial debe ser la de
+    ubicación con catastro y mapa geológico", julio 2026). Best-effort: si
+    cualquier capa falla, devuelve None y el caller usa la foto normal del
+    minero como portada en su lugar — nunca rompe la descarga del PDF."""
+    if _DESACTIVADO or not coords:
+        return None
+    from PIL import Image, ImageDraw
+    from io import BytesIO
+
+    try:
+        bbox = _bbox_de(coords, poligono)
+        base = _exportar_capa(_ESRI_IMAGERY, bbox)
+        if base is None:
+            return None
+        try:
+            geologia = _exportar_capa(
+                f"{_BASE}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer", bbox, "show:6"
+            )
+            if geologia is not None:
+                r, g, b, a = geologia.split()
+                # 40% de opacidad — un poco más marcada que el 25% en
+                # reposo del mapa web, porque acá no hay hover para subirla.
+                a = a.point(lambda p: int(p * 0.4))
+                geologia.putalpha(a)
+                base.alpha_composite(geologia)
+        except requests.RequestException:
+            pass
+        try:
+            catastro = _exportar_capa(
+                f"{_BASE}/SERV_CATASTRO_MINERO_WGS84/MapServer", bbox, "show:0"
+            )
+            if catastro is not None:
+                base.alpha_composite(catastro)
+        except requests.RequestException:
+            pass
+
+        # Pin de la operación — interpolación lineal simple (bboxSR e
+        # imageSR son ambos 4326, sin proyección de por medio).
+        lat, lng = (float(p.strip()) for p in coords.split(","))
+        xmin, ymin, xmax, ymax = bbox
+        px = int((lng - xmin) / (xmax - xmin) * _ANCHO_MAPA)
+        py = int((ymax - lat) / (ymax - ymin) * _ALTO_MAPA)
+        dibujo = ImageDraw.Draw(base)
+        radio = 9
+        dibujo.ellipse(
+            [px - radio, py - radio, px + radio, py + radio],
+            fill=(225, 29, 72, 255),
+            outline=(255, 255, 255, 255),
+            width=3,
+        )
+
+        salida = BytesIO()
+        base.convert("RGB").save(salida, format="JPEG", quality=87)
+        return salida.getvalue()
+    except (requests.RequestException, OSError, ValueError):
+        return None

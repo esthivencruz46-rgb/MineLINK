@@ -256,11 +256,17 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     (e) => !aplicables.has(e) && (proyecto.documentos_estudios[e]?.length ?? 0) > 0
   );
 
-  // Descargas en paralelo: portada + galería + miniaturas del checklist +
-  // miniaturas de documentos de inversión — todo antes de dibujar, para no
-  // ir armando el PDF a pedazos mientras llegan las fotos.
+  // Descargas en paralelo: mapa de portada + fotos + miniaturas del
+  // checklist + miniaturas de documentos de inversión — todo antes de
+  // dibujar, para no ir armando el PDF a pedazos mientras llegan las fotos.
   const urlsFotos = proyecto.fotos.slice(0, 5).map((f) => f.url);
-  const [fotos, miniaturasChecklist, miniaturasInversion] = await Promise.all([
+  const [mapaPortada, fotos, miniaturasChecklist, miniaturasInversion] = await Promise.all([
+    // Portada (pedido explícito, julio 2026): en vez de una foto cualquiera
+    // del minero, la imagen inicial es el mapa de ubicación con catastro y
+    // geología — se genera server-side (ver geocatmin.imagen_mapa_cotejo).
+    // Si no hay pin declarado, mapa_cotejo_url viene null y se cae de
+    // vuelta a la primera foto de la galería como antes.
+    proyecto.mapa_cotejo_url ? cargarFoto(proyecto.mapa_cotejo_url) : Promise.resolve(null),
     Promise.all(urlsFotos.map(cargarFoto)),
     cargarPrimeraFotoPorCodigo(
       Object.fromEntries(
@@ -273,8 +279,10 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     }),
   ]);
   const fotosOk = fotos.filter((f): f is Foto => f !== null);
-  const portada = fotosOk[0] ?? null;
-  const galeria = fotosOk.slice(1, 5);
+  const portada = mapaPortada ?? fotosOk[0] ?? null;
+  // Si el mapa se usó de portada, ninguna foto de la galería se "gasta" en
+  // eso — todas quedan disponibles para la sección de galería.
+  const galeria = mapaPortada ? fotosOk.slice(0, 4) : fotosOk.slice(1, 5);
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = 22;

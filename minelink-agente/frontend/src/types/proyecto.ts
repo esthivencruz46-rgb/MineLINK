@@ -150,6 +150,9 @@ export interface ProyectoDetalle extends ProyectoPublico {
   respuestas_inversion_publicas?: Record<string, string | string[]>;
   // Concesión del catastro minero + geología del punto (GEOCATMIN).
   geocatmin?: GeocatminInfo | null;
+  // Imagen compuesta (satélite + catastro + geología + pin) que el PDF usa
+  // como portada — null si no hay pin declarado.
+  mapa_cotejo_url?: string | null;
   // Cotejo del código REINFO contra el padrón del MINEM.
   reinfo?: ReinfoVerificado | null;
   // Verificación MANUAL del código REINFO por Esthiven — el cotejo

@@ -806,6 +806,10 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # geologia|None} — ver geocatmin.consultar (v3 añade restricciones y
     # anp). None = sin pin o sin consulta exitosa todavía.
     geocatmin: Optional[dict] = None
+    # URL de la imagen compuesta (satélite + catastro + geología + pin) que
+    # el PDF usa como portada — None si no hay pin declarado (el generador
+    # del PDF cae de vuelta a una foto normal del minero en ese caso).
+    mapa_cotejo_url: Optional[str] = None
     # Verificación del código REINFO contra el padrón oficial del MINEM:
     # {codigo, consultado_en, estado VIGENTE/SUSPENDIDO/no_encontrado,
     # declarante, derecho, distrito} — ver reinfo.consultar_reinfo. None =

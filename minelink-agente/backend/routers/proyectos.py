@@ -609,6 +609,9 @@ def detalle_proyecto(
             if k in IDS_INV_PUBLICOS
         },
         geocatmin=_geocatmin_desde_cache(operacion, lead.ubicacion_coords),
+        mapa_cotejo_url=(
+            f"/proyectos/{operacion_id}/mapa-cotejo.jpg" if lead.ubicacion_coords else None
+        ),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
         reinfo_verificado_manual=operacion.reinfo_verificado_manual,
         reinfo_verificado_en=operacion.reinfo_verificado_en,
@@ -737,6 +740,29 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
     return Response(content=contenido, media_type=documento.content_type)
+
+
+@router.get("/{operacion_id}/mapa-cotejo.jpg")
+def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
+    """Imagen estática (satélite + catastro minero + geología 100K + pin)
+    para usar como portada del PDF de inversión (pedido explícito de
+    Esthiven, julio 2026: "la imagen inicial debe ser la de ubicación con
+    catastro y mapa geológico"). Se genera al vuelo en cada pedido — no se
+    cachea en disco, el pin casi no cambia y esto se pide solo al
+    descargar un PDF, no en cada carga de la ficha. Best-effort: 404 si no
+    hay coordenadas o si INGEMMET/Esri no responden (el PDF cae de vuelta
+    a la foto normal del minero como portada)."""
+    lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    poligono = (
+        (operacion.datos_formalizacion_json or {})
+        .get("_geocatmin", {})
+        .get("concesion", {})
+        .get("poligono")
+    )
+    imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono)
+    if imagen is None:
+        raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
+    return Response(content=imagen, media_type="image/jpeg")
 
 
 @router.get("/{operacion_id}/documentos/{documento_id}")
