@@ -360,6 +360,13 @@ export function AdminLeads() {
     if (!aprobado) {
       motivo = window.prompt("¿Por qué se rechaza este documento?");
       if (motivo === null) return; // canceló el prompt
+      // El backend exige un motivo no vacío al rechazar (el minero lo
+      // recibe como notificación) — sin este guard, aceptar el prompt en
+      // blanco daba un 422 que se tragaba en silencio.
+      if (!motivo.trim()) {
+        window.alert("Escribe el motivo del rechazo — el minero lo va a ver en su cuenta.");
+        return;
+      }
     }
     const resp = await authFetch(`/admin/documentos/${doc.id}/revision`, {
       method: "PUT",

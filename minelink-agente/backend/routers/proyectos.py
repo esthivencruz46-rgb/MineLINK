@@ -753,12 +753,12 @@ def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     hay coordenadas o si INGEMMET/Esri no responden (el PDF cae de vuelta
     a la foto normal del minero como portada)."""
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
-    poligono = (
-        (operacion.datos_formalizacion_json or {})
-        .get("_geocatmin", {})
-        .get("concesion", {})
-        .get("poligono")
-    )
+    # `or {}` en cada eslabón (no solo default de .get): el caché guarda
+    # "concesion": None cuando el pin no cae en ninguna concesión — el
+    # default de .get solo aplica si la CLAVE falta, no si vale None, y
+    # None.get() reventaba con 500 justo en el caso más común.
+    cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
+    poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")
     imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono)
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")

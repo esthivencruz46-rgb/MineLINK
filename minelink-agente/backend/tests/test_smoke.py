@@ -1643,6 +1643,31 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
     assert respaldos["estimacion_recursos"]["pregunta_id"] == ""
 
 
+def test_mapa_cotejo_no_revienta_si_el_pin_no_cae_en_concesion():
+    # Regresión (julio 2026): el caché guarda "concesion": None cuando el
+    # pin no cae en ninguna concesión — el default de .get() solo aplica si
+    # la CLAVE falta, no si vale None, así que None.get("poligono")
+    # devolvía 500 en el caso más común. Debe ser 404 limpio (GEOCATMIN
+    # está desactivado en tests, no hay imagen que generar), nunca 500.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="mapacotejo1"))
+    _hacer_apto_inversionistas(diag["id"], "mapacotejo1")
+
+    db = TestingSessionLocal()
+    lead_db = db.query(models.Lead).filter(models.Lead.username == "mapacotejo1").first()
+    lead_db.ubicacion_coords = "-12.5,-76.7"
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_geocatmin": {"v": 5, "coords": "-12.5,-76.7", "concesion": None, "geologia": None},
+    }
+    db.commit()
+    db.close()
+
+    resp = client.get(f"/proyectos/{diag['id']}/mapa-cotejo.jpg")
+    assert resp.status_code == 404  # sin red en tests — pero JAMÁS 500
+
+
 def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     # Regresión (julio 2026, reportado como "se demora un montón" al abrir
     # un proyecto): antes GEOCATMIN/REINFO se consultaban EN VIVO dentro de

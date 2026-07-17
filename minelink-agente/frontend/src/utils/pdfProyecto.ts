@@ -501,7 +501,16 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     for (const codigo of codigosInversion) {
       const foto = miniaturasInversion.get(codigo);
       const etiqueta = ETIQUETA_DOC_INVERSION[codigo] ?? INFO_BRECHA[codigo]?.texto ?? codigo;
-      y = filaChecklist(doc, y, etiqueta, foto ? "aprobado" : "sin_revisar", foto);
+      // "Con respaldo" SOLO si Esthiven aprobó el documento (flag
+      // `aprobado` de FotoPublica) — mismo criterio que la ficha web;
+      // que la foto exista no basta (julio 2026, misma regla que el
+      // checklist de formalización).
+      const fotosDelCodigo =
+        codigo === "certificado_ley" && proyecto.documentos_inversion?.certificado_ley
+          ? proyecto.documentos_inversion.certificado_ley
+          : proyecto.documentos_estudios[codigo] ?? [];
+      const aprobado = fotosDelCodigo.some((f) => f.aprobado);
+      y = filaChecklist(doc, y, etiqueta, aprobado ? "aprobado" : "sin_revisar", foto);
     }
     y += 3;
   }
@@ -555,7 +564,11 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
 
   // Galería
   if (galeria.length > 0) {
-    y = asegurarEspacio(doc, y, 46);
+    // Espacio para la galería COMPLETA (título + todas las filas), no solo
+    // la primera — si no, con 3-4 fotos la segunda fila pisaba el pie de
+    // página en vez de saltar a una página nueva.
+    const filasGaleria = Math.ceil(galeria.length / 2);
+    y = asegurarEspacio(doc, y, 10 + filasGaleria * 46);
     y = tituloSeccion(doc, y, "Galería de la operación");
     const anchoFoto = (ANCHO_UTIL - 4) / 2;
     const altoFoto = 42;
