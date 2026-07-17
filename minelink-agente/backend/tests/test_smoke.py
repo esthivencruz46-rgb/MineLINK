@@ -1942,16 +1942,35 @@ def test_detalle_publico_indicadores_verificados_sin_exponer_documentos():
         data={"categoria": "liquidaciones_venta"},
         files={"archivo": ("liq.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
     ).json()
-    client.post(
+    doc_opex = client.post(
         "/mineros/documentos",
         headers={"Authorization": f"Bearer {token}"},
         data={"categoria": "registro_opex"},
         files={"archivo": ("opex.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
-    )
+    ).json()
     client.put(
         "/mineros/perfil-inversion",
         headers={"Authorization": f"Bearer {token}"},
         json={"datos_formalizacion": {"registro_opex": "120", "fotos_trabajadores": "8"}},
+    )
+
+    # julio 2026 (pedido explícito): "verificado" ahora exige que Esthiven
+    # apruebe el documento — antes de aprobar, el indicador NO debe marcar
+    # verificado aunque el archivo ya esté subido.
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["indicadores"]["ventas_liquidacion_verificada"] is False
+    assert detalle["indicadores"]["opex_verificado"] is False
+
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
+    )
+    client.put(
+        f"/admin/documentos/{doc_opex['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
     )
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
@@ -2328,6 +2347,20 @@ def test_proyectos_regla_de_bloqueo_oculta_rojos_y_perfil_a():
         headers={"Authorization": f"Bearer {token_credencial}"},
         data={"categoria": "titulo_concesion"},
         files={"archivo": ("titulo.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+
+    # julio 2026 (pedido explícito): "ventas_verificadas" ahora exige que
+    # Esthiven apruebe la liquidación subida por _hacer_apto_inversionistas
+    # — antes bastaba con que existiera el archivo.
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    docs_ok = client.get(
+        f"/admin/operaciones/{diag_ok['id']}/documentos", headers=admin_headers
+    ).json()
+    liquidacion = next(d for d in docs_ok if d["categoria"] == "liquidaciones_venta")
+    client.put(
+        f"/admin/documentos/{liquidacion['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
     )
 
     proyectos = client.get("/proyectos").json()
@@ -3498,17 +3531,30 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
         headers=admin_headers,
     )
 
-    # Subir la foto de respaldo la AUTO-RESUELVE (julio 2026) y, como la
-    # evidencia está presente, queda verificada de inmediato.
-    client.post(
+    # Subir la foto de respaldo la AUTO-RESUELVE (julio 2026) — deja de ser
+    # brecha pendiente — pero "verificada" (sello público "Con respaldo")
+    # ahora exige ADEMÁS que Esthiven la apruebe (pedido explícito,
+    # julio 2026): antes de aprobar, sigue sin contar como verificada.
+    doc = client.post(
         "/mineros/documentos",
         headers=headers,
         data={"categoria": primera_brecha},
         files={"archivo": ("foto.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    detalle_sin_aprobar = client.get(f"/proyectos/{diag['id']}").json()
+    assert primera_brecha not in detalle_sin_aprobar["brechas_verificadas"]
+    assert len(detalle_sin_aprobar["documentos_estudios"].get(primera_brecha, [])) == 1
+    assert detalle_sin_aprobar["documentos_estudios"][primera_brecha][0]["aprobado"] is False
+
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
     )
     detalle_con_foto = client.get(f"/proyectos/{diag['id']}").json()
     assert primera_brecha in detalle_con_foto["brechas_verificadas"]
     assert len(detalle_con_foto["documentos_estudios"].get(primera_brecha, [])) == 1
+    assert detalle_con_foto["documentos_estudios"][primera_brecha][0]["aprobado"] is True
 
 
 def test_proyectos_check_publico_acepta_categoria_equivalente():
@@ -3550,11 +3596,17 @@ def test_proyectos_check_publico_acepta_categoria_equivalente():
         json={"brechas_resueltas": [primera_brecha]},
         headers=admin_headers,
     )
-    client.post(
+    doc = client.post(
         "/mineros/documentos",
         headers=headers,
         data={"categoria": primera_brecha},
         files={"archivo": (f"{primera_brecha}.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    ).json()
+    # "Con respaldo" exige aprobación de Esthiven (julio 2026).
+    client.put(
+        f"/admin/documentos/{doc['id']}/revision",
+        json={"estado_revision": "aprobado"},
+        headers=admin_headers,
     )
 
     detalle_final = client.get(f"/proyectos/{diag['id']}").json()

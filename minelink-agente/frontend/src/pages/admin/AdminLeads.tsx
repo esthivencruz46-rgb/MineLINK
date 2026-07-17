@@ -350,6 +350,30 @@ export function AdminLeads() {
       .finally(() => setCargandoDocs(false));
   }
 
+  // Reactivado julio 2026 (pedido explícito): "Con respaldo" en la ficha
+  // pública ahora exige que Esthiven apruebe el documento — antes bastaba
+  // con que el minero subiera cualquier foto, y eso se entendía como "ya
+  // fue verificado" cuando nadie lo revisaba. El archivo sigue siendo
+  // visible al inversionista aunque no esté aprobado, solo sin el sello.
+  async function revisarDocumento(doc: DocumentoOperacion, aprobado: boolean) {
+    let motivo: string | null = null;
+    if (!aprobado) {
+      motivo = window.prompt("¿Por qué se rechaza este documento?");
+      if (motivo === null) return; // canceló el prompt
+    }
+    const resp = await authFetch(`/admin/documentos/${doc.id}/revision`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        estado_revision: aprobado ? "aprobado" : "rechazado",
+        motivo_rechazo: aprobado ? null : motivo,
+      }),
+    });
+    if (!resp.ok) return;
+    const actualizado = await resp.json();
+    setDocs((actuales) => actuales.map((d) => (d.id === doc.id ? actualizado : d)));
+  }
+
   function verInversionistas(lead: LeadConDiagnostico) {
     setLeadIntereses(lead);
     setCargandoIntereses(true);
@@ -828,9 +852,40 @@ export function AdminLeads() {
                       </button>
                     </div>
 
-                    {/* La revisión Aprobar/Rechazar por documento se retiró
-                        del panel (julio 2026): los inversionistas son
-                        quienes juzgan los datos — el admin solo mira. */}
+                    <div className="mt-2 flex items-center gap-2">
+                      {doc.estado_revision === "aprobado" ? (
+                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                          ✓ Aprobado
+                        </span>
+                      ) : doc.estado_revision === "rechazado" ? (
+                        <span
+                          className="text-xs font-semibold text-red-500"
+                          title={doc.motivo_rechazo ?? undefined}
+                        >
+                          ✕ Rechazado{doc.motivo_rechazo ? `: ${doc.motivo_rechazo}` : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                          Sin revisar
+                        </span>
+                      )}
+                      {doc.estado_revision !== "aprobado" && (
+                        <button
+                          onClick={() => revisarDocumento(doc, true)}
+                          className="ml-auto rounded border border-emerald-500/40 px-2 py-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400"
+                        >
+                          Aprobar
+                        </button>
+                      )}
+                      {doc.estado_revision !== "rechazado" && (
+                        <button
+                          onClick={() => revisarDocumento(doc, false)}
+                          className="rounded border border-red-500/40 px-2 py-1 text-xs font-semibold text-red-500"
+                        >
+                          Rechazar
+                        </button>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>

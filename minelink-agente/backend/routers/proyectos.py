@@ -119,7 +119,12 @@ def _indicadores_verificados(operacion: models.Operacion) -> schemas.Indicadores
     datos = operacion.datos_formalizacion_json or {}
     docs = operacion.documentos or []
 
-    liquidaciones = [d for d in docs if d.categoria == "liquidaciones_venta"]
+    # "Con respaldo"/verificado exige aprobación de Esthiven (julio 2026,
+    # mismo criterio que _tiene_respaldo en detalle_proyecto) — un archivo
+    # subido sin revisar no cuenta todavía, aunque exista.
+    liquidaciones = [
+        d for d in docs if d.categoria == "liquidaciones_venta" and d.estado_revision == "aprobado"
+    ]
     declara_ventas = (
         r.get("INV_B2") == "si_registros"
         or r.get("INV_C2") in ("completas", "parciales")
@@ -133,9 +138,14 @@ def _indicadores_verificados(operacion: models.Operacion) -> schemas.Indicadores
     contabilidad = r.get("INV_D1") if r.get("INV_D1") in (
         "auditados", "contabilidad_formal", "registro_interno"
     ) else None
-    tiene_financieros = any(d.categoria == "estados_financieros_libros" for d in docs)
+    tiene_financieros = any(
+        d.categoria == "estados_financieros_libros" and d.estado_revision == "aprobado"
+        for d in docs
+    )
 
-    tiene_opex = any(d.categoria == "registro_opex" for d in docs)
+    tiene_opex = any(
+        d.categoria == "registro_opex" and d.estado_revision == "aprobado" for d in docs
+    )
 
     return schemas.IndicadoresVerificadosOut(
         ventas_liquidacion_verificada=bool(declara_ventas and liquidaciones),
@@ -481,17 +491,24 @@ def detalle_proyecto(
         # (verificado) — y el checklist de Formalización, que SOLO lee
         # documentos_estudios, mostraba el ítem como pendiente (chip sin
         # foto) aunque el archivo estuviera subido y servible.
+        _aprobado = d.estado_revision == "aprobado"
         if d.categoria in documentos_legales:
             documentos_legales[d.categoria].append(
-                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+                schemas.FotoPublicaOut(
+                    id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}", aprobado=_aprobado
+                )
             )
         if d.categoria in documentos_estudios:
             documentos_estudios[d.categoria].append(
-                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+                schemas.FotoPublicaOut(
+                    id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}", aprobado=_aprobado
+                )
             )
         if d.categoria in documentos_inversion:
             documentos_inversion[d.categoria].append(
-                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+                schemas.FotoPublicaOut(
+                    id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}", aprobado=_aprobado
+                )
             )
 
     # Varios estudios se subieron bajo una categoría equivalente en vez de
@@ -534,15 +551,26 @@ def detalle_proyecto(
         estudios_aplicables.add("autorizacion_drem")
     pendientes = set(seguimiento["brechas_pendientes"])
 
+    # "Con respaldo" (julio 2026, pedido explícito de Esthiven): antes
+    # bastaba con que el minero subiera CUALQUIER foto para que el ✓
+    # público apareciera — el propio dueño reportó que "Con respaldo" se
+    # entendía como "alguien lo verificó", cuando en realidad nadie lo
+    # revisaba. Vuelve a exigir que Esthiven apruebe el documento a mano
+    # (Operacion.estado_revision, el mismo mecanismo que ya existía pero
+    # había quedado sin usar) — el archivo SIGUE siendo visible para el
+    # inversionista aunque no esté aprobado, solo no lleva el sello.
+    categorias_aprobadas = {d.categoria for d in documentos if d.estado_revision == "aprobado"}
+
     def _tiene_respaldo(estudio: str) -> bool:
         # "Activar tu RUC minero" no pide foto — el respaldo es el número
         # de RUC escrito (ver DocumentosMinero.tsx / actualizar_perfil_inversion).
+        # No hay nada que un admin pueda "aprobar" visualmente ahí.
         if estudio == "tramite_sunat":
             return bool((operacion.datos_formalizacion_json or {}).get("tramite_sunat"))
-        if estudio in categorias_presentadas:
+        if estudio in categorias_aprobadas:
             return True
         equivalente = categoria_equivalente(estudio, situacion)
-        return equivalente is not None and equivalente in categorias_presentadas
+        return equivalente is not None and equivalente in categorias_aprobadas
 
     brechas_verificadas = sorted(
         e for e in estudios_aplicables if e not in pendientes and _tiene_respaldo(e)

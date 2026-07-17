@@ -726,6 +726,11 @@ class ProyectoPublicoOut(BaseModel):
 class FotoPublicaOut(BaseModel):
     id: int
     url: str
+    # Si Esthiven ya revisó y aprobó este documento (julio 2026) — el sello
+    # público "Con respaldo" solo aparece cuando esto es True. El archivo
+    # sigue siendo visible al inversionista aunque sea False; el inversionista
+    # decide si confía en algo que todavía no fue revisado.
+    aprobado: bool = False
 
 
 class IndicadoresVerificadosOut(BaseModel):

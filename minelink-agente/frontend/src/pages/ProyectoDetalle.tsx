@@ -548,9 +548,13 @@ export function ProyectoDetalle() {
               </span>
             </div>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              Autodeclarado por el titular — un ✓ solo cuenta cuando además
-              hay una foto de respaldo verificable, sin foto queda como
-              pendiente aunque haya declarado que sí.
+              Autodeclarado por el titular. Los documentos con el sello{" "}
+              <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
+                Con respaldo
+              </strong>{" "}
+              ya fueron revisados y confirmados por el equipo de MineLink. Los que no lo tienen
+              igual se pueden ver, pero todavía no fueron revisados — revísalos con cuidado antes
+              de confiar en ellos.
             </p>
             <div className="mt-4 flex flex-col gap-6">
               {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
@@ -649,7 +653,7 @@ export function ProyectoDetalle() {
                   <TarjetaDocumento
                     etiqueta="Certificado de ley del mineral"
                     fotos={proyecto.documentos_inversion!.certificado_ley}
-                    completo
+                    completo={proyecto.documentos_inversion!.certificado_ley.some((f) => f.aprobado)}
                     onVer={() =>
                       setVisor({
                         fotos: proyecto.documentos_inversion!.certificado_ley,
@@ -664,7 +668,7 @@ export function ProyectoDetalle() {
                     key={e}
                     etiqueta={INFO_BRECHA[e]?.texto ?? e}
                     fotos={proyecto.documentos_estudios[e]}
-                    completo
+                    completo={proyecto.documentos_estudios[e].some((f) => f.aprobado)}
                     onVer={() =>
                       setVisor({
                         fotos: proyecto.documentos_estudios[e],

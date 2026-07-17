@@ -39,6 +39,11 @@ export interface ProyectoPublico {
 export interface FotoPublica {
   id: number;
   url: string;
+  // Si Esthiven ya revisó y aprobó este documento (julio 2026) — el sello
+  // "Con respaldo" solo se pinta cuando esto es true. La foto sigue siendo
+  // visible aunque sea false; el inversionista decide si confía en algo
+  // que todavía no fue revisado.
+  aprobado?: boolean;
 }
 
 /** Señales públicas derivadas de documentos PRIVADOS: el hecho verificado
