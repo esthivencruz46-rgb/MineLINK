@@ -120,6 +120,10 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // Fotos de respaldo por estudio (catálogo completo, no solo los 5
   // documentos legales fijos) — ver brechas_verificadas.
   documentos_estudios: Record<string, FotoPublica[]>;
+  // Documentos del Módulo INV que sí son públicos como evidencia (ej.
+  // certificado_ley) — a diferencia de liquidaciones/financieros/OPEX/
+  // fotos de trabajadores, que son privados para siempre.
+  documentos_inversion?: Record<string, FotoPublica[]>;
   brechas_pendientes: string[];
   brechas_resueltas: string[];
   // Estudios que aplican a este perfil — el checklist público solo muestra

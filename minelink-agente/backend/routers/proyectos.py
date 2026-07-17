@@ -21,9 +21,22 @@ from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
 CATEGORIAS_LEGALES = [c for c in CATEGORIAS_DOCUMENTO if c != "fotos_mina"]
+# Documentos del Módulo INV (uploads_config.CATEGORIAS_INVERSION) que SÍ se
+# muestran al inversionista como evidencia — a diferencia de liquidaciones/
+# estados financieros/OPEX/fotos de trabajadores, que son privados para
+# siempre (ver IndicadoresVerificadosOut). certificado_ley (el análisis o
+# certificado de ley del mineral) no es información financiera sensible,
+# es justo la prueba que un inversionista quiere ver (reportado por
+# Esthiven: "no vas a poner" la foto de ley aunque el minero la subió).
+CATEGORIAS_INVERSION_PUBLICAS = ["certificado_ley"]
 # Categorías que se sirven vía /documentos/{id} (foto pública de respaldo):
-# los 5 documentos legales fijos + cualquier estudio del catálogo.
-CATEGORIAS_DOCUMENTOS_PUBLICOS = [*CATEGORIAS_LEGALES, *CATEGORIAS_ESTUDIO]
+# los 5 documentos legales fijos + cualquier estudio del catálogo + los
+# documentos de inversión públicos de arriba.
+CATEGORIAS_DOCUMENTOS_PUBLICOS = [
+    *CATEGORIAS_LEGALES,
+    *CATEGORIAS_ESTUDIO,
+    *CATEGORIAS_INVERSION_PUBLICAS,
+]
 # Categorías que forman la galería principal ("Fotos de tu operación" en la
 # cuenta del minero): fotos de la mina + las condicionadas al perfil
 # (mineral, camino de acceso, agua, energía) — antes solo se mostraban las
@@ -456,6 +469,9 @@ def detalle_proyecto(
     documentos_presentados = {c: c in categorias_presentadas for c in CATEGORIAS_LEGALES}
     documentos_legales: dict[str, list[schemas.FotoPublicaOut]] = {c: [] for c in CATEGORIAS_LEGALES}
     documentos_estudios: dict[str, list[schemas.FotoPublicaOut]] = {c: [] for c in CATEGORIAS_ESTUDIO}
+    documentos_inversion: dict[str, list[schemas.FotoPublicaOut]] = {
+        c: [] for c in CATEGORIAS_INVERSION_PUBLICAS
+    }
     for d in documentos:
         if d.categoria in documentos_legales:
             documentos_legales[d.categoria].append(
@@ -463,6 +479,10 @@ def detalle_proyecto(
             )
         elif d.categoria in documentos_estudios:
             documentos_estudios[d.categoria].append(
+                schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
+            )
+        elif d.categoria in documentos_inversion:
+            documentos_inversion[d.categoria].append(
                 schemas.FotoPublicaOut(id=d.id, url=f"/proyectos/{operacion_id}/documentos/{d.id}")
             )
 
@@ -539,6 +559,7 @@ def detalle_proyecto(
         documentos_presentados=documentos_presentados,
         documentos_legales=documentos_legales,
         documentos_estudios=documentos_estudios,
+        documentos_inversion=documentos_inversion,
         brechas_pendientes=seguimiento["brechas_pendientes"],
         brechas_resueltas=seguimiento["brechas_resueltas"],
         brechas_verificadas=brechas_verificadas,

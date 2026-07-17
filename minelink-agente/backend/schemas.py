@@ -770,6 +770,11 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # para el catálogo de estudios de formalización, no solo los 5 legales
     # fijos — ver uploads_config.CATEGORIAS_ESTUDIO).
     documentos_estudios: dict[str, list[FotoPublicaOut]] = {}
+    # Documentos del Módulo INV que SÍ son públicos como evidencia (ver
+    # routers.proyectos.CATEGORIAS_INVERSION_PUBLICAS) — certificado_ley,
+    # a diferencia de liquidaciones/financieros/OPEX/trabajadores, que son
+    # privados para siempre.
+    documentos_inversion: dict[str, list[FotoPublicaOut]] = {}
     # Subconjunto de brechas_resueltas que además tiene foto de respaldo
     # subida. El diagnóstico es autodeclarado (el minero puede responder
     # "sí" a todo sin sustento), así que el check ✓ en la ficha pública

@@ -1809,6 +1809,32 @@ def test_mineros_completar_inversion_requiere_haber_enviado_antes():
     assert resp.status_code == 422
 
 
+def test_proyectos_detalle_muestra_certificado_ley_publico():
+    # Julio 2026 (reportado por Esthiven): certificado_ley (el análisis o
+    # certificado de ley del mineral, INV_C3) se subía pero nunca se
+    # mostraba al inversionista — no estaba en ningún set de categorías
+    # públicas. No es información financiera sensible, es evidencia.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="certley1"))
+    _hacer_apto_inversionistas(diag["id"], "certley1")
+
+    token = client.post(
+        "/mineros/login", json={"username": "certley1", "password": "clave123"}
+    ).json()["access_token"]
+    resp = client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token}"},
+        data={"categoria": "certificado_ley"},
+        files={"archivo": ("ley.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
+    )
+    assert resp.status_code == 201
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert len(detalle["documentos_inversion"]["certificado_ley"]) == 1
+    resp_foto = client.get(detalle["documentos_inversion"]["certificado_ley"][0]["url"])
+    assert resp_foto.status_code == 200
+
+
 def test_admin_reinfo_verificado_requiere_jwt():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="reinfomanual2"))

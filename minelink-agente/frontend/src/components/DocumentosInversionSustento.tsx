@@ -34,7 +34,8 @@ const DESCRIPCION_CATEGORIA_INV: Record<string, string> = {
   estados_financieros_libros: "Tus estados financieros o libros contables más recientes.",
   certificado_ley: "El análisis o certificado que indica la ley de tu mineral.",
   fotos_equipo_maquinaria: "Fotos de la maquinaria y el equipo que declaraste aportar.",
-  fotos_trabajadores: "Fotos de tu gente trabajando en la operación.",
+  fotos_trabajadores:
+    "Fotos de tu gente trabajando en la operación — sin mostrar las caras, por confidencialidad.",
   muestreo_propio: "Fotos del muestreo que hiciste en el área.",
   fotos_area_petitorio: "Fotos del área de tu petitorio.",
   fotos_labores_antiguas: "Fotos de las labores antiguas que demuestran la producción anterior.",
