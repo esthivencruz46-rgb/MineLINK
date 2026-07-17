@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, RefreshCw, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
+import { PanelCuentaSkeleton } from "../components/Skeleton";
 import { ProyectoPublicadoAcciones } from "../components/ProyectoPublicadoAcciones";
 import { CuestionarioInversionInline } from "../components/CuestionarioInversionInline";
 import { DocumentosInversionSustento } from "../components/DocumentosInversionSustento";
@@ -64,7 +65,7 @@ export function MiCuenta() {
   }
 
   if (cargando) {
-    return <p className="p-8 text-center">Cargando tus datos...</p>;
+    return <PanelCuentaSkeleton />;
   }
 
   if (error || !perfil) {

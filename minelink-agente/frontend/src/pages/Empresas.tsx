@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Building2, Loader2, MapPin, SearchX, SlidersHorizontal, Wrench } from "lucide-react";
+import { Building2, MapPin, SearchX, SlidersHorizontal, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
+import { TarjetaEmpresaSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
 import { obtenerEmpresas } from "../services/api";
@@ -144,10 +145,10 @@ export function Empresas() {
       </div>
 
       {cargando && (
-        <p className="flex items-center justify-center gap-2 py-6 text-sm text-texto-suave dark:text-texto-suave-dark">
-          <Loader2 size={16} strokeWidth={2} className="animate-spin" aria-hidden />
-          Buscando empresas...
-        </p>
+        <div className="flex flex-col gap-4">
+          <TarjetaEmpresaSkeleton />
+          <TarjetaEmpresaSkeleton />
+        </div>
       )}
 
       {!cargando && empresas.length === 0 && (

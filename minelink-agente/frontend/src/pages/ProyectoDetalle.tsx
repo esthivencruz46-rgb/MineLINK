@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
+import { FichaProyectoSkeleton } from "../components/Skeleton";
 import { INFO_BRECHA } from "../data/brechas";
 import { POR_ID_INV } from "../data/preguntasInversion";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
@@ -88,7 +89,7 @@ export function ProyectoDetalle() {
   }, [id]);
 
   if (cargando) {
-    return <p className="p-8 text-center text-texto-suave dark:text-texto-suave-dark">Cargando...</p>;
+    return <FichaProyectoSkeleton />;
   }
 
   if (error || !proyecto || !id) {

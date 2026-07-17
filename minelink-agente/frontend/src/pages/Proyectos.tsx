@@ -3,6 +3,7 @@ import { MARCA } from "../config/marca";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
+import { TarjetaProyectoSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { BASE_URL, obtenerProyectos } from "../services/api";
 import { semaforoDesdeColor } from "../utils/semaforo";
@@ -114,7 +115,17 @@ export function Proyectos() {
       </div>
 
       {error && <p className="text-red-500">{error}</p>}
-      {cargando && <p>Buscando proyectos...</p>}
+
+      {cargando && (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          {[0, 1].map((col) => (
+            <div key={col} className="flex flex-col gap-4">
+              <TarjetaProyectoSkeleton />
+              <TarjetaProyectoSkeleton />
+            </div>
+          ))}
+        </div>
+      )}
 
       {!cargando && proyectos.length === 0 && (
         <p className="rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
