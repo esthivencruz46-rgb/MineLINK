@@ -1,7 +1,7 @@
 import { BASE_URL } from "../services/api";
 import { INFO_BRECHA } from "../data/brechas";
 import { formatearMonto } from "./formato";
-import { ETIQUETAS_DOCUMENTO_LEGAL, type ProyectoDetalle } from "../types/proyecto";
+import { ETIQUETAS_DOCUMENTO_LEGAL, type FotoPublica, type ProyectoDetalle } from "../types/proyecto";
 import type { jsPDF } from "jspdf";
 
 const ACENTO: [number, number, number] = [37, 99, 235];
@@ -17,55 +17,79 @@ const ANCHO = 210;
 const ALTO = 297;
 const ANCHO_UTIL = ANCHO - MARGEN * 2;
 
+// Estudios que también puede pedir el Módulo INV (mapeo geológico, análisis
+// de laboratorio, estimación de recursos) — espejo de la misma constante en
+// ProyectoDetalle.tsx: cuando no son parte del checklist de formalización de
+// este perfil, se muestran en "Documentos de inversión" en vez de mezclarse
+// en el checklist.
+const ESTUDIOS_TAMBIEN_DE_INVERSION = new Set([
+  "informe_geologico",
+  "analisis_laboratorio",
+  "estimacion_recursos",
+]);
+
+const ETIQUETA_DOC_INVERSION: Record<string, string> = {
+  certificado_ley: "Certificado de ley del mineral",
+};
+
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Descarga una foto pública y la devuelve como JPEG dataURL con sus
- *  dimensiones — pasa por un canvas para normalizar el formato (jsPDF no
- *  soporta WebP) y evitar problemas de codificación. null si falla:
- *  el PDF sale igual, solo sin esa foto. */
-async function cargarFoto(
-  url: string
-): Promise<{ dataUrl: string; w: number; h: number } | null> {
+// Guarda el <img> ya DECODIFICADO (no solo el dataURL) — dibujarlo en un
+// canvas con `new Image(); img.src = dataUrl; ctx.drawImage(img, ...)`
+// synchronously (como hacía la versión anterior) dibuja un cuadro negro:
+// asignar `.src` no garantiza que la imagen ya esté decodificada en el
+// mismo tick, así que drawImage corre antes de que haya algo que pintar.
+// Manteniendo el <img> ya cargado (awaited una sola vez acá) se evita
+// tener que esperar de nuevo cada vez que se dibuja.
+type Foto = { img: HTMLImageElement; w: number; h: number };
+
+/** Descarga una foto pública y la devuelve con su <img> ya decodificado y
+ *  sus dimensiones. null si falla: el PDF sale igual, solo sin esa foto. */
+async function cargarFoto(url: string): Promise<Foto | null> {
   try {
     const resp = await fetch(`${BASE_URL}${url}`);
     if (!resp.ok) return null;
     const blob = await resp.blob();
     const objectUrl = URL.createObjectURL(blob);
-    try {
-      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const i = new Image();
-        i.onload = () => resolve(i);
-        i.onerror = reject;
-        i.src = objectUrl;
-      });
-      const canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext("2d")?.drawImage(img, 0, 0);
-      return {
-        dataUrl: canvas.toDataURL("image/jpeg", 0.82),
-        w: img.naturalWidth,
-        h: img.naturalHeight,
-      };
-    } finally {
-      URL.revokeObjectURL(objectUrl);
-    }
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const i = new Image();
+      i.onload = () => resolve(i);
+      i.onerror = reject;
+      i.src = objectUrl;
+    });
+    return { img, w: img.naturalWidth, h: img.naturalHeight };
   } catch {
     return null;
   }
+}
+
+/** Descarga la PRIMERA foto de cada entrada de un mapa {codigo: [FotoPublica]}
+ *  en paralelo — para los mini-thumbnails del checklist y de "Documentos de
+ *  inversión". Devuelve un Map código→Foto (solo las que sí cargaron). */
+async function cargarPrimeraFotoPorCodigo(
+  mapa: Record<string, FotoPublica[]> | undefined
+): Promise<Map<string, Foto>> {
+  const entradas = Object.entries(mapa ?? {}).filter(([, fotos]) => fotos.length > 0);
+  const resultados = await Promise.all(
+    entradas.map(async ([codigo, fotos]) => [codigo, await cargarFoto(fotos[0].url)] as const)
+  );
+  const salida = new Map<string, Foto>();
+  for (const [codigo, foto] of resultados) if (foto) salida.set(codigo, foto);
+  return salida;
 }
 
 /** Dibuja una foto RECORTADA para llenar exactamente la caja (modo
  *  "cover", como object-cover en CSS) usando un canvas intermedio. */
 function fotoEnCaja(
   doc: jsPDF,
-  foto: { dataUrl: string; w: number; h: number },
+  foto: Foto,
   x: number,
   y: number,
   ancho: number,
-  alto: number
+  alto: number,
+  radio = 0
 ): void {
   const escala = Math.max(ancho / foto.w, alto / foto.h);
   const wRec = ancho / escala;
@@ -77,10 +101,8 @@ function fotoEnCaja(
   canvas.height = Math.round(alto * px);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const img = new Image();
-  img.src = foto.dataUrl;
   ctx.drawImage(
-    img,
+    foto.img,
     (foto.w - wRec) / 2,
     (foto.h - hRec) / 2,
     wRec,
@@ -90,7 +112,15 @@ function fotoEnCaja(
     canvas.width,
     canvas.height
   );
-  doc.addImage(canvas.toDataURL("image/jpeg", 0.82), "JPEG", x, y, ancho, alto);
+  const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+  doc.addImage(dataUrl, "JPEG", x, y, ancho, alto);
+  if (radio > 0) {
+    // jsPDF no recorta imágenes a un roundedRect sin plugins extra — se
+    // dibuja un marco fino encima como acabado visual de la miniatura.
+    doc.setDrawColor(225, 228, 234);
+    doc.setLineWidth(0.3);
+    doc.rect(x, y, ancho, alto, "S");
+  }
 }
 
 function encabezado(doc: jsPDF): void {
@@ -117,8 +147,8 @@ function pie(doc: jsPDF, proyecto: ProyectoDetalle, pagina: number, total: numbe
   doc.setTextColor(...SUAVE);
   doc.setFont("helvetica", "normal");
   doc.text(
-    "Datos autodeclarados por el titular en su diagnóstico de formalización. Un requisito solo " +
-      "figura como verificado cuando hay una foto de respaldo.",
+    "Datos autodeclarados por el titular. El sello \"Con respaldo\" solo aparece en documentos " +
+      "ya revisados y aprobados por el equipo de MineLink — los demás son visibles pero aún sin revisar.",
     MARGEN,
     ALTO - 12,
     { maxWidth: ANCHO_UTIL }
@@ -141,22 +171,110 @@ function tituloSeccion(doc: jsPDF, y: number, texto: string): number {
   return y + 7;
 }
 
-/** Ficha de inversión de 2 páginas con los datos REALES del proyecto —
- *  portada fotográfica, semáforos del spec, oportunidad de capital,
- *  leyes declaradas, checklist verificado y galería. Nunca incluye datos
- *  de contacto del minero (misma regla que la ficha pública). jsPDF se
- *  carga diferido para no pesar el bundle. */
+/** Asegura que quede espacio para lo que sigue — si no, agrega página
+ *  nueva con encabezado y devuelve el nuevo y. */
+function asegurarEspacio(doc: jsPDF, y: number, necesita: number): number {
+  if (y + necesita <= ALTO - 18) return y;
+  doc.addPage();
+  encabezado(doc);
+  return 24;
+}
+
+/** Fila de checklist CON miniatura real del documento de respaldo (si hay
+ *  una foto descargada para ese código) — antes solo había un check/punto
+ *  de texto, sin mostrar la evidencia en sí. "Con respaldo" (verde) exige
+ *  aprobación de Esthiven; con foto pero sin aprobar sale en ámbar como
+ *  "sin revisar todavía"; sin foto en gris como pendiente.
+ *
+ *  `y` es siempre el TOP de la fila (no una línea base) — evita la trampa
+ *  de mezclar "y como baseline de texto" con "y como borde superior de la
+ *  imagen" que causaba filas superpuestas con el título de la sección de
+ *  arriba en la primera versión. */
+function filaChecklist(
+  doc: jsPDF,
+  y: number,
+  texto: string,
+  estado: "aprobado" | "sin_revisar" | "pendiente",
+  foto?: Foto
+): number {
+  const ANCHO_FOTO = 13;
+  const alto = foto ? ANCHO_FOTO + 3 : 7;
+  y = asegurarEspacio(doc, y, alto + 2);
+
+  const xTexto = foto ? MARGEN + ANCHO_FOTO + 4 : MARGEN + 6;
+  const yPrimeraLinea = y + 4.5;
+
+  if (foto) {
+    fotoEnCaja(doc, foto, MARGEN, y, ANCHO_FOTO, ANCHO_FOTO, 1.5);
+  } else {
+    const color = estado === "pendiente" ? [222, 226, 233] : AMARILLO;
+    doc.setFillColor(...(color as [number, number, number]));
+    doc.circle(MARGEN + 1.8, yPrimeraLinea - 1.3, 1.6, "F");
+  }
+
+  doc.setFontSize(9.5);
+  doc.setTextColor(...TEXTO);
+  doc.setFont("helvetica", "normal");
+  const lineasTexto = doc.splitTextToSize(texto, ANCHO_UTIL - (xTexto - MARGEN) - 34);
+  doc.text(lineasTexto, xTexto, yPrimeraLinea);
+
+  const ETIQUETA = {
+    aprobado: "Con respaldo",
+    sin_revisar: "Sin revisar aún",
+    pendiente: "Pendiente",
+  }[estado];
+  const COLOR = { aprobado: VERDE, sin_revisar: AMARILLO, pendiente: SUAVE }[estado];
+  doc.setFontSize(8);
+  doc.setTextColor(...COLOR);
+  doc.setFont("helvetica", "bold");
+  doc.text(ETIQUETA, ANCHO - MARGEN, yPrimeraLinea, { align: "right" });
+
+  return y + alto;
+}
+
+/** Ficha de inversión con los datos REALES del proyecto — portada
+ *  fotográfica, semáforos del spec, oportunidad de capital, checklist de
+ *  formalización CON miniatura del respaldo, documentos de inversión,
+ *  cotejo GEOCATMIN/SERNANP/REINFO y galería. Nunca incluye datos de
+ *  contacto del minero (misma regla que la ficha pública). jsPDF se carga
+ *  diferido para no pesar el bundle. */
 export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<void> {
   const { jsPDF } = await import("jspdf");
 
-  // Fotos: portada + hasta 4 para la galería (se descargan primero; las
-  // que fallen simplemente no salen).
-  const urlsFotos = proyecto.fotos.slice(0, 5).map((f) => f.url);
-  const fotos = (await Promise.all(urlsFotos.map(cargarFoto))).filter(
-    (f): f is NonNullable<typeof f> => f !== null
+  const aplicables = new Set(proyecto.estudios_aplicables ?? []);
+  const verificadas = new Set(proyecto.brechas_verificadas ?? []);
+  const pendientes = proyecto.brechas_pendientes ?? [];
+
+  // Ítems del checklist que sí aplican a este perfil (estructural) más
+  // cualquiera con foto subida aunque no sea estructural (misma regla que
+  // la ficha web, salvo los del Módulo INV que van a su propia sección).
+  const codigosChecklist = new Set<string>([...aplicables, ...verificadas, ...pendientes]);
+  for (const c of ESTUDIOS_TAMBIEN_DE_INVERSION) {
+    if (!aplicables.has(c)) codigosChecklist.delete(c);
+  }
+  const documentosInversionExtra = [...ESTUDIOS_TAMBIEN_DE_INVERSION].filter(
+    (e) => !aplicables.has(e) && (proyecto.documentos_estudios[e]?.length ?? 0) > 0
   );
-  const portada = fotos[0] ?? null;
-  const galeria = fotos.slice(1, 5);
+
+  // Descargas en paralelo: portada + galería + miniaturas del checklist +
+  // miniaturas de documentos de inversión — todo antes de dibujar, para no
+  // ir armando el PDF a pedazos mientras llegan las fotos.
+  const urlsFotos = proyecto.fotos.slice(0, 5).map((f) => f.url);
+  const [fotos, miniaturasChecklist, miniaturasInversion] = await Promise.all([
+    Promise.all(urlsFotos.map(cargarFoto)),
+    cargarPrimeraFotoPorCodigo(
+      Object.fromEntries(
+        [...codigosChecklist].map((c) => [c, proyecto.documentos_estudios[c] ?? []])
+      )
+    ),
+    cargarPrimeraFotoPorCodigo({
+      ...(proyecto.documentos_inversion ?? {}),
+      ...Object.fromEntries(documentosInversionExtra.map((e) => [e, proyecto.documentos_estudios[e]]))
+    }),
+  ]);
+  const fotosOk = fotos.filter((f): f is Foto => f !== null);
+  const portada = fotosOk[0] ?? null;
+  const galeria = fotosOk.slice(1, 5);
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = 22;
@@ -311,55 +429,44 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     y += Math.max(5.5, lineasValor.length * 4.6 + 1);
   }
 
-  pie(doc, proyecto, 1, 2);
-
   // ---------- PÁGINA 2 ----------
   doc.addPage();
   encabezado(doc);
   y = 24;
 
-  // Checklist de formalización
+  // Checklist de formalización — CON miniatura real del documento cuando
+  // hay una foto subida (antes solo era texto + un check/punto).
   y = tituloSeccion(doc, y, "Estado de formalización");
   doc.setFont("helvetica", "normal");
-  const verificadas = proyecto.brechas_verificadas ?? [];
-  const pendientes = proyecto.brechas_pendientes ?? [];
-  const filas: [string, boolean][] = [
-    ...verificadas.map((b): [string, boolean] => [INFO_BRECHA[b]?.texto ?? b, true]),
-    ...pendientes.map((b): [string, boolean] => [INFO_BRECHA[b]?.texto ?? b, false]),
-  ].slice(0, 14);
-  if (filas.length === 0) {
+  const filasChecklist: { texto: string; estado: "aprobado" | "sin_revisar" | "pendiente"; foto?: Foto }[] =
+    [...codigosChecklist]
+      .sort((a, b) => (verificadas.has(b) ? 1 : 0) - (verificadas.has(a) ? 1 : 0))
+      .slice(0, 16)
+      .map((codigo) => {
+        const foto = miniaturasChecklist.get(codigo);
+        const esPendiente = pendientes.includes(codigo);
+        const estado: "aprobado" | "sin_revisar" | "pendiente" = esPendiente
+          ? "pendiente"
+          : verificadas.has(codigo)
+            ? "aprobado"
+            : "sin_revisar";
+        return { texto: INFO_BRECHA[codigo]?.texto ?? codigo, estado, foto };
+      });
+  if (filasChecklist.length === 0) {
     doc.setFontSize(9.5);
     doc.setTextColor(...SUAVE);
     doc.text("Sin requisitos verificables registrados todavía.", MARGEN, y);
     y += 6;
   }
-  for (const [texto, ok] of filas) {
-    // El glifo "✓" no existe en las fuentes estándar de jsPDF — se dibuja
-    // el check con líneas; el pendiente es un punto relleno ámbar.
-    if (ok) {
-      doc.setDrawColor(...VERDE);
-      doc.setLineWidth(0.6);
-      doc.line(MARGEN, y - 1.4, MARGEN + 1.1, y - 0.3);
-      doc.line(MARGEN + 1.1, y - 0.3, MARGEN + 3, y - 2.6);
-    } else {
-      doc.setFillColor(...AMARILLO);
-      doc.circle(MARGEN + 1.5, y - 1.3, 0.9, "F");
-    }
-    doc.setFontSize(9.5);
-    doc.setTextColor(...TEXTO);
-    doc.setFont("helvetica", "normal");
-    doc.text(texto, MARGEN + 5, y);
-    doc.setFontSize(8);
-    doc.setTextColor(...SUAVE);
-    doc.text(ok ? "verificado con foto" : "en proceso", ANCHO - MARGEN, y, { align: "right" });
-    doc.setFontSize(9.5);
-    y += 5.4;
+  for (const fila of filasChecklist) {
+    y = filaChecklist(doc, y, fila.texto, fila.estado, fila.foto);
   }
   y += 3;
 
   // Documentos presentados
   const presentados = Object.entries(proyecto.documentos_presentados ?? {}).filter(([, v]) => v);
   if (presentados.length > 0) {
+    y = asegurarEspacio(doc, y, 14);
     y = tituloSeccion(doc, y, "Documentos presentados");
     doc.setFontSize(9.5);
     doc.setTextColor(...TEXTO);
@@ -373,20 +480,93 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     y += 10;
   }
 
+  // Documentos de inversión — certificado de ley, mapeo geológico, etc.
+  // (agregado julio 2026: antes esta evidencia no salía para nada en el
+  // PDF, aunque ya se mostraba en la ficha web).
+  const codigosInversion = [
+    ...((proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 ? ["certificado_ley"] : []),
+    ...documentosInversionExtra,
+  ];
+  if (codigosInversion.length > 0) {
+    y = asegurarEspacio(doc, y, 20);
+    y = tituloSeccion(doc, y, "Documentos de inversión");
+    for (const codigo of codigosInversion) {
+      const foto = miniaturasInversion.get(codigo);
+      const etiqueta = ETIQUETA_DOC_INVERSION[codigo] ?? INFO_BRECHA[codigo]?.texto ?? codigo;
+      y = filaChecklist(doc, y, etiqueta, foto ? "aprobado" : "sin_revisar", foto);
+    }
+    y += 3;
+  }
+
+  // Cotejo con registros públicos — GEOCATMIN (catastro + geología) y
+  // REINFO (verificado a mano por MineLink) — agregado julio 2026.
+  const geocatmin = proyecto.geocatmin;
+  const tieneCotejo =
+    geocatmin?.concesion || geocatmin?.geologia || proyecto.reinfo_verificado_manual;
+  if (tieneCotejo) {
+    y = asegurarEspacio(doc, y, 26);
+    y = tituloSeccion(doc, y, "Cotejo con registros públicos");
+    doc.setFontSize(9);
+    doc.setTextColor(...TEXTO);
+    doc.setFont("helvetica", "normal");
+    if (geocatmin?.concesion) {
+      const c = geocatmin.concesion;
+      const linea = `Concesión ${c.nombre ?? ""}${c.leyenda ? ` · ${c.leyenda.toLowerCase()}` : ""}${
+        c.hectareas != null ? ` · ${Math.round(c.hectareas)} ha` : ""
+      } (GEOCATMIN/INGEMMET)`;
+      const l = doc.splitTextToSize(linea, ANCHO_UTIL);
+      doc.text(l, MARGEN, y);
+      y += l.length * 4.4 + 1;
+    }
+    if (geocatmin?.geologia?.unidad) {
+      doc.text(`Geología 1:100,000: ${geocatmin.geologia.unidad}`, MARGEN, y);
+      y += 5;
+    }
+    if (geocatmin?.anp?.zona === "dentro") {
+      doc.setTextColor(...ROJO);
+      doc.setFont("helvetica", "bold");
+      doc.text("Alerta: el punto cae dentro de un Área Natural Protegida", MARGEN, y);
+      doc.setFont("helvetica", "normal");
+      y += 5;
+    }
+    if (proyecto.reinfo_verificado_manual) {
+      doc.setTextColor(...VERDE);
+      doc.setFont("helvetica", "bold");
+      doc.text(
+        `Código REINFO verificado por el equipo de MineLink${
+          proyecto.codigo_reinfo ? ` (${proyecto.codigo_reinfo})` : ""
+        }`,
+        MARGEN,
+        y
+      );
+      doc.setFont("helvetica", "normal");
+      y += 5;
+    }
+    y += 2;
+  }
+
   // Galería
   if (galeria.length > 0) {
+    y = asegurarEspacio(doc, y, 46);
     y = tituloSeccion(doc, y, "Galería de la operación");
     const anchoFoto = (ANCHO_UTIL - 4) / 2;
     const altoFoto = 42;
     galeria.forEach((foto, i) => {
       const col = i % 2;
       const fila = Math.floor(i / 2);
-      fotoEnCaja(doc, foto, MARGEN + col * (anchoFoto + 4), y + fila * (altoFoto + 4), anchoFoto, altoFoto);
+      const yFoto = y + fila * (altoFoto + 4);
+      fotoEnCaja(doc, foto, MARGEN + col * (anchoFoto + 4), yFoto, anchoFoto, altoFoto);
     });
     y += Math.ceil(galeria.length / 2) * (altoFoto + 4) + 2;
   }
 
-  pie(doc, proyecto, 2, 2);
+  // Pie de página en TODAS las páginas generadas (antes solo se numeraban
+  // 2 fijas; ahora el checklist con fotos puede empujar a una 3ª página).
+  const totalPaginas = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPaginas; p++) {
+    doc.setPage(p);
+    pie(doc, proyecto, p, totalPaginas);
+  }
 
   const nombreArchivo = `MineLink-${proyecto.nombre_proyecto.replace(/[^a-z0-9]+/gi, "-")}.pdf`;
   doc.save(nombreArchivo);
