@@ -1,0 +1,42 @@
+name: Respaldo diario de la base de datos
+
+# Corre solo (3:00 am hora Perú = 8:00 UTC) y también se puede disparar a
+# mano desde la pestaña "Actions" del repo con "Run workflow". Usa pg_dump
+# contra la Supabase de producción y guarda el resultado como artefacto de
+# GitHub (90 días de retención — el máximo permitido).
+#
+# Requiere el secret DATABASE_URL_BACKUP configurado en:
+# Settings → Secrets and variables → Actions → New repository secret
+# (mismo valor que backend/.env, DATABASE_URL — cadena de Postgres de
+# Supabase). Sin ese secret el job falla con un mensaje claro en vez de
+# quedarse en silencio.
+on:
+  schedule:
+    - cron: "0 8 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente de Postgres
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Generar el dump
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_BACKUP }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "Falta el secret DATABASE_URL_BACKUP en la configuración del repositorio (Settings > Secrets and variables > Actions)." >&2
+            exit 1
+          fi
+          FECHA=$(date +%Y-%m-%d_%H%M)
+          echo "NOMBRE_ARCHIVO=minelink_backup_${FECHA}" >> "$GITHUB_ENV"
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges -F c -f "minelink_backup_${FECHA}.dump"
+
+      - name: Subir el respaldo como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.NOMBRE_ARCHIVO }}
+          path: ${{ env.NOMBRE_ARCHIVO }}.dump
+          retention-days: 90

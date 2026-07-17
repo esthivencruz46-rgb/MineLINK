@@ -68,3 +68,34 @@ Sin esto, la página web no podrá pedirle datos al backend.
 - Cambiar `ADMIN_PASSWORD` por una contraseña más fuerte que la actual.
 - Borrar las credenciales de admin escritas en `RUTAS.md`.
 - Verificar que `SECRET_KEY` en el hosting sea la aleatoria (no la de ejemplo).
+
+## Respaldo automático de la base de datos (julio 2026)
+
+`.github/workflows/backup-db.yml` corre `pg_dump` contra la Supabase de
+producción todos los días a las 3:00 am hora Perú y guarda el resultado
+como artefacto de GitHub Actions (90 días de retención, el máximo
+gratuito). Antes no había NINGÚN respaldo automático — si algo se borraba
+o corrompía en Supabase, no había forma de recuperarlo.
+
+**Paso pendiente (una sola vez, lo hace Esthiven porque requiere pegar la
+contraseña de la base — el agente no debe manejar ese secreto):**
+
+1. Ir a `github.com/esthivencruz46-rgb/MineLINK` → **Settings** → **Secrets
+   and variables** → **Actions** → **New repository secret**.
+2. Nombre: `DATABASE_URL_BACKUP`.
+3. Valor: la misma cadena de conexión que ya está en `backend/.env` como
+   `DATABASE_URL` (empieza con `postgresql://postgres...`).
+4. Guardar. El workflow ya queda activo desde el próximo push — para
+   probarlo sin esperar al día siguiente, ir a la pestaña **Actions** →
+   "Respaldo diario de la base de datos" → **Run workflow**.
+
+**Para recuperar un respaldo**: pestaña Actions → abrir la corrida que
+generó el backup deseado → descargar el artefacto (un archivo `.dump`) →
+restaurarlo con `pg_restore --clean --if-exists -d <DATABASE_URL> archivo.dump`
+(requiere tener `postgresql-client` instalado localmente).
+
+**Mejora opcional futura** (no implementada aún): en vez de usar la
+cadena de conexión completa (dueño de la base), crear un rol de Postgres
+de solo lectura exclusivo para el backup — reduce el daño posible si ese
+secret se filtrara algún día. Se puede agregar después sin romper nada de
+lo de arriba.

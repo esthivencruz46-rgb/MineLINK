@@ -350,6 +350,34 @@ export function ProyectoDetalle() {
               </p>
               <p className={`text-lg font-bold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
             </div>
+            {/* Madurez técnica (antes en el sidebar de abajo, dejaba un
+                espacio en blanco acá) — pedido explícito, julio 2026. */}
+            <div>
+              <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
+                Madurez técnica
+              </p>
+              {madurez != null ? (
+                <>
+                  <div className="mt-1 flex items-center gap-1.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <span
+                        key={n}
+                        className={`h-2.5 w-6 rounded-full ${
+                          n <= madurez ? semTecnico.claseBarra : "bg-black/10 dark:bg-white/10"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className={`mt-1 text-sm font-semibold ${semTecnico.claseTexto}`}>
+                    Nivel {madurez}/5
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                  Aún sin operación que medir
+                </p>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -797,32 +825,6 @@ export function ProyectoDetalle() {
         <div className="h-fit md:sticky md:top-6">
           <div className="flex flex-col gap-4 rounded-lg bg-tarjeta p-6 shadow-sm dark:bg-tarjeta-dark">
             <div className="flex flex-col gap-4">
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Madurez técnica
-                </p>
-                {madurez != null ? (
-                  <>
-                    <div className="mt-1 flex items-center gap-1.5">
-                      {[1, 2, 3, 4, 5].map((n) => (
-                        <span
-                          key={n}
-                          className={`h-2.5 w-6 rounded-full ${
-                            n <= madurez ? semTecnico.claseBarra : "bg-black/10 dark:bg-white/10"
-                          }`}
-                        />
-                      ))}
-                    </div>
-                    <p className={`mt-1 text-sm font-semibold ${semTecnico.claseTexto}`}>
-                      Nivel {madurez}/5
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-                    Aún sin operación que medir
-                  </p>
-                )}
-              </div>
               {/* Señales verificadas: el HECHO derivado de documentos
                   privados (liquidaciones, estados financieros, OPEX) —
                   nunca el documento en sí. Un ✓ = archivo subido. */}
