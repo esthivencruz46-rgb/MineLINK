@@ -19,8 +19,20 @@ jobs:
   backup:
     runs-on: ubuntu-latest
     steps:
-      - name: Instalar cliente de Postgres
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      # postgresql-client 17 desde el repositorio oficial de PostgreSQL
+      # (PGDG): el runner de GitHub trae la versión 16 y pg_dump se niega
+      # a respaldar un servidor más nuevo que él ("server version
+      # mismatch") — Supabase corre PostgreSQL 17 (verificado julio 2026,
+      # causa del fallo de la corrida #1).
+      - name: Instalar cliente de Postgres 17
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc --fail \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
 
       - name: Generar el dump
         env:
@@ -30,9 +42,13 @@ jobs:
             echo "Falta el secret DATABASE_URL_BACKUP en la configuración del repositorio (Settings > Secrets and variables > Actions)." >&2
             exit 1
           fi
+          # Ruta explícita al binario 17 — el wrapper `pg_dump` de Ubuntu
+          # podría seguir apuntando a la 16 preinstalada del runner.
+          PG_DUMP=/usr/lib/postgresql/17/bin/pg_dump
+          "$PG_DUMP" --version
           FECHA=$(date +%Y-%m-%d_%H%M)
           echo "NOMBRE_ARCHIVO=minelink_backup_${FECHA}" >> "$GITHUB_ENV"
-          pg_dump "$DATABASE_URL" --no-owner --no-privileges -F c -f "minelink_backup_${FECHA}.dump"
+          "$PG_DUMP" "$DATABASE_URL" --no-owner --no-privileges -F c -f "minelink_backup_${FECHA}.dump"
 
       - name: Subir el respaldo como artefacto
         uses: actions/upload-artifact@v4
