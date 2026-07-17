@@ -35,7 +35,11 @@ export const INFO_BRECHA: Record<string, InfoBrecha> = {
     resuelve: "Es el documento que acredita que ya eres un minero formal.",
   },
   informe_geologico: {
-    texto: "Informe geológico de tu veta",
+    // "Mapeo geológico" (no "informe geológico de tu veta", julio 2026,
+    // pedido explícito): "veta" asume un yacimiento tipo filón — muchos
+    // mineros (aluvial, diseminado, etc.) no tienen eso, y es el mismo
+    // documento que ya se llama "mapeo geológico" en el Módulo INV (INV_C0).
+    texto: "Mapeo geológico",
     resuelve: "Certifica la estructura mineral de tu labor.",
   },
   analisis_laboratorio: {
