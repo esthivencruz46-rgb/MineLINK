@@ -312,6 +312,14 @@ def _generar_descripcion(
 
 
 def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.Lead, models.Operacion]:
+    """Usada por la ficha individual, dejar interés, y ver fotos/documentos
+    — repite la MISMA regla de bloqueo que ya aplica `listar_proyectos()`
+    (nunca mostrar a inversionistas un proyecto con incendio legal activo,
+    perfil A, o que aún no envió ambas partes). Antes solo se verificaba
+    que el Lead+Operacion existieran: un link directo a un proyecto que
+    dejó de ser apto (o nunca lo fue) seguía abriendo su ficha completa,
+    aunque ya no apareciera en la lista (julio 2026, hallazgo de
+    auditoría). 404 en vez de 403 — no confirma si el proyecto existe."""
     fila = (
         db.query(models.Lead, models.Operacion)
         .join(models.Operacion, models.Lead.operacion_id == models.Operacion.id)
@@ -319,6 +327,9 @@ def _lead_y_operacion_visibles(db: Session, operacion_id: str) -> tuple[models.L
         .first()
     )
     if fila is None:
+        raise HTTPException(status_code=404, detail="Proyecto no encontrado")
+    lead, operacion = fila
+    if not estado_seguimiento(operacion).get("apto_inversionistas"):
         raise HTTPException(status_code=404, detail="Proyecto no encontrado")
     return fila
 

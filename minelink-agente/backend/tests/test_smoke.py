@@ -1674,6 +1674,7 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
         "/leads",
         json=_lead_payload(diag["id"], username="fichasinred", codigo_reinfo="REI-FICHA-1"),
     )
+    _hacer_apto_inversionistas(diag["id"], "fichasinred")
     # MINELINK_RESOLVER_MAPS=0 en tests desactiva la resolución real del
     # enlace — se fija ubicacion_coords directo en la BD (equivalente a un
     # enlace que sí resolvió) para poder probar el camino de GEOCATMIN.
@@ -1707,6 +1708,7 @@ def test_admin_marca_y_desmarca_reinfo_verificado_manual():
         "/leads",
         json=_lead_payload(diag["id"], username="reinfomanual1", codigo_reinfo="010253815"),
     )
+    _hacer_apto_inversionistas(diag["id"], "reinfomanual1")
     admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
@@ -2210,6 +2212,7 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
         data={"categoria": "ruc"},
         files={"archivo": ("ruc.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
     )
+    _hacer_apto_inversionistas(diag["id"], "detalleproyecto")
 
     resp = client.get(f"/proyectos/{diag['id']}")
     assert resp.status_code == 200
@@ -2238,9 +2241,14 @@ def test_proyectos_detalle_muestra_fotos_y_checklist_sin_pdfs():
     assert resp.status_code == 404
 
 
-def test_proyectos_detalle_operacion_bloqueada_ya_no_da_404():
-    # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
-    # informativo y el detalle del proyecto sigue siendo visible.
+def test_proyectos_detalle_no_apto_da_404():
+    # Julio 2026 (hallazgo de auditoría): antes SOLO `listar_proyectos()`
+    # filtraba por apto_inversionistas — la ficha individual, dejar
+    # interés y ver fotos/documentos no repetían el chequeo, así que un
+    # link directo a un proyecto que nunca envió documentos+Módulo INV (o
+    # con semáforo legal rojo) seguía abriendo su ficha completa aunque no
+    # apareciera en la lista pública. Ahora `_lead_y_operacion_visibles()`
+    # aplica la MISMA regla en los 4 lugares.
     diag = client.post(
         "/diagnostico",
         json={
@@ -2251,6 +2259,28 @@ def test_proyectos_detalle_operacion_bloqueada_ya_no_da_404():
         },
     ).json()
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado2"))
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 404
+
+
+def test_proyectos_detalle_bloqueado_legacy_no_impide_acceso_si_es_apto():
+    # El campo legacy `Operacion.bloqueado` (score viejo) es solo
+    # informativo — lo que de verdad manda es `apto_inversionistas`
+    # (semáforo legal + documentos y Módulo INV enviados). Una operación
+    # puede quedar con `bloqueado=True` y aun así ser apto si cumplió el
+    # pipeline completo.
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": RESPUESTAS_SIN_TRAMITE,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="bloqueadoapto1"))
+    _hacer_apto_inversionistas(diag["id"], "bloqueadoapto1", respuestas_inv=RESPUESTAS_INV_B)
 
     resp = client.get(f"/proyectos/{diag['id']}")
     assert resp.status_code == 200
@@ -2264,6 +2294,7 @@ def test_proyectos_detalle_inexistente_da_404():
 def test_proyectos_detalle_incluye_brechas():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="dimensionesproyecto"))
+    _hacer_apto_inversionistas(diag["id"], "dimensionesproyecto")
 
     resp = client.get(f"/proyectos/{diag['id']}")
     assert resp.status_code == 200
@@ -2293,6 +2324,7 @@ def _interes_payload(**overrides):
 def test_proyectos_registra_interes_inversion():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="interesproyecto"))
+    _hacer_apto_inversionistas(diag["id"], "interesproyecto")
 
     resp = client.post(f"/proyectos/{diag['id']}/interes", json=_interes_payload())
     assert resp.status_code == 201
@@ -2325,6 +2357,7 @@ def test_proyectos_registra_interes_inversion():
 def test_proyectos_registra_interes_email_opcional():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="interessinemail"))
+    _hacer_apto_inversionistas(diag["id"], "interessinemail")
 
     resp = client.post(
         f"/proyectos/{diag['id']}/interes",
@@ -2348,6 +2381,7 @@ def test_proyectos_registra_interes_rechaza_email_invalido():
 def test_proyectos_registra_interes_username_duplicado():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="interesproyecto3"))
+    _hacer_apto_inversionistas(diag["id"], "interesproyecto3")
 
     client.post(
         f"/proyectos/{diag['id']}/interes",
@@ -2360,9 +2394,10 @@ def test_proyectos_registra_interes_username_duplicado():
     assert resp.status_code == 409
 
 
-def test_proyectos_registra_interes_operacion_bloqueada_ya_no_da_404():
-    # Antes esto daba 404 (regla vieja); ahora bloqueado es solo
-    # informativo y el proyecto acepta interés igual.
+def test_proyectos_registra_interes_operacion_no_apto_da_404():
+    # Mismo hallazgo que test_proyectos_detalle_no_apto_da_404, aplicado a
+    # "dejar interés" — antes se podía dejar interés en un proyecto que
+    # nunca fue apto para inversionistas con solo tener su operacion_id.
     diag = client.post(
         "/diagnostico",
         json={
@@ -2370,7 +2405,6 @@ def test_proyectos_registra_interes_operacion_bloqueada_ya_no_da_404():
             "region": "arequipa",
             "mineral": "oro",
             "tipo_mina": "subterranea",
-            "estado_formalizacion": "sin_tramite",
         },
     ).json()
     client.post("/leads", json=_lead_payload(diag["id"], username="bloqueado3"))
@@ -2379,12 +2413,13 @@ def test_proyectos_registra_interes_operacion_bloqueada_ya_no_da_404():
         f"/proyectos/{diag['id']}/interes",
         json=_interes_payload(username="bloqueadoInteres"),
     )
-    assert resp.status_code == 201
+    assert resp.status_code == 404
 
 
 def test_inversionistas_login_y_perfil():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="paralogininversionista"))
+    _hacer_apto_inversionistas(diag["id"], "paralogininversionista")
     client.post(
         f"/proyectos/{diag['id']}/interes",
         json=_interes_payload(username="inversionistalogin", password="clave123"),
@@ -2410,6 +2445,7 @@ def test_inversionistas_login_y_perfil():
 def test_inversionistas_recuperar_password_flujo_completo():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="paralead4"))
+    _hacer_apto_inversionistas(diag["id"], "paralead4")
     client.post(
         f"/proyectos/{diag['id']}/interes",
         json=_interes_payload(username="inversionistarecupera", password="claveorig"),
@@ -2438,6 +2474,7 @@ def test_inversionistas_recuperar_password_flujo_completo():
 def test_inversionistas_recuperar_password_agota_los_4_intentos():
     diag = _crear_diagnostico().json()
     client.post("/leads", json=_lead_payload(diag["id"], username="paralead5"))
+    _hacer_apto_inversionistas(diag["id"], "paralead5")
     client.post(
         f"/proyectos/{diag['id']}/interes",
         json=_interes_payload(username="inversionistaagota"),
@@ -3224,6 +3261,7 @@ def test_proyectos_expone_perfil_informativo_del_diagnostico():
         "/leads",
         json=_lead_payload(diag["id"], username="perfilexpuesto", nombre_operacion="Mina Perfil"),
     )
+    _hacer_apto_inversionistas(diag["id"], "perfilexpuesto")
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
     assert detalle["experiencia_operador"] == "5-10 años"
@@ -3260,6 +3298,12 @@ def test_proyectos_check_publico_requiere_foto_de_respaldo():
     token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    # Apto para inversionistas (semáforo no rojo con "debo_1") SIN resolver
+    # la brecha de abajo — _hacer_apto_inversionistas solo sube documentos
+    # para lo que el minero declaró SÍ tener (estudios_aplicables), nunca
+    # toca las brechas (lo que declaró NO tener), así que la brecha sigue
+    # pendiente para poder probar el check público.
+    _hacer_apto_inversionistas(diag["id"], "checkphoto1", respuestas_inv=RESPUESTAS_INV_B)
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
     assert len(detalle["brechas_pendientes"]) > 0
@@ -3321,6 +3365,7 @@ def test_proyectos_check_publico_acepta_categoria_equivalente():
     token = token_resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    _hacer_apto_inversionistas(diag["id"], "minerocheckequiv", respuestas_inv=RESPUESTAS_INV_B)
 
     detalle_inicial = client.get(f"/proyectos/{diag['id']}").json()
     assert len(detalle_inicial["brechas_pendientes"]) > 0
@@ -3477,6 +3522,7 @@ def test_proyectos_detalle_expone_titularidad_y_fotos_de_perfil():
         files={"archivo": ("mineral.jpg", b"\xff\xd8\xffcontenido", "image/jpeg")},
     )
     assert resp_subida.status_code == 201
+    _hacer_apto_inversionistas(diag["id"], "mineroproyectofotos")
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
     assert detalle["es_titular_concesion"] is True  # M0_1=concesion_propia
@@ -3502,6 +3548,7 @@ def test_diagnostico_guarda_y_expone_moneda_capital():
         "/leads",
         json=_lead_payload(diag["id"], username="mineromoneda", nombre_operacion="Mina Moneda"),
     )
+    _hacer_apto_inversionistas(diag["id"], "mineromoneda")
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
     assert detalle["moneda_capital"] == "dolares"
@@ -3533,6 +3580,7 @@ def test_diagnostico_guarda_y_expone_especie_mineral():
         "/leads",
         json=_lead_payload(diag["id"], username="especiemineral", nombre_operacion="Mina Especie"),
     )
+    _hacer_apto_inversionistas(diag["id"], "especiemineral")
 
     detalle = client.get(f"/proyectos/{diag['id']}").json()
     assert detalle["especie_mineral"] == "Oro: Oro nativo; Cobre: Calcopirita, Malaquita"
