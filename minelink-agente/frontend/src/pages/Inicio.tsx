@@ -1,7 +1,16 @@
 import { Capacitor } from "@capacitor/core";
 import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
-import { Briefcase, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
+import {
+  Briefcase,
+  Download,
+  EyeOff,
+  Handshake,
+  Pickaxe,
+  ShieldCheck,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 interface TarjetaPerfil {
   Icono: LucideIcon;
@@ -43,89 +52,121 @@ const PERFILES: TarjetaPerfil[] = [
   },
 ];
 
+const CONFIANZA: { Icono: LucideIcon; texto: string }[] = [
+  { Icono: ShieldCheck, texto: "100% gratis para mineros" },
+  { Icono: Handshake, texto: "Sin tramitadores de por medio" },
+  { Icono: EyeOff, texto: "Tu contacto nunca se muestra públicamente" },
+];
+
 export function Inicio() {
   const navigate = useNavigate();
 
   return (
-    <div className="mx-auto flex min-h-[80vh] max-w-4xl flex-col items-center justify-center gap-8 px-4 py-10">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold md:text-4xl">
-          Conectamos la minería artesanal con su formalización
-        </h1>
-        <p className="mx-auto mt-3 max-w-xl text-texto-suave dark:text-texto-suave-dark">
-          Diagnóstico gratuito para mineros, proyectos verificados para
-          inversionistas y clientes reales para consultores.
-        </p>
-        <Link
-          to="/como-funciona"
-          className="mt-2 inline-block text-sm font-semibold text-acento underline"
-        >
-          ¿Cómo funciona {MARCA}?
-        </Link>
-      </div>
-
-      <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
-        {PERFILES.map((p) => (
-          <div
-            key={p.titulo}
-            className={`flex flex-col rounded-xl p-5 text-left ${
-              p.destacada
-                ? "border-2 border-acento bg-acento/5 md:col-span-2"
-                : "bg-tarjeta dark:bg-tarjeta-dark"
-            }`}
+    <div className="flex flex-col items-center">
+      {/* Hero: franja con degradado sutil verde→bronce, propio de la marca
+          (julio 2026) — antes la portada abría directo con el título sobre
+          fondo plano, sin ningún elemento que la distinguiera de una página
+          interna cualquiera. */}
+      <section className="relative w-full overflow-hidden">
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.07] dark:opacity-[0.12]"
+          style={{
+            background:
+              "radial-gradient(circle at 15% 20%, #0c6b58 0%, transparent 45%), radial-gradient(circle at 85% 15%, #a8752e 0%, transparent 40%)",
+          }}
+        />
+        <div className="relative mx-auto max-w-4xl px-4 pb-10 pt-12 text-center md:pb-14 md:pt-16">
+          <span className="inline-block rounded-full border border-acento/25 bg-acento/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-acento">
+            Formalización minera artesanal · Perú
+          </span>
+          <h1 className="mt-4 text-3xl font-bold leading-tight md:text-5xl">
+            Conectamos la <span className="text-acento">minería artesanal</span> con su
+            formalización
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-base text-texto-suave dark:text-texto-suave-dark">
+            Diagnóstico gratuito para mineros, proyectos verificados para
+            inversionistas y clientes reales para consultores.
+          </p>
+          <Link
+            to="/como-funciona"
+            className="mt-3 inline-block text-sm font-semibold text-acento underline underline-offset-2"
           >
-            <div className="flex items-center gap-2.5">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
-                <p.Icono size={20} strokeWidth={2} aria-hidden />
-              </span>
-              <h2 className="text-lg font-bold">{p.titulo}</h2>
-            </div>
-            <p className="mt-2 flex-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-              {p.descripcion}
-            </p>
-            <button
-              onClick={() => navigate(p.ruta)}
-              className={`mt-4 min-h-[44px] rounded-lg px-4 font-semibold transition duration-200 hover:opacity-90 ${
+            ¿Cómo funciona {MARCA}?
+          </Link>
+        </div>
+      </section>
+
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-8 px-4 pb-10">
+        <div className="grid w-full grid-cols-1 gap-4 md:grid-cols-2">
+          {PERFILES.map((p) => (
+            <div
+              key={p.titulo}
+              className={`flex flex-col rounded-xl p-5 text-left transition ${
                 p.destacada
-                  ? "bg-acento text-white"
-                  : "border border-acento text-acento"
+                  ? "border-2 border-acento bg-acento/5 shadow-sm md:col-span-2"
+                  : "border border-transparent bg-tarjeta shadow-sm hover:border-acento/20 dark:bg-tarjeta-dark"
               }`}
             >
-              {p.accion}
-            </button>
-            {p.sesion && (
-              <Link
-                to={p.sesion.ruta}
-                className="mt-2 text-center text-sm text-texto-suave underline dark:text-texto-suave-dark"
+              <div className="flex items-center gap-2.5">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
+                  <p.Icono size={20} strokeWidth={2} aria-hidden />
+                </span>
+                <h2 className="text-lg font-bold">{p.titulo}</h2>
+              </div>
+              <p className="mt-2 flex-1 text-sm text-texto-suave dark:text-texto-suave-dark">
+                {p.descripcion}
+              </p>
+              <button
+                onClick={() => navigate(p.ruta)}
+                className={`mt-4 min-h-[44px] rounded-lg px-4 font-semibold transition duration-200 hover:opacity-90 ${
+                  p.destacada
+                    ? "bg-acento text-white"
+                    : "border border-acento text-acento"
+                }`}
               >
-                {p.sesion.texto}
-              </Link>
-            )}
-          </div>
-        ))}
+                {p.accion}
+              </button>
+              {p.sesion && (
+                <Link
+                  to={p.sesion.ruta}
+                  className="mt-2 text-center text-sm text-texto-suave underline dark:text-texto-suave-dark"
+                >
+                  {p.sesion.texto}
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Dentro de la app instalada no tiene sentido ofrecer descargarla */}
+        {!Capacitor.isNativePlatform() && (
+          <a
+            href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
+            className="flex w-full max-w-md flex-col items-center rounded-xl border border-acento/30 bg-tarjeta p-4 text-center transition hover:opacity-90 dark:bg-tarjeta-dark"
+          >
+            <span className="flex items-center justify-center gap-1.5 font-semibold text-acento">
+              <Download size={18} strokeWidth={2} aria-hidden />
+              Descargar la app para Android (APK)
+            </span>
+            <span className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+              Gratis, 4 MB. Al instalar, acepta "instalar de origen desconocido" —
+              es normal para apps fuera de Play Store.
+            </span>
+          </a>
+        )}
+
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          {CONFIANZA.map(({ Icono, texto }) => (
+            <span
+              key={texto}
+              className="flex items-center gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark"
+            >
+              <Icono size={14} strokeWidth={2} className="text-acento" aria-hidden />
+              {texto}
+            </span>
+          ))}
+        </div>
       </div>
-
-      {/* Dentro de la app instalada no tiene sentido ofrecer descargarla */}
-      {!Capacitor.isNativePlatform() && (
-      <a
-        href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
-        className="flex w-full max-w-md flex-col items-center rounded-xl border border-acento/30 bg-tarjeta p-4 text-center transition hover:opacity-90 dark:bg-tarjeta-dark"
-      >
-        <span className="flex items-center justify-center gap-1.5 font-semibold text-acento">
-          <Download size={18} strokeWidth={2} aria-hidden />
-          Descargar la app para Android (APK)
-        </span>
-        <span className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-          Gratis, 4 MB. Al instalar, acepta "instalar de origen desconocido" —
-          es normal para apps fuera de Play Store.
-        </span>
-      </a>
-      )}
-
-      <p className="text-center text-xs text-texto-suave dark:text-texto-suave-dark">
-        100% gratis para mineros · Sin tramitadores · Tus datos de contacto
-        nunca se muestran públicamente
-      </p>
     </div>
   );
 }
