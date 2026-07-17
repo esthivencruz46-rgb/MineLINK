@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { Building2, Wrench } from "lucide-react";
+import { Building2, Loader2, MapPin, SearchX, SlidersHorizontal, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
 import { DEPARTAMENTOS } from "../data/departamentos";
@@ -90,7 +90,13 @@ export function Empresas() {
         ← Volver
       </button>
 
-      <h1 className="text-2xl font-bold">Empresas que te pueden ayudar</h1>
+      <div>
+        <h1 className="text-2xl font-bold">Empresas que te pueden ayudar</h1>
+        <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
+          Filtradas por lo que a ti te falta — contacta directo o deja tu
+          interés y nosotros intermediamos.
+        </p>
+      </div>
 
       {esDemo && (
         <p className="rounded-lg bg-secundario/15 p-3 text-sm text-secundario">
@@ -98,24 +104,28 @@ export function Empresas() {
         </p>
       )}
 
-      <div className="flex flex-col gap-3 md:flex-row">
-        <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
-        >
-          <option value="" className="bg-white text-black">
-            Todos los departamentos
-          </option>
-          {DEPARTAMENTOS.map((d) => (
-            <option key={d} value={d.toLowerCase()} className="bg-white text-black">
-              {d}
+      <div className="flex flex-col gap-3 rounded-xl border border-black/10 bg-tarjeta p-3 dark:border-white/10 dark:bg-tarjeta-dark md:flex-row">
+        <div className="flex min-h-[44px] flex-1 items-center gap-2 rounded-lg border border-black/10 px-3 dark:border-white/10">
+          <MapPin size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+          <select
+            className="min-h-[44px] w-full bg-transparent text-texto dark:text-texto-dark"
+            value={region}
+            onChange={(e) => setRegion(e.target.value)}
+          >
+            <option value="" className="bg-white text-black">
+              Todos los departamentos
             </option>
-          ))}
-        </select>
+            {DEPARTAMENTOS.map((d) => (
+              <option key={d} value={d.toLowerCase()} className="bg-white text-black">
+                {d}
+              </option>
+            ))}
+          </select>
+        </div>
 
-        <details className="relative min-h-[44px] rounded-lg border border-black/10 px-3 py-2 dark:border-white/10">
-          <summary className="cursor-pointer select-none">
+        <details className="relative min-h-[44px] flex-1 rounded-lg border border-black/10 px-3 py-2 dark:border-white/10">
+          <summary className="flex cursor-pointer select-none items-center gap-2">
+            <SlidersHorizontal size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
             Tipo de estudio ({estudiosFiltro.length})
           </summary>
           <div className="absolute left-0 top-full z-10 mt-2 flex max-h-52 w-72 max-w-[90vw] flex-col gap-1 overflow-y-auto rounded-lg border border-black/10 bg-tarjeta p-3 shadow-lg dark:border-white/10 dark:bg-tarjeta-dark">
@@ -133,11 +143,19 @@ export function Empresas() {
         </details>
       </div>
 
-      {cargando && <p>Buscando empresas...</p>}
+      {cargando && (
+        <p className="flex items-center justify-center gap-2 py-6 text-sm text-texto-suave dark:text-texto-suave-dark">
+          <Loader2 size={16} strokeWidth={2} className="animate-spin" aria-hidden />
+          Buscando empresas...
+        </p>
+      )}
 
       {!cargando && empresas.length === 0 && (
         <div className="rounded-lg bg-tarjeta p-6 text-center dark:bg-tarjeta-dark">
-          <p>Aún no tenemos empresas registradas para esto en tu departamento.</p>
+          <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-acento/10 text-acento">
+            <SearchX size={20} strokeWidth={2} aria-hidden />
+          </span>
+          <p className="mt-3">Aún no tenemos empresas registradas para esto en tu departamento.</p>
           {!yaTieneCuenta && (
             <button
               onClick={() => setMostrarModal(true)}
@@ -163,12 +181,14 @@ export function Empresas() {
         if (bloque.length === 0) return null;
         return (
           <div key={tipo} className="flex flex-col gap-4">
-            <h2 className="flex items-center gap-2 text-lg font-bold">
-              {tipo === "empresa" ? (
-                <Building2 size={19} strokeWidth={2} className="text-acento" aria-hidden />
-              ) : (
-                <Wrench size={19} strokeWidth={2} className="text-acento" aria-hidden />
-              )}
+            <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 text-lg font-bold dark:border-white/10">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-acento/10 text-acento">
+                {tipo === "empresa" ? (
+                  <Building2 size={17} strokeWidth={2} aria-hidden />
+                ) : (
+                  <Wrench size={17} strokeWidth={2} aria-hidden />
+                )}
+              </span>
               {tipo === "empresa" ? "Empresas" : "Consultores independientes"}
               <span className="text-sm font-normal text-texto-suave dark:text-texto-suave-dark">
                 ({bloque.length})
