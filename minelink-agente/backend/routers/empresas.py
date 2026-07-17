@@ -10,7 +10,7 @@ import models
 import schemas
 import storage
 from database import get_db
-from security import contenido_coincide_con_tipo
+from security import contenido_coincide_con_tipo, limitar_creaciones_publicas
 from uploads_config import CV_TAMANO_MAXIMO_BYTES
 
 router = APIRouter(tags=["empresas"])
@@ -103,6 +103,7 @@ async def postular_consultor(
     estudios_json: str = Form(..., description="Lista JSON, ej: [\"tramite_reinfo\"]"),
     cv: UploadFile = File(..., description="CV en PDF, obligatorio"),
     db: Session = Depends(get_db),
+    _limite: None = Depends(limitar_creaciones_publicas),
 ):
     """Auto-registro público de un consultor independiente. Exige colegiatura,
     email de contacto y CV en PDF (para que Esthiven lo revise antes de
@@ -166,7 +167,15 @@ async def postular_consultor(
 
 @router.get("/empresas/{empresa_id}", response_model=schemas.EmpresaPublicoOut)
 def obtener_empresa(empresa_id: int, db: Session = Depends(get_db)):
-    empresa = db.query(models.Empresa).filter(models.Empresa.id == empresa_id).first()
+    # Mismo filtro `activa` que el listado (julio 2026, hallazgo de
+    # auditoría): un consultor recién postulado nace con activa=False
+    # (pendiente de aprobación de Esthiven) y no debe poder verse por id
+    # directo antes de que lo apruebe — 404, sin confirmar que exista.
+    empresa = (
+        db.query(models.Empresa)
+        .filter(models.Empresa.id == empresa_id, models.Empresa.activa)
+        .first()
+    )
     if empresa is None:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
     return empresa

@@ -3,7 +3,7 @@ from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 import database
 import geocatmin
@@ -13,6 +13,7 @@ import schemas
 import storage
 from auth import hash_password
 from database import get_db
+from security import limitar_creaciones_publicas
 from routers.mineros import _es_titular_concesion, reparar_ubicacion_coords
 from scoring import estado_seguimiento, score_formalizacion, score_inversion
 from catalogo_diagnostico import ids_esperados, BRECHA_POR_PREGUNTA
@@ -164,10 +165,19 @@ def _proyectos_visibles(db: Session):
     """Todas las operaciones con cuenta registrada (Lead). REINFO/trámite de
     formalización YA NO es requisito para aparecer en la vitrina pública —
     `Operacion.bloqueado` sigue calculándose (se muestra al minero como
-    estado informativo) pero no filtra este listado."""
+    estado informativo) pero no filtra este listado.
+
+    selectinload(documentos): el listado toca `operacion.documentos` varias
+    veces por proyecto (_credencial_publica, _indicadores_verificados,
+    score_formalizacion/score_inversion) — con la relación lazy por defecto
+    eso era 1 consulta SQL extra POR proyecto en cada carga de /proyectos,
+    el endpoint público más visitado (N+1, hallazgo de auditoría julio
+    2026). Con selectin son 2 consultas fijas en total, sin importar
+    cuántos proyectos haya."""
     filas = (
         db.query(models.Lead, models.Operacion)
         .join(models.Operacion, models.Lead.operacion_id == models.Operacion.id)
+        .options(selectinload(models.Operacion.documentos))
         .order_by(models.Lead.created_at.desc())
         .all()
     )
@@ -682,6 +692,7 @@ def registrar_interes(
     operacion_id: str,
     payload: schemas.InteresInversionCreate,
     db: Session = Depends(get_db),
+    _limite: None = Depends(limitar_creaciones_publicas),
 ):
     """Un inversionista deja sus datos desde la ficha pública del proyecto Y
     crea su cuenta en el mismo paso (usuario/contraseña, mismo patrón que el

@@ -12,7 +12,7 @@ from auth import create_minero_token, get_current_lead_id, hash_password, verify
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
-from notificaciones import crear_notificacion
+from notificaciones import crear_notificacion, notificar_publicacion_si_corresponde
 from scoring import (
     categorias_requeridas_out,
     estado_seguimiento,
@@ -452,33 +452,11 @@ def marcar_notificaciones_leidas(
     )
 
 
-def _notificar_publicacion_si_corresponde(
-    db: Session, lead: models.Lead, operacion: models.Operacion
-) -> None:
-    """Si la operación acaba de quedar apta para la cartera pública (ver
-    scoring.estado_seguimiento — perfil B/C/D + semáforo legal no rojo +
-    documentos de formalización Y de inversión enviados), notifica al
-    minero UNA sola vez. Ya no hay un visto bueno manual del admin: los
-    inversionistas juzgan por sí mismos si los datos son correctos."""
-    if not estado_seguimiento(operacion).get("apto_inversionistas"):
-        return
-    ya_notificado = (
-        db.query(models.Notificacion)
-        .filter(
-            models.Notificacion.lead_id == lead.id,
-            models.Notificacion.tipo == "publicado_cartera",
-        )
-        .first()
-    )
-    if ya_notificado is not None:
-        return
-    crear_notificacion(
-        db,
-        lead.id,
-        "publicado_cartera",
-        "Tu proyecto ya está publicado en la cartera para inversionistas.",
-    )
-    db.commit()
+# _notificar_publicacion_si_corresponde se movió a notificaciones.py
+# (julio 2026): admin.py también la necesita — al marcar resuelta la
+# brecha que bloqueaba, el proyecto se publica solo y el minero debe
+# enterarse — y un router nunca importa de otro router.
+_notificar_publicacion_si_corresponde = notificar_publicacion_si_corresponde
 
 
 @router.get("/documentos", response_model=list[schemas.DocumentoOperacionOut])

@@ -16,19 +16,77 @@ VENTANA_SEGUNDOS = 5 * 60
 
 _intentos_por_ip: dict[str, deque] = defaultdict(deque)
 
+# Cada cuántas peticiones se barren las IPs cuya ventana ya venció — sin
+# esto, cada IP que alguna vez intentó loguearse quedaba como clave
+# permanente del dict (fuga de memoria lenta pero indefinida en un proceso
+# de larga duración; hallazgo de auditoría, julio 2026). El barrido es
+# O(n) pero amortizado: corre una vez cada _CADA_CUANTO_BARRER llamadas.
+_CADA_CUANTO_BARRER = 500
+_llamadas_desde_barrido = 0
 
-def limitar_intentos_login(request: Request) -> None:
+
+def _barrer_si_toca(registro: dict[str, deque], ventana: float) -> None:
+    global _llamadas_desde_barrido
+    _llamadas_desde_barrido += 1
+    if _llamadas_desde_barrido < _CADA_CUANTO_BARRER:
+        return
+    _llamadas_desde_barrido = 0
+    ahora = time.monotonic()
+    vencidas = [
+        clave for clave, cola in registro.items() if not cola or ahora - cola[-1] > ventana
+    ]
+    for clave in vencidas:
+        del registro[clave]
+
+
+def _limitar_por_ip(
+    request: Request,
+    registro: dict[str, deque],
+    maximo: int,
+    ventana: float,
+    detalle: str,
+) -> None:
     ip = request.client.host if request.client else "desconocida"
     ahora = time.monotonic()
-    cola = _intentos_por_ip[ip]
-    while cola and ahora - cola[0] > VENTANA_SEGUNDOS:
+    _barrer_si_toca(registro, ventana)
+    cola = registro[ip]
+    while cola and ahora - cola[0] > ventana:
         cola.popleft()
-    if len(cola) >= MAX_INTENTOS:
-        raise HTTPException(
-            status_code=429,
-            detail="Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
-        )
+    if len(cola) >= maximo:
+        raise HTTPException(status_code=429, detail=detalle)
     cola.append(ahora)
+
+
+def limitar_intentos_login(request: Request) -> None:
+    _limitar_por_ip(
+        request,
+        _intentos_por_ip,
+        MAX_INTENTOS,
+        VENTANA_SEGUNDOS,
+        "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.",
+    )
+
+
+# --- Límite de registros públicos (anti spam de cuentas/postulaciones) ---
+# POST /proyectos/{id}/interes y /consultores/postular crean registros sin
+# autenticación previa — sin este freno se podían spamear cuentas de
+# inversionista o postulaciones falsas sin fricción (hallazgo de auditoría,
+# julio 2026). Tope generoso para no molestar a nadie real: nadie legítimo
+# deja más de 10 intereses/postulaciones en una hora desde la misma IP.
+MAX_CREACIONES_PUBLICAS = 10
+VENTANA_CREACIONES = 60 * 60
+
+_creaciones_por_ip: dict[str, deque] = defaultdict(deque)
+
+
+def limitar_creaciones_publicas(request: Request) -> None:
+    _limitar_por_ip(
+        request,
+        _creaciones_por_ip,
+        MAX_CREACIONES_PUBLICAS,
+        VENTANA_CREACIONES,
+        "Demasiadas solicitudes desde esta conexión. Intenta de nuevo en una hora.",
+    )
 
 
 # --- Intentos de la pregunta de seguridad (recuperación de contraseña) ---

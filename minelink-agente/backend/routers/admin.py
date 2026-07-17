@@ -18,7 +18,7 @@ from scoring import (
     respuestas_diagnostico_efectivas,
 )
 from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
-from notificaciones import crear_notificacion
+from notificaciones import crear_notificacion, notificar_publicacion_si_corresponde
 import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -299,6 +299,17 @@ def actualizar_brechas_resueltas(
     operacion.brechas_resueltas_json = sorted(set(payload.brechas_resueltas))
     db.commit()
     db.refresh(operacion)
+
+    # Si la brecha resuelta era la que tenía el semáforo legal en rojo, el
+    # proyecto se publica solo en la próxima lectura — hallazgo de
+    # auditoría (julio 2026): el minero quedaba publicado sin enterarse
+    # porque esta notificación solo se disparaba desde los envíos del
+    # propio minero, nunca desde el seguimiento manual del admin.
+    lead = (
+        db.query(models.Lead).filter(models.Lead.operacion_id == operacion.id).first()
+    )
+    if lead is not None:
+        notificar_publicacion_si_corresponde(db, lead, operacion)
 
     return schemas.OperacionSeguimientoOut(
         operacion_id=operacion.id,

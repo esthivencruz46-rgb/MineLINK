@@ -26,7 +26,7 @@ import models
 from database import Base, get_db
 from main import app
 import security
-from security import limitar_intentos_login
+from security import limitar_creaciones_publicas, limitar_intentos_login
 
 engine = create_engine(
     "sqlite://",
@@ -55,6 +55,9 @@ database.SessionLocal = TestingSessionLocal
 # El límite de intentos por IP se desactiva en tests (todos comparten la IP
 # "testclient" y lo dispararían); su lógica se prueba aparte más abajo.
 app.dependency_overrides[limitar_intentos_login] = lambda: None
+# Ídem para el límite de creaciones públicas (intereses/postulaciones):
+# la suite crea decenas desde la misma IP de prueba.
+app.dependency_overrides[limitar_creaciones_publicas] = lambda: None
 
 
 @pytest.fixture(autouse=True)
@@ -2013,6 +2016,55 @@ def test_detalle_publico_indicadores_verificados_sin_exponer_documentos():
     assert resp.status_code == 404
     resp = client.get(f"/proyectos/{diag['id']}/fotos/{doc['id']}")
     assert resp.status_code == 404
+
+
+def test_notificacion_cuando_admin_resuelve_la_brecha_que_bloqueaba():
+    # Hallazgo de auditoría (julio 2026): si el semáforo legal estaba en
+    # rojo (REINFO suspendido) con ambas partes ya enviadas, y el admin
+    # marcaba resuelta esa brecha por seguimiento manual, el proyecto se
+    # publicaba solo en la siguiente lectura — pero el minero nunca
+    # recibía la notificación de "publicado", porque solo se disparaba
+    # desde los envíos del propio minero.
+    respuestas_suspendido = dict(RESPUESTAS_COMPLETAS)
+    respuestas_suspendido["M0_4"] = "suspendido"
+    respuestas_suspendido["C1_1"] = "suspendida"
+    diag = client.post(
+        "/diagnostico",
+        json={
+            "respuestas": respuestas_suspendido,
+            "region": "arequipa",
+            "mineral": "oro",
+            "tipo_mina": "subterranea",
+        },
+    ).json()
+    assert diag["semaforo_legal"] == "rojo"
+    client.post("/leads", json=_lead_payload(diag["id"], username="notifdesbloqueo1"))
+    _hacer_apto_inversionistas(diag["id"], "notifdesbloqueo1")
+
+    token = client.post(
+        "/mineros/login", json={"username": "notifdesbloqueo1", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Con el semáforo en rojo, aunque envió todo, NO está publicado ni
+    # notificado.
+    tipos = {n["tipo"] for n in client.get("/mineros/notificaciones", headers=headers).json()}
+    assert "publicado_cartera" not in tipos
+    assert diag["id"] not in {p["operacion_id"] for p in client.get("/proyectos").json()}
+
+    # El admin se entera (ej. por WhatsApp) de que el REINFO ya se
+    # reactivó y marca la brecha como resuelta → se publica Y se notifica.
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.put(
+        f"/admin/operaciones/{diag['id']}/brechas-resueltas",
+        json={"brechas_resueltas": ["tramite_reinfo"]},
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+
+    assert diag["id"] in {p["operacion_id"] for p in client.get("/proyectos").json()}
+    tipos = {n["tipo"] for n in client.get("/mineros/notificaciones", headers=headers).json()}
+    assert "publicado_cartera" in tipos
 
 
 def test_mineros_notificaciones_requiere_jwt():
