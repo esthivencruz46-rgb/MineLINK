@@ -4153,6 +4153,53 @@ def test_importar_empresas_desde_csv():
     assert geo["num_resenas"] == 120
 
 
+def test_importar_csv_sin_ruc_ni_colegiatura_crea_inactivas():
+    """Import masivo (julio 2026): una fuente tipo scraping no trae RUC ni
+    colegiatura — la fila entra igual pero nace INACTIVA (no visible al
+    público hasta que el admin la revise). Regresión doble: (1) el import no
+    debe rechazarlas, (2) el listado del admin no debe romperse al LEER una
+    empresa sin RUC (EmpresaOut no hereda esa exigencia)."""
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    csv_contenido = (
+        "tipo,nombre,ruc,colegiatura,anios_servicio,regiones,estudios,whatsapp,email,rating,num_resenas\n"
+        "empresa,Scrapeada Sin Ruc,,,0,lima,tramite_reinfo,+51911224466,,4.1,10\n"
+        "consultor,Abogado Sin CIP,,,0,lima,tramite_reinfo,+51911224477,,,\n"
+    )
+    resp = client.post(
+        "/admin/empresas/importar",
+        headers=headers,
+        files={"archivo": ("scraping.csv", csv_contenido.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200
+    r = resp.json()
+    assert r["creadas"] == 2
+    assert r["errores"] == []
+
+    # El listado del admin las muestra (inactivas) sin explotar
+    empresas = client.get("/admin/empresas", headers=headers).json()
+    scrapeada = [e for e in empresas if e["nombre"] == "Scrapeada Sin Ruc"][0]
+    assert scrapeada["activa"] is False
+    assert scrapeada["ruc"] is None
+
+    # El alta manual del admin sigue exigiendo RUC (la relajación es SOLO
+    # para el import masivo)
+    resp = client.post(
+        "/admin/empresas",
+        headers=headers,
+        json={
+            "tipo": "empresa",
+            "nombre": "Manual Sin Ruc SAC",
+            "anios_servicio": 3,
+            "regiones_json": ["lima"],
+            "estudios_json": ["tramite_reinfo"],
+            "whatsapp": "+51999888666",
+        },
+    )
+    assert resp.status_code == 422
+
+
 def test_rating_fuera_de_rango_rechazado():
     token = _admin_token()
     resp = client.post(

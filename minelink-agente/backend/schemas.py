@@ -189,13 +189,11 @@ class EmpresaBase(BaseModel):
             raise ValueError("Debe marcar al menos 1 estudio")
         return v
 
-    @model_validator(mode="after")
-    def validar_segun_tipo(self) -> "EmpresaBase":
-        if self.tipo == "empresa" and not self.ruc:
-            raise ValueError("Las empresas deben tener RUC (11 dígitos)")
-        if self.tipo == "consultor" and not self.colegiatura:
-            raise ValueError("Los consultores independientes deben indicar su colegiatura")
-        return self
+    # La exigencia de RUC/colegiatura NO vive aquí sino solo en
+    # EmpresaCreate (julio 2026): si estuviera en la base, también la
+    # heredarían EmpresaOut (y la LECTURA de una empresa importada sin RUC
+    # rompería el listado del admin con un 500) y EmpresaUpdate (editar una
+    # importada para completarla fallaría antes de poder guardarla).
 
 
 class EmpresaImportarCSV(EmpresaBase):
@@ -207,20 +205,22 @@ class EmpresaImportarCSV(EmpresaBase):
     creada así: quedan pendientes de que un admin las revise y confirme
     identidad antes de que un minero pueda verlas o contactarlas."""
 
-    # Mismo nombre que en EmpresaBase — en Pydantic v2 una subclase que
-    # redefine un @model_validator con el nombre EXACTO del padre lo
-    # reemplaza (no se acumulan); si el nombre fuera distinto, ambos
-    # correrían y la exigencia de RUC/colegiatura seguiría aplicando.
+
+class EmpresaCreate(EmpresaBase):
+    # El alta manual ("+ Nuevo" del admin) y la postulación pública SÍ
+    # exigen identidad verificable — es la promesa anti-tramitadores.
     @model_validator(mode="after")
-    def validar_segun_tipo(self) -> "EmpresaImportarCSV":
+    def validar_segun_tipo(self) -> "EmpresaCreate":
+        if self.tipo == "empresa" and not self.ruc:
+            raise ValueError("Las empresas deben tener RUC (11 dígitos)")
+        if self.tipo == "consultor" and not self.colegiatura:
+            raise ValueError("Los consultores independientes deben indicar su colegiatura")
         return self
 
 
-class EmpresaCreate(EmpresaBase):
-    pass
-
-
 class EmpresaUpdate(EmpresaBase):
+    # Relajado a propósito: permite completar/corregir una empresa
+    # importada sin RUC desde el panel sin que la validación lo impida.
     pass
 
 
