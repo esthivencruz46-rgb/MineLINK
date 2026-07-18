@@ -431,8 +431,11 @@ export function AdminEmpresas() {
               <tr className="border-b border-black/10 dark:border-white/10">
                 <th className="p-3">Tipo</th>
                 <th className="p-3">Nombre</th>
+                <th className="p-3">Categoría</th>
+                <th className="p-3">Dirección</th>
+                <th className="p-3">Teléfono</th>
+                <th className="p-3">Web</th>
                 <th className="p-3">RUC / Colegiatura</th>
-                <th className="p-3">Años</th>
                 <th className="p-3">Rating</th>
                 <th className="p-3">Reseñas</th>
                 <th className="p-3">Departamentos</th>
@@ -448,41 +451,42 @@ export function AdminEmpresas() {
                       {e.tipo === "consultor" ? "Consultor" : "Empresa"}
                     </span>
                   </td>
-                  {/* min-w generoso: sin él, la tabla estruja esta columna y
-                      el nombre cae en vertical palabra por palabra (feo,
-                      reportado julio 2026). El contexto va truncado a una
-                      línea por dato — el detalle completo vive en Editar. */}
-                  <td className="min-w-[20rem] max-w-[26rem] p-3">
+                  {/* Cada dato del scraping en SU PROPIA columna (julio
+                      2026, pedido explícito: "recopilar dirección aparte,
+                      teléfono aparte, nombre aparte") — la tabla es ancha
+                      pero el contenedor tiene overflow-x-auto. */}
+                  <td className="min-w-[14rem] max-w-[18rem] p-3">
                     <p className="font-medium leading-snug">{e.nombre}</p>
-                    {(e.categoria || e.direccion || e.telefono || e.web) && (
-                      <div className="mt-1 flex flex-col gap-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
-                        {e.categoria && (
-                          <span className="truncate">
-                            {e.categoria}
-                            {e.keyword ? ` · búsqueda: ${e.keyword}` : ""}
-                          </span>
-                        )}
-                        {e.direccion && <span className="truncate">{e.direccion}</span>}
-                        <span className="flex flex-wrap gap-x-2">
-                          {e.telefono && <span className="whitespace-nowrap">Tel: {e.telefono}</span>}
-                          {e.web && (
-                            <a
-                              href={e.web}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="whitespace-nowrap text-acento underline"
-                            >
-                              Sitio web
-                            </a>
-                          )}
-                        </span>
-                      </div>
+                  </td>
+                  <td className="min-w-[9rem] max-w-[12rem] p-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    {e.categoria || "—"}
+                    {e.keyword && (
+                      <p className="mt-0.5 text-[11px] opacity-75">búsqueda: {e.keyword}</p>
                     )}
                   </td>
-                  <td className="whitespace-nowrap p-3 pt-4 font-mono text-xs">
+                  <td className="min-w-[12rem] max-w-[16rem] p-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    {e.direccion || "—"}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-mono text-xs">
+                    {e.telefono || e.whatsapp || "—"}
+                  </td>
+                  <td className="p-3 text-xs">
+                    {e.web ? (
+                      <a
+                        href={e.web}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="whitespace-nowrap text-acento underline"
+                      >
+                        Abrir
+                      </a>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap p-3 font-mono text-xs">
                     {e.ruc ?? e.colegiatura ?? "—"}
                   </td>
-                  <td className="p-3 pt-3.5">{e.anios_servicio}</td>
                   <td className="whitespace-nowrap p-3 pt-3.5">
                     {e.rating != null ? (
                       <span className="inline-flex items-center gap-1">
@@ -494,8 +498,8 @@ export function AdminEmpresas() {
                     )}
                   </td>
                   <td className="p-3 pt-3.5">{e.num_resenas ?? 0}</td>
-                  <td className="max-w-[10rem] p-3 pt-3.5 capitalize">
-                    <span className="truncate">{e.regiones_json.join(", ")}</span>
+                  <td className="max-w-[8rem] p-3 pt-3.5 text-xs capitalize">
+                    {e.regiones_json.join(", ")}
                   </td>
                   <td className="p-3 pt-3.5">
                     <span
