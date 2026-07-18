@@ -198,6 +198,24 @@ class EmpresaBase(BaseModel):
         return self
 
 
+class EmpresaImportarCSV(EmpresaBase):
+    """Variante para la importación masiva (julio 2026, pedido explícito de
+    Esthiven): mismas validaciones de formato que EmpresaBase (WhatsApp,
+    RUC si viene, estudios, regiones), pero SIN exigir RUC/colegiatura —
+    una fuente masiva (ej. scraping de Google Maps) casi nunca los trae.
+    Por eso `importar_empresas` fuerza `activa=False` en toda fila
+    creada así: quedan pendientes de que un admin las revise y confirme
+    identidad antes de que un minero pueda verlas o contactarlas."""
+
+    # Mismo nombre que en EmpresaBase — en Pydantic v2 una subclase que
+    # redefine un @model_validator con el nombre EXACTO del padre lo
+    # reemplaza (no se acumulan); si el nombre fuera distinto, ambos
+    # correrían y la exigencia de RUC/colegiatura seguiría aplicando.
+    @model_validator(mode="after")
+    def validar_segun_tipo(self) -> "EmpresaImportarCSV":
+        return self
+
+
 class EmpresaCreate(EmpresaBase):
     pass
 

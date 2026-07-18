@@ -698,7 +698,7 @@ async def importar_empresas(
                 saltadas += 1
                 continue
 
-            datos = schemas.EmpresaCreate(
+            datos = schemas.EmpresaImportarCSV(
                 tipo=fila.get("tipo") or "empresa",
                 nombre=nombre,
                 ruc=ruc,
@@ -710,7 +710,11 @@ async def importar_empresas(
                 email=fila.get("email") or None,
                 rating=float(fila["rating"].replace(",", ".")) if fila.get("rating") else None,
                 num_resenas=int(fila["num_resenas"]) if fila.get("num_resenas") else None,
-                activa=True,
+                # Sin RUC/colegiatura verificados todavía (import masivo,
+                # julio 2026, pedido explícito) — nace INACTIVA: no aparece
+                # en /empresas ni es contactable hasta que un admin la
+                # revise y la active desde el panel.
+                activa=False,
             )
             db.add(models.Empresa(**datos.model_dump()))
             db.flush()
