@@ -442,28 +442,35 @@ export function AdminEmpresas() {
             </thead>
             <tbody>
               {lista.map((e) => (
-                <tr key={e.id} className="border-b border-black/5 dark:border-white/5">
-                  <td className="p-3">
-                    <span className="bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
+                <tr key={e.id} className="border-b border-black/5 align-top dark:border-white/5">
+                  <td className="p-3 pt-3.5">
+                    <span className="whitespace-nowrap bg-acento/15 px-2 py-0.5 text-xs font-semibold text-acento">
                       {e.tipo === "consultor" ? "Consultor" : "Empresa"}
                     </span>
                   </td>
-                  <td className="p-3">
-                    {e.nombre}
-                    {/* Contexto del scraping (julio 2026): ayuda a evaluar
-                        la empresa antes de activarla — solo admin. */}
+                  {/* min-w generoso: sin él, la tabla estruja esta columna y
+                      el nombre cae en vertical palabra por palabra (feo,
+                      reportado julio 2026). El contexto va truncado a una
+                      línea por dato — el detalle completo vive en Editar. */}
+                  <td className="min-w-[20rem] max-w-[26rem] p-3">
+                    <p className="font-medium leading-snug">{e.nombre}</p>
                     {(e.categoria || e.direccion || e.telefono || e.web) && (
                       <div className="mt-1 flex flex-col gap-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
-                        {e.categoria && <span>{e.categoria}{e.keyword ? ` · búsqueda: ${e.keyword}` : ""}</span>}
-                        {e.direccion && <span>{e.direccion}</span>}
-                        <span className="flex flex-wrap gap-2">
-                          {e.telefono && <span>Tel: {e.telefono}</span>}
+                        {e.categoria && (
+                          <span className="truncate">
+                            {e.categoria}
+                            {e.keyword ? ` · búsqueda: ${e.keyword}` : ""}
+                          </span>
+                        )}
+                        {e.direccion && <span className="truncate">{e.direccion}</span>}
+                        <span className="flex flex-wrap gap-x-2">
+                          {e.telefono && <span className="whitespace-nowrap">Tel: {e.telefono}</span>}
                           {e.web && (
                             <a
                               href={e.web}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-acento underline"
+                              className="whitespace-nowrap text-acento underline"
                             >
                               Sitio web
                             </a>
@@ -472,9 +479,11 @@ export function AdminEmpresas() {
                       </div>
                     )}
                   </td>
-                  <td className="p-3 font-mono text-xs">{e.ruc ?? e.colegiatura}</td>
-                  <td className="p-3">{e.anios_servicio}</td>
-                  <td className="p-3 whitespace-nowrap">
+                  <td className="whitespace-nowrap p-3 pt-4 font-mono text-xs">
+                    {e.ruc ?? e.colegiatura ?? "—"}
+                  </td>
+                  <td className="p-3 pt-3.5">{e.anios_servicio}</td>
+                  <td className="whitespace-nowrap p-3 pt-3.5">
                     {e.rating != null ? (
                       <span className="inline-flex items-center gap-1">
                         <Star size={13} strokeWidth={2} fill="currentColor" className="text-amber-500" aria-hidden />
@@ -484,11 +493,13 @@ export function AdminEmpresas() {
                       <span className="text-texto-suave dark:text-texto-suave-dark">—</span>
                     )}
                   </td>
-                  <td className="p-3">{e.num_resenas ?? 0}</td>
-                  <td className="p-3 capitalize">{e.regiones_json.join(", ")}</td>
-                  <td className="p-3">
+                  <td className="p-3 pt-3.5">{e.num_resenas ?? 0}</td>
+                  <td className="max-w-[10rem] p-3 pt-3.5 capitalize">
+                    <span className="truncate">{e.regiones_json.join(", ")}</span>
+                  </td>
+                  <td className="p-3 pt-3.5">
                     <span
-                      className={`px-2 py-0.5 text-xs font-semibold ${
+                      className={`whitespace-nowrap px-2 py-0.5 text-xs font-semibold ${
                         e.activa
                           ? "bg-emerald-500/15 text-emerald-500"
                           : "bg-red-500/15 text-red-500"
@@ -497,7 +508,8 @@ export function AdminEmpresas() {
                       {e.activa ? "Activa" : "Inactiva"}
                     </span>
                   </td>
-                  <td className="flex gap-2 p-3">
+                  <td className="p-3">
+                    <div className="flex flex-nowrap gap-2">
                     {e.cv_filename && (
                       <button
                         onClick={() => verCV(e)}
@@ -529,10 +541,11 @@ export function AdminEmpresas() {
                     )}
                     <button
                       onClick={() => eliminar(e)}
-                      className="min-h-[32px] rounded bg-red-500 px-2 text-xs font-semibold text-white"
+                      className="min-h-[32px] whitespace-nowrap rounded bg-red-500 px-2 text-xs font-semibold text-white"
                     >
                       Eliminar
                     </button>
+                    </div>
                   </td>
                 </tr>
               ))}
