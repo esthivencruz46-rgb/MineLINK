@@ -148,6 +148,13 @@ class EmpresaBase(BaseModel):
     # admin por ahora; ordena internamente los listados públicos
     rating: Optional[float] = None
     num_resenas: Optional[int] = None
+    # Contexto de la base externa (scraping de Google Maps, julio 2026) —
+    # solo informativo para el admin; el público no los ve.
+    web: Optional[str] = None
+    telefono: Optional[str] = None
+    direccion: Optional[str] = None
+    categoria: Optional[str] = None
+    keyword: Optional[str] = None
 
     @field_validator("rating")
     @classmethod

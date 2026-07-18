@@ -58,12 +58,20 @@ const FORMULARIO_VACIO: Formulario = {
   num_resenas: "",
 };
 
-function validar(f: Formulario): Record<string, string> {
+function validar(f: Formulario, esEdicion: boolean): Record<string, string> {
   const errores: Record<string, string> = {};
   if (!f.nombre.trim()) errores.nombre = "El nombre es obligatorio";
-  if (f.tipo === "empresa" && !/^\d{11}$/.test(f.ruc))
+  // Al EDITAR se permite RUC/colegiatura vacíos (julio 2026): las empresas
+  // importadas del CSV externo llegan sin esos datos, y exigirlos aquí
+  // impediría corregirles cualquier otra cosa (estudios, región...) hasta
+  // inventarles un RUC. Si se escribe algo, el formato sí se valida.
+  if (f.tipo === "empresa" && !/^\d{11}$/.test(f.ruc) && !(esEdicion && !f.ruc.trim()))
     errores.ruc = "El RUC debe tener 11 dígitos numéricos";
-  if (f.tipo === "consultor" && !/^\d+$/.test(f.colegiatura.trim()))
+  if (
+    f.tipo === "consultor" &&
+    !/^\d+$/.test(f.colegiatura.trim()) &&
+    !(esEdicion && !f.colegiatura.trim())
+  )
     errores.colegiatura = "Ingresa solo el número de colegiatura (ej. 123456)";
   if (!f.anios_servicio || Number(f.anios_servicio) < 0)
     errores.anios_servicio = "Ingresa un número válido de años";
@@ -147,7 +155,7 @@ export function AdminEmpresas() {
   }
 
   async function guardar() {
-    const erroresValidacion = validar(form);
+    const erroresValidacion = validar(form, editandoId != null);
     setErrores(erroresValidacion);
     if (Object.keys(erroresValidacion).length > 0) return;
 
@@ -155,8 +163,10 @@ export function AdminEmpresas() {
     const cuerpo = {
       tipo: form.tipo,
       nombre: form.nombre.trim(),
-      ruc: form.tipo === "empresa" ? form.ruc : null,
-      colegiatura: form.tipo === "consultor" ? form.colegiatura.trim() : null,
+      // "|| null": un string vacío rompería la validación de formato del
+      // backend — vacío significa "sin dato", no "RUC de 0 dígitos".
+      ruc: form.tipo === "empresa" ? form.ruc.trim() || null : null,
+      colegiatura: form.tipo === "consultor" ? form.colegiatura.trim() || null : null,
       anios_servicio: Number(form.anios_servicio),
       whatsapp: `+51${form.whatsapp}`,
       email: form.email.trim() || null,
@@ -435,7 +445,30 @@ export function AdminEmpresas() {
                       {e.tipo === "consultor" ? "Consultor" : "Empresa"}
                     </span>
                   </td>
-                  <td className="p-3">{e.nombre}</td>
+                  <td className="p-3">
+                    {e.nombre}
+                    {/* Contexto del scraping (julio 2026): ayuda a evaluar
+                        la empresa antes de activarla — solo admin. */}
+                    {(e.categoria || e.direccion || e.telefono || e.web) && (
+                      <div className="mt-1 flex flex-col gap-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+                        {e.categoria && <span>{e.categoria}{e.keyword ? ` · búsqueda: ${e.keyword}` : ""}</span>}
+                        {e.direccion && <span>{e.direccion}</span>}
+                        <span className="flex flex-wrap gap-2">
+                          {e.telefono && <span>Tel: {e.telefono}</span>}
+                          {e.web && (
+                            <a
+                              href={e.web}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-acento underline"
+                            >
+                              Sitio web
+                            </a>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </td>
                   <td className="p-3 font-mono text-xs">{e.ruc ?? e.colegiatura}</td>
                   <td className="p-3">{e.anios_servicio}</td>
                   <td className="p-3 whitespace-nowrap">

@@ -18,6 +18,14 @@ export interface Empresa {
   // los listados públicos de mejor a peor
   rating?: number | null;
   num_resenas?: number | null;
+  // Contexto de la base externa de profesionales (scraping de Google
+  // Maps, julio 2026) — solo visible en el admin, ayuda a evaluar la
+  // empresa antes de activarla.
+  web?: string | null;
+  telefono?: string | null;
+  direccion?: string | null;
+  categoria?: string | null;
+  keyword?: string | null;
 }
 
 /** Lo que ve el minero en /empresas — sin whatsapp ni email. El contacto

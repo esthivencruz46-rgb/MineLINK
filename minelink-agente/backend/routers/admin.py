@@ -710,6 +710,13 @@ async def importar_empresas(
                 email=fila.get("email") or None,
                 rating=float(fila["rating"].replace(",", ".")) if fila.get("rating") else None,
                 num_resenas=int(fila["num_resenas"]) if fila.get("num_resenas") else None,
+                # Contexto del scraping (julio 2026) — columnas opcionales
+                # del CSV; si no vienen, quedan en NULL sin error.
+                web=fila.get("web") or None,
+                telefono=fila.get("telefono") or None,
+                direccion=fila.get("direccion") or None,
+                categoria=fila.get("categoria") or None,
+                keyword=fila.get("keyword") or None,
                 # Sin RUC/colegiatura verificados todavía (import masivo,
                 # julio 2026, pedido explícito) — nace INACTIVA: no aparece
                 # en /empresas ni es contactable hasta que un admin la
@@ -764,7 +771,10 @@ def actualizar_empresa(
     if empresa is None:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
 
-    for campo, valor in payload.model_dump().items():
+    # exclude_unset (julio 2026): el formulario del admin no envía los
+    # campos de contexto del scraping (web/telefono/direccion/categoria/
+    # keyword) — sin esto, cada edición los borraría poniéndolos en NULL.
+    for campo, valor in payload.model_dump(exclude_unset=True).items():
         setattr(empresa, campo, valor)
     db.commit()
     db.refresh(empresa)

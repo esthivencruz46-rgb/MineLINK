@@ -180,6 +180,16 @@ class Empresa(Base):
     # (no en la web pública); internamente ordena los listados.
     rating = Column(Float, nullable=True)
     num_resenas = Column(Integer, nullable=True)
+    # Datos de contexto de la base externa de profesionales (julio 2026,
+    # pedido de Esthiven): vienen del CSV de scraping (Google Maps) y le
+    # sirven al admin para evaluar/contactar antes de activar la empresa.
+    # `telefono` es la línea tal cual vino (puede ser fija) — distinta de
+    # `whatsapp`, que exige formato +51 y es el canal real de contacto.
+    web = Column(String, nullable=True)
+    telefono = Column(String, nullable=True)
+    direccion = Column(String, nullable=True)
+    categoria = Column(String, nullable=True)
+    keyword = Column(String, nullable=True)
     created_at = Column(DateTime, default=_now)
 
 
