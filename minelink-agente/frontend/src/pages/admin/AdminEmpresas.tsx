@@ -329,9 +329,12 @@ export function AdminEmpresas() {
         </div>
       </div>
       <p className="-mt-3 mb-4 text-xs text-texto-suave dark:text-texto-suave-dark">
-        Formato del CSV (con encabezados): tipo, nombre, ruc, colegiatura,
+        Acepta dos formatos de CSV: el propio (tipo, nombre, ruc, colegiatura,
         anios_servicio, regiones, estudios, whatsapp, email, rating, num_resenas —
-        regiones y estudios separados por ";". Los duplicados se saltan solos.
+        listas separadas por ";") o directamente el archivo del scraper de Google
+        Maps (name, address, phone, website...) tal cual, sin convertirlo. Todo lo
+        importado entra como "Inactiva" hasta que lo revises. Los duplicados se
+        saltan solos.
       </p>
 
       {pendientes.length > 0 && (

@@ -643,16 +643,64 @@ def actualizar_estado_contacto_interes_empresa(
     return {"id": interes.id, "estado_contacto": interes.estado_contacto}
 
 
+def _fila_desde_scraping(fila: dict) -> dict:
+    """Traduce una fila del formato de scraping (Google Places: name,
+    address, phone, website, rating, reviews_count, category, keyword,
+    block, departamento...) al formato nativo del importador (julio 2026,
+    pedido de Esthiven: subir el archivo del scraper TAL CUAL, sin
+    convertirlo a mano cada vez)."""
+    telefono = (fila.get("phone") or "").strip()
+    whatsapp = telefono.replace(" ", "").replace("-", "")
+    if whatsapp and not whatsapp.startswith("+"):
+        whatsapp = f"+51{whatsapp}"
+
+    categoria = (fila.get("category") or "").strip()
+    # "Abogado" es la única categoría de Google que denota persona natural
+    # — el resto (Asesor, Oficinas de empresa, etc.) entra como empresa.
+    tipo = "consultor" if categoria.lower() == "abogado" else "empresa"
+
+    # Estudio provisional según el bloque del scraper — el admin lo afina
+    # al revisar/activar (LEGAL→trámite REINFO, GEOLOGICO→mapeo geológico).
+    block = (fila.get("block") or "").strip().upper()
+    estudios = "informe_geologico" if block == "GEOLOGICO" else "tramite_reinfo"
+
+    region = (fila.get("departamento") or "").strip().lower() or "lima"
+    rating = (fila.get("rating") or "").strip()
+    reviews = (fila.get("reviews_count") or "").strip()
+    return {
+        "tipo": tipo,
+        "nombre": (fila.get("name") or "").strip(),
+        "ruc": "",
+        "colegiatura": "",
+        "anios_servicio": "",
+        "regiones": region,
+        "estudios": estudios,
+        "whatsapp": whatsapp,
+        "email": "",
+        "rating": rating[:-2] if rating.endswith(".0") else rating,
+        "num_resenas": reviews[:-2] if reviews.endswith(".0") else reviews,
+        "web": (fila.get("website") or "").strip(),
+        "telefono": telefono,
+        "direccion": (fila.get("address") or "").strip(),
+        "categoria": categoria,
+        "keyword": (fila.get("keyword") or "").strip(),
+    }
+
+
 @router.post("/empresas/importar", status_code=200)
 async def importar_empresas(
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
     _admin: str = Depends(get_current_admin),
 ):
-    """Importa empresas/consultores en lote desde un archivo CSV (la base
-    de datos externa de profesionales). Columnas esperadas (con encabezado):
-    tipo,nombre,ruc,colegiatura,anios_servicio,regiones,estudios,whatsapp,
-    email,rating,num_resenas — regiones y estudios separados por ';'.
+    """Importa empresas/consultores en lote desde un archivo CSV. Acepta
+    DOS formatos y detecta solo cuál es (por los encabezados):
+    1) Nativo: tipo,nombre,ruc,colegiatura,anios_servicio,regiones,
+       estudios,whatsapp,email,rating,num_resenas[,web,telefono,direccion,
+       categoria,keyword] — regiones y estudios separados por ';'.
+    2) Scraping de Google Places (julio 2026): name,address,phone,website,
+       rating,reviews_count,category,keyword,block,departamento... — se
+       convierte solo (ver _fila_desde_scraping).
     Los duplicados (mismo RUC, colegiatura o nombre+whatsapp) se saltan."""
     import csv
     import io
@@ -669,6 +717,14 @@ async def importar_empresas(
     filas = list(csv.DictReader(io.StringIO(texto), delimiter=delimitador))
     if not filas:
         raise HTTPException(422, "El archivo está vacío o no tiene encabezados")
+
+    # ¿Es el formato del scraper? Tiene "name" pero no "nombre".
+    encabezados = {(k or "").strip().lower() for k in filas[0].keys()}
+    if "name" in encabezados and "nombre" not in encabezados:
+        filas = [
+            _fila_desde_scraping({(k or "").strip().lower(): v for k, v in f.items()})
+            for f in filas
+        ]
 
     creadas, saltadas, errores = 0, 0, []
     for numero, fila in enumerate(filas, start=2):  # 2 = primera fila de datos

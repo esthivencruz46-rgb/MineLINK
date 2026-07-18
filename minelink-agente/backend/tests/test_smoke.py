@@ -4200,6 +4200,57 @@ def test_importar_csv_sin_ruc_ni_colegiatura_crea_inactivas():
     assert resp.status_code == 422
 
 
+def test_importar_csv_formato_scraping_google_maps():
+    """El importador acepta el CSV del scraper TAL CUAL (julio 2026):
+    detecta el formato por los encabezados (name/address/phone...) y lo
+    convierte solo — tipo por categoría (Abogado→consultor), estudio
+    provisional por block, y el contexto (web, teléfono, dirección,
+    categoría, keyword) guardado en sus columnas nuevas."""
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    csv_contenido = (
+        "name,address,phone,website,rating,reviews_count,category,city_searched,"
+        "distrito,departamento,region,keyword,block,verified,source\n"
+        'Estudio Scraping Legal,"Av. Prueba 123, Lima",+51911335577,https://ejemplo.pe/,'
+        "4.4,80.0,Asesor,Lima,Lima,Lima,Centro,tramites mineros,LEGAL,False,google_places_api\n"
+        'Geólogo Scraping,"Jr. Test 456, Cusco",911335588,,5.0,3.0,Abogado,Cusco,'
+        "Cusco,Cusco,Sur,geologia minera,GEOLOGICO,False,google_places_api\n"
+        # Sin teléfono: debe reportarse como error sin frenar el resto
+        'Sin Telefono SAC,"Av. X 1, Lima",,,4.0,1.0,,Lima,Lima,Lima,Centro,x,LEGAL,False,api\n'
+    )
+    resp = client.post(
+        "/admin/empresas/importar",
+        headers=headers,
+        files={"archivo": ("providers.csv", csv_contenido.encode("utf-8-sig"), "text/csv")},
+    )
+    assert resp.status_code == 200
+    r = resp.json()
+    assert r["creadas"] == 2
+    assert len(r["errores"]) == 1  # la fila sin teléfono
+
+    empresas = client.get("/admin/empresas", headers=headers).json()
+    legal = [e for e in empresas if e["nombre"] == "Estudio Scraping Legal"][0]
+    assert legal["tipo"] == "empresa"
+    assert legal["activa"] is False
+    assert legal["estudios_json"] == ["tramite_reinfo"]
+    assert legal["regiones_json"] == ["lima"]
+    assert legal["whatsapp"] == "+51911335577"
+    assert legal["web"] == "https://ejemplo.pe/"
+    assert legal["telefono"] == "+51911335577"
+    assert legal["direccion"] == "Av. Prueba 123, Lima"
+    assert legal["categoria"] == "Asesor"
+    assert legal["keyword"] == "tramites mineros"
+    assert legal["rating"] == 4.4
+    assert legal["num_resenas"] == 80
+
+    geo = [e for e in empresas if e["nombre"] == "Geólogo Scraping"][0]
+    assert geo["tipo"] == "consultor"  # categoría Abogado
+    assert geo["estudios_json"] == ["informe_geologico"]  # block GEOLOGICO
+    assert geo["regiones_json"] == ["cusco"]
+    assert geo["whatsapp"] == "+51911335588"  # se le antepone +51 solo
+
+
 def test_rating_fuera_de_rango_rechazado():
     token = _admin_token()
     resp = client.post(
