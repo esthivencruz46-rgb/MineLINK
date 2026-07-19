@@ -5,6 +5,7 @@ import models
 import schemas
 from auth import create_inversionista_token, get_current_inversionista_id, hash_password, verify_password
 from database import get_db
+from scoring import estado_seguimiento, nombre_proyecto_publico
 from security import (
     intentos_recuperacion_restantes,
     limitar_intentos_login,
@@ -101,9 +102,10 @@ def perfil(
     db: Session = Depends(get_db),
     interes_id: int = Depends(get_current_inversionista_id),
 ):
-    """Por ahora es una ventana vacía: solo muestra lo que el inversionista
-    ya dejó al expresar interés. Todavía NO hay match ni contacto directo
-    con proyectos — esa lógica no existe aún."""
+    """Seguimiento del interés (julio 2026): además de lo que dejó
+    registrado, el inversionista ve en qué estado va su solicitud
+    (recibido → en_intermediacion → contactado, avanzado por el admin) y
+    el proyecto que le interesó, con enlace a la ficha si sigue publicado."""
     interes = (
         db.query(models.InteresInversion)
         .filter(models.InteresInversion.id == interes_id)
@@ -112,6 +114,18 @@ def perfil(
     if interes is None:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
+    # Nombre del proyecto y si sigue publicado — best-effort: si el lead
+    # ya no existiera, la cuenta igual carga (sin enlace).
+    lead = (
+        db.query(models.Lead)
+        .filter(models.Lead.operacion_id == interes.operacion_id)
+        .first()
+    )
+    operacion = (
+        db.query(models.Operacion)
+        .filter(models.Operacion.id == interes.operacion_id)
+        .first()
+    )
     return schemas.InversionistaPerfilOut(
         nombre=interes.nombre,
         telefono=interes.telefono,
@@ -122,4 +136,11 @@ def perfil(
         mensaje=interes.mensaje,
         operacion_id=interes.operacion_id,
         created_at=interes.created_at,
+        estado_contacto=interes.estado_contacto or "recibido",
+        # Mismo nombre que muestra la cartera (con su fallback "Proyecto
+        # minero en {región}") — no el campo crudo, que puede venir vacío.
+        nombre_proyecto=(nombre_proyecto_publico(lead, operacion) if lead and operacion else None),
+        proyecto_publicado=bool(
+            operacion and estado_seguimiento(operacion).get("apto_inversionistas")
+        ),
     )

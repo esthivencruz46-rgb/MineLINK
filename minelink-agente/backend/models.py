@@ -288,6 +288,13 @@ class InteresInversion(Base):
     # Recuperación de contraseña autoservicio (mismo patrón que Lead)
     pregunta_seguridad = Column(String, nullable=True)
     respuesta_seguridad_hash = Column(String, nullable=True)
+    # Seguimiento para el inversionista (julio 2026): "recibido" →
+    # "en_intermediacion" → "contactado". Lo avanza Esthiven desde el
+    # admin; el inversionista lo ve como línea de tiempo en su cuenta —
+    # antes dejaba su interés y no sabía nunca si alguien lo había visto.
+    estado_contacto = Column(
+        String, nullable=False, default="recibido", server_default="recibido"
+    )
     created_at = Column(DateTime, default=_now)
 
 

@@ -683,3 +683,10 @@ def score_formalizacion_para_inversion(seguimiento: dict) -> int:
     if sem == "rojo":
         return 20
     return 0
+
+
+def nombre_proyecto_publico(lead, operacion) -> str:
+    """Nombre público del proyecto — compartido por la cartera
+    (routers/proyectos.py) y la cuenta del inversionista
+    (routers/inversionistas.py); un router nunca importa de otro router."""
+    return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"

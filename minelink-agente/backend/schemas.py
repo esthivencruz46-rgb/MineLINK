@@ -1058,6 +1058,7 @@ class InteresInversionOut(BaseModel):
     monto: Optional[str] = None
     informacion_requerida: Optional[str] = None
     mensaje: Optional[str] = None
+    estado_contacto: str = "recibido"
     created_at: datetime
 
 
@@ -1118,6 +1119,12 @@ class InversionistaPerfilOut(BaseModel):
     mensaje: Optional[str] = None
     operacion_id: str
     created_at: datetime
+    # Seguimiento (julio 2026): recibido | en_intermediacion | contactado
+    estado_contacto: str = "recibido"
+    # Nombre del proyecto que le interesó (para enlazar a la ficha) y si
+    # sigue publicado en la cartera.
+    nombre_proyecto: Optional[str] = None
+    proyecto_publicado: bool = False
 
 
 class LeadOut(BaseModel):
@@ -1252,6 +1259,22 @@ class ActualizarEstadoContactoRequest(BaseModel):
     def validar_estado(cls, v: str) -> str:
         if v not in ("buscando", "contactado"):
             raise ValueError("estado_contacto debe ser 'buscando' o 'contactado'")
+        return v
+
+
+class ActualizarEstadoInteresInversionRequest(BaseModel):
+    """Estados del seguimiento del INVERSIONISTA (julio 2026) — distintos
+    de los del interés minero→empresa (buscando/contactado de arriba)."""
+
+    estado_contacto: str
+
+    @field_validator("estado_contacto")
+    @classmethod
+    def validar_estado(cls, v: str) -> str:
+        if v not in ("recibido", "en_intermediacion", "contactado"):
+            raise ValueError(
+                "estado_contacto debe ser 'recibido', 'en_intermediacion' o 'contactado'"
+            )
         return v
 
 

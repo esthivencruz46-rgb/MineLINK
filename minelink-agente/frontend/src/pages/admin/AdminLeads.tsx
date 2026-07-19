@@ -22,6 +22,7 @@ interface InteresInversion {
   monto?: string | null;
   informacion_requerida?: string | null;
   mensaje?: string | null;
+  estado_contacto: string;
   created_at: string;
 }
 
@@ -405,6 +406,27 @@ export function AdminLeads() {
       .then(setIntereses)
       .catch(() => setError("No pudimos cargar los inversionistas."))
       .finally(() => setCargandoIntereses(false));
+  }
+
+  // Seguimiento del inversionista (julio 2026): recibido → en_intermediacion
+  // → contactado. El inversionista ve este estado en su cuenta.
+  async function avanzarEstadoInteres(interes: InteresInversion) {
+    const siguiente =
+      interes.estado_contacto === "recibido"
+        ? "en_intermediacion"
+        : interes.estado_contacto === "en_intermediacion"
+          ? "contactado"
+          : "recibido"; // desde contactado vuelve al inicio (deshacer)
+    const resp = await authFetch(`/admin/intereses/${interes.id}/estado-contacto`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ estado_contacto: siguiente }),
+    });
+    if (resp.ok) {
+      setIntereses((previos) =>
+        previos.map((i) => (i.id === interes.id ? { ...i, estado_contacto: siguiente } : i))
+      );
+    }
   }
 
   function verInteresesEmpresas(lead: LeadConDiagnostico) {
@@ -1081,6 +1103,31 @@ export function AdminLeads() {
                     <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                       {new Date(interes.created_at).toLocaleString("es-PE")}
                     </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span
+                        className={`px-2 py-0.5 text-xs font-semibold ${
+                          interes.estado_contacto === "contactado"
+                            ? "bg-emerald-500/15 text-emerald-500"
+                            : interes.estado_contacto === "en_intermediacion"
+                              ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                              : "bg-black/5 text-texto-suave dark:bg-white/10 dark:text-texto-suave-dark"
+                        }`}
+                      >
+                        {interes.estado_contacto === "contactado"
+                          ? "Contactado"
+                          : interes.estado_contacto === "en_intermediacion"
+                            ? "En intermediación"
+                            : "Recibido"}
+                      </span>
+                      <button
+                        onClick={() => avanzarEstadoInteres(interes)}
+                        className="min-h-[28px] border border-acento/30 px-2 text-xs font-semibold text-acento"
+                      >
+                        {interes.estado_contacto === "contactado"
+                          ? "Reiniciar estado"
+                          : "Avanzar estado →"}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

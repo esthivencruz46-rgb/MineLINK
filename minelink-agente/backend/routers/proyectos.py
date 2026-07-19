@@ -15,7 +15,7 @@ from auth import hash_password
 from database import get_db
 from security import limitar_creaciones_publicas
 from routers.mineros import _es_titular_concesion, reparar_ubicacion_coords
-from scoring import estado_seguimiento, score_formalizacion, score_inversion
+from scoring import estado_seguimiento, score_formalizacion, score_inversion, nombre_proyecto_publico
 from catalogo_diagnostico import ids_esperados, BRECHA_POR_PREGUNTA
 from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_FOTO_PERFIL, categoria_equivalente
 
@@ -69,7 +69,7 @@ IDS_INV_PUBLICOS = frozenset(
 
 
 def _nombre_proyecto(lead: models.Lead, operacion: models.Operacion) -> str:
-    return lead.nombre_operacion or f"Proyecto minero en {operacion.region.title()}"
+    return nombre_proyecto_publico(lead, operacion)
 
 
 # Credencial que PRUEBA que el proyecto existe, por perfil (julio 2026):

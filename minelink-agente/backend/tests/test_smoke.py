@@ -2723,6 +2723,56 @@ def test_inversionistas_login_y_perfil():
     assert body["nombre"] == "Inversionista Prueba"
     assert body["monto"] == "USD 20,000"
     assert body["operacion_id"] == diag["id"]
+    # Seguimiento (julio 2026): arranca en "recibido", con el nombre del
+    # proyecto para enlazar a la ficha.
+    assert body["estado_contacto"] == "recibido"
+    assert body["nombre_proyecto"]
+    assert body["proyecto_publicado"] is True
+
+
+def test_inversionista_ve_avance_cuando_admin_cambia_el_estado():
+    """Flujo completo del seguimiento (julio 2026): el admin avanza el
+    interés (recibido → en_intermediacion → contactado) y el inversionista
+    lo ve reflejado en su cuenta."""
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraseguimiento"))
+    _hacer_apto_inversionistas(diag["id"], "paraseguimiento")
+    client.post(
+        f"/proyectos/{diag['id']}/interes",
+        json=_interes_payload(username="invseguimiento", password="clave123"),
+    )
+    token_inv = client.post(
+        "/inversionistas/login",
+        json={"username": "invseguimiento", "password": "clave123"},
+    ).json()["access_token"]
+    headers_admin = {"Authorization": f"Bearer {_admin_token()}"}
+
+    # El admin encuentra el interés en el listado de la operación
+    intereses = client.get(
+        f"/admin/operaciones/{diag['id']}/intereses", headers=headers_admin
+    ).json()
+    interes_id = [i for i in intereses if i["nombre"] == "Inversionista Prueba"][0]["id"]
+    assert intereses[0]["estado_contacto"] == "recibido"
+
+    resp = client.put(
+        f"/admin/intereses/{interes_id}/estado-contacto",
+        headers=headers_admin,
+        json={"estado_contacto": "en_intermediacion"},
+    )
+    assert resp.status_code == 200
+
+    body = client.get(
+        "/inversionistas/me", headers={"Authorization": f"Bearer {token_inv}"}
+    ).json()
+    assert body["estado_contacto"] == "en_intermediacion"
+
+    # Un estado inventado se rechaza
+    resp = client.put(
+        f"/admin/intereses/{interes_id}/estado-contacto",
+        headers=headers_admin,
+        json={"estado_contacto": "cualquiercosa"},
+    )
+    assert resp.status_code == 422
 
 
 def test_inversionistas_recuperar_password_flujo_completo():

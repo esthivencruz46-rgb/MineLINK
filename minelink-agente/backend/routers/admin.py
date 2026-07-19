@@ -624,6 +624,28 @@ def listar_intereses_empresa(
     ]
 
 
+@router.put("/intereses/{interes_id}/estado-contacto", status_code=200)
+def actualizar_estado_contacto_interes_inversion(
+    interes_id: int,
+    payload: schemas.ActualizarEstadoInteresInversionRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Avanza el seguimiento del interés de un INVERSIONISTA (julio 2026):
+    recibido → en_intermediacion → contactado. El inversionista lo ve como
+    línea de tiempo en su cuenta."""
+    interes = (
+        db.query(models.InteresInversion)
+        .filter(models.InteresInversion.id == interes_id)
+        .first()
+    )
+    if interes is None:
+        raise HTTPException(status_code=404, detail="Interés no encontrado")
+    interes.estado_contacto = payload.estado_contacto
+    db.commit()
+    return {"id": interes.id, "estado_contacto": interes.estado_contacto}
+
+
 @router.put("/intereses-empresas/{interes_id}/estado-contacto", status_code=200)
 def actualizar_estado_contacto_interes_empresa(
     interes_id: int,
