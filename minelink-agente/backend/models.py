@@ -288,6 +288,11 @@ class InteresInversion(Base):
     # Recuperación de contraseña autoservicio (mismo patrón que Lead)
     pregunta_seguridad = Column(String, nullable=True)
     respuesta_seguridad_hash = Column(String, nullable=True)
+    # Qué puede aportar el inversionista (julio 2026, pedido del dueño):
+    # lista de códigos — dinero, maquinaria_equipos, estudios_tecnicos,
+    # personal_tecnico, socio_operador. El match con lo que el minero busca
+    # (INV_0_12) lo hace Esthiven viendo ambos lados en el admin.
+    tipo_aporte_json = Column(JSON, nullable=True)
     # Seguimiento para el inversionista (julio 2026): "recibido" →
     # "en_intermediacion" → "contactado". Lo avanza Esthiven desde el
     # admin; el inversionista lo ve como línea de tiempo en su cuenta —

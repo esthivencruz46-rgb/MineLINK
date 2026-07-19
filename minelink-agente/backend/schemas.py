@@ -998,6 +998,9 @@ class InteresInversionCreate(BaseModel):
     monto: Optional[str] = None
     informacion_requerida: Optional[str] = None
     mensaje: Optional[str] = None
+    # Qué puede aportar (julio 2026): además de dinero — maquinaria,
+    # estudios, personal, socio operador.
+    tipo_aporte_json: Optional[list[str]] = None
 
     @field_validator("pregunta_seguridad")
     @classmethod
@@ -1058,6 +1061,7 @@ class InteresInversionOut(BaseModel):
     monto: Optional[str] = None
     informacion_requerida: Optional[str] = None
     mensaje: Optional[str] = None
+    tipo_aporte_json: Optional[list[str]] = None
     estado_contacto: str = "recibido"
     created_at: datetime
 
@@ -1119,6 +1123,7 @@ class InversionistaPerfilOut(BaseModel):
     mensaje: Optional[str] = None
     operacion_id: str
     created_at: datetime
+    tipo_aporte_json: Optional[list[str]] = None
     # Seguimiento (julio 2026): recibido | en_intermediacion | contactado
     estado_contacto: str = "recibido"
     # Nombre del proyecto que le interesó (para enlazar a la ficha) y si

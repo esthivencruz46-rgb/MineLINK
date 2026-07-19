@@ -1344,6 +1344,7 @@ RESPUESTAS_INV_C = {
     "INV_0_9": "persona_natural",
     "INV_0_10": "20_40",
     "INV_0_11": "sin_deudas",
+    "INV_0_12": ["dinero", "maquinaria_equipos"],
     "INV_C0": "tengo",
     "INV_C1": "planta_formal",
     "INV_C2": "completas",
@@ -1362,6 +1363,7 @@ RESPUESTAS_INV_B = {
     "INV_0_9": "persona_natural",
     "INV_0_10": "20_40",
     "INV_0_11": "sin_deudas",
+    "INV_0_12": ["dinero", "maquinaria_equipos"],
     "INV_B1a": "no_tengo",
     "INV_B1b": "no_tengo",
     "INV_B1c": "no_tengo",
@@ -1573,9 +1575,11 @@ def test_inversion_categorias_requeridas_perfil_b_no_bloquea_envio():
             "INV_0_9": "persona_natural",
         "INV_0_10": "20_40",
         "INV_0_11": "sin_deudas",
+    "INV_0_12": ["dinero", "maquinaria_equipos"],
     "INV_0_9": "persona_natural",
     "INV_0_10": "20_40",
     "INV_0_11": "sin_deudas",
+    "INV_0_12": ["dinero", "maquinaria_equipos"],
         "INV_B1a": "no_tengo",
         "INV_B1b": "no_tengo",
         "INV_B1c": "no_tengo",
@@ -2599,6 +2603,7 @@ def _interes_payload(**overrides):
         "monto": "USD 20,000",
         "informacion_requerida": "Estados financieros y plan de producción",
         "mensaje": "Me interesa este proyecto",
+        "tipo_aporte_json": ["dinero", "maquinaria_equipos"],
     }
     payload.update(overrides)
     return payload
@@ -2728,6 +2733,8 @@ def test_inversionistas_login_y_perfil():
     assert body["estado_contacto"] == "recibido"
     assert body["nombre_proyecto"]
     assert body["proyecto_publicado"] is True
+    # Aporte en especie (julio 2026): lo que ofreció queda guardado
+    assert body["tipo_aporte_json"] == ["dinero", "maquinaria_equipos"]
 
 
 def test_inversionista_ve_avance_cuando_admin_cambia_el_estado():

@@ -1,6 +1,7 @@
 import { BASE_URL } from "../services/api";
 import { MARCA } from "../config/marca";
 import { INFO_BRECHA } from "../data/brechas";
+import { POR_ID_INV } from "../data/preguntasInversion";
 import { formatearMonto } from "./formato";
 import { ETIQUETAS_DOCUMENTO_LEGAL, type FotoPublica, type ProyectoDetalle } from "../types/proyecto";
 import type { jsPDF } from "jspdf";
@@ -414,6 +415,17 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   y = tituloSeccion(doc, y, "Oportunidad de inversión");
   const datos: [string, string][] = [];
   if (proyecto.capital_buscado) datos.push(["Capital buscado", formatearMonto(proyecto.capital_buscado)]);
+  {
+    // Tipo de aporte que le sirve (INV_0_12, julio 2026) — traducido con
+    // las mismas etiquetas del cuestionario.
+    const aporte = proyecto.respuestas_inversion_publicas?.INV_0_12;
+    if (Array.isArray(aporte) && aporte.length > 0) {
+      const etiquetas = aporte.map(
+        (v) => POR_ID_INV.INV_0_12?.opciones?.find((o) => o.valor === v)?.etiqueta ?? v
+      );
+      datos.push(["Aportes que le sirven", etiquetas.join(", ")]);
+    }
+  }
   if (proyecto.uso_fondos) datos.push(["Uso de los fondos", proyecto.uso_fondos]);
   if (proyecto.ley_promedio) datos.push(["Ley del mineral declarada", proyecto.ley_promedio]);
   if (proyecto.capacidad_produccion) datos.push(["Producción y reservas", proyecto.capacidad_produccion]);

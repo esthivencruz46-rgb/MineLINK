@@ -279,6 +279,7 @@ export function ProyectoDetalle() {
     ? formatearMonto(proyecto.capital_buscado)
     : valorInv("INV_0_1");
   const filasOportunidad = [
+    { id: "INV_0_12", etiqueta: "Tipo de aporte que le sirve", icono: HandCoins },
     { id: "INV_0_2", etiqueta: "Uso del capital", icono: Wallet },
     { id: "INV_0_4", etiqueta: "Qué aporta el titular", icono: Handshake },
     { id: "INV_0_5", etiqueta: "Retorno estimado por el titular", icono: TrendingUp },

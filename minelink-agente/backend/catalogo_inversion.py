@@ -53,6 +53,24 @@ PREGUNTAS_INV: dict[str, tuple] = {
         "opcion",
         ("sin_deudas", "deuda_bancaria", "adelantos_compradores", "otras", "prefiero_no_decir"),
     ),
+    # Tipo de aporte que le sirve (julio 2026, pedido del dueño): en minería
+    # artesanal el aporte EN ESPECIE (maquinaria, estudios, personal) muchas
+    # veces vale más que el efectivo — esto permite el match con
+    # inversionistas que aportan cosas distintas a dinero.
+    "INV_0_12": (
+        "multi_opcion",
+        (
+            (
+                "dinero",
+                "maquinaria_equipos",
+                "estudios_tecnicos",
+                "personal_tecnico",
+                "socio_operador",
+                "abierto",
+            ),
+            None,
+        ),
+    ),
 
     # ---------- INV_A: perfil A y A_avanzado ----------
     "INV_A1": ("opcion", ("muestreo_propio", "mineria_vecina", "info_publica", "ninguna")),
@@ -122,6 +140,7 @@ def ids_esperados_inversion(perfil: str, respuestas_inv: dict) -> set[str]:
         "INV_0_9",
         "INV_0_10",
         "INV_0_11",
+        "INV_0_12",
     }
     if respuestas_inv.get("INV_0_6") == "negociando":
         ids.add("INV_0_7")

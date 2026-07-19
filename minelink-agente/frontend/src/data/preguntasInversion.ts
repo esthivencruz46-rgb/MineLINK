@@ -169,6 +169,21 @@ export const MODULO_INV_0: PreguntaInv[] = [
       { valor: "prefiero_no_decir", etiqueta: "Prefiero no decirlo" },
     ],
   },
+  {
+    id: "INV_0_12",
+    tipo: "multi_opcion",
+    texto: "¿Qué tipo de aporte te sirve? (marca todos los que apliquen)",
+    ayuda:
+      "Un inversionista no solo pone dinero: puede aportar maquinaria, pagar estudios técnicos, o poner personal y operación. Marcar varias opciones te abre más puertas.",
+    opciones: [
+      { valor: "dinero", etiqueta: "Dinero (capital)" },
+      { valor: "maquinaria_equipos", etiqueta: "Maquinaria y equipos" },
+      { valor: "estudios_tecnicos", etiqueta: "Estudios técnicos (geología, laboratorio...)" },
+      { valor: "personal_tecnico", etiqueta: "Personal técnico u operativo" },
+      { valor: "socio_operador", etiqueta: "Un socio que opere conmigo" },
+      { valor: "abierto", etiqueta: "Abierto a propuestas" },
+    ],
+  },
 ];
 
 // -------------------------------------------------------------------

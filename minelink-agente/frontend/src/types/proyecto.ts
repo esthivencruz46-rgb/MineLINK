@@ -269,7 +269,20 @@ export interface InteresInversionRequest {
   monto?: string;
   informacion_requerida?: string;
   mensaje?: string;
+  tipo_aporte_json?: string[];
 }
+
+/** Qué puede aportar un inversionista (julio 2026) — espejo de los
+ * valores de INV_0_12 del minero, para que el match hable el mismo
+ * idioma en ambos lados. Compartido por el modal de interés, el admin y
+ * la cuenta del inversionista. */
+export const ETIQUETAS_TIPO_APORTE: Record<string, string> = {
+  dinero: "Dinero (capital)",
+  maquinaria_equipos: "Maquinaria y equipos",
+  estudios_tecnicos: "Estudios técnicos",
+  personal_tecnico: "Personal técnico u operativo",
+  socio_operador: "Operar como socio",
+};
 
 export const ETIQUETAS_DOCUMENTO_LEGAL: Record<string, string> = {
   informe_leyes: "Informe de leyes / ensayes",

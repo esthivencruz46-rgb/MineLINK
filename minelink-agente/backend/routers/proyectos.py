@@ -64,7 +64,17 @@ CATEGORIAS_GALERIA = [
 # historial de negociaciones (INV_0_6/0_7) y los bloques por perfil NO se
 # publican (contexto privado de la intermediación del admin).
 IDS_INV_PUBLICOS = frozenset(
-    ["INV_0_1", "INV_0_2", "INV_0_3", "INV_0_4", "INV_0_5", "INV_0_9", "INV_0_10", "INV_0_11"]
+    [
+        "INV_0_1",
+        "INV_0_2",
+        "INV_0_3",
+        "INV_0_4",
+        "INV_0_5",
+        "INV_0_9",
+        "INV_0_10",
+        "INV_0_11",
+        "INV_0_12",
+    ]
 )
 
 
@@ -717,6 +727,7 @@ def registrar_interes(
         monto=payload.monto,
         informacion_requerida=payload.informacion_requerida,
         mensaje=payload.mensaje,
+        tipo_aporte_json=payload.tipo_aporte_json,
         username=payload.username,
         password_hash=hash_password(payload.password),
         pregunta_seguridad=payload.pregunta_seguridad,

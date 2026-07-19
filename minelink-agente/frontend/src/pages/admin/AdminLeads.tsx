@@ -11,11 +11,13 @@ import type { DocumentoOperacion } from "../../types/documento";
 import { POR_ID_INV } from "../../data/preguntasInversion";
 import { calcularSemaforo } from "../../utils/semaforo";
 import { formatearMonto } from "../../utils/formato";
+import { ETIQUETAS_TIPO_APORTE } from "../../types/proyecto";
 import type { LeadConDiagnostico } from "../../types/admin";
 
 interface InteresInversion {
   id: number;
   nombre: string;
+  tipo_aporte_json?: string[] | null;
   telefono?: string | null;
   email?: string | null;
   motivo_inversion?: string | null;
@@ -1087,6 +1089,19 @@ export function AdminLeads() {
                     {interes.monto && (
                       <p>
                         <span className="font-medium">Capital:</span> {formatearMonto(interes.monto)}
+                      </p>
+                    )}
+                    {(interes.tipo_aporte_json?.length ?? 0) > 0 && (
+                      <p className="flex flex-wrap items-center gap-1.5">
+                        <span className="font-medium">Puede aportar:</span>
+                        {interes.tipo_aporte_json!.map((v) => (
+                          <span
+                            key={v}
+                            className="border border-acento/25 px-1.5 py-0.5 text-xs text-acento"
+                          >
+                            {ETIQUETAS_TIPO_APORTE[v] ?? v}
+                          </span>
+                        ))}
                       </p>
                     )}
                     {interes.informacion_requerida && (

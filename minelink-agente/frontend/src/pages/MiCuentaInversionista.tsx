@@ -5,6 +5,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
 import { MARCA } from "../config/marca";
 import { PanelCuentaSkeleton } from "../components/Skeleton";
+import { ETIQUETAS_TIPO_APORTE } from "../types/proyecto";
 
 interface PerfilInversionista {
   nombre: string;
@@ -16,6 +17,7 @@ interface PerfilInversionista {
   mensaje?: string | null;
   operacion_id: string;
   created_at: string;
+  tipo_aporte_json?: string[] | null;
   estado_contacto: string;
   nombre_proyecto?: string | null;
   proyecto_publicado: boolean;
@@ -175,6 +177,12 @@ export function MiCuentaInversionista() {
         {perfil.monto && (
           <p>
             <span className="font-medium">Capital:</span> {perfil.monto}
+          </p>
+        )}
+        {(perfil.tipo_aporte_json?.length ?? 0) > 0 && (
+          <p>
+            <span className="font-medium">Ofreciste aportar:</span>{" "}
+            {perfil.tipo_aporte_json!.map((v) => ETIQUETAS_TIPO_APORTE[v] ?? v).join(", ")}
           </p>
         )}
         {perfil.informacion_requerida && (

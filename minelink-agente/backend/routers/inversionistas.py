@@ -136,6 +136,7 @@ def perfil(
         mensaje=interes.mensaje,
         operacion_id=interes.operacion_id,
         created_at=interes.created_at,
+        tipo_aporte_json=interes.tipo_aporte_json,
         estado_contacto=interes.estado_contacto or "recibido",
         # Mismo nombre que muestra la cartera (con su fallback "Proyecto
         # minero en {región}") — no el campo crudo, que puede venir vacío.

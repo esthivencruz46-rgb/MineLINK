@@ -8,6 +8,7 @@ import { CampoTelefono } from "../CampoTelefono";
 import { CampoMonto } from "../CampoMonto";
 import { FuerzaPassword } from "../FuerzaPassword";
 import { registrarInteresInversion } from "../../services/api";
+import { ETIQUETAS_TIPO_APORTE } from "../../types/proyecto";
 
 interface Props {
   operacionId: string;
@@ -20,6 +21,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
   const [telefono, setTelefono] = useState("");
   const [email, setEmail] = useState("");
   const [motivoInversion, setMotivoInversion] = useState("");
+  const [tipoAporte, setTipoAporte] = useState<string[]>([]);
   const [monto, setMonto] = useState("");
   const [informacionRequerida, setInformacionRequerida] = useState("");
   const [mensaje, setMensaje] = useState(mensajeInicial);
@@ -53,6 +55,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
         telefono: telefono.trim() ? `+51${telefono.trim()}` : undefined,
         email: email.trim() || undefined,
         motivo_inversion: motivoInversion.trim() || undefined,
+        tipo_aporte_json: tipoAporte.length > 0 ? tipoAporte : undefined,
         monto: monto.trim() || undefined,
         informacion_requerida: informacionRequerida.trim() || undefined,
         mensaje: mensaje.trim() || undefined,
@@ -130,6 +133,32 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
                 value={motivoInversion}
                 onChange={(e) => setMotivoInversion(e.target.value)}
               />
+              {/* Aporte en especie (julio 2026, pedido del dueño): un
+                  inversionista no solo pone dinero — maquinaria, estudios
+                  o personal valen igual o más en minería artesanal. */}
+              <div>
+                <label className="mb-1 block text-xs text-texto-suave dark:text-texto-suave-dark">
+                  ¿Qué puedes aportar? (marca todo lo que aplique)
+                </label>
+                <div className="flex flex-col gap-1.5 border border-black/10 p-3 dark:border-white/10">
+                  {Object.entries(ETIQUETAS_TIPO_APORTE).map(([valor, etiqueta]) => (
+                    <label key={valor} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={tipoAporte.includes(valor)}
+                        onChange={() =>
+                          setTipoAporte((previos) =>
+                            previos.includes(valor)
+                              ? previos.filter((v) => v !== valor)
+                              : [...previos, valor]
+                          )
+                        }
+                      />
+                      {etiqueta}
+                    </label>
+                  ))}
+                </div>
+              </div>
               <div>
                 <label className="mb-1 block text-xs text-texto-suave dark:text-texto-suave-dark">
                   ¿Cuánto capital tienes en mente?
