@@ -169,7 +169,7 @@ function exportarCSV(leads: LeadConDiagnostico[]) {
   const url = URL.createObjectURL(blob);
   const enlace = document.createElement("a");
   enlace.href = url;
-  enlace.download = `leads_qorilink_${new Date().toISOString().slice(0, 10)}.csv`;
+  enlace.download = `leads_minelink_${new Date().toISOString().slice(0, 10)}.csv`;
   enlace.click();
   URL.revokeObjectURL(url);
 }

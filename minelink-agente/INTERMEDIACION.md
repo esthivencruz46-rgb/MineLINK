@@ -1,7 +1,7 @@
-# Filosofía de intermediación — Qorilink
+# Filosofía de intermediación — MineLink
 
 Cómo maneja Esthiven (admin) la conexión entre mineros e inversionistas.
-El valor de Qorilink es ser **el puente obligatorio y confiable** entre
+El valor de MineLink es ser **el puente obligatorio y confiable** entre
 dos partes que no se conocen y desconfían entre sí.
 
 ## El flujo del match (nunca grupos masivos)
@@ -23,11 +23,11 @@ dos partes que no se conocen y desconfían entre sí.
 
 - **Son competidores entre sí**: juntos se espantan o coluden para
   ofrecer menos. Separados, compiten por cerrar primero (gana el minero
-  y gana Qorilink).
+  y gana MineLink).
 - **Privacidad**: meterlos a un grupo expone el número de cada uno sin
   su permiso. Pésima señal con gente que maneja capital.
 - **Se pierde la posición de intermediario**: si se juntan solos, cierran
-  el trato sin Qorilink (y a futuro, sin pagar comisión).
+  el trato sin MineLink (y a futuro, sin pagar comisión).
 
 ## ¿Y si el minero y el inversionista se pasan los números y cierran solos?
 
@@ -36,12 +36,12 @@ impedir al 100%; se hace que **no les convenga**:
 
 1. **Firma antes de presentar (protección legal)**: antes del grupo de 3,
    el inversionista firma una carta de intermediación de una página:
-   "Reconozco que Qorilink me presentó este proyecto y me comprometo a
+   "Reconozco que MineLink me presentó este proyecto y me comprometo a
    pagar X% de comisión si concreto una inversión con esta operación,
    directa o indirectamente, dentro de los próximos 24 meses". Algo
    equivalente (más suave) para el minero. Pasarse por encima deja de ser
    'viveza' y pasa a ser incumplimiento de contrato firmado.
-2. **Ser útil DESPUÉS de la presentación (protección real)**: Qorilink
+2. **Ser útil DESPUÉS de la presentación (protección real)**: MineLink
    aporta lo que ellos solos no tienen — expediente verificado
    (MineScore, documentos, REINFO), acompañamiento en la formalización
    pendiente, y confianza entre dos desconocidos que se temen mutuamente.

@@ -1,4 +1,4 @@
-# Qorilink — Motor de Búsqueda de Formalización Minera
+# MineLink — Motor de Búsqueda de Formalización Minera
 
 ## Objetivo del proyecto
 Plataforma web donde un minero artesanal peruano:
@@ -62,12 +62,18 @@ Plataforma web donde un minero artesanal peruano:
    minero ve el CONTEO de intereses recibidos y puede "ver su proyecto
    como lo ve el inversionista".
 
-Esthiven es el único administrador: carga empresas (una por una o CSV),
-revisa leads con su perfil/semáforos/alertas del Módulo INV (AL1-AL10),
-ve documentos (solo lectura — ya no aprueba/rechaza), resetea contraseñas
-y puede marcar brechas puntuales como resueltas por seguimiento manual.
-Las empresas NO tienen acceso; su rating solo se ve en el admin (ordena
-internamente /empresas sin mostrarse).
+Esthiven es el único administrador: carga empresas (una por una, o en
+lote por CSV — el importador acepta tanto el formato propio como el
+archivo crudo del scraper de Google Places, y todo lo importado en lote
+nace INACTIVO y sin exigir RUC/colegiatura hasta que él lo revise y
+active), revisa leads con su perfil/semáforos/alertas del Módulo INV
+(AL1-AL10), APRUEBA/RECHAZA cada documento subido (julio 2026: ese
+estado_revision es lo único que otorga el sello público "Con respaldo" —
+subir el archivo resuelve la brecha pero no da el sello), verifica a
+mano códigos REINFO (el cotejo automático está desactivado), resetea
+contraseñas y puede marcar brechas puntuales como resueltas por
+seguimiento manual. Las empresas NO tienen acceso; su rating solo se ve
+en el admin (ordena internamente /empresas sin mostrarse).
 
 ## Rol de este archivo
 Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
@@ -120,7 +126,7 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 ### Backend (desde `backend/`)
 ```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000   # servidor dev
-pytest -q                                                 # toda la suite (~205 tests)
+pytest -q                                                 # toda la suite (~230 tests)
 pytest tests/test_scoring.py -q                           # un archivo
 pytest tests/test_smoke.py::test_post_diagnostico -q      # un test puntual
 pip install -r requirements.txt                           # dependencias (usar --break-system-packages en este entorno)
@@ -260,11 +266,22 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
         │                          POST devuelve 422; preguntasPerfil.ts/perfilInformativo.ts
         │                          están EN PAUSA (no borrar)
         ├── components/         ← incluye proyecto/ para la ficha pública
+        ├── config/marca.ts     ← ÚNICA fuente del nombre de marca ("MineLink") — todo
+        │                          texto visible la importa; nunca escribir la marca a mano
         ├── pages/              ← incluye admin/ para el panel
         ├── context/            ← AuthContext (admin), MineroAuthContext, InversionistaAuthContext
         ├── types/
         └── services/api.ts     ← todas las llamadas fetch al backend
 ```
+
+### Línea visual (julio 2026, aprobada por Esthiven — "más profesionalismo")
+Estética institucional en TODA la web y el admin: bordes finos
+(`border border-black/10 dark:border-white/10`) en vez de tarjetas con
+sombra y `rounded-*`; chips planos con borde en vez de burbujas de color;
+`font-semibold` en vez de `font-bold`; el color de acento reservado para
+la acción principal. El verde/ámbar/rojo semántico se mantiene SOLO donde
+comunica estado real (semáforos, verificaciones, alertas). Cualquier UI
+nueva debe seguir esta línea.
 
 ## Reglas de autonomía
 

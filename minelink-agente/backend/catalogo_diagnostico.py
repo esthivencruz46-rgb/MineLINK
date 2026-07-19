@@ -302,6 +302,15 @@ def validar_respuestas(respuestas: dict[str, str], hoy: date | None = None) -> s
             except (TypeError, ValueError):
                 raise ValueError(f"{id_pregunta}: debe ser un número entero")
             if not (minimo <= numero <= maximo):
+                # Año futuro: mensaje en lenguaje del minero (julio 2026,
+                # reportado por el dueño — antes salía como error técnico
+                # al final del wizard; el frontend ahora también lo frena
+                # en la propia pregunta, esto es la red de seguridad).
+                if tipo == "anio" and numero > maximo:
+                    raise ValueError(
+                        f"{id_pregunta}: coloca bien la fecha — estamos en "
+                        f"{maximo} y el año no puede ser futuro"
+                    )
                 raise ValueError(f"{id_pregunta}: debe estar entre {minimo} y {maximo}")
 
     return perfil

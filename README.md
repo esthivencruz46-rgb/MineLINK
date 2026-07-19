@@ -1,4 +1,4 @@
-# Qorilink
+# MineLink
 
 **Plataforma web que conecta a mineros artesanales del Perú en proceso de formalización con las empresas, consultores e inversionistas que necesitan.**
 
@@ -28,7 +28,7 @@
 4. **Cartera pública para inversionistas** (`/proyectos`) — publicación automática cuando el proyecto cumple: perfil B/C/D + semáforo legal no rojo + documentos y Módulo INV enviados. Cada ficha muestra:
    - Mapa satelital con las capas oficiales de **GEOCATMIN/INGEMMET** (catastro minero + geología 1:100K y 1:50K) y el pin de la operación.
    - **Cotejo con registros públicos**: concesión del catastro, geología del punto, alertas de Área Natural Protegida (SERNANP) y verificación del código REINFO.
-   - Checklist de formalización con las fotos de respaldo — el sello **"Con respaldo"** solo aparece en documentos revisados y aprobados por el equipo de Qorilink.
+   - Checklist de formalización con las fotos de respaldo — el sello **"Con respaldo"** solo aparece en documentos revisados y aprobados por el equipo de MineLink.
    - Oportunidad de inversión (capital buscado, qué ofrece, % a ceder, deudas declaradas) y datos de la operación (ley, litología, reservas, OPEX).
    - Descarga de **ficha en PDF** con el mapa de ubicación como portada.
 

@@ -1,4 +1,4 @@
-# Cómo limpiar datos de simulación — Qorilink
+# Cómo limpiar datos de simulación — MineLink
 
 Guía para borrar los datos de prueba (mineros, diagnósticos, fotos,
 inversionistas simulados) y dejar la plataforma lista para usuarios reales.

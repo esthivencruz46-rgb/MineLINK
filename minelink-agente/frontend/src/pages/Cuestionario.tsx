@@ -185,6 +185,37 @@ export function Cuestionario() {
 
   function responder(valor: string) {
     if (!actual) return;
+
+    // Validación numérica EN LA PREGUNTA (julio 2026, reportado por el
+    // dueño): antes se podía escribir un año futuro (ej. 2030) y el
+    // rechazo llegaba recién al ENVIAR todo el diagnóstico, como un
+    // error técnico al final. Ahora se frena aquí con un mensaje claro.
+    if (actual.tipo === "numero" || actual.tipo === "anio") {
+      const numero = Number(valor);
+      const anioActual = new Date().getFullYear();
+      // Preguntas de año sin max declarado: el tope es el año en curso
+      // (mismo criterio que el backend — maximo=None → hoy.year).
+      const max = actual.max ?? (actual.tipo === "anio" ? anioActual : undefined);
+      if (!Number.isInteger(numero)) {
+        setError("Escribe solo números, sin letras ni decimales.");
+        return;
+      }
+      if (actual.tipo === "anio" && numero > anioActual) {
+        setError(
+          `Coloca bien la fecha: estamos en ${anioActual} y pusiste ${numero}. El año no puede ser futuro.`
+        );
+        return;
+      }
+      if (actual.min != null && numero < actual.min) {
+        setError(`Revisa el dato: no puede ser menor que ${actual.min}.`);
+        return;
+      }
+      if (max != null && numero > max) {
+        setError(`Revisa el dato: no puede ser mayor que ${max}.`);
+        return;
+      }
+    }
+
     if (!inicioRegistrado.current) {
       registrarEvento("diagnostico_iniciado");
       inicioRegistrado.current = true;

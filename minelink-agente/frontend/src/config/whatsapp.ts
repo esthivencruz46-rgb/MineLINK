@@ -1,4 +1,4 @@
-// Número de WhatsApp del equipo Qorilink (Esthiven, admin) — a donde el
+// Número de WhatsApp del equipo MineLink (Esthiven, admin) — a donde el
 // minero envía su resultado para recibir orientación. Sin "+", formato wa.me.
 export const WHATSAPP_ADMIN = "51925512036";
 

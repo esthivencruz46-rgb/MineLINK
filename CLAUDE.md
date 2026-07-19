@@ -10,16 +10,33 @@ The diagnostic was rebuilt around the owner's spec —
 sin operar" / C "REINFO" / D "formal pleno" / SIN RUTA; output is TWO independent semáforos
 (Track Legal + Track Técnico with Índice de Madurez 0-5). This model IS live in production;
 the migration seeds for its columns (`migrar_estado_formalizacion.py`,
-`migrar_revision_documentos.py`, `migrar_datos_formalizacion.py`, `migrar_notificaciones.py`)
-were already run against Supabase.
+`migrar_revision_documentos.py`, `migrar_datos_formalizacion.py`, `migrar_notificaciones.py`,
+plus later `migrar_reinfo_verificado.py`, `habilitar_rls_tablas_nuevas.py` and
+`migrar_contexto_empresas_csv.py`) were already run against Supabase.
 
 Built on top of it since (all deployed):
+- **Brand is "MineLink"** (briefly renamed to "Qorilink" in July 2026, then reverted by
+  the owner days later). Single source of truth: `frontend/src/config/marca.ts` (`MARCA`);
+  to rename change ONLY that line (+ `index.html` metas, the brand images in
+  `frontend/public/` and docs by hand). Technical identifiers (hosting URLs, Android appId
+  `com.minelink.app`, localStorage keys, DB/bucket names, `MINELINK_*` env vars, the
+  published `MineLink.apk`) never change with the brand — renaming those breaks deployed
+  clients.
 - **Módulo INV** (`backend/catalogo_inversion.py` + frontend modal wizard): investment
   questionnaire per perfil (INV_0 común + bloque A/B/C/D), with upload slots derived ONLY
   from positive answers, admin alerts AL1-AL10, and evidence-first auto-resolution
-  (uploading a respaldo resolves the brecha — no admin approval step; publication to
-  /proyectos is automatic once formalización docs + Módulo INV are both ENVIADOS and the
-  semáforo legal isn't rojo).
+  (uploading a respaldo resolves the brecha; publication to /proyectos is automatic once
+  formalización docs + Módulo INV are both ENVIADOS and the semáforo legal isn't rojo).
+- **Admin per-document review REINTRODUCED** (July 2026, owner reversal of the earlier
+  "evidence is enough" policy): `DocumentoOperacion.estado_revision`
+  (pendiente/aprobado/rechazado, set from AdminLeads) now gates the public "Con respaldo"
+  badge everywhere (ficha, cartera chips, indicadores verificados, PDF). Uploading still
+  self-resolves the brecha and never blocks publication — approval only controls the badge.
+- **Manual REINFO verification**: the automated MINEM scraper is disabled by default
+  (`backend/reinfo.py`, `MINELINK_REINFO != "1"` — plain `requests` gets false
+  "no_encontrado"; a working approach needs Playwright, deferred). Esthiven verifies the
+  código by hand and marks `Operacion.reinfo_verificado_manual` from the admin; the ficha
+  and PDF show "Código REINFO verificado por el equipo de MineLink".
 - **Scores 0-100 por track REINTRODUCED** (`scoring.score_formalizacion` /
   `score_inversion`): stage-anchored ranges (`RANGO_SCORE_POR_PERFIL`: D always above C
   above B...). They COMPLEMENT the semáforos (which still rule the regla de bloqueo), used
@@ -34,18 +51,38 @@ Built on top of it since (all deployed):
   ficha queries INGEMMET's ArcGIS REST (catastro minero + geología 1:100K), cached 30 days
   in `datos_formalizacion_json["_geocatmin"]` (underscore key, no migration). Best-effort:
   ficha never breaks if INGEMMET is down. Tests disable it via `MINELINK_GEOCATMIN=0`
-  (same pattern as `MINELINK_RESOLVER_MAPS=0`).
+  (same pattern as `MINELINK_RESOLVER_MAPS=0`). It also renders the server-composited map
+  (satellite + catastro + geología + pin, `imagen_mapa_cotejo`) used as the PDF cover via
+  `GET /proyectos/{id}/mapa-cotejo.jpg`.
+- **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
+  auto-detected by headers: the native one AND the raw Google Places scraping file
+  (name,address,phone,website,category,keyword,block...) converted by
+  `_fila_desde_scraping`. Bulk-imported rows skip the RUC/colegiatura requirement
+  (`schemas.EmpresaImportarCSV`) but are born `activa=False` — invisible to miners until
+  the admin reviews/activates each one. The strict identity rule lives ONLY in
+  `EmpresaCreate` (manual "+ Nuevo" and public postulation). `Empresa` also carries
+  scraping context columns (web/telefono/direccion/categoria/keyword), admin-only.
+- **Institutional visual language** (July 2026, owner-approved direction): thin borders
+  instead of shadowed rounded cards, flat chips instead of colored pills, `font-semibold`
+  instead of `font-bold`, accent color reserved for the primary action; semantic
+  green/amber/red kept only where it encodes real state. Applied across ALL public pages
+  and the admin — match it in any new UI.
+- **SEO/launch surface**: `frontend/public/` has `sitemap.xml`, `robots.txt`, favicon set
+  and `og.png`; `index.html` carries the Google Search Console verification meta tag —
+  NEVER remove it (verification is revoked if it disappears). Daily DB backup runs via
+  `.github/workflows/backup-db.yml` (needs `postgresql-client-17` — Supabase runs PG 17;
+  secret `DATABASE_URL_BACKUP` already configured).
 
 Still pending:
-- Admin dashboard's `score_promedio` still averages the legacy `score_total` (0 on new
-  rows) — cosmetic, replace with madurez promedio / conteo por perfil when convenient.
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):
   `backend/scoring_legacy.py`, `frontend/src/data/preguntasPerfil.ts`,
   `perfilInformativo.ts`, `components/PerfilInformativoAgrupado.tsx`.
+- Automated REINFO checking (would need a Playwright-based service; owner said "por
+  ahora ya no").
 
 ## What this repository is
 
-**Qorilink**: a web platform where Peruvian artisanal miners take a formalization diagnostic,
+**MineLink**: a web platform where Peruvian artisanal miners take a formalization diagnostic,
 get placed in their exact stage of the legal pipeline with a checklist and semáforos, and get
 matched with companies/consultants who provide exactly the studies/procedures they lack. It
 also has a public "Proyectos" showcase for investors and an admin panel. Full backend
@@ -76,7 +113,7 @@ attempt to resolve.
 ```bash
 # Backend (from minelink-agente/backend/)
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
-pytest -q                                            # full suite (~205 tests)
+pytest -q                                            # full suite (~230 tests)
 pytest tests/test_smoke.py::test_post_diagnostico -q # single test
 
 # Frontend (from minelink-agente/frontend/)
@@ -112,7 +149,8 @@ directly against production — never run one without explicit confirmation.
   `brechas_resueltas_json`; `estado_seguimiento()` recomputes state by patching answers to
   their "resolved value" without mutating the original declaration (and drops only
   patch-orphaned conditional answers). Public ✓ (`brechas_verificadas`) requires the photo,
-  not just the resolution.
+  and the "Con respaldo" badge additionally requires `estado_revision == "aprobado"` set by
+  the admin — declaration alone earns neither.
 - **Investor gating (regla de bloqueo)**: projects with an active legal fire (semáforo rojo)
   are hidden from `/proyectos`; perfil A and old-model rows never list; publication also
   requires `documentos_enviados_en` AND `inv_enviado_en` (both sent by the miner — no manual

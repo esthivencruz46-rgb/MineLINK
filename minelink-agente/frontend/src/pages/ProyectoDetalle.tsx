@@ -835,7 +835,7 @@ export function ProyectoDetalle() {
               </div>
 
               {/* Verificación MANUAL del código REINFO por el equipo de
-                  Qorilink — el cotejo automático de abajo está desactivado
+                  MineLink — el cotejo automático de abajo está desactivado
                   (ver backend/reinfo.py), así que esta es la fuente real
                   hoy. */}
               {proyecto.reinfo_verificado_manual && (

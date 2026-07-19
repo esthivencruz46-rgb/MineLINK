@@ -517,7 +517,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   }
 
   // Cotejo con registros públicos — GEOCATMIN (catastro + geología) y
-  // REINFO (verificado a mano por Qorilink) — agregado julio 2026.
+  // REINFO (verificado a mano por MineLink) — agregado julio 2026.
   const geocatmin = proyecto.geocatmin;
   const tieneCotejo =
     geocatmin?.concesion || geocatmin?.geologia || proyecto.reinfo_verificado_manual;
