@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
@@ -37,6 +38,7 @@ const ETIQUETA_ORDEN: Record<OrdenCartera, string> = {
 };
 
 export function Proyectos() {
+  useTitulo("Proyectos mineros");
   const [proyectos, setProyectos] = useState<ProyectoPublico[]>([]);
   const [mineral, setMineral] = useState("");
   const [region, setRegion] = useState("");

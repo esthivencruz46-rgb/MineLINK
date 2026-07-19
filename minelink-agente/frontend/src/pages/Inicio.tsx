@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
 import { Briefcase, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
@@ -50,6 +51,7 @@ const CONFIANZA = [
 ];
 
 export function Inicio() {
+  useTitulo();
   const navigate = useNavigate();
 
   return (

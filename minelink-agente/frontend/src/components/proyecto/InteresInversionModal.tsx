@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { MARCA } from "../../config/marca";
 import { Check } from "lucide-react";
+import { AceptaLegal } from "../AceptaLegal";
 import { CampoPassword } from "../CampoPassword";
 import { CampoPreguntaSeguridad } from "../CampoPreguntaSeguridad";
 import { CampoTelefono } from "../CampoTelefono";
@@ -26,6 +27,7 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
   const [password, setPassword] = useState("");
   const [preguntaSeguridad, setPreguntaSeguridad] = useState("");
   const [respuestaSeguridad, setRespuestaSeguridad] = useState("");
+  const [aceptaLegal, setAceptaLegal] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviado, setEnviado] = useState(false);
@@ -35,7 +37,8 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
     username.trim().length >= 3 &&
     password.length >= 6 &&
     preguntaSeguridad.trim().length > 0 &&
-    respuestaSeguridad.trim().length > 0;
+    respuestaSeguridad.trim().length > 0 &&
+    aceptaLegal;
 
   async function enviar() {
     setEnviando(true);
@@ -173,6 +176,10 @@ export function InteresInversionModal({ operacionId, mensajeInicial, onCerrar }:
                 respuesta={respuestaSeguridad}
                 onRespuestaChange={setRespuestaSeguridad}
               />
+            </div>
+
+            <div className="mt-4">
+              <AceptaLegal aceptado={aceptaLegal} onCambiar={setAceptaLegal} />
             </div>
 
             {error && <p className="mt-2 text-sm text-red-500">{error}</p>}

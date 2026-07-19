@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, RefreshCw, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
@@ -21,6 +22,7 @@ import type { DocumentoOperacion } from "../types/documento";
 import type { MineroPerfil } from "../types/minero";
 
 export function MiCuenta() {
+  useTitulo("Mi cuenta");
   const { authFetch, logout } = useMineroAuth();
   const navigate = useNavigate();
   const location = useLocation();

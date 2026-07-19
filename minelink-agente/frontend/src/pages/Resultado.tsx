@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertTriangle, PartyPopper, UserPlus } from "lucide-react";
 import { ListaBrechas } from "../components/ListaBrechas";
@@ -10,6 +11,7 @@ import { semaforoDesdeColor } from "../utils/semaforo";
 import { NOMBRE_PERFIL } from "../data/preguntas";
 
 export function Resultado() {
+  useTitulo("Tu diagnóstico");
   const navigate = useNavigate();
   const guardado = leerDiagnostico();
   const [codigoReinfo, setCodigoReinfo] = useState(guardado?.codigoReinfo ?? "");

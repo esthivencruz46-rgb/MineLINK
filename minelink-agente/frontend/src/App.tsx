@@ -5,6 +5,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedRouteMinero } from "./components/ProtectedRouteMinero";
 import { ProtectedRouteInversionista } from "./components/ProtectedRouteInversionista";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { Footer } from "./components/Footer";
 import { AuthProvider } from "./context/AuthContext";
 import { MineroAuthProvider } from "./context/MineroAuthContext";
 import { InversionistaAuthProvider } from "./context/InversionistaAuthContext";
@@ -80,6 +81,12 @@ const AdminLogin = lazy(() =>
 const NoEncontrada = lazy(() =>
   import("./pages/NoEncontrada").then((m) => ({ default: m.NoEncontrada }))
 );
+const Privacidad = lazy(() =>
+  import("./pages/Privacidad").then((m) => ({ default: m.Privacidad }))
+);
+const Terminos = lazy(() =>
+  import("./pages/Terminos").then((m) => ({ default: m.Terminos }))
+);
 
 function PublicHeader() {
   return (
@@ -118,6 +125,8 @@ export function App() {
           <Routes>
             <Route path="/" element={<Inicio />} />
             <Route path="/como-funciona" element={<ComoFunciona />} />
+            <Route path="/privacidad" element={<Privacidad />} />
+            <Route path="/terminos" element={<Terminos />} />
             <Route path="/diagnostico" element={<Cuestionario />} />
             <Route path="/resultado" element={<Resultado />} />
             <Route path="/sin-ruta" element={<SinRuta />} />
@@ -206,6 +215,7 @@ export function App() {
           </Routes>
           </Suspense>
         </main>
+        {!esAdmin && <Footer />}
         </div>
       </InversionistaAuthProvider>
       </MineroAuthProvider>

@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTitulo } from "../hooks/useTitulo";
 import { Compass } from "lucide-react";
 import { MARCA } from "../config/marca";
 
@@ -6,6 +7,7 @@ import { MARCA } from "../config/marca";
  *  equivocada mostraba la pantalla en blanco (el Routes no tenía
  *  catch-all), lo que parecía que la web estaba caída. */
 export function NoEncontrada() {
+  useTitulo("Página no encontrada");
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
       <span className="flex h-16 w-16 items-center justify-center rounded-full bg-acento/10 text-acento">

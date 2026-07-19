@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Check, Lightbulb } from "lucide-react";
 import { ProgressBar } from "../components/ProgressBar";
@@ -90,6 +91,7 @@ function soloAplicables(respuestas: Respuestas): Respuestas {
 }
 
 export function Cuestionario() {
+  useTitulo("Diagnóstico de formalización");
   const navigate = useNavigate();
   const location = useLocation();
   const vuelveDeResultado = Boolean((location.state as { volver?: boolean } | null)?.volver);

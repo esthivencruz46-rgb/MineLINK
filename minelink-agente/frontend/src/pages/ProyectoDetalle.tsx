@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link, useParams } from "react-router-dom";
 import {
@@ -43,6 +44,7 @@ import type { NombreDimension } from "../types/diagnostico";
 export function ProyectoDetalle() {
   const { id } = useParams<{ id: string }>();
   const [proyecto, setProyecto] = useState<ProyectoDetalleType | null>(null);
+  useTitulo(proyecto?.nombre_proyecto ?? "Proyecto minero");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalMensaje, setModalMensaje] = useState<string | null>(null);

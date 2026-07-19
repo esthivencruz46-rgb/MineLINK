@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
@@ -9,6 +10,7 @@ import {
 } from "../data/estudiosPorDimension";
 import { postularConsultor } from "../services/api";
 import { CampoTelefono } from "../components/CampoTelefono";
+import { AceptaLegal } from "../components/AceptaLegal";
 
 interface Formulario {
   nombre: string;
@@ -50,11 +52,13 @@ function validar(f: Formulario, cv: File | null): Record<string, string> {
 }
 
 export function Postular() {
+  useTitulo("Postular como consultor");
   const [form, setForm] = useState<Formulario>(VACIO);
   const [cv, setCv] = useState<File | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
+  const [aceptaLegal, setAceptaLegal] = useState(false);
 
   function alternarLista(campo: "regiones_json" | "estudios_json", valor: string) {
     setForm((f) => ({
@@ -77,6 +81,7 @@ export function Postular() {
 
   async function enviar() {
     const erroresValidacion = validar(form, cv);
+    if (!aceptaLegal) erroresValidacion.legal = "Debes aceptar la Política de Privacidad y los Términos para postular.";
     setErrores(erroresValidacion);
     if (Object.keys(erroresValidacion).length > 0 || !cv) return;
 
@@ -253,6 +258,8 @@ export function Postular() {
           )}
         </div>
       </div>
+
+      <AceptaLegal aceptado={aceptaLegal} onCambiar={setAceptaLegal} error={errores.legal} />
 
       {errores.general && <p className="text-sm text-red-500">{errores.general}</p>}
 

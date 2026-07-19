@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { CampoPassword } from "../components/CampoPassword";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
 
 export function LoginInversionista() {
+  useTitulo("Ingresar como inversionista");
   const { token, login } = useInversionistaAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");

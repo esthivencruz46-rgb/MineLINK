@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { CampoPassword } from "../components/CampoPassword";
 import { useMineroAuth } from "../context/MineroAuthContext";
 
 export function LoginMinero() {
+  useTitulo("Ingresar");
   const { token, login } = useMineroAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");

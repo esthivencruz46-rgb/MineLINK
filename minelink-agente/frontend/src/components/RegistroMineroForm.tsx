@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AceptaLegal } from "./AceptaLegal";
 import { CampoPassword } from "./CampoPassword";
 import { CampoPreguntaSeguridad } from "./CampoPreguntaSeguridad";
 import { CampoTelefono } from "./CampoTelefono";
@@ -50,6 +51,7 @@ export function RegistroMineroForm({
   const [confirmarPassword, setConfirmarPassword] = useState("");
   const [preguntaSeguridad, setPreguntaSeguridad] = useState("");
   const [respuestaSeguridad, setRespuestaSeguridad] = useState("");
+  const [aceptaLegal, setAceptaLegal] = useState(false);
 
   const usernameValido = username.trim().length >= 3;
   const passwordValida = password.length >= 6;
@@ -63,7 +65,8 @@ export function RegistroMineroForm({
     passwordValida &&
     passwordsCoinciden &&
     preguntaSeguridad.trim().length > 0 &&
-    respuestaSeguridad.trim().length > 0;
+    respuestaSeguridad.trim().length > 0 &&
+    aceptaLegal;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -172,6 +175,10 @@ export function RegistroMineroForm({
       </div>
 
       {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+
+      <div className="mt-4">
+        <AceptaLegal aceptado={aceptaLegal} onCambiar={setAceptaLegal} />
+      </div>
 
       <div className="mt-5 flex gap-3">
         {onCancelar && (

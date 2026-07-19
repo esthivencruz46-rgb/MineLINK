@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Building2, MapPin, SearchX, SlidersHorizontal, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
@@ -25,6 +26,7 @@ interface EstadoDesdeCuenta {
 }
 
 export function Empresas() {
+  useTitulo("Empresas que te ayudan");
   const location = useLocation();
   const navigate = useNavigate();
   const estadoCuenta = location.state as EstadoDesdeCuenta | null;

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTitulo } from "../hooks/useTitulo";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2, RefreshCw, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
@@ -26,6 +27,7 @@ import type { MineroPerfil } from "../types/minero";
  * inversionistas (PerfilInversionForm, sin capacidad de producción — Ruta
  * 2 todavía no opera, no tiene nada que producir que declarar). */
 export function MiConcesion() {
+  useTitulo("Mi concesión");
   const { authFetch, logout } = useMineroAuth();
   const navigate = useNavigate();
   const location = useLocation();

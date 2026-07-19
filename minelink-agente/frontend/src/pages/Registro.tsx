@@ -1,4 +1,5 @@
 import { Navigate, useNavigate } from "react-router-dom";
+import { useTitulo } from "../hooks/useTitulo";
 import { RegistroMineroForm } from "../components/RegistroMineroForm";
 import { useRegistroMinero } from "../hooks/useRegistroMinero";
 import { leerDiagnostico } from "../services/storage";
@@ -35,6 +36,7 @@ const TEXTO_POR_PERFIL: Record<string, { titulo: string; descripcion: string }> 
 };
 
 export function Registro() {
+  useTitulo("Crear cuenta");
   const navigate = useNavigate();
   const guardado = leerDiagnostico();
   const { enviando, error, enviar } = useRegistroMinero(guardado?.respuesta.id);

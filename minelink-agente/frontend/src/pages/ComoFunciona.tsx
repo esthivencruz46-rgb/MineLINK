@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Briefcase, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
@@ -108,6 +109,7 @@ const SECCIONES: Seccion[] = [
 ];
 
 export function ComoFunciona() {
+  useTitulo("Cómo funciona");
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8">
       <div className="text-center">
