@@ -157,7 +157,17 @@ export function Empresas() {
         <div className="border border-black/10 p-6 text-center dark:border-white/10">
           <SearchX size={22} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
           <p className="mt-3">Aún no tenemos empresas registradas para esto en tu departamento.</p>
-          {!yaTieneCuenta && (
+          {yaTieneCuenta ? (
+            // julio 2026: antes este mensaje ni el botón de abajo existían
+            // para quien ya tiene cuenta — justo la audiencia que más se
+            // beneficia (ya tiene región y brecha reales). Ahora el aviso
+            // es automático: en cuanto una empresa activa cubra esto en tu
+            // región, te llega una notificación (campanita de tu cuenta).
+            <p className="mt-3 text-sm text-texto-suave dark:text-texto-suave-dark">
+              No hace falta que hagas nada más: en cuanto activemos una empresa que
+              cubra esto en tu región, te avisamos en tu cuenta.
+            </p>
+          ) : (
             <button
               onClick={() => setMostrarModal(true)}
               className="mt-4 min-h-[44px] bg-acento px-6 font-semibold text-white transition hover:bg-acento/90"

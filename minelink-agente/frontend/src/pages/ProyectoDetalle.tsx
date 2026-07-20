@@ -34,7 +34,7 @@ import { INFO_BRECHA } from "../data/brechas";
 import { POR_ID_INV } from "../data/preguntasInversion";
 import { DIMENSION_POR_ESTUDIO } from "../data/estudioDimension";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
-import { obtenerProyecto, BASE_URL } from "../services/api";
+import { obtenerProyecto, registrarEvento, BASE_URL } from "../services/api";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import { formatearMonto } from "../utils/formato";
 import { generarPdfProyecto } from "../utils/pdfProyecto";
@@ -85,6 +85,9 @@ export function ProyectoDetalle() {
       .then((data) => {
         setProyecto(data);
         setError(null);
+        // Embudo del inversionista (julio 2026): solo cuenta como "ficha
+        // vista" si el proyecto cargó de verdad — un 404 no infla el dato.
+        registrarEvento("ficha_proyecto_vista");
       })
       .catch(() => setError("No pudimos cargar este proyecto."))
       .finally(() => setCargando(false));

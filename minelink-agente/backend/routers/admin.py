@@ -18,7 +18,11 @@ from scoring import (
     respuestas_diagnostico_efectivas,
 )
 from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
-from notificaciones import crear_notificacion, notificar_publicacion_si_corresponde
+from notificaciones import (
+    crear_notificacion,
+    notificar_empresa_disponible,
+    notificar_publicacion_si_corresponde,
+)
 import storage
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -849,6 +853,10 @@ def crear_empresa(
     db.add(empresa)
     db.commit()
     db.refresh(empresa)
+    # "Avísenme cuando haya" (julio 2026): el alta manual nace activa por
+    # defecto — si cubre una brecha pendiente de algún minero en su
+    # región, se entera de inmediato.
+    notificar_empresa_disponible(db, empresa)
     return empresa
 
 
@@ -862,6 +870,7 @@ def actualizar_empresa(
     empresa = db.query(models.Empresa).filter(models.Empresa.id == empresa_id).first()
     if empresa is None:
         raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    estaba_inactiva = not empresa.activa
 
     # exclude_unset (julio 2026): el formulario del admin no envía los
     # campos de contexto del scraping (web/telefono/direccion/categoria/
@@ -870,6 +879,13 @@ def actualizar_empresa(
         setattr(empresa, campo, valor)
     db.commit()
     db.refresh(empresa)
+
+    # "Avísenme cuando haya" (julio 2026): solo en la TRANSICIÓN
+    # inactiva→activa (botón "Activar" del admin, o import + edición
+    # manual después) — nunca en cada edición de una que ya estaba activa,
+    # para no re-notificar por cambios menores como el rating.
+    if estaba_inactiva and empresa.activa:
+        notificar_empresa_disponible(db, empresa)
     return empresa
 
 

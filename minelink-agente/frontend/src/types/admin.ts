@@ -113,4 +113,8 @@ export interface DashboardOut {
   top_brechas: TopBrecha[];
   ultimos_leads: UltimoLead[];
   diagnosticos_iniciados: number;
+  // Embudo del inversionista (julio 2026)
+  carteras_vistas: number;
+  fichas_vistas: number;
+  intereses_inversion_total: number;
 }

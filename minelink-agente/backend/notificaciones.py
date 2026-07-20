@@ -42,3 +42,46 @@ def notificar_publicacion_si_corresponde(
         "Tu proyecto ya está publicado en la cartera para inversionistas.",
     )
     db.commit()
+
+
+def notificar_empresa_disponible(db: Session, empresa: models.Empresa) -> None:
+    """"Avísenme cuando haya" (julio 2026): antes ese botón solo abría el
+    registro y no guardaba nada — nadie volvía a saber si apareció una
+    empresa. Ahora, cuando una empresa queda ACTIVA con estudios y
+    regiones, se avisa a todo minero con una brecha pendiente que calce en
+    su región. Se llama desde routers/admin.py al crear/activar una
+    empresa — nunca al desactivarla ni al importar en lote (esas nacen
+    inactivas a propósito). No hay deduplicación entre activaciones
+    repetidas de la misma empresa (reactivar dos veces puede re-notificar)
+    — caso raro, no vale una tabla nueva solo para eso."""
+    if not empresa.activa:
+        return
+    regiones = {r.lower() for r in (empresa.regiones_json or [])}
+    estudios = set(empresa.estudios_json or [])
+    if not regiones or not estudios:
+        return
+
+    leads = db.query(models.Lead).filter(models.Lead.region.in_(regiones)).all()
+    if not leads:
+        return
+    operaciones = {
+        o.id: o
+        for o in db.query(models.Operacion)
+        .filter(models.Operacion.id.in_([lead.operacion_id for lead in leads]))
+        .all()
+    }
+    for lead in leads:
+        operacion = operaciones.get(lead.operacion_id)
+        if operacion is None:
+            continue
+        pendientes = set(estado_seguimiento(operacion).get("brechas_pendientes") or [])
+        if not (pendientes & estudios):
+            continue
+        crear_notificacion(
+            db,
+            lead.id,
+            "empresa_disponible",
+            f'"{empresa.nombre}" ya está disponible en tu región y puede ayudarte con '
+            "algo que te falta. Revisa la sección de empresas.",
+        )
+    db.commit()

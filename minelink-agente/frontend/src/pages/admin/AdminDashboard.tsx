@@ -106,6 +106,41 @@ export function AdminDashboard() {
             </p>
           </div>
 
+          {/* Embudo del inversionista (julio 2026): antes esta mitad de la
+              plataforma era una caja negra — solo se sabía cuántos
+              intereses se dejaban, nunca cuántos vieron la cartera o
+              abrieron una ficha para comparar contra eso. */}
+          <div>
+            <h2 className="mb-3 text-lg font-semibold">
+              Embudo del inversionista: dónde se caen
+            </h2>
+            <div className="grid grid-cols-3 gap-3">
+              <Tarjeta titulo="Vieron la cartera" valor={datos.carteras_vistas} />
+              <Tarjeta
+                titulo={`Abrieron una ficha${
+                  datos.carteras_vistas > 0
+                    ? ` (${Math.round((datos.fichas_vistas / datos.carteras_vistas) * 100)}%)`
+                    : ""
+                }`}
+                valor={datos.fichas_vistas}
+              />
+              <Tarjeta
+                titulo={`Dejaron su interés${
+                  datos.fichas_vistas > 0
+                    ? ` (${Math.round(
+                        (datos.intereses_inversion_total / datos.fichas_vistas) * 100
+                      )}%)`
+                    : ""
+                }`}
+                valor={datos.intereses_inversion_total}
+              />
+            </div>
+            <p className="mt-2 text-xs text-texto-suave dark:text-texto-suave-dark">
+              "Vieron la cartera" y "Abrieron una ficha" se miden desde hoy — el conteo de
+              "Dejaron su interés" sí es el total real desde siempre.
+            </p>
+          </div>
+
           <div>
             <h2 className="mb-3 text-lg font-semibold">Top 5 brechas más comunes</h2>
             {datos.top_brechas.length === 0 ? (

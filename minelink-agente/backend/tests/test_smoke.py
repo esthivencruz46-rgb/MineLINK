@@ -3069,6 +3069,114 @@ def test_admin_dashboard():
     assert body["ultimos_leads"][0]["perfil"] == "C"
 
 
+def test_admin_dashboard_embudo_inversionista():
+    """Embudo del inversionista (julio 2026): cartera_vista y
+    ficha_proyecto_vista son eventos anónimos; el interés dejado se cuenta
+    directo de la tabla real (más exacto que duplicarlo como evento)."""
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraembudoinv"))
+    _hacer_apto_inversionistas(diag["id"], "paraembudoinv")
+    client.post(
+        f"/proyectos/{diag['id']}/interes",
+        json=_interes_payload(username="inversionistaembudo"),
+    )
+
+    client.post("/eventos", json={"tipo": "cartera_vista"})
+    client.post("/eventos", json={"tipo": "cartera_vista"})
+    client.post("/eventos", json={"tipo": "ficha_proyecto_vista"})
+
+    headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.get("/admin/dashboard", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["carteras_vistas"] == 2
+    assert body["fichas_vistas"] == 1
+    assert body["intereses_inversion_total"] == 1
+
+
+def test_evento_sin_ruta_mostrado_es_aceptado():
+    # Hallazgo julio 2026: el frontend ya llamaba a este tipo desde
+    # Cuestionario.tsx, pero no estaba en TIPOS_EVENTO_VALIDOS y fallaba en
+    # 422 silenciosamente (registrarEvento es fire-and-forget).
+    resp = client.post("/eventos", json={"tipo": "sin_ruta_mostrado"})
+    assert resp.status_code == 201
+
+
+def test_avisenme_cuando_haya_notifica_al_activar_empresa_que_calza():
+    """"Avísenme cuando haya" (julio 2026): antes el botón solo registraba
+    al minero y no guardaba nada — nunca se le volvía a avisar. Ahora,
+    activar una empresa que cubre su brecha pendiente en su región le crea
+    una notificación real."""
+    respuestas = dict(RESPUESTAS_COMPLETAS)
+    respuestas["C2_1"] = "no_iniciado"  # brecha pendiente real: igafom_aprobado
+    diag = client.post(
+        "/diagnostico",
+        json={"respuestas": respuestas, "region": "cusco", "mineral": "oro", "tipo_mina": "subterranea"},
+    ).json()
+    assert "igafom_aprobado" in diag["brechas"]
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraavisenme", region="cusco"))
+
+    token = client.post(
+        "/mineros/login", json={"username": "paraavisenme", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    assert client.get("/mineros/notificaciones", headers=headers).json() == []
+
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+
+    # Una empresa en OTRA región no debe notificar (no calza)
+    client.post(
+        "/admin/empresas",
+        headers=admin_headers,
+        json={
+            "tipo": "empresa", "nombre": "Consultora Lejana SAC", "ruc": "20111111111",
+            "anios_servicio": 5, "regiones_json": ["lima"],
+            "estudios_json": ["igafom_aprobado"], "whatsapp": "+51900000001", "activa": True,
+        },
+    )
+    assert client.get("/mineros/notificaciones", headers=headers).json() == []
+
+    # Una empresa en SU región con SU estudio pendiente sí notifica
+    resp = client.post(
+        "/admin/empresas",
+        headers=admin_headers,
+        json={
+            "tipo": "empresa", "nombre": "Consultora Cusco SAC", "ruc": "20222222222",
+            "anios_servicio": 5, "regiones_json": ["cusco"],
+            "estudios_json": ["igafom_aprobado"], "whatsapp": "+51900000002", "activa": True,
+        },
+    )
+    assert resp.status_code == 201
+    notifs = client.get("/mineros/notificaciones", headers=headers).json()
+    assert len(notifs) == 1
+    assert notifs[0]["tipo"] == "empresa_disponible"
+    assert "Consultora Cusco SAC" in notifs[0]["mensaje"]
+
+    # Activar por EDICIÓN (transición inactiva→activa) también notifica
+    resp = client.post(
+        "/admin/empresas",
+        headers=admin_headers,
+        json={
+            "tipo": "empresa", "nombre": "Consultora Inactiva SAC", "ruc": "20333333333",
+            "anios_servicio": 5, "regiones_json": ["cusco"],
+            "estudios_json": ["igafom_aprobado"], "whatsapp": "+51900000003", "activa": False,
+        },
+    )
+    empresa_id = resp.json()["id"]
+    assert client.get("/mineros/notificaciones", headers=headers).json() == notifs  # sin cambios
+
+    client.put(
+        f"/admin/empresas/{empresa_id}",
+        headers=admin_headers,
+        json={
+            "tipo": "empresa", "nombre": "Consultora Inactiva SAC", "ruc": "20333333333",
+            "anios_servicio": 5, "regiones_json": ["cusco"],
+            "estudios_json": ["igafom_aprobado"], "whatsapp": "+51900000003", "activa": True,
+        },
+    )
+    assert len(client.get("/mineros/notificaciones", headers=headers).json()) == 2
+
+
 def test_admin_leads_pagina_y_expone_el_total():
     # Paginación (julio 2026): el panel pide de a `limit` leads con
     # `offset`, y el total real viaja en el header X-Total-Count para
