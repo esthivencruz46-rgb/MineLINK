@@ -6,7 +6,7 @@ import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-rea
 import { Autocomplete } from "../components/Autocomplete";
 import { TarjetaProyectoSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
-import { BASE_URL, obtenerProyectos } from "../services/api";
+import { BASE_URL, obtenerProyectos, registrarEvento } from "../services/api";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import { formatearMonto } from "../utils/formato";
 import type { ProyectoPublico } from "../types/proyecto";
@@ -45,6 +45,13 @@ export function Proyectos() {
   const [orden, setOrden] = useState<OrdenCartera>("inversion");
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Embudo del inversionista (julio 2026): una sola vez al entrar a la
+  // cartera, no en cada cambio de filtro (useEffect([]) aparte del que
+  // carga los proyectos, que sí depende de mineral/region).
+  useEffect(() => {
+    registrarEvento("cartera_vista");
+  }, []);
 
   useEffect(() => {
     setCargando(true);

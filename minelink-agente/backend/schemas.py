@@ -1331,9 +1331,29 @@ class DashboardOut(BaseModel):
     ultimos_leads: list[UltimoLead]
     # Embudo: dónde se caen los usuarios (iniciado → completado → registrado)
     diagnosticos_iniciados: int = 0
+    # Embudo del inversionista (julio 2026): vio la cartera → abrió una
+    # ficha → dejó su interés. El último paso es el conteo REAL de
+    # intereses_inversion (no un evento) — ya es exacto, no hace falta
+    # duplicarlo.
+    carteras_vistas: int = 0
+    fichas_vistas: int = 0
+    intereses_inversion_total: int = 0
 
 
-TIPOS_EVENTO_VALIDOS = ("diagnostico_iniciado",)
+TIPOS_EVENTO_VALIDOS = (
+    "diagnostico_iniciado",
+    # "sin_ruta_mostrado" ya se llamaba desde el frontend (Cuestionario.tsx)
+    # pero nunca estuvo en esta lista — fallaba en 422 silenciosamente
+    # (registrarEvento es fire-and-forget). Julio 2026, hallazgo al
+    # construir el embudo del inversionista.
+    "sin_ruta_mostrado",
+    # Embudo del inversionista (julio 2026): dónde se cae la gente entre
+    # ver la cartera y dejar su interés — antes esa mitad era una caja
+    # negra total (solo se sabía cuántos intereses se dejaban, nunca
+    # cuántos vieron la cartera o abrieron una ficha para comparar).
+    "cartera_vista",
+    "ficha_proyecto_vista",
+)
 
 
 class EventoCreate(BaseModel):

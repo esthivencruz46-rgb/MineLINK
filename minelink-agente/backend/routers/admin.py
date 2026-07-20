@@ -381,6 +381,17 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         .filter(models.Evento.tipo == "diagnostico_iniciado")
         .count()
     )
+    # Embudo del inversionista (julio 2026): ver la cartera y abrir una
+    # ficha son eventos anónimos (igual que diagnostico_iniciado); dejar
+    # el interés ya tiene su propia tabla, así que se cuenta directo —
+    # más exacto que duplicarlo como evento.
+    carteras_vistas = (
+        db.query(models.Evento).filter(models.Evento.tipo == "cartera_vista").count()
+    )
+    fichas_vistas = (
+        db.query(models.Evento).filter(models.Evento.tipo == "ficha_proyecto_vista").count()
+    )
+    intereses_inversion_total = db.query(models.InteresInversion).count()
 
     return schemas.DashboardOut(
         diagnosticos_hoy=diagnosticos_hoy,
@@ -391,6 +402,9 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         top_brechas=top_brechas,
         ultimos_leads=ultimos_leads,
         diagnosticos_iniciados=diagnosticos_iniciados,
+        carteras_vistas=carteras_vistas,
+        fichas_vistas=fichas_vistas,
+        intereses_inversion_total=intereses_inversion_total,
     )
 
 
