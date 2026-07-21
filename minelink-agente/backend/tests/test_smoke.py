@@ -3102,6 +3102,77 @@ def test_evento_sin_ruta_mostrado_es_aceptado():
     assert resp.status_code == 201
 
 
+def test_asesor_responde_en_modo_simulado_y_exige_login():
+    """Endpoint del asesor conversacional (julio 2026): sin token, 401/403.
+    Con token, responde en modo simulado (sin ninguna API key configurada
+    en el entorno de test) — confirma que todo el resto del sistema
+    (retrieval del diagnóstico propio, guardarraíles de auth) funciona sin
+    depender de ningún proveedor externo."""
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesor"))
+
+    resp = client.post("/mineros/asesor", json={"pregunta": "¿qué es el REINFO?"})
+    assert resp.status_code in (401, 403)
+
+    token = client.post(
+        "/mineros/login", json={"username": "paraasesor", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.post(
+        "/mineros/asesor", json={"pregunta": "¿qué es el REINFO?"}, headers=headers
+    )
+    assert resp.status_code == 200
+    respuesta = resp.json()["respuesta"]
+    assert "REINFO" in respuesta  # el modo simulado repite la pregunta
+    assert "simulado" in respuesta.lower()
+
+
+def test_asesor_rechaza_pregunta_vacia():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesorvacio"))
+    token = client.post(
+        "/mineros/login", json={"username": "paraasesorvacio", "password": "clave123"}
+    ).json()["access_token"]
+
+    resp = client.post(
+        "/mineros/asesor",
+        json={"pregunta": "   "},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 422
+
+
+def test_asesor_respeta_el_limite_diario_por_cuenta():
+    import security
+
+    # El límite es en memoria por proceso, keyed por lead_id — pero cada
+    # test resetea la BASE de datos (el autoincrement de leads reinicia en
+    # 1), así que sin este limpiado un lead_id=1 de OTRO test podría dejar
+    # residuo y contaminar el conteo de este test.
+    security._preguntas_asesor_por_lead.clear()
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesorlimite"))
+    token = client.post(
+        "/mineros/login", json={"username": "paraasesorlimite", "password": "clave123"}
+    ).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    tope_original = security.MAX_PREGUNTAS_ASESOR_DIA
+    security.MAX_PREGUNTAS_ASESOR_DIA = 2
+    try:
+        for _ in range(2):
+            resp = client.post(
+                "/mineros/asesor", json={"pregunta": "hola"}, headers=headers
+            )
+            assert resp.status_code == 200
+        resp = client.post("/mineros/asesor", json={"pregunta": "hola"}, headers=headers)
+        assert resp.status_code == 429
+    finally:
+        security.MAX_PREGUNTAS_ASESOR_DIA = tope_original
+
+
 def test_avisenme_cuando_haya_notifica_al_activar_empresa_que_calza():
     """"Avísenme cuando haya" (julio 2026): antes el botón solo registraba
     al minero y no guardaba nada — nunca se le volvía a avisar. Ahora,

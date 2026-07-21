@@ -1365,3 +1365,32 @@ class EventoCreate(BaseModel):
         if v not in TIPOS_EVENTO_VALIDOS:
             raise ValueError(f"tipo debe ser uno de: {TIPOS_EVENTO_VALIDOS}")
         return v
+
+
+# ---------- Asesor conversacional (julio 2026) ----------
+
+class MensajeAsesor(BaseModel):
+    rol: Literal["usuario", "asesor"]
+    contenido: str
+
+
+class AsesorPreguntaRequest(BaseModel):
+    pregunta: str
+    # Últimos turnos de la conversación (el frontend los guarda en memoria
+    # de la sesión, no se persisten en la base) — le dan continuidad sin
+    # que el backend tenga que guardar historial de chat.
+    historial: list[MensajeAsesor] = []
+
+    @field_validator("pregunta")
+    @classmethod
+    def validar_pregunta(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("La pregunta no puede estar vacía")
+        if len(v) > 1000:
+            raise ValueError("La pregunta es demasiado larga (máx. 1000 caracteres)")
+        return v
+
+
+class AsesorRespuestaOut(BaseModel):
+    respuesta: str

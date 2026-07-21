@@ -165,3 +165,10 @@ export interface PerfilInversionRequest {
   uso_fondos?: string;
   ubicacion_maps?: string;
 }
+
+/** Asesor conversacional (julio 2026) — responde preguntas sobre la
+ * propia situación del minero, no genera documentos ni asesora legalmente. */
+export interface MensajeAsesor {
+  rol: "usuario" | "asesor";
+  contenido: string;
+}

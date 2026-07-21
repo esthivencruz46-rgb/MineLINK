@@ -31,6 +31,7 @@ const CuestionarioInversion = lazy(() =>
 const DocumentosEnviados = lazy(() =>
   import("./pages/DocumentosEnviados").then((m) => ({ default: m.DocumentosEnviados }))
 );
+const MiAsesor = lazy(() => import("./pages/MiAsesor").then((m) => ({ default: m.MiAsesor })));
 const Empresas = lazy(() => import("./pages/Empresas").then((m) => ({ default: m.Empresas })));
 const Gracias = lazy(() => import("./pages/Gracias").then((m) => ({ default: m.Gracias })));
 const LoginMinero = lazy(() =>
@@ -112,6 +113,10 @@ function CargandoPagina() {
 export function App() {
   const location = useLocation();
   const esAdmin = location.pathname.startsWith("/admin");
+  // El chat del asesor usa una altura fija de pantalla completa (input
+  // siempre visible abajo) — el footer global rompía ese diseño
+  // empujándolo fuera de la vista (julio 2026).
+  const esPantallaCompleta = location.pathname === "/mi-asesor";
 
   return (
     <AuthProvider>
@@ -159,6 +164,14 @@ export function App() {
               element={
                 <ProtectedRouteMinero>
                   <CuestionarioInversion />
+                </ProtectedRouteMinero>
+              }
+            />
+            <Route
+              path="/mi-asesor"
+              element={
+                <ProtectedRouteMinero>
+                  <MiAsesor />
                 </ProtectedRouteMinero>
               }
             />
@@ -215,7 +228,7 @@ export function App() {
           </Routes>
           </Suspense>
         </main>
-        {!esAdmin && <Footer />}
+        {!esAdmin && !esPantallaCompleta && <Footer />}
         </div>
       </InversionistaAuthProvider>
       </MineroAuthProvider>

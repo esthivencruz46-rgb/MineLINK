@@ -120,6 +120,34 @@ def resetear_intentos_recuperacion(clave: str) -> None:
     _intentos_recuperacion.pop(clave, None)
 
 
+# --- Preguntas al asesor conversacional (julio 2026) ---
+# Cada pregunta le cuesta dinero real a Esthiven (API externa de pago) —
+# sin este tope, un bug del frontend o un uso malicioso generaría gasto
+# sin control. Por CUENTA de minero (no por IP), igual que el límite de
+# recuperación de contraseña de arriba.
+MAX_PREGUNTAS_ASESOR_DIA = 20
+_VENTANA_ASESOR = 24 * 60 * 60
+
+_preguntas_asesor_por_lead: dict[int, deque] = defaultdict(deque)
+
+
+def limitar_preguntas_asesor(lead_id: int) -> None:
+    _barrer_si_toca(_preguntas_asesor_por_lead, _VENTANA_ASESOR)
+    ahora = time.monotonic()
+    cola = _preguntas_asesor_por_lead[lead_id]
+    while cola and ahora - cola[0] > _VENTANA_ASESOR:
+        cola.popleft()
+    if len(cola) >= MAX_PREGUNTAS_ASESOR_DIA:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Ya hiciste {MAX_PREGUNTAS_ASESOR_DIA} preguntas hoy — vuelve a "
+                "intentarlo mañana, o escríbenos por WhatsApp si es urgente."
+            ),
+        )
+    cola.append(ahora)
+
+
 # --- Verificación de firma real del archivo (magic bytes) ---
 def contenido_coincide_con_tipo(contenido: bytes, content_type: str) -> bool:
     if content_type == "application/pdf":

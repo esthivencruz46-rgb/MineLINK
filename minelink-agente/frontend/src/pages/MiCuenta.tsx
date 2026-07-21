@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTitulo } from "../hooks/useTitulo";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
-import { AlertTriangle, CheckCircle2, RefreshCw, X } from "lucide-react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
+import { AlertTriangle, CheckCircle2, RefreshCw, Sparkles, X } from "lucide-react";
 import { LoQueTeFaltaCard } from "../components/LoQueTeFaltaCard";
 import { PanelCuentaSkeleton } from "../components/Skeleton";
 import { ProyectoPublicadoAcciones } from "../components/ProyectoPublicadoAcciones";
@@ -104,6 +104,14 @@ export function MiCuenta() {
             <RefreshCw size={15} strokeWidth={2.25} aria-hidden />
             Guardar
           </button>
+          <Link
+            to="/mi-asesor"
+            className="flex min-h-[44px] items-center gap-1.5 border border-acento/30 px-3 text-sm font-semibold text-acento"
+            title="Pregúntale al asesor"
+          >
+            <Sparkles size={15} strokeWidth={1.75} aria-hidden />
+            <span className="hidden sm:inline">Asesor</span>
+          </Link>
           <NotificacionesBell />
           <button
             onClick={cerrarSesion}
