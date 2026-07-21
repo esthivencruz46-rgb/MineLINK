@@ -5,10 +5,10 @@ según el formato documentado de cada API y que la respuesta se interpreta
 bien. Nunca hacen una llamada de red real (evita gasto y flakiness)."""
 from unittest.mock import MagicMock, patch
 
+import fitz  # PyMuPDF
 import pytest
 
 import asesor
-import models
 
 
 class _RespuestaFalsa:
@@ -112,6 +112,46 @@ def test_base_conocimiento_incluye_el_spec_de_negocio():
     base = asesor._base_conocimiento()
     assert "diagnostico_formalizacion.md" in base
     assert len(base) > 500  # el spec real tiene cientos de líneas
+
+
+def test_base_conocimiento_suma_archivos_de_asesor_conocimiento(tmp_path, monkeypatch):
+    # julio 2026: nutrir al asesor con más contenido (ley MAPE,
+    # jurisprudencia) es soltar un .md/.txt en context/asesor_conocimiento/
+    # sin tocar código — se prueba _cargar_base_conocimiento() directo
+    # (no _base_conocimiento(), que cachea en un global y no debe
+    # contaminarse entre tests).
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    (tmp_path / "ley_mape.md").write_text(
+        "Artículo 1: contenido de prueba de la ley MAPE.", encoding="utf-8"
+    )
+    base = asesor._cargar_base_conocimiento()
+    assert "ley_mape.md" in base
+    assert "Artículo 1: contenido de prueba de la ley MAPE." in base
+
+
+def test_base_conocimiento_extrae_texto_de_pdfs_en_asesor_conocimiento(tmp_path, monkeypatch):
+    # julio 2026: Esthiven dijo que subirá "más que todo" PDFs (normas
+    # publicadas en El Peruano, jurisprudencia) — deben extraerse solos,
+    # sin que él tenga que convertir nada a mano primero.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    ruta_pdf = tmp_path / "jurisprudencia.pdf"
+    doc = fitz.open()
+    pagina = doc.new_page()
+    pagina.insert_text((72, 72), "Resolución de prueba: la formalización requiere REINFO vigente.")
+    doc.save(ruta_pdf)
+    doc.close()
+
+    base = asesor._cargar_base_conocimiento()
+    assert "jurisprudencia.pdf" in base
+    assert "la formalización requiere REINFO vigente" in base
+
+
+def test_extraer_texto_pdf_con_archivo_corrupto_no_revienta(tmp_path):
+    # Best-effort: un PDF dañado o sin capa de texto aporta string vacío,
+    # nunca tumba la carga del resto del contenido.
+    ruta = tmp_path / "corrupto.pdf"
+    ruta.write_bytes(b"esto no es un PDF valido")
+    assert asesor._extraer_texto_pdf(ruta) == ""
 
 
 def test_system_prompt_es_generico_sin_caso_personal():

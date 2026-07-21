@@ -9,8 +9,17 @@ legalmente.
 Arquitectura RAG deliberadamente simple para el tamaño actual del
 contenido (unos cientos de líneas, no miles de páginas): el "retrieval"
 es incluir TODO el spec en cada pregunta — no hace falta base de datos
-vectorial ni embeddings todavía. Si se agrega contenido grande (ej. el
-reglamento completo de la Ley MAPE o jurisprudencia), esa sería la señal
+vectorial ni embeddings todavía. Para nutrir al asesor con más contenido
+(ley MAPE, jurisprudencia, reglamentos) NO hace falta tocar código: basta
+con soltar un archivo .md, .txt o .pdf en `context/asesor_conocimiento/`
+— se suma automáticamente al contenido de referencia en el próximo
+arranque del servidor (ver `_cargar_base_conocimiento`). Los PDF se leen
+con PyMuPDF (ya es dependencia del proyecto para las fotos de
+documentos) extrayendo su texto — funciona bien con PDFs de texto real
+(la mayoría de normas publicadas en El Peruano lo son), pero NO con un
+PDF que es solo una foto/escaneo sin capa de texto (esos habría que
+pasarlos por OCR aparte). Si ese contenido crece mucho (el reglamento
+completo + jurisprudencia extensa, miles de líneas), esa sería la señal
 para migrar a retrieval real (chunking + embeddings + pgvector); mientras
 tanto sería complejidad sin beneficio.
 
@@ -23,6 +32,7 @@ proveedor es elegir `MINELINK_ASESOR_PROVEEDOR` — no reescribir nada.
 import os
 from pathlib import Path
 
+import fitz  # PyMuPDF
 import requests
 
 PROVEEDOR = os.environ.get("MINELINK_ASESOR_PROVEEDOR", "simulado")
@@ -39,17 +49,42 @@ MODELO = os.environ.get("MINELINK_ASESOR_MODELO") or _MODELO_POR_DEFECTO.get(PRO
 MAX_TURNOS_HISTORIAL = 6  # últimos N mensajes que se reenvían (controla el costo)
 
 _RUTA_CONTEXTO = Path(__file__).parent.parent / "context"
+# Carpeta de "nutrición" del asesor: cualquier .md/.txt que se suelte acá
+# se suma al contenido de referencia sin tocar código (julio 2026).
+_RUTA_CONOCIMIENTO_EXTRA = _RUTA_CONTEXTO / "asesor_conocimiento"
+
+
+def _extraer_texto_pdf(ruta: Path) -> str:
+    """Best-effort (mismo patrón que geocatmin.py/geoubicacion.py): un PDF
+    dañado o sin capa de texto (foto escaneada) no debe tumbar el asesor
+    entero, solo aportar menos contenido."""
+    try:
+        with fitz.open(ruta) as doc:
+            return "\n".join(pagina.get_text() for pagina in doc)
+    except Exception:
+        return ""
 
 
 def _cargar_base_conocimiento() -> str:
     """El spec de negocio completo (fuente de verdad ya existente del
-    proyecto) — se lee una sola vez y se cachea en memoria del proceso;
-    no cambia mientras el servidor está corriendo."""
+    proyecto) + cualquier archivo extra en `asesor_conocimiento/` (ley
+    MAPE, jurisprudencia, etc. — .md, .txt o .pdf) — se lee una sola vez y
+    se cachea en memoria del proceso; no cambia mientras el servidor está
+    corriendo (un redeploy sí lo vuelve a leer)."""
     partes = []
     for nombre in ("diagnostico_formalizacion.md", "perfil_usuario.md"):
         ruta = _RUTA_CONTEXTO / nombre
         if ruta.exists():
             partes.append(f"--- {nombre} ---\n{ruta.read_text(encoding='utf-8')}")
+    if _RUTA_CONOCIMIENTO_EXTRA.exists():
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.md")):
+            partes.append(f"--- {ruta.name} ---\n{ruta.read_text(encoding='utf-8')}")
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.txt")):
+            partes.append(f"--- {ruta.name} ---\n{ruta.read_text(encoding='utf-8')}")
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.pdf")):
+            texto = _extraer_texto_pdf(ruta)
+            if texto.strip():
+                partes.append(f"--- {ruta.name} ---\n{texto}")
     return "\n\n".join(partes)
 
 
