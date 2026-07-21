@@ -105,7 +105,7 @@ export function MiCuenta() {
             Guardar
           </button>
           <Link
-            to="/mi-asesor"
+            to="/asesor"
             className="flex min-h-[44px] items-center gap-1.5 border border-acento/30 px-3 text-sm font-semibold text-acento"
             title="Pregúntale al asesor"
           >

@@ -1,15 +1,17 @@
-"""Asesor conversacional del minero (julio 2026): responde preguntas en
-lenguaje llano sobre SU propio diagnóstico ("¿por qué tengo que presentar
-esto?", "¿a dónde voy si me suspendieron el REINFO?"). No genera archivos
-ni asesora legalmente — solo explica, con base en el spec de negocio
-(context/diagnostico_formalizacion.md) y el estado real de la operación.
+"""Asesor conversacional PÚBLICO (julio 2026): cualquier visitante, sin
+registrarse, puede preguntar en lenguaje llano sobre formalización minera
+según el modelo de MineLink ("¿qué es el REINFO?", "¿para qué sirve un
+IGAFOM?"). Genérico a propósito (decisión explícita del dueño, no
+personalizado a un caso): no conoce el diagnóstico de nadie en
+particular, solo el spec de negocio. No genera archivos ni asesora
+legalmente.
 
 Arquitectura RAG deliberadamente simple para el tamaño actual del
 contenido (unos cientos de líneas, no miles de páginas): el "retrieval"
 es incluir TODO el spec en cada pregunta — no hace falta base de datos
-vectorial ni embeddings todavía. Si el contenido creciera mucho (ej. se
-agrega el reglamento completo de la Ley MAPE), esa sería la señal para
-migrar a retrieval real (chunking + embeddings + pgvector); mientras
+vectorial ni embeddings todavía. Si se agrega contenido grande (ej. el
+reglamento completo de la Ley MAPE o jurisprudencia), esa sería la señal
+para migrar a retrieval real (chunking + embeddings + pgvector); mientras
 tanto sería complejidad sin beneficio.
 
 Generación intercambiable entre proveedores (julio 2026, pedido
@@ -22,9 +24,6 @@ import os
 from pathlib import Path
 
 import requests
-
-import models
-from scoring import estado_seguimiento
 
 PROVEEDOR = os.environ.get("MINELINK_ASESOR_PROVEEDOR", "simulado")
 
@@ -64,45 +63,21 @@ def _base_conocimiento() -> str:
     return _BASE_CONOCIMIENTO_CACHE
 
 
-def _snapshot_operacion(operacion: models.Operacion) -> str:
-    """El "retrieval" de la parte personal: el estado REAL y actual de
-    esta operación específica — no la declaración original sin procesar,
-    sino lo mismo que ya ve el minero en su cuenta (recalculado con
-    scoring.estado_seguimiento, incluye brechas resueltas por admin)."""
-    est = estado_seguimiento(operacion)
-    legible = lambda codigos: ", ".join(c.replace("_", " ") for c in codigos) or "ninguna"
-    lineas = [
-        f"Perfil: {est.get('perfil') or 'sin determinar'}",
-        f"Semáforo legal: {est.get('semaforo_legal') or 'sin datos'}",
-        f"Semáforo técnico: {est.get('semaforo_tecnico') or 'no aplica a este perfil'}",
-        f"Índice de madurez: {est.get('indice_madurez')}/5"
-        if est.get("indice_madurez") is not None
-        else "Índice de madurez: no aplica",
-        f"Brechas pendientes (lo que le falta): {legible(est.get('brechas_pendientes') or [])}",
-        f"Brechas ya resueltas: {legible(est.get('brechas_resueltas') or [])}",
-        f"¿Apto para inversionistas ahora mismo?: {'sí' if est.get('apto_inversionistas') else 'no'}",
-    ]
-    if est.get("etiquetas_bloqueantes"):
-        lineas.append(
-            "Bloqueantes legales activos: " + "; ".join(est["etiquetas_bloqueantes"])
-        )
-    return "\n".join(lineas)
-
-
-SYSTEM_PROMPT_BASE = """Eres el asesor de MineLink, una plataforma peruana que orienta a \
-mineros artesanales en su proceso de formalización. Respondes preguntas del minero sobre \
-SU propia situación, en español simple y directo, sin jerga legal innecesaria.
+SYSTEM_PROMPT_BASE = """Eres el asesor público de MineLink, una plataforma peruana que \
+orienta a mineros artesanales en su proceso de formalización. Respondes preguntas \
+GENERALES sobre formalización minera y sobre cómo funciona MineLink, en español simple y \
+directo, sin jerga legal innecesaria. No conoces el caso particular de nadie — cualquier \
+visitante, con o sin cuenta, puede preguntarte.
 
 REGLAS QUE NUNCA ROMPES:
-1. Respondes SOLO con base en el contenido que te doy abajo (el spec de MineLink) y en el \
-estado del diagnóstico de esta persona. Nunca inventes trámites, plazos, montos ni artículos \
-de ley que no estén en ese contenido.
+1. Respondes SOLO con base en el contenido que te doy abajo (el spec de MineLink). Nunca \
+inventes trámites, plazos, montos ni artículos de ley que no estén en ese contenido.
 2. Si la pregunta pide algo que no está en tu contenido (ej. un detalle de un reglamento que \
-no tienes, o una situación jurídica particular), dilo con honestidad: "esto no lo tengo \
-documentado, te recomiendo confirmarlo con un especialista o consultarlo directamente con \
-las autoridades" — nunca completes el vacío adivinando.
-3. NO eres un abogado ni dabas asesoría legal vinculante — al final de respuestas sobre \
-temas legales o de riesgo (suspensión, caducidad, sanciones), recuerda brevemente que es \
+no tienes, o el caso particular de una persona específica), dilo con honestidad: "esto no lo \
+tengo documentado, te recomiendo confirmarlo con un especialista o consultarlo directamente \
+con las autoridades" — nunca completes el vacío adivinando.
+3. NO eres un abogado ni das asesoría legal vinculante — al final de respuestas sobre temas \
+legales o de riesgo (suspensión, caducidad, sanciones), recuerda brevemente que es \
 orientación general, no asesoría legal.
 4. No generas documentos, cartas ni escritos — solo explicas.
 5. Respuestas cortas y claras (unos pocos párrafos como máximo), en el tono de alguien que \
@@ -110,17 +85,11 @@ ayuda de verdad, no de un manual.
 
 CONTENIDO DE REFERENCIA (spec de MineLink):
 {base_conocimiento}
-
-ESTADO ACTUAL DE ESTA PERSONA:
-{snapshot}
 """
 
 
-def construir_system_prompt(operacion: models.Operacion) -> str:
-    return SYSTEM_PROMPT_BASE.format(
-        base_conocimiento=_base_conocimiento(),
-        snapshot=_snapshot_operacion(operacion),
-    )
+def construir_system_prompt() -> str:
+    return SYSTEM_PROMPT_BASE.format(base_conocimiento=_base_conocimiento())
 
 
 class AsesorNoDisponible(Exception):
@@ -151,8 +120,8 @@ def _via_simulado(system: str, historial: list[dict]) -> str:
     return (
         "🔧 Modo simulado — el asesor todavía no está conectado a ningún proveedor de IA "
         f'(configura MINELINK_ASESOR_PROVEEDOR). Tu pregunta fue: "{ultima_pregunta}". '
-        "Cuando se conecte una API real, aquí aparecerá la respuesta basada en tu "
-        "diagnóstico y el spec de MineLink."
+        "Cuando se conecte una API real, aquí aparecerá la respuesta basada en el spec "
+        "de MineLink."
     )
 
 

@@ -36,11 +36,9 @@ from security import (
     intentos_recuperacion_restantes,
     limitar_intentos_login,
     limitar_intentos_recuperacion,
-    limitar_preguntas_asesor,
     registrar_intento_fallido_recuperacion,
     resetear_intentos_recuperacion,
 )
-import asesor
 from uploads_config import (
     CATEGORIAS_DOCUMENTO,
     CATEGORIAS_ESTUDIO,
@@ -813,41 +811,3 @@ def ver_documento(
             )
         },
     )
-
-
-@router.post("/asesor", response_model=schemas.AsesorRespuestaOut)
-def preguntar_asesor(
-    payload: schemas.AsesorPreguntaRequest,
-    db: Session = Depends(get_db),
-    lead_id: int = Depends(get_current_lead_id),
-):
-    """Asesor conversacional (julio 2026): responde preguntas sobre la
-    situación del propio minero (`asesor.py`), nunca genera documentos ni
-    da asesoría legal vinculante. El límite de uso es POR CUENTA
-    (lead_id), no por IP — se llama a mano en vez de con Depends() porque
-    `limitar_preguntas_asesor` necesita el lead_id que a su vez resuelve
-    OTRO Depends() de este mismo endpoint (FastAPI no encadena así)."""
-    limitar_preguntas_asesor(lead_id)
-    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
-    if lead is None:
-        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
-    operacion = (
-        db.query(models.Operacion).filter(models.Operacion.id == lead.operacion_id).first()
-    )
-    if operacion is None:
-        raise HTTPException(status_code=404, detail="Operación no encontrada")
-
-    historial = [
-        {"rol": m.rol, "contenido": m.contenido} for m in payload.historial
-    ][-asesor.MAX_TURNOS_HISTORIAL :]
-    historial.append({"rol": "usuario", "contenido": payload.pregunta})
-
-    system = asesor.construir_system_prompt(operacion)
-    try:
-        respuesta = asesor.generar_respuesta(system, historial)
-    except asesor.AsesorNoDisponible:
-        raise HTTPException(
-            status_code=503,
-            detail="El asesor no está disponible en este momento. Intenta de nuevo en un rato.",
-        )
-    return schemas.AsesorRespuestaOut(respuesta=respuesta)

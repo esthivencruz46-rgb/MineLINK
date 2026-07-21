@@ -2,23 +2,23 @@ import { useEffect, useRef, useState } from "react";
 import { useTitulo } from "../hooks/useTitulo";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Send, Sparkles } from "lucide-react";
-import { useMineroAuth } from "../context/MineroAuthContext";
+import { preguntarAsesor } from "../services/api";
 import { MARCA } from "../config/marca";
 import type { MensajeAsesor } from "../types/minero";
 
 const PREGUNTAS_SUGERIDAS = [
-  "¿Qué significa mi semáforo legal?",
-  "¿A dónde voy si me suspendieron el REINFO?",
-  "¿Por qué me falta ese estudio?",
+  "¿Qué es el REINFO?",
+  "¿Qué perfiles existen en MineLink?",
+  "¿Qué es un IGAFOM?",
 ];
 
-/** Asesor conversacional (julio 2026): responde preguntas sobre la propia
- * situación del minero — no genera documentos ni asesora legalmente. El
- * historial vive solo en esta sesión del navegador (no se persiste en la
- * base), el backend no necesita guardar conversaciones para funcionar. */
-export function MiAsesor() {
+/** Asesor conversacional PÚBLICO (julio 2026, decisión explícita del
+ * dueño: "cualquier persona sin registrarse lo pueda usar"). Genérico a
+ * propósito — no conoce el caso de nadie en particular, solo explica
+ * conceptos generales de formalización minera y de MineLink. El
+ * historial vive solo en esta sesión del navegador (no se persiste). */
+export function Asesor() {
   useTitulo("Pregúntale a " + MARCA);
-  const { authFetch } = useMineroAuth();
   const [mensajes, setMensajes] = useState<MensajeAsesor[]>([]);
   const [borrador, setBorrador] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -38,17 +38,8 @@ export function MiAsesor() {
     setMensajes((previos) => [...previos, { rol: "usuario", contenido: texto }]);
     setEnviando(true);
     try {
-      const resp = await authFetch("/mineros/asesor", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pregunta: texto, historial: historialParaEnviar }),
-      });
-      if (!resp.ok) {
-        const detalle = await resp.json().catch(() => null);
-        throw new Error(detalle?.detail ?? "No pudimos responder tu pregunta.");
-      }
-      const data = await resp.json();
-      setMensajes((previos) => [...previos, { rol: "asesor", contenido: data.respuesta }]);
+      const respuesta = await preguntarAsesor(texto, historialParaEnviar);
+      setMensajes((previos) => [...previos, { rol: "asesor", contenido: respuesta }]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No pudimos responder tu pregunta.");
     } finally {
@@ -60,9 +51,9 @@ export function MiAsesor() {
     <div className="mx-auto flex h-[calc(100dvh-56px)] max-w-2xl flex-col px-4 py-4">
       <div className="flex items-center gap-3 border-b border-black/10 pb-3 dark:border-white/10">
         <Link
-          to="/mi-cuenta"
+          to="/"
           className="flex h-9 w-9 shrink-0 items-center justify-center border border-black/10 dark:border-white/10"
-          aria-label="Volver a mi cuenta"
+          aria-label="Volver al inicio"
         >
           <ArrowLeft size={17} strokeWidth={1.75} aria-hidden />
         </Link>
@@ -72,7 +63,8 @@ export function MiAsesor() {
             Pregúntale a {MARCA}
           </h1>
           <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-            Responde con base en tu diagnóstico. Es orientación general, no asesoría legal.
+            Responde preguntas generales sobre formalización minera y sobre cómo funciona{" "}
+            {MARCA}. Es orientación general, no asesoría legal.
           </p>
         </div>
       </div>
@@ -81,7 +73,7 @@ export function MiAsesor() {
         {mensajes.length === 0 && (
           <div className="flex flex-col gap-3">
             <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-              Pregúntame sobre tu situación — por ejemplo:
+              Pregúntame, por ejemplo:
             </p>
             <div className="flex flex-col gap-2">
               {PREGUNTAS_SUGERIDAS.map((p) => (

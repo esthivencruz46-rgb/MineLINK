@@ -3102,75 +3102,41 @@ def test_evento_sin_ruta_mostrado_es_aceptado():
     assert resp.status_code == 201
 
 
-def test_asesor_responde_en_modo_simulado_y_exige_login():
-    """Endpoint del asesor conversacional (julio 2026): sin token, 401/403.
-    Con token, responde en modo simulado (sin ninguna API key configurada
-    en el entorno de test) — confirma que todo el resto del sistema
-    (retrieval del diagnóstico propio, guardarraíles de auth) funciona sin
-    depender de ningún proveedor externo."""
-    diag = _crear_diagnostico().json()
-    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesor"))
-
-    resp = client.post("/mineros/asesor", json={"pregunta": "¿qué es el REINFO?"})
-    assert resp.status_code in (401, 403)
-
-    token = client.post(
-        "/mineros/login", json={"username": "paraasesor", "password": "clave123"}
-    ).json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    resp = client.post(
-        "/mineros/asesor", json={"pregunta": "¿qué es el REINFO?"}, headers=headers
-    )
+def test_asesor_publico_responde_en_modo_simulado_sin_cuenta():
+    """Asesor conversacional PÚBLICO (julio 2026, decisión explícita del
+    dueño: "cualquier persona sin registrarse lo pueda usar") — responde
+    en modo simulado (sin ninguna API key configurada en el entorno de
+    test) SIN necesitar token ni cuenta de ningún tipo."""
+    resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
     assert resp.status_code == 200
     respuesta = resp.json()["respuesta"]
     assert "REINFO" in respuesta  # el modo simulado repite la pregunta
     assert "simulado" in respuesta.lower()
 
 
-def test_asesor_rechaza_pregunta_vacia():
-    diag = _crear_diagnostico().json()
-    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesorvacio"))
-    token = client.post(
-        "/mineros/login", json={"username": "paraasesorvacio", "password": "clave123"}
-    ).json()["access_token"]
-
-    resp = client.post(
-        "/mineros/asesor",
-        json={"pregunta": "   "},
-        headers={"Authorization": f"Bearer {token}"},
-    )
+def test_asesor_publico_rechaza_pregunta_vacia():
+    resp = client.post("/asesor", json={"pregunta": "   "})
     assert resp.status_code == 422
 
 
-def test_asesor_respeta_el_limite_diario_por_cuenta():
+def test_asesor_publico_respeta_el_limite_por_ip():
     import security
 
-    # El límite es en memoria por proceso, keyed por lead_id — pero cada
-    # test resetea la BASE de datos (el autoincrement de leads reinicia en
-    # 1), así que sin este limpiado un lead_id=1 de OTRO test podría dejar
-    # residuo y contaminar el conteo de este test.
-    security._preguntas_asesor_por_lead.clear()
+    # El límite es en memoria por proceso, keyed por IP — TestClient usa
+    # siempre la misma IP ("testclient"), así que se limpia para no
+    # arrastrar conteo de otros tests que también llamen a /asesor.
+    security._preguntas_asesor_por_ip.clear()
 
-    diag = _crear_diagnostico().json()
-    client.post("/leads", json=_lead_payload(diag["id"], username="paraasesorlimite"))
-    token = client.post(
-        "/mineros/login", json={"username": "paraasesorlimite", "password": "clave123"}
-    ).json()["access_token"]
-    headers = {"Authorization": f"Bearer {token}"}
-
-    tope_original = security.MAX_PREGUNTAS_ASESOR_DIA
-    security.MAX_PREGUNTAS_ASESOR_DIA = 2
+    tope_original = security.MAX_PREGUNTAS_ASESOR_HORA
+    security.MAX_PREGUNTAS_ASESOR_HORA = 2
     try:
         for _ in range(2):
-            resp = client.post(
-                "/mineros/asesor", json={"pregunta": "hola"}, headers=headers
-            )
+            resp = client.post("/asesor", json={"pregunta": "hola"})
             assert resp.status_code == 200
-        resp = client.post("/mineros/asesor", json={"pregunta": "hola"}, headers=headers)
+        resp = client.post("/asesor", json={"pregunta": "hola"})
         assert resp.status_code == 429
     finally:
-        security.MAX_PREGUNTAS_ASESOR_DIA = tope_original
+        security.MAX_PREGUNTAS_ASESOR_HORA = tope_original
 
 
 def test_avisenme_cuando_haya_notifica_al_activar_empresa_que_calza():

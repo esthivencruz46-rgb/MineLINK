@@ -1,6 +1,7 @@
 import type { DiagnosticoRequest, DiagnosticoResponse } from "../types/diagnostico";
 import type { Empresa, EmpresaPublica } from "../types/empresa";
 import type { LeadRequest, LeadResponse } from "../types/lead";
+import type { MensajeAsesor } from "../types/minero";
 import type {
   InteresInversionRequest,
   ProyectoDetalle,
@@ -199,4 +200,24 @@ export function registrarEvento(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ tipo }),
   }).catch(() => {});
+}
+
+/** Asesor conversacional PÚBLICO (julio 2026): cualquier visitante puede
+ * preguntar, sin cuenta ni token. Genérico — no conoce el caso de nadie
+ * en particular, solo el spec de negocio de MineLink. */
+export async function preguntarAsesor(
+  pregunta: string,
+  historial: MensajeAsesor[]
+): Promise<string> {
+  const resp = await fetch(`${BASE_URL}/asesor`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pregunta, historial }),
+  });
+  if (!resp.ok) {
+    const detalle = await resp.json().catch(() => null);
+    throw new Error(detalle?.detail ?? "No pudimos responder tu pregunta.");
+  }
+  const data = await resp.json();
+  return data.respuesta as string;
 }

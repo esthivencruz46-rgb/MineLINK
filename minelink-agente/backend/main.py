@@ -5,7 +5,17 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import models
 from database import Base, engine
-from routers import admin, diagnostico, empresas, eventos, inversionistas, leads, mineros, proyectos
+from routers import (
+    admin,
+    asesor,
+    diagnostico,
+    empresas,
+    eventos,
+    inversionistas,
+    leads,
+    mineros,
+    proyectos,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -41,6 +51,7 @@ app.add_middleware(
 )
 
 app.include_router(diagnostico.router)
+app.include_router(asesor.router)
 app.include_router(eventos.router)
 app.include_router(empresas.router)
 app.include_router(leads.router)

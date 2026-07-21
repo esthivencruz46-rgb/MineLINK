@@ -114,35 +114,10 @@ def test_base_conocimiento_incluye_el_spec_de_negocio():
     assert len(base) > 500  # el spec real tiene cientos de líneas
 
 
-def test_snapshot_operacion_resume_el_estado_real():
-    # Payload real de perfil B con 3 brechas genuinas (verificado contra
-    # scoring.calcular_diagnostico) — "pendientes" es lo que queda tras
-    # restar brechas_resueltas_json (misma lógica que ya usa el resto del
-    # sistema vía scoring.estado_seguimiento).
-    operacion = models.Operacion(
-        id="op-test",
-        region="cusco",
-        mineral="oro",
-        score_total=0,
-        respuestas_json={
-            "M0_1": "concesion_no_operando",
-            "B1_1": "al_dia", "B1_2": "2020", "B1_4": "mio",
-            "B2_1": "pma", "B2_2": "500",
-            "B4_1": "operar_yo",
-            "B5_1": "no_iniciado", "B5_3": "no", "B5_4": "no",
-        },
-        brechas_json=[
-            "autorizacion_inicio_actividades",
-            "instrumento_ambiental_dia_eia",
-            "licencia_agua_ana",
-        ],
-        brechas_resueltas_json=["licencia_agua_ana"],
-        estado_formalizacion="B",  # columna histórica; guarda el perfil A/B/C/D
-    )
-    snapshot = asesor._snapshot_operacion(operacion)
-    lineas = {l.split(":")[0]: l for l in snapshot.splitlines()}
-    pendientes = lineas["Brechas pendientes (lo que le falta)"]
-    assert "instrumento ambiental dia eia" in pendientes
-    assert "licencia agua ana" not in pendientes
-    assert "licencia agua ana" in lineas["Brechas ya resueltas"]
-    assert "Perfil: B" in snapshot
+def test_system_prompt_es_generico_sin_caso_personal():
+    # julio 2026, decisión explícita del dueño: el asesor público NO
+    # conoce el caso de nadie en particular — construir_system_prompt() ya
+    # no recibe ninguna operación.
+    system = asesor.construir_system_prompt()
+    assert "spec de MineLink" in system
+    assert "ESTADO ACTUAL DE ESTA PERSONA" not in system

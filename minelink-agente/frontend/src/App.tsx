@@ -1,4 +1,5 @@
 import { Suspense, lazy } from "react";
+import { Sparkles } from "lucide-react";
 import { MARCA } from "./config/marca";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -31,7 +32,7 @@ const CuestionarioInversion = lazy(() =>
 const DocumentosEnviados = lazy(() =>
   import("./pages/DocumentosEnviados").then((m) => ({ default: m.DocumentosEnviados }))
 );
-const MiAsesor = lazy(() => import("./pages/MiAsesor").then((m) => ({ default: m.MiAsesor })));
+const Asesor = lazy(() => import("./pages/Asesor").then((m) => ({ default: m.Asesor })));
 const Empresas = lazy(() => import("./pages/Empresas").then((m) => ({ default: m.Empresas })));
 const Gracias = lazy(() => import("./pages/Gracias").then((m) => ({ default: m.Gracias })));
 const LoginMinero = lazy(() =>
@@ -95,7 +96,17 @@ function PublicHeader() {
       <Link to="/" className="font-bold text-acento">
         {MARCA}
       </Link>
-      <ThemeToggle />
+      <div className="flex items-center gap-3">
+        <Link
+          to="/asesor"
+          className="flex items-center gap-1.5 text-sm font-semibold text-acento"
+          title={`Pregúntale a ${MARCA}`}
+        >
+          <Sparkles size={15} strokeWidth={1.75} aria-hidden />
+          <span className="hidden sm:inline">Asesor</span>
+        </Link>
+        <ThemeToggle />
+      </div>
     </header>
   );
 }
@@ -116,7 +127,7 @@ export function App() {
   // El chat del asesor usa una altura fija de pantalla completa (input
   // siempre visible abajo) — el footer global rompía ese diseño
   // empujándolo fuera de la vista (julio 2026).
-  const esPantallaCompleta = location.pathname === "/mi-asesor";
+  const esPantallaCompleta = location.pathname === "/asesor";
 
   return (
     <AuthProvider>
@@ -141,6 +152,10 @@ export function App() {
             <Route path="/gracias" element={<Gracias />} />
             <Route path="/proyectos" element={<Proyectos />} />
             <Route path="/proyectos/:id" element={<ProyectoDetalle />} />
+            {/* Asesor conversacional PÚBLICO (julio 2026, decisión explícita
+                del dueño): cualquier visitante, con o sin cuenta, puede
+                preguntar — no requiere ProtectedRouteMinero. */}
+            <Route path="/asesor" element={<Asesor />} />
             <Route path="/ingresar" element={<LoginMinero />} />
             <Route path="/recuperar-password" element={<RecuperarPasswordMinero />} />
             <Route
@@ -164,14 +179,6 @@ export function App() {
               element={
                 <ProtectedRouteMinero>
                   <CuestionarioInversion />
-                </ProtectedRouteMinero>
-              }
-            />
-            <Route
-              path="/mi-asesor"
-              element={
-                <ProtectedRouteMinero>
-                  <MiAsesor />
                 </ProtectedRouteMinero>
               }
             />
