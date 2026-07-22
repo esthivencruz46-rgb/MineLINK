@@ -117,7 +117,12 @@ Built on top of it since (all deployed):
   search to close. Dashboard health check: `DashboardOut.asesor_preguntas_hoy` /
   `asesor_fallas_hoy` (from `Evento` rows the router writes on every call) exist because a
   bad key in Render once went unnoticed for days — check these before assuming "no
-  traffic" when a provider silently breaks.
+  traffic" when a provider silently breaks. Retrieved fragments are labeled with a
+  citable form of their filename (`_etiqueta_citable`: strips subfolder/extension,
+  underscores → spaces, ex. "DS 038-2017-EM Reglamento IGAFOM") and the system prompt
+  explicitly instructs citing the specific law/decree by name in the answer (owner
+  request: real citations read as more professional/trustworthy) — never invented,
+  only from what's actually in a retrieved fragment's label.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):

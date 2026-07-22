@@ -230,6 +230,19 @@ def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
     return _INDICE_CACHE
 
 
+def _etiqueta_citable(etiqueta: str) -> str:
+    """Convierte '02_formalizacion_integral/DS_038-2017-EM_Reglamento_IGAFOM.md'
+    en 'DS 038-2017-EM Reglamento IGAFOM' — sin subcarpeta ni guiones bajos,
+    para que el modelo la use directo como cita natural (julio 2026, pedido
+    explícito: que responda "según el Decreto Supremo..." en vez de sonar
+    genérico). Los nombres de archivo ya siguen el patrón de cita peruano
+    (DS_NNN-AAAA-EM, Ley_NNNNN, RM_NNN-AAAA-MEM_DM...) porque así los
+    organizó Esthiven al nutrir al asesor."""
+    nombre = etiqueta.rsplit("/", 1)[-1]
+    nombre = re.sub(r"\.(md|txt)$", "", nombre)
+    return nombre.replace("_", " ")
+
+
 def _recuperar_fragmentos_relevantes(pregunta: str, k: int = FRAGMENTOS_POR_PREGUNTA) -> str:
     """Búsqueda léxica (BM25, no semántica): encuentra los fragmentos
     donde más se repiten las palabras de la pregunta, ponderando más las
@@ -243,7 +256,9 @@ def _recuperar_fragmentos_relevantes(pregunta: str, k: int = FRAGMENTOS_POR_PREG
     puntajes = indice.get_scores(_tokenizar(pregunta))
     mejores = sorted(range(len(fragmentos)), key=lambda i: puntajes[i], reverse=True)[:k]
     mejores = [i for i in mejores if puntajes[i] > 0]
-    partes = [f"--- {fragmentos[i][0]} ---\n{fragmentos[i][1]}" for i in mejores]
+    partes = [
+        f"--- {_etiqueta_citable(fragmentos[i][0])} ---\n{fragmentos[i][1]}" for i in mejores
+    ]
     return "\n\n".join(partes)
 
 
@@ -266,8 +281,15 @@ orientación general, no asesoría legal.
 4. No generas documentos, cartas ni escritos — solo explicas.
 5. Respuestas cortas y claras (unos pocos párrafos como máximo), en el tono de alguien que \
 ayuda de verdad, no de un manual.
+6. Cuando tu respuesta se base en una norma legal (marcada abajo con su nombre, ej. "DS \
+038-2017-EM Reglamento IGAFOM" o "Ley 27651 Pequeña Mineria"), CÍTALA de forma natural \
+dentro de tu respuesta — ej. "según el Decreto Supremo N° 038-2017-EM..." o "de acuerdo \
+con la Ley N° 27651...". Le da formalidad a tu respuesta y permite verificar la fuente. \
+Solo cita lo que de verdad viene marcado así en tu contenido — nunca inventes un número \
+de norma que no esté ahí. Si la respuesta viene del spec de MineLink (no de una norma \
+legal), simplemente explica, sin forzar una cita.
 
-CONTENIDO DE REFERENCIA (spec de MineLink):
+CONTENIDO DE REFERENCIA (spec de MineLink + normas legales que Esthiven cargó):
 {base_conocimiento}
 """
 

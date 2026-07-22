@@ -264,7 +264,7 @@ def test_recuperar_fragmentos_relevantes_encuentra_por_palabra_clave(tmp_path, m
     )
 
     extra = asesor._recuperar_fragmentos_relevantes("¿por qué suspenden el REINFO?")
-    assert "reinfo.md" in extra
+    assert "reinfo" in extra
     assert "suspenderse por incumplimiento" in extra
     assert "relleno" not in extra
 
@@ -295,13 +295,16 @@ def test_recuperar_fragmentos_relevantes_encuentra_pregunta_coloquial_por_conjug
     extra = asesor._recuperar_fragmentos_relevantes(
         "me suspendieron y no sé qué hacer, cómo lo soluciono"
     )
-    assert "reinfo.md" in extra
+    assert "reinfo" in extra
 
 
 def test_recuperar_fragmentos_relevantes_lee_subcarpetas(tmp_path, monkeypatch):
     # julio 2026: Esthiven organiza los PDFs en subcarpetas por tema (ej.
     # asesor_conocimiento/03_ambiental_seia/) — deben indexarse igual que
-    # los que están sueltos, no solo los del nivel raíz.
+    # los que están sueltos, no solo los del nivel raíz. La etiqueta que
+    # se le muestra al modelo ya no incluye la subcarpeta (ver
+    # _etiqueta_citable), así que la ruta completa se verifica a nivel de
+    # _cargar_fragmentos_extra(), no del texto final mandado al modelo.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
     _agregar_relleno(tmp_path)
@@ -312,9 +315,39 @@ def test_recuperar_fragmentos_relevantes_lee_subcarpetas(tmp_path, monkeypatch):
         encoding="utf-8",
     )
 
+    fragmentos = asesor._cargar_fragmentos_extra()
+    assert any(etiqueta == "03_ambiental_seia/norma.md" for etiqueta, _ in fragmentos)
+
     extra = asesor._recuperar_fragmentos_relevantes("¿qué es el IGAFOM?")
-    assert "03_ambiental_seia" in extra
     assert "instrumento ambiental simplificado" in extra
+
+
+def test_etiqueta_citable_quita_subcarpeta_extension_y_guiones_bajos():
+    # julio 2026, pedido explícito: que el asesor cite la norma exacta
+    # ("según el Decreto Supremo N° 038-2017-EM...") — para eso la
+    # etiqueta que ve el modelo debe leerse como una cita natural, no como
+    # una ruta de archivo.
+    assert (
+        asesor._etiqueta_citable("02_formalizacion_integral/DS_038-2017-EM_Reglamento_IGAFOM.md")
+        == "DS 038-2017-EM Reglamento IGAFOM"
+    )
+    assert asesor._etiqueta_citable("07_penal_control/Ley_27651_Pequena_Mineria.md") == (
+        "Ley 27651 Pequena Mineria"
+    )
+
+
+def test_construir_system_prompt_instruye_citar_la_norma(tmp_path, monkeypatch):
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    _agregar_relleno(tmp_path)
+    (tmp_path / "DS_038-2017-EM_Reglamento_IGAFOM.md").write_text(
+        "El IGAFOM es el instrumento de gestión ambiental para la formalización.",
+        encoding="utf-8",
+    )
+
+    system = asesor.construir_system_prompt("¿qué es el IGAFOM?")
+    assert "CÍTALA" in system  # la regla de citación está presente
+    assert "DS 038-2017-EM Reglamento IGAFOM" in system  # y la etiqueta citable llegó
 
 
 def test_recuperar_fragmentos_relevantes_extrae_pdfs(tmp_path, monkeypatch):

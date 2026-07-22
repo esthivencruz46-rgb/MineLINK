@@ -103,7 +103,13 @@ Plataforma web donde un minero artesanal peruano:
    muestra `asesor_preguntas_hoy`/`asesor_fallas_hoy` (vía `Evento`, que
    el router escribe en cada llamada) — se agregó porque una clave mala en
    Render pasó desapercibida varios días; revisar esto antes de asumir
-   "no hay tráfico" cuando un proveedor falla en silencio.
+   "no hay tráfico" cuando un proveedor falla en silencio. Los fragmentos
+   recuperados se etiquetan en formato citable (`asesor._etiqueta_citable`:
+   sin subcarpeta ni extensión, guiones bajos → espacios, ej. "DS
+   038-2017-EM Reglamento IGAFOM") y el system prompt le pide EXPLÍCITAMENTE
+   citar la norma por su nombre en la respuesta (pedido del dueño: se ve
+   más profesional/confiable) — nunca inventada, solo lo que de verdad
+   viene en la etiqueta de un fragmento recuperado.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el
