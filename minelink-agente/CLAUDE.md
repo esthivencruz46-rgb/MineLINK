@@ -61,6 +61,18 @@ Plataforma web donde un minero artesanal peruano:
    Esthiven intermedia — nunca se revela el contacto del minero. El
    minero ve el CONTEO de intereses recibidos y puede "ver su proyecto
    como lo ve el inversionista".
+8. **Asesor conversacional público** (`backend/asesor.py`, botón ✨ flotante
+   abajo a la derecha en cualquier página, `AsesorWidget.tsx`): responde
+   preguntas GENERALES de formalización minera, sin cuenta ni login.
+   Deliberadamente genérico — nunca ve el diagnóstico de nadie en
+   particular. RAG "Nivel 1": manda como contexto TODO
+   `diagnostico_formalizacion.md` + `perfil_usuario.md` +
+   `context/asesor_conocimiento/` (recursivo; .md/.txt/.pdf — Esthiven
+   nutre al asesor soltando ahí normas, jurisprudencia, guías, sin tocar
+   código). Generación intercambiable por proveedor
+   (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, `simulado` por
+   defecto sin gastar nada). Limitado a 15 preguntas/hora por IP — cada
+   pregunta real cuesta dinero de la API externa.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el
@@ -126,7 +138,7 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 ### Backend (desde `backend/`)
 ```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000   # servidor dev
-pytest -q                                                 # toda la suite (~230 tests)
+pytest -q                                                 # toda la suite (~250 tests)
 pytest tests/test_scoring.py -q                           # un archivo
 pytest tests/test_smoke.py::test_post_diagnostico -q      # un test puntual
 pip install -r requirements.txt                           # dependencias (usar --break-system-packages en este entorno)
@@ -210,7 +222,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── diagnostico_formalizacion.md ← SPEC ACTUAL: perfiles A/B/C/D, semáforos, madurez
 │   ├── criterios_score.md     ← reglas transversales (evidencia, equivalencias, catálogo,
 │   │                             scores) + resumen del modelo viejo en pausa
-│   └── perfil_usuario.md      ← quién es el minero, tono de UI
+│   ├── perfil_usuario.md      ← quién es el minero, tono de UI
+│   └── asesor_conocimiento/   ← soltar .md/.txt/.pdf (cualquier subcarpeta) nutre al
+│                                 asesor público — se lee recursivo, ver asesor.py
 ├── agents/
 │   ├── backend.md
 │   ├── frontend.md
@@ -243,8 +257,11 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   │                              caché 30 días en datos_formalizacion_json["_geocatmin"])
 │   ├── uploads_config.py       ← categorías de archivos + equivalencias + fotos de perfil
 │   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
+│   ├── asesor.py                ← asesor público: retrieval (context/) + generación
+│   │                              intercambiable por proveedor (claude/gemini/grok/simulado)
 │   ├── routers/
 │   │   ├── diagnostico.py      ← POST /diagnostico
+│   │   ├── asesor.py            ← POST /asesor (público, sin auth, rate-limit por IP)
 │   │   ├── eventos.py          ← POST /eventos (métricas de embudo, anónimas)
 │   │   ├── empresas.py         ← GET /empresas, POST /consultores/postular, /interes
 │   │   ├── leads.py            ← POST /leads (registro del minero + su cuenta)
@@ -329,3 +346,6 @@ nueva debe seguir esta línea.
 - Los datos de GEOCATMIN son siempre REFERENCIALES (el pin es aproximado; operar la
   concesión de otro titular por contrato es legal) — nunca presentarlos como acusación
 - Las preguntas viejas EN PAUSA no se borran (decisión del dueño)
+- El asesor conversacional NUNCA se personaliza al caso de un usuario (decisión
+  explícita del dueño: "genérico, sin caso personal") y siempre queda detrás de un
+  rate-limit — cada pregunta real cuesta dinero de una API externa de pago

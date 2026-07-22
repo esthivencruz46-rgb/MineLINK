@@ -77,14 +77,21 @@ def _cargar_base_conocimiento() -> str:
         if ruta.exists():
             partes.append(f"--- {nombre} ---\n{ruta.read_text(encoding='utf-8')}")
     if _RUTA_CONOCIMIENTO_EXTRA.exists():
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.md")):
-            partes.append(f"--- {ruta.name} ---\n{ruta.read_text(encoding='utf-8')}")
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.txt")):
-            partes.append(f"--- {ruta.name} ---\n{ruta.read_text(encoding='utf-8')}")
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.glob("*.pdf")):
+        # rglob (no glob): Esthiven organiza los PDFs en subcarpetas por
+        # tema (ej. asesor_conocimiento/03_ambiental_seia/) — deben leerse
+        # igual. La etiqueta usa la ruta relativa para que el subtema
+        # quede visible como contexto (ej. "03_ambiental_seia/DS_016...").
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.md")):
+            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
+            partes.append(f"--- {etiqueta} ---\n{ruta.read_text(encoding='utf-8')}")
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.txt")):
+            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
+            partes.append(f"--- {etiqueta} ---\n{ruta.read_text(encoding='utf-8')}")
+        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.pdf")):
+            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
             texto = _extraer_texto_pdf(ruta)
             if texto.strip():
-                partes.append(f"--- {ruta.name} ---\n{texto}")
+                partes.append(f"--- {etiqueta} ---\n{texto}")
     return "\n\n".join(partes)
 
 

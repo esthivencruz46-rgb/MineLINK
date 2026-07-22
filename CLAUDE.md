@@ -72,6 +72,23 @@ Built on top of it since (all deployed):
   NEVER remove it (verification is revoked if it disappears). Daily DB backup runs via
   `.github/workflows/backup-db.yml` (needs `postgresql-client-17` — Supabase runs PG 17;
   secret `DATABASE_URL_BACKUP` already configured).
+- **Public conversational advisor** (`backend/asesor.py` + `routers/asesor.py`,
+  `frontend/src/components/AsesorWidget.tsx`): a floating chat widget (bottom-right,
+  mounted once in `App.tsx` outside the router so it persists on every public page) that
+  answers general formalization questions — no login, no per-user personalization
+  (explicit owner decision: it never sees anyone's actual diagnosis). RAG "Nivel 1": no
+  vector DB — retrieval is reading `context/diagnostico_formalizacion.md` +
+  `perfil_usuario.md` plus every `.md`/`.txt`/`.pdf` under
+  `context/asesor_conocimiento/` (recursively, PDFs via PyMuPDF text extraction),
+  concatenating ALL of it into the system prompt on every question, cached in-process
+  after first read. Esthiven feeds it by dropping PDFs (laws, jurisprudence, guides)
+  into topic subfolders there — as that folder grows toward the low hundreds of
+  thousands of tokens, migrating to real retrieval (chunking + embeddings + pgvector)
+  becomes the right call, documented as "Nivel 2" in the module docstring. Generation is
+  provider-swappable (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, defaults to a free
+  `simulado` mode with no API key needed) — `generar_respuesta()` is the only function
+  that talks to an external API. Rate-limited per IP (15/hour,
+  `security.limitar_preguntas_asesor`) since real API calls cost money.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):
@@ -113,7 +130,7 @@ attempt to resolve.
 ```bash
 # Backend (from minelink-agente/backend/)
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
-pytest -q                                            # full suite (~230 tests)
+pytest -q                                            # full suite (~250 tests)
 pytest tests/test_smoke.py::test_post_diagnostico -q # single test
 
 # Frontend (from minelink-agente/frontend/)
@@ -168,6 +185,10 @@ directly against production — never run one without explicit confirmation.
 - **Dual-mode infrastructure**: DB is SQLite locally / Postgres (Supabase) when `DATABASE_URL`
   is set; file storage is local disk / Supabase Storage when `SUPABASE_URL`+`SUPABASE_SERVICE_KEY`
   are set.
+- **Conversational advisor is stateless and generic**: `POST /asesor` takes no auth and
+  knows no one's diagnosis — it only ever sees the concatenated content of `context/` +
+  `context/asesor_conocimiento/` (see above) plus the last `MAX_TURNOS_HISTORIAL` chat
+  turns the frontend sends back each call. Nothing about a conversation persists server-side.
 
 ## Repository layout
 
@@ -178,7 +199,9 @@ minelink-agente/
 ├── context/                   ← source of truth for business logic, never contradict
 │   ├── diagnostico_formalizacion.md  ← CURRENT spec: perfiles A/B/C/D, semáforos, madurez
 │   ├── criterios_score.md     ← OLD diagnostic rules (historical; rewrite pending in F5)
-│   └── perfil_usuario.md      ← end-user (miner) profile and UI language rules
+│   ├── perfil_usuario.md      ← end-user (miner) profile and UI language rules
+│   └── asesor_conocimiento/   ← drop .md/.txt/.pdf here (any subfolder depth) to feed
+│                                 the public advisor — read recursively, see asesor.py
 ├── agents/                    ← one file per role (backend / frontend / admin panel)
 ├── skills/                    ← task-specific reference logic, loaded on demand
 ├── backend/                   ← FastAPI app
@@ -186,6 +209,7 @@ minelink-agente/
 │   ├── catalogo_inversion.py   ← Módulo INV: preguntas, respaldos, brechas, alertas
 │   ├── scoring.py              ← perfiles/semáforos/madurez/scores (pure logic)
 │   ├── scoring_legacy.py       ← ⏸️ old MineScore + Score Inversión (paused, don't import)
+│   ├── asesor.py                ← public advisor: RAG-light retrieval + provider-agnostic generation
 │   ├── geoubicacion.py         ← Maps link → coords (best-effort, self-healing)
 │   ├── geocatmin.py            ← INGEMMET catastro+geología por punto (cached, best-effort)
 │   └── seeds/                  ← one-shot migrations — run against PRODUCTION via .env, confirm first

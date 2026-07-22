@@ -129,6 +129,20 @@ def test_base_conocimiento_suma_archivos_de_asesor_conocimiento(tmp_path, monkey
     assert "Artículo 1: contenido de prueba de la ley MAPE." in base
 
 
+def test_base_conocimiento_lee_subcarpetas_por_tema(tmp_path, monkeypatch):
+    # julio 2026: Esthiven organiza los PDFs en subcarpetas por tema (ej.
+    # asesor_conocimiento/03_ambiental_seia/) — deben leerse igual que los
+    # que están sueltos, no solo los del nivel raíz.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    subcarpeta = tmp_path / "03_ambiental_seia"
+    subcarpeta.mkdir()
+    (subcarpeta / "norma.md").write_text("Contenido ambiental de prueba.", encoding="utf-8")
+
+    base = asesor._cargar_base_conocimiento()
+    assert "03_ambiental_seia" in base
+    assert "Contenido ambiental de prueba." in base
+
+
 def test_base_conocimiento_extrae_texto_de_pdfs_en_asesor_conocimiento(tmp_path, monkeypatch):
     # julio 2026: Esthiven dijo que subirá "más que todo" PDFs (normas
     # publicadas en El Peruano, jurisprudencia) — deben extraerse solos,
