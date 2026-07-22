@@ -65,21 +65,33 @@ Plataforma web donde un minero artesanal peruano:
    abajo a la derecha en cualquier página, `AsesorWidget.tsx`): responde
    preguntas GENERALES de formalización minera, sin cuenta ni login.
    Deliberadamente genérico — nunca ve el diagnóstico de nadie en
-   particular. Esthiven nutre al asesor soltando .md/.txt/.pdf (normas,
+   particular. Ya está en producción (código confirmado desplegado; las
+   claves de API van SOLO en el panel de Environment de Render, nunca en
+   el repo). Esthiven nutre al asesor soltando .md/.txt/.pdf (normas,
    jurisprudencia, guías) en subcarpetas por tema dentro de
-   `context/asesor_conocimiento/` (recursivo), sin tocar código.
-   Recuperación real ("Nivel 1.5", julio 2026, tras crecer esa carpeta a
-   millones de caracteres): cada archivo se trocea y se indexa con BM25
-   (`rank_bm25`, búsqueda léxica — sin base vectorial ni embeddings) con
-   stopwords en español filtradas antes de puntuar
-   (`asesor._STOPWORDS_ES` — sin esto, un documento que repite mucho
-   "qué"/"es"/"el" puede ganarle al que sí tiene el término exacto). Por
-   cada pregunta solo se mandan los 8 fragmentos más relevantes, más
-   `diagnostico_formalizacion.md` + `perfil_usuario.md` (siempre
-   completos, describen MineLink mismo). Generación intercambiable por
-   proveedor (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, `simulado`
-   por defecto sin gastar nada). Limitado a 15 preguntas/hora por IP —
-   cada pregunta real cuesta dinero de la API externa.
+   `context/asesor_conocimiento/` (recursivo), sin tocar código — los PDF
+   se convierten primero a .md con `backend/convertir_pdfs_asesor.py`
+   (reusa la extracción de PyMuPDF y borra el PDF original; en el corpus
+   real bajó 92 MB a 8.4 MB y el arranque en frío de 10s a <1s — correrlo
+   SIEMPRE antes de sumar PDFs nuevos). Recuperación real ("Nivel 1.5",
+   julio 2026, tras crecer esa carpeta a millones de caracteres): cada
+   archivo se trocea y se indexa con BM25 (`rank_bm25`, búsqueda léxica —
+   sin base vectorial ni embeddings) con stopwords en español filtradas
+   antes de puntuar (`asesor._STOPWORDS_ES` — sin esto, un documento que
+   repite mucho "qué"/"es"/"el" puede ganarle al que sí tiene el término
+   exacto). Por cada pregunta solo se mandan los 8 fragmentos más
+   relevantes, más `diagnostico_formalizacion.md` + `perfil_usuario.md`
+   (siempre completos, describen MineLink mismo). Generación como
+   **cadena de respaldo entre proveedores** (julio 2026, pedido explícito
+   de Esthiven: "cuando se acaba la gratuidad por día pasa al otro"):
+   `MINELINK_ASESOR_PROVEEDORES` es una lista por prioridad (ej.
+   `gemini,kimi,deepseek,qwen,glm,openai`); si el que le toca falla por lo
+   que sea, pasa solo al siguiente. Hoy Gemini (`gemini-3.5-flash`) es el
+   único con nivel gratis real (sin tarjeta, ~1500/día); los otros 6
+   proveedores están conectados y probados pero necesitan saldo cargado en
+   su propio panel para responder de verdad. Modelo por proveedor:
+   `MINELINK_ASESOR_MODELO_<PROVEEDOR>`. Limitado a 15 preguntas/hora por
+   IP — cada pregunta real cuesta dinero de la API externa.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el

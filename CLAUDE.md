@@ -76,10 +76,15 @@ Built on top of it since (all deployed):
   `frontend/src/components/AsesorWidget.tsx`): a floating chat widget (bottom-right,
   mounted once in `App.tsx` outside the router so it persists on every public page) that
   answers general formalization questions — no login, no per-user personalization
-  (explicit owner decision: it never sees anyone's actual diagnosis). Esthiven feeds it
-  by dropping `.md`/`.txt`/`.pdf` files (laws, jurisprudence, guides) into topic
-  subfolders under `context/asesor_conocimiento/` (read recursively) — no code change
-  needed. Real retrieval, "Nivel 1.5" (July 2026, after the folder grew past ~2M
+  (explicit owner decision: it never sees anyone's actual diagnosis). Live in production
+  (code confirmed deployed; provider API keys go in Render's Environment panel, never
+  in the repo). Esthiven feeds it by dropping `.md`/`.txt`/`.pdf` files (laws,
+  jurisprudence, guides) into topic subfolders under `context/asesor_conocimiento/`
+  (read recursively) — no code change needed; PDFs should be converted to `.md` first
+  with `backend/convertir_pdfs_asesor.py` (reuses the same PyMuPDF extraction, deletes
+  the source PDF after) — on the real corpus this cut 92 MB to 8.4 MB and dropped the
+  first-request index-build cold start from ~10s to <1s, so always run it before adding
+  new PDFs. Real retrieval, "Nivel 1.5" (July 2026, after the folder grew past ~2M
   tokens and "send everything" stopped fitting in any real provider's context window):
   every file is chunked (`_trocear`, ~1200 chars with overlap) and indexed with BM25
   (`rank_bm25`, lexical/keyword search — no vector DB, no embeddings API, nothing new to
@@ -91,11 +96,19 @@ Built on top of it since (all deployed):
   index and the core spec are cached in-process after first read (a redeploy re-reads).
   If lexical search ever proves insufficient — mainly for colloquial questions that
   share no words with the legal text — embeddings/pgvector is the documented next step
-  ("Nivel 2" in the module docstring), not needed yet. Generation is provider-swappable
-  (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, defaults to a free `simulado` mode
-  with no API key needed) — `generar_respuesta()` is the only function that talks to an
-  external API. Rate-limited per IP (15/hour, `security.limitar_preguntas_asesor`)
-  since real API calls cost money.
+  ("Nivel 2" in the module docstring), not needed yet. Generation is a **fallback chain
+  across providers** (July 2026, owner request: "cuando se acaba la gratuidad por día
+  pasa al otro"): `MINELINK_ASESOR_PROVEEDORES` is a priority-ordered comma list (ex.
+  `gemini,kimi,deepseek,qwen,glm,openai`); `generar_respuesta()` tries each in order and
+  silently moves to the next on ANY failure (no quota, invalid key, network error — all
+  normalize to `AsesorNoDisponible`), only surfacing "no disponible" if every configured
+  provider fails. `MINELINK_ASESOR_PROVEEDOR` (singular) still works for one provider;
+  no env at all defaults to a free `simulado` mode. Gemini (`gemini-3.5-flash`) is the
+  only provider with a real free tier (no card needed, ~1500 req/day) — the other 6
+  adapters (claude/grok/kimi/deepseek/qwen/glm/openai) are wired and tested but need
+  billing added on their own dashboards before they'll respond for real. Per-provider
+  model override: `MINELINK_ASESOR_MODELO_<PROVEEDOR>`. Rate-limited per IP (15/hour,
+  `security.limitar_preguntas_asesor`) since real API calls cost money.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):
