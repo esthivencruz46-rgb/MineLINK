@@ -6,22 +6,26 @@ personalizado a un caso): no conoce el diagnóstico de nadie en
 particular, solo el spec de negocio. No genera archivos ni asesora
 legalmente.
 
-Arquitectura RAG deliberadamente simple para el tamaño actual del
-contenido (unos cientos de líneas, no miles de páginas): el "retrieval"
-es incluir TODO el spec en cada pregunta — no hace falta base de datos
-vectorial ni embeddings todavía. Para nutrir al asesor con más contenido
-(ley MAPE, jurisprudencia, reglamentos) NO hace falta tocar código: basta
-con soltar un archivo .md, .txt o .pdf en `context/asesor_conocimiento/`
-— se suma automáticamente al contenido de referencia en el próximo
-arranque del servidor (ver `_cargar_base_conocimiento`). Los PDF se leen
-con PyMuPDF (ya es dependencia del proyecto para las fotos de
-documentos) extrayendo su texto — funciona bien con PDFs de texto real
-(la mayoría de normas publicadas en El Peruano lo son), pero NO con un
-PDF que es solo una foto/escaneo sin capa de texto (esos habría que
-pasarlos por OCR aparte). Si ese contenido crece mucho (el reglamento
-completo + jurisprudencia extensa, miles de líneas), esa sería la señal
-para migrar a retrieval real (chunking + embeddings + pgvector); mientras
-tanto sería complejidad sin beneficio.
+Retrieval real (julio 2026, "Nivel 1.5"): `context/asesor_conocimiento/`
+(recursivo — cualquier subcarpeta por tema) ya pasó de unas pocas páginas
+a decenas de normas/guías completas (millones de caracteres) — mandar
+TODO en cada pregunta ya no cabe en la ventana de contexto de un
+proveedor real. En vez de eso, cada archivo se parte en fragmentos
+(`_trocear`) y se indexan con BM25 (`rank_bm25`, búsqueda léxica por
+palabras clave — sin base de datos vectorial ni embeddings, sin conectar
+ningún servicio nuevo): por cada pregunta se recuperan solo los
+`FRAGMENTOS_POR_PREGUNTA` fragmentos más relevantes
+(`_recuperar_fragmentos_relevantes`) y esos son los que se mandan. El
+núcleo (`diagnostico_formalizacion.md` + `perfil_usuario.md`, ~8K tokens)
+siempre va completo porque es pequeño y describe MineLink mismo, casi
+siempre relevante. Nutrir al asesor sigue siendo soltar un .md/.txt/.pdf
+en `asesor_conocimiento/` (cualquier subcarpeta) sin tocar código; los
+PDF se leen con PyMuPDF extrayendo su texto — funciona con PDFs de texto
+real (la mayoría de normas de El Peruano lo son), no con un escaneo sin
+capa de texto. BM25 es bueno con terminología exacta (REINFO, IGAFOM,
+SEIA); si en el futuro las preguntas coloquiales no encuentran lo que
+buscan por no compartir palabras con el documento, esa sería la señal
+para sumar embeddings encima (ver conversación con Esthiven, julio 2026).
 
 Generación intercambiable entre proveedores (julio 2026, pedido
 explícito): `generar_respuesta()` es la ÚNICA función que sabe hablar con
@@ -30,10 +34,12 @@ guardarraíles) no se entera de cuál IA responde por detrás. Cambiar de
 proveedor es elegir `MINELINK_ASESOR_PROVEEDOR` — no reescribir nada.
 """
 import os
+import re
 from pathlib import Path
 
 import fitz  # PyMuPDF
 import requests
+from rank_bm25 import BM25Okapi
 
 PROVEEDOR = os.environ.get("MINELINK_ASESOR_PROVEEDOR", "simulado")
 
@@ -49,9 +55,14 @@ MODELO = os.environ.get("MINELINK_ASESOR_MODELO") or _MODELO_POR_DEFECTO.get(PRO
 MAX_TURNOS_HISTORIAL = 6  # últimos N mensajes que se reenvían (controla el costo)
 
 _RUTA_CONTEXTO = Path(__file__).parent.parent / "context"
-# Carpeta de "nutrición" del asesor: cualquier .md/.txt que se suelte acá
-# se suma al contenido de referencia sin tocar código (julio 2026).
+# Carpeta de "nutrición" del asesor: cualquier .md/.txt/.pdf que se
+# suelte acá (en cualquier subcarpeta) se suma al contenido de
+# referencia sin tocar código (julio 2026).
 _RUTA_CONOCIMIENTO_EXTRA = _RUTA_CONTEXTO / "asesor_conocimiento"
+
+TAM_FRAGMENTO = 1200  # caracteres por fragmento (~300 tokens)
+SOLAPE_FRAGMENTO = 150  # evita perder una idea que cae justo en el corte
+FRAGMENTOS_POR_PREGUNTA = 8  # cuántos fragmentos se mandan como contexto por pregunta
 
 
 def _extraer_texto_pdf(ruta: Path) -> str:
@@ -65,44 +76,131 @@ def _extraer_texto_pdf(ruta: Path) -> str:
         return ""
 
 
-def _cargar_base_conocimiento() -> str:
-    """El spec de negocio completo (fuente de verdad ya existente del
-    proyecto) + cualquier archivo extra en `asesor_conocimiento/` (ley
-    MAPE, jurisprudencia, etc. — .md, .txt o .pdf) — se lee una sola vez y
-    se cachea en memoria del proceso; no cambia mientras el servidor está
-    corriendo (un redeploy sí lo vuelve a leer)."""
+def _cargar_nucleo() -> str:
+    """El spec de negocio (fuente de verdad ya existente del proyecto):
+    pequeño (~8K tokens) y casi siempre relevante porque describe
+    MineLink mismo — va COMPLETO en cada pregunta, sin pasar por
+    búsqueda."""
     partes = []
     for nombre in ("diagnostico_formalizacion.md", "perfil_usuario.md"):
         ruta = _RUTA_CONTEXTO / nombre
         if ruta.exists():
             partes.append(f"--- {nombre} ---\n{ruta.read_text(encoding='utf-8')}")
-    if _RUTA_CONOCIMIENTO_EXTRA.exists():
-        # rglob (no glob): Esthiven organiza los PDFs en subcarpetas por
-        # tema (ej. asesor_conocimiento/03_ambiental_seia/) — deben leerse
-        # igual. La etiqueta usa la ruta relativa para que el subtema
-        # quede visible como contexto (ej. "03_ambiental_seia/DS_016...").
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.md")):
-            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
-            partes.append(f"--- {etiqueta} ---\n{ruta.read_text(encoding='utf-8')}")
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.txt")):
-            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
-            partes.append(f"--- {etiqueta} ---\n{ruta.read_text(encoding='utf-8')}")
-        for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.pdf")):
-            etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
-            texto = _extraer_texto_pdf(ruta)
-            if texto.strip():
-                partes.append(f"--- {etiqueta} ---\n{texto}")
     return "\n\n".join(partes)
 
 
-_BASE_CONOCIMIENTO_CACHE: str | None = None
+def _trocear(texto: str, tam: int = TAM_FRAGMENTO, solape: int = SOLAPE_FRAGMENTO) -> list[str]:
+    """Ventana deslizante simple: no le importa cortar una oración a la
+    mitad — el solape asegura que la idea completa aparezca en algún
+    fragmento vecino de todas formas."""
+    fragmentos = []
+    inicio = 0
+    n = len(texto)
+    while inicio < n:
+        fin = min(inicio + tam, n)
+        fragmento = texto[inicio:fin].strip()
+        if fragmento:
+            fragmentos.append(fragmento)
+        if fin == n:
+            break
+        inicio = fin - solape
+    return fragmentos
 
 
-def _base_conocimiento() -> str:
-    global _BASE_CONOCIMIENTO_CACHE
-    if _BASE_CONOCIMIENTO_CACHE is None:
-        _BASE_CONOCIMIENTO_CACHE = _cargar_base_conocimiento()
-    return _BASE_CONOCIMIENTO_CACHE
+# Sin esto, BM25 puede rankear más alto un documento que repite mucho
+# "qué"/"es"/"el" (ej. un cuestionario) que uno con el término exacto
+# buscado — verificado con el corpus real (julio 2026): "¿qué es el
+# IGAFOM?" traía fragmentos de un manual sobre mercurio en vez del
+# reglamento del IGAFOM, porque ese manual repetía "qué" muchas veces.
+_STOPWORDS_ES = frozenset(
+    """
+    de la que el en y a los del se las por un para con no una su al lo como
+    más pero sus le ya o este sí porque esta entre cuando muy sin sobre
+    también me hasta hay donde quien desde todo nos durante todos uno les
+    ni contra otros ese eso ante ellos e esto mí antes algunos qué unos yo
+    otro otras otra él tanto esa estos mucho quienes nada muchos cual poco
+    ella estar estas algunas algo nosotros mi mis tú te ti tu tus ellas
+    nosotras vosotros vosotras os mío mía míos mías tuyo tuya tuyos tuyas
+    suyo suya suyos suyas nuestro nuestra nuestros nuestras vuestro
+    vuestra vuestros vuestras esos esas es soy eres somos sois son sea
+    seas seamos seáis sean seré serás será seremos seréis serán sería
+    serías seríamos seríais serían era eras éramos erais eran fui fuiste
+    fue fuimos fuisteis fueron he has ha hemos habéis han haya hayas
+    hayamos hayáis hayan había habías habíamos habíais habían sino cada
+    cómo cuál cuáles cuándo cuánto cuánta cuántos cuántas dónde puede
+    pueden puedo podemos podría podrían debe deben así solo sólo vez
+    hacer hace hacen
+    """.split()
+)
+
+
+def _tokenizar(texto: str) -> list[str]:
+    return [t for t in re.findall(r"\w+", texto.lower()) if t not in _STOPWORDS_ES]
+
+
+def _cargar_fragmentos_extra() -> list[tuple[str, str]]:
+    """Recorre `asesor_conocimiento/` (recursivo — cualquier subcarpeta
+    por tema) y devuelve (etiqueta, texto_del_fragmento) por cada
+    fragmento de cada archivo. La etiqueta incluye la ruta relativa para
+    que el subtema quede visible (ej. "03_ambiental_seia/DS_016...")."""
+    fragmentos: list[tuple[str, str]] = []
+    if not _RUTA_CONOCIMIENTO_EXTRA.exists():
+        return fragmentos
+
+    def _agregar(ruta: Path, texto: str) -> None:
+        etiqueta = ruta.relative_to(_RUTA_CONOCIMIENTO_EXTRA).as_posix()
+        for trozo in _trocear(texto):
+            fragmentos.append((etiqueta, trozo))
+
+    for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.md")):
+        _agregar(ruta, ruta.read_text(encoding="utf-8"))
+    for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.txt")):
+        _agregar(ruta, ruta.read_text(encoding="utf-8"))
+    for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.pdf")):
+        texto = _extraer_texto_pdf(ruta)
+        if texto.strip():
+            _agregar(ruta, texto)
+    return fragmentos
+
+
+_NUCLEO_CACHE: str | None = None
+_INDICE_CACHE: tuple[list[tuple[str, str]], BM25Okapi | None] | None = None
+
+
+def _nucleo() -> str:
+    global _NUCLEO_CACHE
+    if _NUCLEO_CACHE is None:
+        _NUCLEO_CACHE = _cargar_nucleo()
+    return _NUCLEO_CACHE
+
+
+def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
+    """Se construye una sola vez por proceso (mismo patrón de caché que
+    el resto de `_cargar_*`) — trocear + indexar decenas de PDFs tarda
+    varios segundos, no queremos pagar ese costo en cada pregunta."""
+    global _INDICE_CACHE
+    if _INDICE_CACHE is None:
+        fragmentos = _cargar_fragmentos_extra()
+        indice = BM25Okapi([_tokenizar(texto) for _, texto in fragmentos]) if fragmentos else None
+        _INDICE_CACHE = (fragmentos, indice)
+    return _INDICE_CACHE
+
+
+def _recuperar_fragmentos_relevantes(pregunta: str, k: int = FRAGMENTOS_POR_PREGUNTA) -> str:
+    """Búsqueda léxica (BM25, no semántica): encuentra los fragmentos
+    donde más se repiten las palabras de la pregunta, ponderando más las
+    palabras específicas (ej. "REINFO") que las comunes. Si la pregunta
+    no comparte ninguna palabra con el corpus extra, no se fuerza
+    contenido al azar — se devuelve vacío y el asesor responde solo con
+    el núcleo."""
+    fragmentos, indice = _indice_fragmentos()
+    if not fragmentos or indice is None:
+        return ""
+    puntajes = indice.get_scores(_tokenizar(pregunta))
+    mejores = sorted(range(len(fragmentos)), key=lambda i: puntajes[i], reverse=True)[:k]
+    mejores = [i for i in mejores if puntajes[i] > 0]
+    partes = [f"--- {fragmentos[i][0]} ---\n{fragmentos[i][1]}" for i in mejores]
+    return "\n\n".join(partes)
 
 
 SYSTEM_PROMPT_BASE = """Eres el asesor público de MineLink, una plataforma peruana que \
@@ -130,8 +228,12 @@ CONTENIDO DE REFERENCIA (spec de MineLink):
 """
 
 
-def construir_system_prompt() -> str:
-    return SYSTEM_PROMPT_BASE.format(base_conocimiento=_base_conocimiento())
+def construir_system_prompt(pregunta: str) -> str:
+    contenido = _nucleo()
+    extra = _recuperar_fragmentos_relevantes(pregunta)
+    if extra:
+        contenido = f"{contenido}\n\n{extra}"
+    return SYSTEM_PROMPT_BASE.format(base_conocimiento=contenido)
 
 
 class AsesorNoDisponible(Exception):

@@ -65,14 +65,21 @@ Plataforma web donde un minero artesanal peruano:
    abajo a la derecha en cualquier página, `AsesorWidget.tsx`): responde
    preguntas GENERALES de formalización minera, sin cuenta ni login.
    Deliberadamente genérico — nunca ve el diagnóstico de nadie en
-   particular. RAG "Nivel 1": manda como contexto TODO
-   `diagnostico_formalizacion.md` + `perfil_usuario.md` +
-   `context/asesor_conocimiento/` (recursivo; .md/.txt/.pdf — Esthiven
-   nutre al asesor soltando ahí normas, jurisprudencia, guías, sin tocar
-   código). Generación intercambiable por proveedor
-   (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, `simulado` por
-   defecto sin gastar nada). Limitado a 15 preguntas/hora por IP — cada
-   pregunta real cuesta dinero de la API externa.
+   particular. Esthiven nutre al asesor soltando .md/.txt/.pdf (normas,
+   jurisprudencia, guías) en subcarpetas por tema dentro de
+   `context/asesor_conocimiento/` (recursivo), sin tocar código.
+   Recuperación real ("Nivel 1.5", julio 2026, tras crecer esa carpeta a
+   millones de caracteres): cada archivo se trocea y se indexa con BM25
+   (`rank_bm25`, búsqueda léxica — sin base vectorial ni embeddings) con
+   stopwords en español filtradas antes de puntuar
+   (`asesor._STOPWORDS_ES` — sin esto, un documento que repite mucho
+   "qué"/"es"/"el" puede ganarle al que sí tiene el término exacto). Por
+   cada pregunta solo se mandan los 8 fragmentos más relevantes, más
+   `diagnostico_formalizacion.md` + `perfil_usuario.md` (siempre
+   completos, describen MineLink mismo). Generación intercambiable por
+   proveedor (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, `simulado`
+   por defecto sin gastar nada). Limitado a 15 preguntas/hora por IP —
+   cada pregunta real cuesta dinero de la API externa.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el

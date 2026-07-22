@@ -76,19 +76,26 @@ Built on top of it since (all deployed):
   `frontend/src/components/AsesorWidget.tsx`): a floating chat widget (bottom-right,
   mounted once in `App.tsx` outside the router so it persists on every public page) that
   answers general formalization questions — no login, no per-user personalization
-  (explicit owner decision: it never sees anyone's actual diagnosis). RAG "Nivel 1": no
-  vector DB — retrieval is reading `context/diagnostico_formalizacion.md` +
-  `perfil_usuario.md` plus every `.md`/`.txt`/`.pdf` under
-  `context/asesor_conocimiento/` (recursively, PDFs via PyMuPDF text extraction),
-  concatenating ALL of it into the system prompt on every question, cached in-process
-  after first read. Esthiven feeds it by dropping PDFs (laws, jurisprudence, guides)
-  into topic subfolders there — as that folder grows toward the low hundreds of
-  thousands of tokens, migrating to real retrieval (chunking + embeddings + pgvector)
-  becomes the right call, documented as "Nivel 2" in the module docstring. Generation is
-  provider-swappable (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, defaults to a free
-  `simulado` mode with no API key needed) — `generar_respuesta()` is the only function
-  that talks to an external API. Rate-limited per IP (15/hour,
-  `security.limitar_preguntas_asesor`) since real API calls cost money.
+  (explicit owner decision: it never sees anyone's actual diagnosis). Esthiven feeds it
+  by dropping `.md`/`.txt`/`.pdf` files (laws, jurisprudence, guides) into topic
+  subfolders under `context/asesor_conocimiento/` (read recursively) — no code change
+  needed. Real retrieval, "Nivel 1.5" (July 2026, after the folder grew past ~2M
+  tokens and "send everything" stopped fitting in any real provider's context window):
+  every file is chunked (`_trocear`, ~1200 chars with overlap) and indexed with BM25
+  (`rank_bm25`, lexical/keyword search — no vector DB, no embeddings API, nothing new to
+  host) with Spanish stopwords filtered before scoring (`_STOPWORDS_ES` — without it,
+  a document that happens to repeat "qué"/"es"/"el" a lot can outrank the actually
+  relevant one). Only the top `FRAGMENTOS_POR_PREGUNTA` (8) chunks matching each
+  question get sent, plus `diagnostico_formalizacion.md` + `perfil_usuario.md` (~8K
+  tokens) which always go in full since they describe MineLink itself. Both the chunk
+  index and the core spec are cached in-process after first read (a redeploy re-reads).
+  If lexical search ever proves insufficient — mainly for colloquial questions that
+  share no words with the legal text — embeddings/pgvector is the documented next step
+  ("Nivel 2" in the module docstring), not needed yet. Generation is provider-swappable
+  (`MINELINK_ASESOR_PROVEEDOR=claude|gemini|grok`, defaults to a free `simulado` mode
+  with no API key needed) — `generar_respuesta()` is the only function that talks to an
+  external API. Rate-limited per IP (15/hour, `security.limitar_preguntas_asesor`)
+  since real API calls cost money.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):

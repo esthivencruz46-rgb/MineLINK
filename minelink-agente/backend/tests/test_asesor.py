@@ -11,6 +11,18 @@ import pytest
 import asesor
 
 
+def _agregar_relleno(carpeta, n: int = 15) -> None:
+    """Archivos sin relación con las preguntas de los tests — le dan a
+    BM25 un corpus de tamaño mínimamente realista para que su IDF
+    discrimine bien (ver comentario en el primer test que lo usa)."""
+    for i in range(n):
+        (carpeta / f"relleno_{i}.md").write_text(
+            f"Norma de relleno numero {i} sobre temas variados de administracion publica "
+            "sin relacion con la pregunta de la prueba.",
+            encoding="utf-8",
+        )
+
+
 class _RespuestaFalsa:
     def __init__(self, data: dict):
         self._data = data
@@ -108,46 +120,67 @@ def test_via_claude_error_de_red_se_traduce_a_no_disponible(monkeypatch):
             asesor._via_claude("system", [{"rol": "usuario", "contenido": "hola"}])
 
 
-def test_base_conocimiento_incluye_el_spec_de_negocio():
-    base = asesor._base_conocimiento()
-    assert "diagnostico_formalizacion.md" in base
-    assert len(base) > 500  # el spec real tiene cientos de líneas
+def test_nucleo_incluye_el_spec_de_negocio():
+    nucleo = asesor._cargar_nucleo()
+    assert "diagnostico_formalizacion.md" in nucleo
+    assert len(nucleo) > 500  # el spec real tiene cientos de líneas
 
 
-def test_base_conocimiento_suma_archivos_de_asesor_conocimiento(tmp_path, monkeypatch):
-    # julio 2026: nutrir al asesor con más contenido (ley MAPE,
-    # jurisprudencia) es soltar un .md/.txt en context/asesor_conocimiento/
-    # sin tocar código — se prueba _cargar_base_conocimiento() directo
-    # (no _base_conocimiento(), que cachea en un global y no debe
-    # contaminarse entre tests).
+def test_trocear_respeta_tamano_y_solapa_fragmentos():
+    texto = "A" * 3000
+    fragmentos = asesor._trocear(texto, tam=1000, solape=100)
+    assert len(fragmentos) == 4  # 0-1000, 900-1900, 1800-2800, 2700-3000
+    assert all(len(f) <= 1000 for f in fragmentos)
+
+
+def test_recuperar_fragmentos_relevantes_encuentra_por_palabra_clave(tmp_path, monkeypatch):
+    # julio 2026: con el corpus ya en millones de caracteres, no se manda
+    # todo — se busca por palabra clave (BM25) y solo se recupera lo
+    # relevante a ESA pregunta puntual. BM25 necesita un corpus de tamaño
+    # mínimamente realista para que su IDF discrimine bien (con solo 1-2
+    # documentos el puntaje se vuelve inestable) — se agregan archivos de
+    # relleno, igual que habrá docenas de normas no relacionadas en la
+    # carpeta real.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
-    (tmp_path / "ley_mape.md").write_text(
-        "Artículo 1: contenido de prueba de la ley MAPE.", encoding="utf-8"
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    _agregar_relleno(tmp_path)
+    (tmp_path / "reinfo.md").write_text(
+        "El REINFO puede suspenderse por incumplimiento de las obligaciones ambientales.",
+        encoding="utf-8",
     )
-    base = asesor._cargar_base_conocimiento()
-    assert "ley_mape.md" in base
-    assert "Artículo 1: contenido de prueba de la ley MAPE." in base
+
+    extra = asesor._recuperar_fragmentos_relevantes("¿por qué suspenden el REINFO?")
+    assert "reinfo.md" in extra
+    assert "suspenderse por incumplimiento" in extra
+    assert "relleno" not in extra
 
 
-def test_base_conocimiento_lee_subcarpetas_por_tema(tmp_path, monkeypatch):
+def test_recuperar_fragmentos_relevantes_lee_subcarpetas(tmp_path, monkeypatch):
     # julio 2026: Esthiven organiza los PDFs en subcarpetas por tema (ej.
-    # asesor_conocimiento/03_ambiental_seia/) — deben leerse igual que los
-    # que están sueltos, no solo los del nivel raíz.
+    # asesor_conocimiento/03_ambiental_seia/) — deben indexarse igual que
+    # los que están sueltos, no solo los del nivel raíz.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    _agregar_relleno(tmp_path)
     subcarpeta = tmp_path / "03_ambiental_seia"
     subcarpeta.mkdir()
-    (subcarpeta / "norma.md").write_text("Contenido ambiental de prueba.", encoding="utf-8")
+    (subcarpeta / "norma.md").write_text(
+        "El IGAFOM es el instrumento ambiental simplificado para la pequeña minería.",
+        encoding="utf-8",
+    )
 
-    base = asesor._cargar_base_conocimiento()
-    assert "03_ambiental_seia" in base
-    assert "Contenido ambiental de prueba." in base
+    extra = asesor._recuperar_fragmentos_relevantes("¿qué es el IGAFOM?")
+    assert "03_ambiental_seia" in extra
+    assert "instrumento ambiental simplificado" in extra
 
 
-def test_base_conocimiento_extrae_texto_de_pdfs_en_asesor_conocimiento(tmp_path, monkeypatch):
-    # julio 2026: Esthiven dijo que subirá "más que todo" PDFs (normas
-    # publicadas en El Peruano, jurisprudencia) — deben extraerse solos,
-    # sin que él tenga que convertir nada a mano primero.
+def test_recuperar_fragmentos_relevantes_extrae_pdfs(tmp_path, monkeypatch):
+    # julio 2026: Esthiven sube "más que todo" PDFs (normas publicadas en
+    # El Peruano, jurisprudencia) — deben extraerse e indexarse solos, sin
+    # que él tenga que convertir nada a mano primero.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    _agregar_relleno(tmp_path)
     ruta_pdf = tmp_path / "jurisprudencia.pdf"
     doc = fitz.open()
     pagina = doc.new_page()
@@ -155,9 +188,9 @@ def test_base_conocimiento_extrae_texto_de_pdfs_en_asesor_conocimiento(tmp_path,
     doc.save(ruta_pdf)
     doc.close()
 
-    base = asesor._cargar_base_conocimiento()
-    assert "jurisprudencia.pdf" in base
-    assert "la formalización requiere REINFO vigente" in base
+    extra = asesor._recuperar_fragmentos_relevantes("¿qué necesito para la formalización?")
+    assert "jurisprudencia.pdf" in extra
+    assert "la formalización requiere REINFO vigente" in extra
 
 
 def test_extraer_texto_pdf_con_archivo_corrupto_no_revienta(tmp_path):
@@ -168,10 +201,31 @@ def test_extraer_texto_pdf_con_archivo_corrupto_no_revienta(tmp_path):
     assert asesor._extraer_texto_pdf(ruta) == ""
 
 
+def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, monkeypatch):
+    # La garantía central de este diseño: sin importar cuántos archivos
+    # tenga asesor_conocimiento/, el prompt final se queda acotado porque
+    # solo se recuperan FRAGMENTOS_POR_PREGUNTA fragmentos — no todo el
+    # corpus. Simula un corpus mucho más grande que cualquier ventana de
+    # contexto real para probarlo.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    for i in range(200):
+        (tmp_path / f"norma_{i}.md").write_text(
+            f"Norma número {i}: disposición general sobre catastro minero. " * 20,
+            encoding="utf-8",
+        )
+
+    system = asesor.construir_system_prompt("¿qué dice la norma sobre catastro minero?")
+    # 200 archivos * ~1200 caracteres cada uno > 200,000 caracteres si se
+    # mandara todo; el prompt real (núcleo + 8 fragmentos) debe quedarse
+    # muy por debajo de eso.
+    assert len(system) < 60_000
+
+
 def test_system_prompt_es_generico_sin_caso_personal():
     # julio 2026, decisión explícita del dueño: el asesor público NO
-    # conoce el caso de nadie en particular — construir_system_prompt() ya
-    # no recibe ninguna operación.
-    system = asesor.construir_system_prompt()
+    # conoce el caso de nadie en particular — construir_system_prompt()
+    # nunca recibe ninguna operación, solo el texto de la pregunta.
+    system = asesor.construir_system_prompt("¿qué es el REINFO?")
     assert "spec de MineLink" in system
     assert "ESTADO ACTUAL DE ESTA PERSONA" not in system

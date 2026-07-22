@@ -21,7 +21,7 @@ def preguntar_asesor(
     ][-asesor.MAX_TURNOS_HISTORIAL :]
     historial.append({"rol": "usuario", "contenido": payload.pregunta})
 
-    system = asesor.construir_system_prompt()
+    system = asesor.construir_system_prompt(payload.pregunta)
     try:
         respuesta = asesor.generar_respuesta(system, historial)
     except asesor.AsesorNoDisponible:
