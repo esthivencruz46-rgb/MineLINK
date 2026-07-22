@@ -111,6 +111,120 @@ def test_via_grok_arma_el_request_correcto(monkeypatch):
     assert kwargs["json"]["messages"][1] == {"role": "user", "content": "¿qué es el REINFO?"}
 
 
+@pytest.mark.parametrize(
+    "funcion,env_key,url,modelo_por_defecto",
+    [
+        (
+            "_via_kimi",
+            "MOONSHOT_API_KEY",
+            "https://api.moonshot.ai/v1/chat/completions",
+            "kimi-k2.6",
+        ),
+        (
+            "_via_deepseek",
+            "DEEPSEEK_API_KEY",
+            "https://api.deepseek.com/chat/completions",
+            "deepseek-chat",
+        ),
+        (
+            "_via_qwen",
+            "DASHSCOPE_API_KEY",
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+            "qwen-plus",
+        ),
+        (
+            "_via_glm",
+            "ZHIPU_API_KEY",
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+            "glm-4.5",
+        ),
+        (
+            "_via_openai",
+            "OPENAI_API_KEY",
+            "https://api.openai.com/v1/chat/completions",
+            "gpt-5.4-nano",
+        ),
+    ],
+)
+def test_adaptador_openai_compatible_arma_el_request_correcto(
+    monkeypatch, funcion, env_key, url, modelo_por_defecto
+):
+    # Kimi, DeepSeek, Qwen, GLM y OpenAI comparten el mismo formato de
+    # request (compatible con OpenAI) que Grok — un solo test parametrizado
+    # cubre los 5 adaptadores (julio 2026, cadena de respaldo pedida por
+    # Esthiven: "varias api... cuando se acaba la gratuidad pasa al otro").
+    monkeypatch.setenv(env_key, "clave-de-prueba")
+    historial = [{"rol": "usuario", "contenido": "¿qué es el REINFO?"}]
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _RespuestaFalsa(
+            {"choices": [{"message": {"content": "El REINFO es..."}}]}
+        )
+        resultado = getattr(asesor, funcion)("eres un asesor", historial)
+
+    assert resultado == "El REINFO es..."
+    args, kwargs = mock_post.call_args
+    assert args[0] == url
+    assert kwargs["headers"]["Authorization"] == "Bearer clave-de-prueba"
+    assert kwargs["json"]["model"] == modelo_por_defecto
+    assert kwargs["json"]["messages"][0] == {"role": "system", "content": "eres un asesor"}
+    assert kwargs["json"]["messages"][1] == {"role": "user", "content": "¿qué es el REINFO?"}
+
+
+@pytest.mark.parametrize(
+    "funcion,env_key",
+    [
+        ("_via_kimi", "MOONSHOT_API_KEY"),
+        ("_via_deepseek", "DEEPSEEK_API_KEY"),
+        ("_via_qwen", "DASHSCOPE_API_KEY"),
+        ("_via_glm", "ZHIPU_API_KEY"),
+        ("_via_openai", "OPENAI_API_KEY"),
+    ],
+)
+def test_adaptador_openai_compatible_sin_clave_lanza_no_disponible(monkeypatch, funcion, env_key):
+    monkeypatch.delenv(env_key, raising=False)
+    with pytest.raises(asesor.AsesorNoDisponible):
+        getattr(asesor, funcion)("system", [{"rol": "usuario", "contenido": "hola"}])
+
+
+def test_modelo_para_respeta_override_por_proveedor(monkeypatch):
+    # MINELINK_ASESOR_MODELO_<PROVEEDOR> pisa el modelo por defecto sin
+    # tocar código — necesario porque cada proveedor de la cadena de
+    # respaldo puede necesitar un modelo distinto al mismo tiempo (ya no
+    # hay un único MINELINK_ASESOR_MODELO global como antes).
+    monkeypatch.setenv("MINELINK_ASESOR_MODELO_KIMI", "kimi-k2.7-code")
+    assert asesor._modelo_para("kimi") == "kimi-k2.7-code"
+    assert asesor._modelo_para("deepseek") == "deepseek-chat"  # sin pisar, usa el default
+
+
+def test_generar_respuesta_pasa_al_siguiente_proveedor_si_el_primero_falla(monkeypatch):
+    # julio 2026, pedido explícito de Esthiven: "varias api, de modo que
+    # cuando se acaba la gratuidad por día pasa al otro". Simula que kimi
+    # falla (sin clave) y deepseek responde bien.
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["kimi", "deepseek"])
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "clave-de-prueba")
+    historial = [{"rol": "usuario", "contenido": "hola"}]
+
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _RespuestaFalsa(
+            {"choices": [{"message": {"content": "respuesta de deepseek"}}]}
+        )
+        resultado = asesor.generar_respuesta("system", historial)
+
+    assert resultado == "respuesta de deepseek"
+    mock_post.assert_called_once()
+    assert mock_post.call_args[0][0] == "https://api.deepseek.com/chat/completions"
+
+
+def test_generar_respuesta_lanza_no_disponible_si_todos_los_proveedores_fallan(monkeypatch):
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["kimi", "deepseek"])
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    with pytest.raises(asesor.AsesorNoDisponible):
+        asesor.generar_respuesta("system", [{"rol": "usuario", "contenido": "hola"}])
+
+
 def test_via_claude_error_de_red_se_traduce_a_no_disponible(monkeypatch):
     import requests
 

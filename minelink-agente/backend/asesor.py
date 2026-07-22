@@ -30,8 +30,18 @@ para sumar embeddings encima (ver conversación con Esthiven, julio 2026).
 Generación intercambiable entre proveedores (julio 2026, pedido
 explícito): `generar_respuesta()` es la ÚNICA función que sabe hablar con
 una API externa. Todo lo demás (el prompt, el historial, los
-guardarraíles) no se entera de cuál IA responde por detrás. Cambiar de
-proveedor es elegir `MINELINK_ASESOR_PROVEEDOR` — no reescribir nada.
+guardarraíles) no se entera de cuál IA responde por detrás.
+
+Cadena de respaldo entre proveedores (julio 2026, pedido explícito de
+Esthiven: "varias api, de modo que cuando se acaba la gratuidad por día
+pasa al otro"): `MINELINK_ASESOR_PROVEEDORES` es una lista separada por
+comas, en orden de prioridad (ej. "kimi,deepseek,qwen,glm").
+`generar_respuesta()` prueba cada uno; si el que le toca falla por
+CUALQUIER motivo (sin cuota, clave inválida, error de red — todo se
+traduce a `AsesorNoDisponible`), pasa al siguiente de la lista sin que el
+usuario note nada. Solo si TODOS fallan se avisa que el asesor no está
+disponible. `MINELINK_ASESOR_PROVEEDOR` (singular) sigue funcionando para
+un solo proveedor, por compatibilidad.
 """
 import os
 import re
@@ -41,16 +51,36 @@ import fitz  # PyMuPDF
 import requests
 from rank_bm25 import BM25Okapi
 
-PROVEEDOR = os.environ.get("MINELINK_ASESOR_PROVEEDOR", "simulado")
+PROVEEDORES = [
+    p.strip().lower()
+    for p in (
+        os.environ.get("MINELINK_ASESOR_PROVEEDORES")
+        or os.environ.get("MINELINK_ASESOR_PROVEEDOR")
+        or "simulado"
+    ).split(",")
+    if p.strip()
+] or ["simulado"]
 
 # Modelos por defecto de cada proveedor — se pueden pisar con
-# MINELINK_ASESOR_MODELO sin tocar código.
+# MINELINK_ASESOR_MODELO_<PROVEEDOR> (ej. MINELINK_ASESOR_MODELO_KIMI=...)
+# sin tocar código.
 _MODELO_POR_DEFECTO = {
     "claude": "claude-haiku-4-5-20251001",
-    "gemini": "gemini-2.5-flash",
+    "gemini": "gemini-3.5-flash",
     "grok": "grok-4-fast",
+    "kimi": "kimi-k2.6",
+    "deepseek": "deepseek-chat",
+    "qwen": "qwen-plus",
+    "glm": "glm-4.5",
+    "openai": "gpt-5.4-nano",
 }
-MODELO = os.environ.get("MINELINK_ASESOR_MODELO") or _MODELO_POR_DEFECTO.get(PROVEEDOR, "")
+
+
+def _modelo_para(proveedor: str) -> str:
+    return os.environ.get(f"MINELINK_ASESOR_MODELO_{proveedor.upper()}") or _MODELO_POR_DEFECTO.get(
+        proveedor, ""
+    )
+
 
 MAX_TURNOS_HISTORIAL = 6  # últimos N mensajes que se reenvían (controla el costo)
 
@@ -245,13 +275,37 @@ class AsesorNoDisponible(Exception):
 def generar_respuesta(system: str, historial: list[dict]) -> str:
     """Única función que habla con un proveedor externo. `historial` es
     una lista de {"rol": "usuario"|"asesor", "contenido": str}, ya
-    recortada a MAX_TURNOS_HISTORIAL por el caller."""
-    if PROVEEDOR == "claude":
-        return _via_claude(system, historial)
-    if PROVEEDOR == "gemini":
-        return _via_gemini(system, historial)
-    if PROVEEDOR == "grok":
-        return _via_grok(system, historial)
+    recortada a MAX_TURNOS_HISTORIAL por el caller.
+
+    Prueba cada proveedor de PROVEEDORES en orden (cadena de respaldo): si
+    el que le toca falla por lo que sea (sin cuota gratis del día, clave
+    inválida, error de red), pasa solo al siguiente configurado — el
+    usuario nunca lo nota. Si TODOS fallan, se propaga el último error
+    para que el router avise que el asesor no está disponible."""
+    adaptadores = {
+        "claude": _via_claude,
+        "gemini": _via_gemini,
+        "grok": _via_grok,
+        "kimi": _via_kimi,
+        "deepseek": _via_deepseek,
+        "qwen": _via_qwen,
+        "glm": _via_glm,
+        "openai": _via_openai,
+    }
+    if PROVEEDORES == ["simulado"]:
+        return _via_simulado(system, historial)
+
+    ultimo_error: AsesorNoDisponible | None = None
+    for proveedor in PROVEEDORES:
+        adaptador = adaptadores.get(proveedor)
+        if adaptador is None:
+            continue
+        try:
+            return adaptador(system, historial)
+        except AsesorNoDisponible as e:
+            ultimo_error = e
+    if ultimo_error is not None:
+        raise ultimo_error
     return _via_simulado(system, historial)
 
 
@@ -291,7 +345,7 @@ def _via_claude(system: str, historial: list[dict]) -> str:
                 "content-type": "application/json",
             },
             json={
-                "model": MODELO,
+                "model": _modelo_para("claude"),
                 "max_tokens": 800,
                 "system": system,
                 "messages": [
@@ -314,7 +368,7 @@ def _via_gemini(system: str, historial: list[dict]) -> str:
         raise AsesorNoDisponible("Falta GEMINI_API_KEY en el entorno")
     try:
         resp = requests.post(
-            f"https://generativelanguage.googleapis.com/v1beta/models/{MODELO}:generateContent",
+            f"https://generativelanguage.googleapis.com/v1beta/models/{_modelo_para('gemini')}:generateContent",
             params={"key": api_key},
             json={
                 "systemInstruction": {"parts": [{"text": system}]},
@@ -346,7 +400,7 @@ def _via_grok(system: str, historial: list[dict]) -> str:
             "https://api.x.ai/v1/chat/completions",
             headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
             json={
-                "model": MODELO,
+                "model": _modelo_para("grok"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
             timeout=30,
@@ -356,3 +410,114 @@ def _via_grok(system: str, historial: list[dict]) -> str:
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
         raise AsesorNoDisponible(f"Grok no respondió: {e}") from e
+
+
+def _via_kimi(system: str, historial: list[dict]) -> str:
+    # Moonshot AI (Kimi) — API compatible con el formato de OpenAI, mismo
+    # patrón que _via_grok.
+    api_key = os.environ.get("MOONSHOT_API_KEY")
+    if not api_key:
+        raise AsesorNoDisponible("Falta MOONSHOT_API_KEY en el entorno")
+    try:
+        resp = requests.post(
+            "https://api.moonshot.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
+            json={
+                "model": _modelo_para("kimi"),
+                "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        raise AsesorNoDisponible(f"Kimi no respondió: {e}") from e
+
+
+def _via_deepseek(system: str, historial: list[dict]) -> str:
+    # DeepSeek — API compatible con el formato de OpenAI.
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise AsesorNoDisponible("Falta DEEPSEEK_API_KEY en el entorno")
+    try:
+        resp = requests.post(
+            "https://api.deepseek.com/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
+            json={
+                "model": _modelo_para("deepseek"),
+                "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        raise AsesorNoDisponible(f"DeepSeek no respondió: {e}") from e
+
+
+def _via_qwen(system: str, historial: list[dict]) -> str:
+    # Qwen / DashScope (Alibaba Cloud) — modo compatible con OpenAI,
+    # endpoint internacional (no el de China continental).
+    api_key = os.environ.get("DASHSCOPE_API_KEY")
+    if not api_key:
+        raise AsesorNoDisponible("Falta DASHSCOPE_API_KEY en el entorno")
+    try:
+        resp = requests.post(
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
+            json={
+                "model": _modelo_para("qwen"),
+                "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        raise AsesorNoDisponible(f"Qwen no respondió: {e}") from e
+
+
+def _via_glm(system: str, historial: list[dict]) -> str:
+    # GLM / Zhipu AI (bigmodel.cn) — modo compatible con OpenAI.
+    api_key = os.environ.get("ZHIPU_API_KEY")
+    if not api_key:
+        raise AsesorNoDisponible("Falta ZHIPU_API_KEY en el entorno")
+    try:
+        resp = requests.post(
+            "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
+            json={
+                "model": _modelo_para("glm"),
+                "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        raise AsesorNoDisponible(f"GLM no respondió: {e}") from e
+
+
+def _via_openai(system: str, historial: list[dict]) -> str:
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise AsesorNoDisponible("Falta OPENAI_API_KEY en el entorno")
+    try:
+        resp = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}", "content-type": "application/json"},
+            json={
+                "model": _modelo_para("openai"),
+                "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        return data["choices"][0]["message"]["content"]
+    except (requests.RequestException, KeyError, IndexError, ValueError) as e:
+        raise AsesorNoDisponible(f"ChatGPT no respondió: {e}") from e
