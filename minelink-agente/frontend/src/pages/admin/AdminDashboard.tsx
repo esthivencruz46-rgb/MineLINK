@@ -141,6 +141,37 @@ export function AdminDashboard() {
             </p>
           </div>
 
+          {/* Salud del asesor conversacional (julio 2026): agregado tras un
+              incidente real donde una clave de API incompleta en Render
+              pasó desapercibida varios días — esto le permite a Esthiven
+              notar un problema sin tener que probar el chat a mano. */}
+          <div>
+            <h2 className="mb-3 text-lg font-semibold">Asesor conversacional (hoy)</h2>
+            <div className="grid grid-cols-2 gap-3">
+              <Tarjeta titulo="Preguntas respondidas" valor={datos.asesor_preguntas_hoy} />
+              <div
+                className={`p-4 ${
+                  datos.asesor_fallas_hoy > 0
+                    ? "bg-red-500/10 text-red-600 dark:text-red-400"
+                    : "bg-tarjeta dark:bg-tarjeta-dark"
+                }`}
+              >
+                <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                  Preguntas que fallaron
+                </p>
+                <p className="mt-1 font-mono text-3xl font-semibold">
+                  {datos.asesor_fallas_hoy}
+                </p>
+                {datos.asesor_fallas_hoy > 0 && (
+                  <p className="mt-1 text-xs">
+                    Revisa las claves de API en Render — puede que el proveedor configurado
+                    no esté respondiendo.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div>
             <h2 className="mb-3 text-lg font-semibold">Top 5 brechas más comunes</h2>
             {datos.top_brechas.length === 0 ? (

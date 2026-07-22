@@ -269,6 +269,35 @@ def test_recuperar_fragmentos_relevantes_encuentra_por_palabra_clave(tmp_path, m
     assert "relleno" not in extra
 
 
+def test_tokenizar_reduce_conjugaciones_a_la_misma_raiz():
+    # julio 2026, hallazgo evaluando preguntas coloquiales reales: sin
+    # stemming, "me suspendieron y no sé qué hacer" no encontraba NADA del
+    # contenido real sobre suspensión del REINFO porque el documento usa
+    # otra conjugación ("suspendido"). Verifica que ambas formas caen en
+    # el mismo token.
+    assert asesor._tokenizar("me suspendieron") == asesor._tokenizar("está suspendido")
+
+
+def test_recuperar_fragmentos_relevantes_encuentra_pregunta_coloquial_por_conjugacion(
+    tmp_path, monkeypatch
+):
+    # Reproduce el hallazgo real: la pregunta usa una conjugación distinta
+    # ("suspendieron") a la del documento ("suspendido") — antes del
+    # stemming esto devolvía vacío aunque el contenido exista.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    _agregar_relleno(tmp_path)
+    (tmp_path / "reinfo.md").write_text(
+        "Si tu REINFO está suspendido debes regularizar tus obligaciones ambientales.",
+        encoding="utf-8",
+    )
+
+    extra = asesor._recuperar_fragmentos_relevantes(
+        "me suspendieron y no sé qué hacer, cómo lo soluciono"
+    )
+    assert "reinfo.md" in extra
+
+
 def test_recuperar_fragmentos_relevantes_lee_subcarpetas(tmp_path, monkeypatch):
     # julio 2026: Esthiven organiza los PDFs en subcarpetas por tema (ej.
     # asesor_conocimiento/03_ambiental_seia/) — deben indexarse igual que

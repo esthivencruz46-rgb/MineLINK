@@ -23,9 +23,14 @@ en `asesor_conocimiento/` (cualquier subcarpeta) sin tocar código; los
 PDF se leen con PyMuPDF extrayendo su texto — funciona con PDFs de texto
 real (la mayoría de normas de El Peruano lo son), no con un escaneo sin
 capa de texto. BM25 es bueno con terminología exacta (REINFO, IGAFOM,
-SEIA); si en el futuro las preguntas coloquiales no encuentran lo que
-buscan por no compartir palabras con el documento, esa sería la señal
-para sumar embeddings encima (ver conversación con Esthiven, julio 2026).
+SEIA); las palabras se reducen a su raíz con `snowballstemmer` antes de
+indexar/buscar (ej. "suspendieron"/"suspendido"/"suspender" cuentan como
+la misma palabra) — evaluado contra preguntas coloquiales reales (julio
+2026): sin esto, "me suspendieron y no sé qué hacer" no encontraba NADA
+del contenido real sobre suspensión del REINFO, aunque exista, solo
+porque el documento usa otra conjugación. Si tras esto las preguntas
+coloquiales siguen sin encontrar lo que buscan, esa sería la señal para
+sumar embeddings encima (ver conversación con Esthiven, julio 2026).
 
 Generación intercambiable entre proveedores (julio 2026, pedido
 explícito): `generar_respuesta()` es la ÚNICA función que sabe hablar con
@@ -49,7 +54,10 @@ from pathlib import Path
 
 import fitz  # PyMuPDF
 import requests
+import snowballstemmer
 from rank_bm25 import BM25Okapi
+
+_STEMMER_ES = snowballstemmer.stemmer("spanish")
 
 PROVEEDORES = [
     p.strip().lower()
@@ -150,6 +158,7 @@ _STOPWORDS_ES = frozenset(
     ni contra otros ese eso ante ellos e esto mí antes algunos qué unos yo
     otro otras otra él tanto esa estos mucho quienes nada muchos cual poco
     ella estar estas algunas algo nosotros mi mis tú te ti tu tus ellas
+    estoy estás está estamos estáis están esté estés estemos estéis estén
     nosotras vosotros vosotras os mío mía míos mías tuyo tuya tuyos tuyas
     suyo suya suyos suyas nuestro nuestra nuestros nuestras vuestro
     vuestra vuestros vuestras esos esas es soy eres somos sois son sea
@@ -165,7 +174,12 @@ _STOPWORDS_ES = frozenset(
 
 
 def _tokenizar(texto: str) -> list[str]:
-    return [t for t in re.findall(r"\w+", texto.lower()) if t not in _STOPWORDS_ES]
+    """Reduce cada palabra a su raíz (`suspendieron`/`suspendido`/
+    `suspender` → `suspend`) para que BM25 encuentre coincidencias entre
+    conjugaciones distintas de una misma palabra — verificado contra
+    preguntas coloquiales reales, ver docstring del módulo."""
+    palabras = [t for t in re.findall(r"\w+", texto.lower()) if t not in _STOPWORDS_ES]
+    return _STEMMER_ES.stemWords(palabras)
 
 
 def _cargar_fragmentos_extra() -> list[tuple[str, str]]:

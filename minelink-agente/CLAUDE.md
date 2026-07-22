@@ -91,7 +91,19 @@ Plataforma web donde un minero artesanal peruano:
    proveedores están conectados y probados pero necesitan saldo cargado en
    su propio panel para responder de verdad. Modelo por proveedor:
    `MINELINK_ASESOR_MODELO_<PROVEEDOR>`. Limitado a 15 preguntas/hora por
-   IP — cada pregunta real cuesta dinero de la API externa.
+   IP — cada pregunta real cuesta dinero de la API externa. El tokenizador
+   de BM25 reduce las palabras a su raíz (`snowballstemmer`, español) para
+   que "suspendieron"/"suspendido"/"suspender" cuenten como la misma
+   palabra — medido con preguntas coloquiales reales (un minero no
+   pregunta como está redactada la ley), esto arregló casos que antes no
+   encontraban NADA; queda como brecha real solo el caso de una frase
+   coloquial que no menciona el nombre del instrumento legal que busca
+   (ej. "papel para no tener problemas ambientales" → IGAFOM), que sí
+   necesitaría búsqueda semántica para cerrarse. El dashboard admin
+   muestra `asesor_preguntas_hoy`/`asesor_fallas_hoy` (vía `Evento`, que
+   el router escribe en cada llamada) — se agregó porque una clave mala en
+   Render pasó desapercibida varios días; revisar esto antes de asumir
+   "no hay tráfico" cuando un proveedor falla en silencio.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el

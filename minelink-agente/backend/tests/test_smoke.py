@@ -14,6 +14,13 @@ os.environ["SUPABASE_SERVICE_KEY"] = ""
 os.environ["MINELINK_RESOLVER_MAPS"] = "0"
 os.environ["MINELINK_GEOCATMIN"] = "0"
 os.environ["MINELINK_REINFO"] = "0"
+# El asesor SIEMPRE corre en modo simulado en los tests — sin esto, si
+# backend/.env tiene claves reales configuradas (para probar en local),
+# los tests terminan llamando a la API real de pago (julio 2026, hallado
+# al agregar la cadena de respaldo: un test empezó a recibir una
+# respuesta real de Gemini en vez del texto de "modo simulado").
+os.environ["MINELINK_ASESOR_PROVEEDORES"] = ""
+os.environ["MINELINK_ASESOR_PROVEEDOR"] = ""
 
 import pytest
 from fastapi.testclient import TestClient
@@ -3137,6 +3144,41 @@ def test_asesor_publico_respeta_el_limite_por_ip():
         assert resp.status_code == 429
     finally:
         security.MAX_PREGUNTAS_ASESOR_HORA = tope_original
+
+
+def test_asesor_publico_registra_evento_de_exito_en_el_dashboard():
+    # Julio 2026, tras un incidente real (clave de API incompleta en Render
+    # pasó desapercibida varios días): el dashboard admin debe reflejar si
+    # el asesor está respondiendo bien HOY, sin que Esthiven tenga que
+    # probarlo a mano.
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    antes = client.get("/admin/dashboard", headers=headers).json()["asesor_preguntas_hoy"]
+
+    resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
+    assert resp.status_code == 200
+
+    despues = client.get("/admin/dashboard", headers=headers).json()["asesor_preguntas_hoy"]
+    assert despues == antes + 1
+
+
+def test_asesor_publico_registra_evento_de_falla_en_el_dashboard(monkeypatch):
+    import asesor
+
+    def _siempre_falla(system, historial):
+        raise asesor.AsesorNoDisponible("proveedor simulado caído para la prueba")
+
+    monkeypatch.setattr(asesor, "generar_respuesta", _siempre_falla)
+
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    antes = client.get("/admin/dashboard", headers=headers).json()["asesor_fallas_hoy"]
+
+    resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
+    assert resp.status_code == 503
+
+    despues = client.get("/admin/dashboard", headers=headers).json()["asesor_fallas_hoy"]
+    assert despues == antes + 1
 
 
 def test_avisenme_cuando_haya_notifica_al_activar_empresa_que_calza():

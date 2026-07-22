@@ -12,3 +12,4 @@ requests==2.32.3
 Pillow==10.2.0
 PyMuPDF==1.24.13
 rank_bm25==0.2.2
+snowballstemmer==3.1.1

@@ -108,7 +108,16 @@ Built on top of it since (all deployed):
   adapters (claude/grok/kimi/deepseek/qwen/glm/openai) are wired and tested but need
   billing added on their own dashboards before they'll respond for real. Per-provider
   model override: `MINELINK_ASESOR_MODELO_<PROVEEDOR>`. Rate-limited per IP (15/hour,
-  `security.limitar_preguntas_asesor`) since real API calls cost money.
+  `security.limitar_preguntas_asesor`) since real API calls cost money. BM25 tokenizing
+  stems words (`snowballstemmer`, Spanish) so "suspendieron"/"suspendido"/"suspender"
+  count as the same token — measured against realistic colloquial questions (miners
+  don't phrase things like the legal text), this fixed real zero-result queries; matching
+  a colloquial phrase to a legal term the asker doesn't know the name of (ex. "papel para
+  no tener problemas ambientales" → IGAFOM) is the one gap left, and would need semantic
+  search to close. Dashboard health check: `DashboardOut.asesor_preguntas_hoy` /
+  `asesor_fallas_hoy` (from `Evento` rows the router writes on every call) exist because a
+  bad key in Render once went unnoticed for days — check these before assuming "no
+  traffic" when a provider silently breaks.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):

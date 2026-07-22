@@ -1338,6 +1338,12 @@ class DashboardOut(BaseModel):
     carteras_vistas: int = 0
     fichas_vistas: int = 0
     intereses_inversion_total: int = 0
+    # Salud del asesor conversacional HOY (no total — lo que importa es si
+    # está fallando ahora mismo). Julio 2026: agregado tras un incidente
+    # real donde una clave de API incompleta en Render pasó desapercibida
+    # varios días porque nadie miraba el dashboard.
+    asesor_preguntas_hoy: int = 0
+    asesor_fallas_hoy: int = 0
 
 
 TIPOS_EVENTO_VALIDOS = (

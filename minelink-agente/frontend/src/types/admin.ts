@@ -117,4 +117,8 @@ export interface DashboardOut {
   carteras_vistas: number;
   fichas_vistas: number;
   intereses_inversion_total: number;
+  // Salud del asesor conversacional HOY (julio 2026, tras un incidente
+  // real con una clave de API incompleta en Render que pasó desapercibida).
+  asesor_preguntas_hoy: number;
+  asesor_fallas_hoy: number;
 }

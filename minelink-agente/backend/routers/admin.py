@@ -397,6 +397,19 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
     )
     intereses_inversion_total = db.query(models.InteresInversion).count()
 
+    # Salud del asesor HOY (no total) — así el dashboard avisa si está
+    # fallando ahora mismo, no si falló alguna vez hace meses.
+    asesor_preguntas_hoy = (
+        db.query(models.Evento)
+        .filter(models.Evento.tipo == "asesor_respondido", models.Evento.created_at >= inicio_hoy)
+        .count()
+    )
+    asesor_fallas_hoy = (
+        db.query(models.Evento)
+        .filter(models.Evento.tipo == "asesor_fallo", models.Evento.created_at >= inicio_hoy)
+        .count()
+    )
+
     return schemas.DashboardOut(
         diagnosticos_hoy=diagnosticos_hoy,
         diagnosticos_total=diagnosticos_total,
@@ -409,6 +422,8 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         carteras_vistas=carteras_vistas,
         fichas_vistas=fichas_vistas,
         intereses_inversion_total=intereses_inversion_total,
+        asesor_preguntas_hoy=asesor_preguntas_hoy,
+        asesor_fallas_hoy=asesor_fallas_hoy,
     )
 
 
