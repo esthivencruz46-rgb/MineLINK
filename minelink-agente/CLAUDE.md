@@ -86,8 +86,10 @@ Plataforma web donde un minero artesanal peruano:
    de Esthiven: "cuando se acaba la gratuidad por día pasa al otro"):
    `MINELINK_ASESOR_PROVEEDORES` es una lista por prioridad (ej.
    `gemini,kimi,deepseek,qwen,glm,openai`); si el que le toca falla por lo
-   que sea, pasa solo al siguiente. Hoy Gemini (`gemini-3.5-flash`) es el
-   único con nivel gratis real (sin tarjeta, ~1500/día); los otros 6
+   que sea, pasa solo al siguiente. Hoy Gemini (`gemini-3.5-flash-lite` —
+   cambiado desde `flash` a secas, que devolvía 503 "high demand" de forma
+   consistente con el prompt real de ~10K tokens; verificado en vivo julio
+   2026) es el único con nivel gratis real (sin tarjeta, ~1500/día); los otros 6
    proveedores están conectados y probados pero necesitan saldo cargado en
    su propio panel para responder de verdad. Modelo por proveedor:
    `MINELINK_ASESOR_MODELO_<PROVEEDOR>`. Limitado a 15 preguntas/hora por

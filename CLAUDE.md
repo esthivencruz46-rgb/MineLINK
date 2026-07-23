@@ -103,7 +103,9 @@ Built on top of it since (all deployed):
   silently moves to the next on ANY failure (no quota, invalid key, network error — all
   normalize to `AsesorNoDisponible`), only surfacing "no disponible" if every configured
   provider fails. `MINELINK_ASESOR_PROVEEDOR` (singular) still works for one provider;
-  no env at all defaults to a free `simulado` mode. Gemini (`gemini-3.5-flash`) is the
+  no env at all defaults to a free `simulado` mode. Gemini (`gemini-3.5-flash-lite`,
+  switched from plain `flash` — the full model returned 503 "high demand" consistently
+  with the real ~10K-token prompt while `-lite` didn't, verified live July 2026) is the
   only provider with a real free tier (no card needed, ~1500 req/day) — the other 6
   adapters (claude/grok/kimi/deepseek/qwen/glm/openai) are wired and tested but need
   billing added on their own dashboards before they'll respond for real. Per-provider

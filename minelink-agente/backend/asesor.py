@@ -86,7 +86,12 @@ PROVEEDORES = [
 # sin tocar código.
 _MODELO_POR_DEFECTO = {
     "claude": "claude-haiku-4-5-20251001",
-    "gemini": "gemini-3.5-flash",
+    # "flash" (no "flash-lite") devolvía 503 "high demand" de forma
+    # consistente con el prompt real (~10K tokens) — verificado en vivo
+    # julio 2026: 4/4 intentos con flash-lite respondieron bien en ~2s,
+    # flash falló en 2 de 3 intentos incluso sin "thinking". Modelo nuevo
+    # y popular = más saturado en el nivel gratis; flash-lite es más liviano.
+    "gemini": "gemini-3.5-flash-lite",
     "grok": "grok-4-fast",
     "kimi": "kimi-k2.6",
     "deepseek": "deepseek-chat",
