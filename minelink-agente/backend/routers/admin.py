@@ -2,16 +2,17 @@ from collections import Counter
 from datetime import date, datetime, time, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+import asesor
 import models
 import schemas
 from auth import authenticate_admin, create_access_token, get_current_admin, hash_password
 from database import get_db
-from security import limitar_intentos_login
+from security import contenido_coincide_con_tipo, limitar_intentos_login
 from scoring import (
     categorias_requeridas_out,
     estado_seguimiento,
@@ -938,4 +939,126 @@ def eliminar_empresa(
         storage.eliminar("cvs", empresa.cv_filename)
 
     db.delete(empresa)
+    db.commit()
+
+
+# ---------- Documentos del asesor conversacional (julio 2026) ----------
+# Nutrir al asesor sin git/GitHub/Claude Code — pedido explícito de
+# Esthiven: "imagina que ya no uso Claude Code". Se guarda solo el texto
+# ya extraído (no el archivo crudo) en la tabla DocumentoAsesor; asesor.py
+# nunca toca la base de datos por sí mismo, así que este router es el
+# único lugar que la consulta y le pasa el resultado.
+
+DOCUMENTO_ASESOR_TAMANO_MAXIMO_BYTES = 20 * 1024 * 1024  # 20MB
+
+
+def _documento_asesor_out(documento: models.DocumentoAsesor) -> schemas.DocumentoAsesorOut:
+    return schemas.DocumentoAsesorOut(
+        id=documento.id,
+        nombre=documento.nombre,
+        categoria=documento.categoria,
+        activo=documento.activo,
+        created_at=documento.created_at,
+        caracteres=len(documento.texto),
+    )
+
+
+@router.get("/asesor/documentos", response_model=list[schemas.DocumentoAsesorOut])
+def listar_documentos_asesor(
+    db: Session = Depends(get_db), _admin: str = Depends(get_current_admin)
+):
+    documentos = (
+        db.query(models.DocumentoAsesor)
+        .order_by(models.DocumentoAsesor.created_at.desc())
+        .all()
+    )
+    return [_documento_asesor_out(d) for d in documentos]
+
+
+@router.post("/asesor/documentos", response_model=schemas.DocumentoAsesorOut, status_code=201)
+async def subir_documento_asesor(
+    archivo: UploadFile = File(...),
+    categoria: str = Form(""),
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Sube un PDF/.md/.txt para nutrir al asesor — queda disponible desde
+    la siguiente pregunta que le haga cualquier visitante (el índice de
+    búsqueda se reconstruye solo cuando detecta un cambio, ver
+    asesor.actualizar_documentos_admin)."""
+    nombre_original = archivo.filename or "documento"
+    extension = nombre_original.rsplit(".", 1)[-1].lower() if "." in nombre_original else ""
+    if extension not in ("pdf", "md", "txt"):
+        raise HTTPException(422, "Solo se aceptan archivos .pdf, .md o .txt")
+
+    contenido = await archivo.read()
+    if len(contenido) == 0:
+        raise HTTPException(422, "El archivo está vacío")
+    if len(contenido) > DOCUMENTO_ASESOR_TAMANO_MAXIMO_BYTES:
+        raise HTTPException(422, "El archivo no debe superar 20MB")
+
+    if extension == "pdf":
+        if not contenido_coincide_con_tipo(contenido, "application/pdf"):
+            raise HTTPException(422, "El archivo no es un PDF real")
+        texto = asesor.extraer_texto_pdf_bytes(contenido)
+    else:
+        try:
+            texto = contenido.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(422, "El archivo de texto debe estar en UTF-8")
+
+    if not texto.strip():
+        raise HTTPException(
+            422,
+            "No se pudo extraer texto del archivo (¿es un PDF que es solo una foto/escaneo, "
+            "sin capa de texto?)",
+        )
+
+    documento = models.DocumentoAsesor(
+        nombre=nombre_original,
+        categoria=categoria.strip() or None,
+        texto=texto,
+    )
+    db.add(documento)
+    db.commit()
+    db.refresh(documento)
+    return _documento_asesor_out(documento)
+
+
+@router.put(
+    "/asesor/documentos/{documento_id}/activo", response_model=schemas.DocumentoAsesorOut
+)
+def cambiar_activo_documento_asesor(
+    documento_id: int,
+    payload: schemas.CambiarActivoDocumentoAsesorRequest,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Apagar un documento (en vez de borrarlo) para sacarlo de la
+    búsqueda del asesor sin perder el texto — por si se subió algo
+    desactualizado y se quiere reactivar después."""
+    documento = (
+        db.query(models.DocumentoAsesor).filter(models.DocumentoAsesor.id == documento_id).first()
+    )
+    if documento is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    documento.activo = payload.activo
+    db.commit()
+    db.refresh(documento)
+    return _documento_asesor_out(documento)
+
+
+@router.delete("/asesor/documentos/{documento_id}", status_code=204)
+def eliminar_documento_asesor(
+    documento_id: int,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    documento = (
+        db.query(models.DocumentoAsesor).filter(models.DocumentoAsesor.id == documento_id).first()
+    )
+    if documento is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    db.delete(documento)
     db.commit()

@@ -122,3 +122,14 @@ export interface DashboardOut {
   asesor_preguntas_hoy: number;
   asesor_fallas_hoy: number;
 }
+
+// Documento subido desde /admin para nutrir al asesor sin git (julio
+// 2026, pedido explícito: "imagina que ya no uso Claude Code").
+export interface DocumentoAsesor {
+  id: number;
+  nombre: string;
+  categoria: string | null;
+  activo: boolean;
+  created_at: string;
+  caracteres: number;
+}

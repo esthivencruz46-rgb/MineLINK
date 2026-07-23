@@ -3181,6 +3181,111 @@ def test_asesor_publico_registra_evento_de_falla_en_el_dashboard(monkeypatch):
     assert despues == antes + 1
 
 
+def test_subir_documento_asesor_md_queda_disponible_para_el_asesor():
+    # julio 2026, pedido explícito: "imagina que ya no uso Claude Code" —
+    # Esthiven debe poder nutrir al asesor subiendo un archivo desde
+    # /admin, sin git. Fin a fin: sube un .md → el asesor lo encuentra.
+    import asesor
+
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    contenido = b"El Decreto de Prueba XYZ regula el submarinismo minero en altura."
+    resp = client.post(
+        "/admin/asesor/documentos",
+        headers=headers,
+        files={"archivo": ("decreto_prueba_xyz.md", contenido, "text/markdown")},
+        data={"categoria": "prueba"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["nombre"] == "decreto_prueba_xyz.md"
+    assert data["categoria"] == "prueba"
+    assert data["activo"] is True
+    assert data["caracteres"] == len(contenido)
+    documento_id = data["id"]
+
+    # Aparece en el listado
+    listado = client.get("/admin/asesor/documentos", headers=headers).json()
+    assert any(d["id"] == documento_id for d in listado)
+
+    # El asesor público lo encuentra (dispara actualizar_documentos_admin)
+    resp_asesor = client.post("/asesor", json={"pregunta": "submarinismo minero en altura"})
+    assert resp_asesor.status_code == 200
+    extra = asesor._recuperar_fragmentos_relevantes("submarinismo minero en altura")
+    assert "decreto prueba xyz" in extra  # etiqueta citable derivada del nombre del archivo
+    assert "regula el submarinismo minero en altura" in extra
+
+    # Desactivarlo lo saca de la búsqueda
+    resp_desactivar = client.put(
+        f"/admin/asesor/documentos/{documento_id}/activo",
+        headers=headers,
+        json={"activo": False},
+    )
+    assert resp_desactivar.status_code == 200
+    client.post("/asesor", json={"pregunta": "submarinismo minero en altura"})  # refresca el índice
+    extra_tras_desactivar = asesor._recuperar_fragmentos_relevantes("submarinismo minero en altura")
+    assert "regula el submarinismo minero en altura" not in extra_tras_desactivar
+
+    # Borrarlo lo quita del listado
+    resp_borrar = client.delete(f"/admin/asesor/documentos/{documento_id}", headers=headers)
+    assert resp_borrar.status_code == 204
+    listado_tras_borrar = client.get("/admin/asesor/documentos", headers=headers).json()
+    assert not any(d["id"] == documento_id for d in listado_tras_borrar)
+
+
+def test_subir_documento_asesor_pdf_real_extrae_texto():
+    import fitz
+
+    doc = fitz.open()
+    pagina = doc.new_page()
+    pagina.insert_text((72, 72), "Contenido real de un PDF subido desde el panel admin.")
+    contenido = doc.tobytes()
+    doc.close()
+
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.post(
+        "/admin/asesor/documentos",
+        headers=headers,
+        files={"archivo": ("norma.pdf", contenido, "application/pdf")},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["caracteres"] > 0
+
+
+def test_subir_documento_asesor_rechaza_extension_no_permitida():
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.post(
+        "/admin/asesor/documentos",
+        headers=headers,
+        files={"archivo": ("norma.docx", b"contenido cualquiera", "application/msword")},
+    )
+    assert resp.status_code == 422
+
+
+def test_subir_documento_asesor_rechaza_pdf_sin_capa_de_texto():
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = client.post(
+        "/admin/asesor/documentos",
+        headers=headers,
+        # Firma real de PDF, pero no es un PDF parseable de verdad — igual
+        # que un escaneo sin texto: extraer_texto_pdf_bytes devuelve "".
+        files={"archivo": ("norma.pdf", b"%PDF-1.4\nno es un pdf de verdad", "application/pdf")},
+    )
+    assert resp.status_code == 422
+
+
+def test_subir_documento_asesor_requiere_admin():
+    resp = client.post(
+        "/admin/asesor/documentos",
+        files={"archivo": ("norma.md", b"contenido", "text/markdown")},
+    )
+    assert resp.status_code in (401, 403)
+
+
 def test_avisenme_cuando_haya_notifica_al_activar_empresa_que_calza():
     """"Avísenme cuando haya" (julio 2026): antes el botón solo registraba
     al minero y no guardaba nada — nunca se le volvía a avisar. Ahora,

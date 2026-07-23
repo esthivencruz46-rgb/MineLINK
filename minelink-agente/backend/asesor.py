@@ -32,6 +32,18 @@ porque el documento usa otra conjugación. Si tras esto las preguntas
 coloquiales siguen sin encontrar lo que buscan, esa sería la señal para
 sumar embeddings encima (ver conversación con Esthiven, julio 2026).
 
+Segunda vía de nutrición — sin git (julio 2026, pedido explícito: "imagina
+que ya no uso Claude Code"): documentos subidos desde /admin, guardados
+como texto ya extraído en la tabla `DocumentoAsesor` (modelo
+`routers/admin.py`). Este módulo NUNCA importa `database`/`models` ni abre
+una sesión — sus tests deben poder correr sin base de datos. En vez de
+eso, `actualizar_documentos_admin(documentos)` recibe la lista ya
+consultada (nombre, categoría, texto) y la mezcla con los fragmentos del
+filesystem al construir el índice; la llama `routers/asesor.py` (que sí
+tiene sesión vía `Depends(get_db)`) antes de cada pregunta. Es barato
+comparar y solo se reconstruye BM25 si los documentos admin cambiaron
+desde la última pregunta.
+
 Generación intercambiable entre proveedores (julio 2026, pedido
 explícito): `generar_respuesta()` es la ÚNICA función que sabe hablar con
 una API externa. Todo lo demás (el prompt, el historial, los
@@ -109,6 +121,17 @@ def _extraer_texto_pdf(ruta: Path) -> str:
     entero, solo aportar menos contenido."""
     try:
         with fitz.open(ruta) as doc:
+            return "\n".join(pagina.get_text() for pagina in doc)
+    except Exception:
+        return ""
+
+
+def extraer_texto_pdf_bytes(contenido: bytes) -> str:
+    """Misma extracción que `_extraer_texto_pdf` pero desde bytes en
+    memoria (para el endpoint de subida en /admin, que recibe un
+    UploadFile y no debería escribir un archivo temporal en disco)."""
+    try:
+        with fitz.open(stream=contenido, filetype="pdf") as doc:
             return "\n".join(pagina.get_text() for pagina in doc)
     except Exception:
         return ""
@@ -209,6 +232,13 @@ def _cargar_fragmentos_extra() -> list[tuple[str, str]]:
 
 _NUCLEO_CACHE: str | None = None
 _INDICE_CACHE: tuple[list[tuple[str, str]], BM25Okapi | None] | None = None
+# Documentos subidos desde /admin (tabla DocumentoAsesor) — julio 2026,
+# para que Esthiven pueda nutrir al asesor sin git ni Claude Code. Este
+# módulo NUNCA toca la base de datos directamente (para que sus tests
+# sigan corriendo sin BD): el router del asesor consulta la tabla con su
+# propia sesión y llama a actualizar_documentos_admin() con el resultado
+# antes de cada pregunta.
+_DOCUMENTOS_ADMIN: list[tuple[str, str]] = []  # (etiqueta, texto completo)
 
 
 def _nucleo() -> str:
@@ -218,13 +248,31 @@ def _nucleo() -> str:
     return _NUCLEO_CACHE
 
 
+def actualizar_documentos_admin(documentos: list[tuple[str, str | None, str]]) -> None:
+    """`documentos`: (nombre, categoria, texto) — ya extraído, tal como
+    vive en DocumentoAsesor.activo=True. Se compara contra lo que ya
+    había: si no cambió nada, no se invalida el índice (evita reconstruir
+    BM25 sobre TODO el corpus en cada pregunta solo por una consulta que
+    siempre devuelve lo mismo)."""
+    global _DOCUMENTOS_ADMIN, _INDICE_CACHE
+    nuevos = [
+        (f"{categoria}/{nombre}" if categoria else nombre, texto)
+        for nombre, categoria, texto in documentos
+    ]
+    if nuevos != _DOCUMENTOS_ADMIN:
+        _DOCUMENTOS_ADMIN = nuevos
+        _INDICE_CACHE = None  # fuerza reconstrucción en la próxima pregunta
+
+
 def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
-    """Se construye una sola vez por proceso (mismo patrón de caché que
-    el resto de `_cargar_*`) — trocear + indexar decenas de PDFs tarda
-    varios segundos, no queremos pagar ese costo en cada pregunta."""
+    """Se construye una sola vez por proceso (o hasta que cambien los
+    documentos admin) — trocear + indexar decenas de PDFs tarda varios
+    segundos, no queremos pagar ese costo en cada pregunta."""
     global _INDICE_CACHE
     if _INDICE_CACHE is None:
         fragmentos = _cargar_fragmentos_extra()
+        for etiqueta, texto in _DOCUMENTOS_ADMIN:
+            fragmentos.extend((etiqueta, trozo) for trozo in _trocear(texto))
         indice = BM25Okapi([_tokenizar(texto) for _, texto in fragmentos]) if fragmentos else None
         _INDICE_CACHE = (fragmentos, indice)
     return _INDICE_CACHE
@@ -239,7 +287,7 @@ def _etiqueta_citable(etiqueta: str) -> str:
     (DS_NNN-AAAA-EM, Ley_NNNNN, RM_NNN-AAAA-MEM_DM...) porque así los
     organizó Esthiven al nutrir al asesor."""
     nombre = etiqueta.rsplit("/", 1)[-1]
-    nombre = re.sub(r"\.(md|txt)$", "", nombre)
+    nombre = re.sub(r"\.(md|txt|pdf)$", "", nombre)
     return nombre.replace("_", " ")
 
 

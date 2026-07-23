@@ -25,6 +25,16 @@ def preguntar_asesor(
     ][-asesor.MAX_TURNOS_HISTORIAL :]
     historial.append({"rol": "usuario", "contenido": payload.pregunta})
 
+    # Documentos subidos desde /admin (sin git) — barato de consultar; solo
+    # reconstruye el índice de búsqueda si de verdad cambió algo desde la
+    # última pregunta (ver asesor.actualizar_documentos_admin).
+    documentos_admin = db.query(models.DocumentoAsesor).filter(
+        models.DocumentoAsesor.activo == True  # noqa: E712
+    ).all()
+    asesor.actualizar_documentos_admin(
+        [(d.nombre, d.categoria, d.texto) for d in documentos_admin]
+    )
+
     system = asesor.construir_system_prompt(payload.pregunta)
     try:
         respuesta = asesor.generar_respuesta(system, historial)

@@ -76,6 +76,9 @@ const AdminEmpresas = lazy(() =>
 const AdminLeads = lazy(() =>
   import("./pages/admin/AdminLeads").then((m) => ({ default: m.AdminLeads }))
 );
+const AdminAsesor = lazy(() =>
+  import("./pages/admin/AdminAsesor").then((m) => ({ default: m.AdminAsesor }))
+);
 const AdminLogin = lazy(() =>
   import("./pages/admin/AdminLogin").then((m) => ({ default: m.AdminLogin }))
 );
@@ -207,6 +210,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <AdminLeads />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/asesor"
+              element={
+                <ProtectedRoute>
+                  <AdminAsesor />
                 </ProtectedRoute>
               }
             />

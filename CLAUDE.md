@@ -123,6 +123,18 @@ Built on top of it since (all deployed):
   explicitly instructs citing the specific law/decree by name in the answer (owner
   request: real citations read as more professional/trustworthy) — never invented,
   only from what's actually in a retrieved fragment's label.
+- **Second way to feed the advisor — no git needed** (owner request: "imagine I stop
+  using Claude Code"): `/admin/asesor` lets Esthiven upload a PDF/.md/.txt straight from
+  the browser. The backend extracts the text (`asesor.extraer_texto_pdf_bytes`) and
+  stores it — not the raw file — in the new `DocumentoAsesor` table (migration
+  `seeds/migrar_documentos_asesor.py`, not yet run against prod — confirm before
+  running). `asesor.py` itself never touches the DB (keeps its tests DB-free): the
+  router queries `DocumentoAsesor.activo` on every question and calls
+  `asesor.actualizar_documentos_admin(...)`, which only rebuilds the cached BM25 index
+  if that list actually changed since the last question — no redeploy needed, live
+  within one request of uploading. This is fully independent of and complementary to
+  the git-committed `context/asesor_conocimiento/` folder; both get merged into the
+  same search index.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):

@@ -1400,3 +1400,25 @@ class AsesorPreguntaRequest(BaseModel):
 
 class AsesorRespuestaOut(BaseModel):
     respuesta: str
+
+
+# ---------- Documentos del asesor subidos desde /admin (julio 2026) ----------
+# Para nutrir al asesor sin git/GitHub/Claude Code — ver DocumentoAsesor en
+# models.py y routers/admin.py.
+
+class DocumentoAsesorOut(BaseModel):
+    id: int
+    nombre: str
+    categoria: Optional[str] = None
+    activo: bool
+    created_at: datetime
+    # No se expone el texto completo (puede ser larguísimo) — solo su
+    # tamaño, para que el admin confirme que sí se extrajo contenido real.
+    caracteres: int
+
+    class Config:
+        from_attributes = True
+
+
+class CambiarActivoDocumentoAsesorRequest(BaseModel):
+    activo: bool

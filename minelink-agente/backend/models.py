@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -353,4 +353,23 @@ class Evento(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     tipo = Column(String, nullable=False, index=True)
+    created_at = Column(DateTime, default=_now)
+
+
+class DocumentoAsesor(Base):
+    """Documento subido desde /admin para nutrir al asesor conversacional
+    SIN pasar por git/GitHub/Claude Code (julio 2026, pedido explícito:
+    Esthiven quiere poder seguir agregando normas aunque en el futuro ya
+    no use Claude Code). Se guarda el texto ya extraído (no el PDF crudo)
+    — es lo único que el asesor necesita para buscar/citar. `categoria`
+    es el "tema" opcional (mismo espíritu que las subcarpetas de
+    context/asesor_conocimiento/, ej. "ambiental", "REINFO")."""
+
+    __tablename__ = "documentos_asesor"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    nombre = Column(String, nullable=False)
+    categoria = Column(String, nullable=True)
+    texto = Column(Text, nullable=False)
+    activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=_now)

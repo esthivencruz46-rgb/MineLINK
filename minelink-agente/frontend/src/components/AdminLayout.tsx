@@ -6,6 +6,7 @@ const ENLACES = [
   { to: "/admin", label: "Dashboard", fin: true },
   { to: "/admin/empresas", label: "Empresas" },
   { to: "/admin/leads", label: "Leads" },
+  { to: "/admin/asesor", label: "Asesor" },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {

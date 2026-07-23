@@ -365,7 +365,7 @@ def test_recuperar_fragmentos_relevantes_extrae_pdfs(tmp_path, monkeypatch):
     doc.close()
 
     extra = asesor._recuperar_fragmentos_relevantes("¿qué necesito para la formalización?")
-    assert "jurisprudencia.pdf" in extra
+    assert "jurisprudencia" in extra
     assert "la formalización requiere REINFO vigente" in extra
 
 
@@ -375,6 +375,54 @@ def test_extraer_texto_pdf_con_archivo_corrupto_no_revienta(tmp_path):
     ruta = tmp_path / "corrupto.pdf"
     ruta.write_bytes(b"esto no es un PDF valido")
     assert asesor._extraer_texto_pdf(ruta) == ""
+
+
+def test_extraer_texto_pdf_bytes_funciona_sin_archivo_en_disco():
+    # Para el endpoint de subida en /admin (julio 2026) — recibe el PDF ya
+    # en memoria (UploadFile), no debería necesitar escribirlo a disco.
+    doc = fitz.open()
+    pagina = doc.new_page()
+    pagina.insert_text((72, 72), "Texto de prueba subido desde el panel admin.")
+    contenido = doc.tobytes()
+    doc.close()
+
+    texto = asesor.extraer_texto_pdf_bytes(contenido)
+    assert "Texto de prueba subido desde el panel admin." in texto
+
+
+def test_extraer_texto_pdf_bytes_con_archivo_corrupto_no_revienta():
+    assert asesor.extraer_texto_pdf_bytes(b"esto no es un PDF valido") == ""
+
+
+def test_actualizar_documentos_admin_sin_bd_directa(tmp_path, monkeypatch):
+    # julio 2026, pedido explícito ("imagina que ya no uso Claude Code"):
+    # asesor.py NUNCA toca la base de datos — recibe los documentos ya
+    # consultados y los mezcla con el contenido del filesystem al buscar.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
+    _agregar_relleno(tmp_path)
+
+    asesor.actualizar_documentos_admin(
+        [("RD_099-2026-MINEM", "07_penal_control", "El OEFA sanciona el incumplimiento ambiental minero.")]
+    )
+    extra = asesor._recuperar_fragmentos_relevantes("¿qué pasa si incumplo lo ambiental?")
+    assert "RD 099-2026-MINEM" in extra  # etiqueta citable, igual que los del filesystem
+    assert "El OEFA sanciona el incumplimiento ambiental minero." in extra
+
+
+def test_actualizar_documentos_admin_no_reconstruye_si_no_cambio(monkeypatch):
+    # No queremos rehacer el índice BM25 en cada pregunta solo porque el
+    # router consulta la tabla cada vez — solo cuando el resultado cambió
+    # de verdad (ej. subieron o borraron un documento).
+    monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", ("cache-falso", None))
+
+    asesor.actualizar_documentos_admin([])  # mismo resultado que ya había (vacío)
+    assert asesor._INDICE_CACHE == ("cache-falso", None)  # no se invalidó
+
+    asesor.actualizar_documentos_admin([("Norma X", None, "contenido")])
+    assert asesor._INDICE_CACHE is None  # ahora sí cambió, se invalida
 
 
 def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, monkeypatch):

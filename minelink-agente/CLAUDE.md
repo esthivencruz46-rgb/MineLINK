@@ -110,6 +110,19 @@ Plataforma web donde un minero artesanal peruano:
    citar la norma por su nombre en la respuesta (pedido del dueño: se ve
    más profesional/confiable) — nunca inventada, solo lo que de verdad
    viene en la etiqueta de un fragmento recuperado.
+9. **Segunda forma de nutrir al asesor — sin git** (pedido explícito:
+   "imagina que ya no uso Claude Code"): `/admin/asesor` deja subir un
+   PDF/.md/.txt directo desde el navegador. Se extrae y guarda SOLO el
+   texto (no el archivo crudo) en la tabla nueva `DocumentoAsesor`
+   (migración `seeds/migrar_documentos_asesor.py`, aún sin correr contra
+   producción — confirmar antes). `asesor.py` nunca toca la base de
+   datos por sí mismo (sus tests siguen corriendo sin BD): el router
+   consulta `DocumentoAsesor.activo` en cada pregunta y llama a
+   `asesor.actualizar_documentos_admin(...)`, que solo reconstruye el
+   índice BM25 si la lista cambió de verdad desde la última pregunta —
+   sin redeploy, disponible en la siguiente pregunta de cualquiera. Es
+   independiente y se combina en el mismo índice con la carpeta
+   `context/asesor_conocimiento/` del repositorio.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el
@@ -275,7 +288,8 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── main.py                 ← registra los routers, crea tablas al arrancar
 │   ├── database.py             ← engine SQLite/Postgres, WAL, get_db()
 │   ├── models.py               ← SQLAlchemy: Operacion, Lead, Empresa, DocumentoOperacion,
-│   │                              InteresInversion, InteresEmpresa, Notificacion, Evento
+│   │                              InteresInversion, InteresEmpresa, Notificacion, Evento,
+│   │                              DocumentoAsesor
 │   ├── schemas.py              ← Pydantic (request/response)
 │   ├── catalogo_diagnostico.py ← catálogo del diagnóstico: ids, tipos, condicionales,
 │   │                              brecha→estudio (BRECHA_POR_PREGUNTA)
