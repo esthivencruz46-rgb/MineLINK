@@ -239,24 +239,37 @@ def _proyecto_publico_out(
 
 
 def _fotos_portada(db: Session, operacion_ids: list[str]) -> dict[str, str]:
-    """Primera foto de mina de cada operación (una sola consulta), como URL
-    pública servida por el backend."""
+    """Foto de portada de cada operación (una sola consulta), como URL
+    pública servida por el backend. Antes solo miraba `fotos_mina`, una
+    categoría a la que ya nadie sube desde la cuenta actual del minero
+    (julio 2026) — por eso las tarjetas de /proyectos siempre mostraban el
+    ícono genérico aunque el minero sí hubiera subido fotos. Ahora busca en
+    TODA la galería pública (`CATEGORIAS_GALERIA`, la misma que ya usa la
+    ficha) y prioriza `fotos_presentacion` (la categoría pensada
+    explícitamente para "mostrar tu proyecto") si existe, aunque no sea la
+    más antigua."""
     if not operacion_ids:
         return {}
     fotos = (
         db.query(models.DocumentoOperacion)
         .filter(
             models.DocumentoOperacion.operacion_id.in_(operacion_ids),
-            models.DocumentoOperacion.categoria == "fotos_mina",
+            models.DocumentoOperacion.categoria.in_(CATEGORIAS_GALERIA),
         )
         .order_by(models.DocumentoOperacion.created_at.asc())
         .all()
     )
-    portada: dict[str, str] = {}
+    mejor_por_operacion: dict[str, models.DocumentoOperacion] = {}
     for f in fotos:
-        if f.operacion_id not in portada:
-            portada[f.operacion_id] = f"/proyectos/{f.operacion_id}/fotos/{f.id}"
-    return portada
+        actual = mejor_por_operacion.get(f.operacion_id)
+        if actual is None:
+            mejor_por_operacion[f.operacion_id] = f
+        elif f.categoria == "fotos_presentacion" and actual.categoria != "fotos_presentacion":
+            mejor_por_operacion[f.operacion_id] = f
+    return {
+        operacion_id: f"/proyectos/{f.operacion_id}/fotos/{f.id}"
+        for operacion_id, f in mejor_por_operacion.items()
+    }
 
 
 @router.get("", response_model=list[schemas.ProyectoPublicoOut])

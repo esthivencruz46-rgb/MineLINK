@@ -4411,6 +4411,67 @@ def test_proyectos_lista_incluye_foto_portada():
     assert "/fotos/" in proyectos[0]["foto_portada_url"]
 
 
+def test_proyectos_lista_usa_fotos_presentacion_como_portada():
+    # Julio 2026: fotos_mina es una categoría a la que ya nadie sube desde
+    # la cuenta actual — fotos_presentacion es la que sí se usa hoy (Módulo
+    # INV). Antes de este fix, este minero nunca tenía portada aunque sí
+    # hubiera subido fotos.
+    token = _token_minero(username="minerofotopresentacionportada")
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/mineros/documentos",
+        data={"categoria": "fotos_presentacion"},
+        files={"archivo": ("presentacion.jpg", b"\xff\xd8\xfffoto de presentacion", "image/jpeg")},
+        headers=headers,
+    )
+    operacion_id = client.get("/mineros/me", headers=headers).json()["operacion_id"]
+    _hacer_apto_inversionistas(operacion_id, "minerofotopresentacionportada")
+
+    proyectos = client.get("/proyectos").json()
+    proyecto = next(p for p in proyectos if p["operacion_id"] == operacion_id)
+    assert proyecto["foto_portada_url"] is not None
+    assert "/fotos/" in proyecto["foto_portada_url"]
+
+
+def test_proyectos_lista_prioriza_fotos_presentacion_sobre_otra_categoria_mas_antigua():
+    # fotos_presentacion es la categoría pensada para "mostrar tu proyecto"
+    # — debe ganar como portada aunque se haya subido después que otra foto
+    # de galería.
+    token = _token_minero(username="minerofotoprioridad")
+    headers = {"Authorization": f"Bearer {token}"}
+    client.post(
+        "/mineros/documentos",
+        data={"categoria": "muestreo_propio"},
+        files={"archivo": ("muestreo.jpg", b"\xff\xd8\xfffoto muestreo", "image/jpeg")},
+        headers=headers,
+    )
+    client.post(
+        "/mineros/documentos",
+        data={"categoria": "fotos_presentacion"},
+        files={"archivo": ("presentacion.jpg", b"\xff\xd8\xfffoto presentacion", "image/jpeg")},
+        headers=headers,
+    )
+    operacion_id = client.get("/mineros/me", headers=headers).json()["operacion_id"]
+    _hacer_apto_inversionistas(operacion_id, "minerofotoprioridad")
+
+    db = TestingSessionLocal()
+    try:
+        foto_presentacion = (
+            db.query(models.DocumentoOperacion)
+            .filter(
+                models.DocumentoOperacion.operacion_id == operacion_id,
+                models.DocumentoOperacion.categoria == "fotos_presentacion",
+            )
+            .first()
+        )
+    finally:
+        db.close()
+
+    proyectos = client.get("/proyectos").json()
+    proyecto = next(p for p in proyectos if p["operacion_id"] == operacion_id)
+    assert proyecto["foto_portada_url"] == f"/proyectos/{operacion_id}/fotos/{foto_presentacion.id}"
+
+
 def test_maximo_fotos_de_presentacion():
     # Julio 2026: sin mínimo, máximo 5 — es una vitrina, no un álbum.
     from uploads_config import FOTOS_PRESENTACION_MAXIMO
