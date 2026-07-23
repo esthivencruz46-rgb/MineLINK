@@ -225,6 +225,49 @@ def test_generar_respuesta_lanza_no_disponible_si_todos_los_proveedores_fallan(m
         asesor.generar_respuesta("system", [{"rol": "usuario", "contenido": "hola"}])
 
 
+def test_generar_respuesta_con_proveedor_devuelve_quien_respondio(monkeypatch):
+    # julio 2026, para LlamadaAsesor: el dashboard admin necesita saber
+    # QUÉ proveedor sirvió la respuesta, no solo que "algo respondió".
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["kimi", "deepseek"])
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "clave-de-prueba")
+    historial = [{"rol": "usuario", "contenido": "hola"}]
+
+    with patch("requests.post") as mock_post:
+        mock_post.return_value = _RespuestaFalsa(
+            {"choices": [{"message": {"content": "respuesta de deepseek"}}]}
+        )
+        respuesta, proveedor = asesor.generar_respuesta_con_proveedor("system", historial)
+
+    assert respuesta == "respuesta de deepseek"
+    assert proveedor == "deepseek"
+
+
+def test_generar_respuesta_con_proveedor_en_modo_simulado(monkeypatch):
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["simulado"])
+    historial = [{"rol": "usuario", "contenido": "hola"}]
+    respuesta, proveedor = asesor.generar_respuesta_con_proveedor("system", historial)
+    assert proveedor == "simulado"
+    assert "simulado" in respuesta.lower()
+
+
+def test_asesor_no_disponible_conserva_el_proveedor_que_fallo(monkeypatch):
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    with pytest.raises(asesor.AsesorNoDisponible) as excinfo:
+        asesor._via_claude("system", [{"rol": "usuario", "contenido": "hola"}])
+    assert excinfo.value.proveedor == "claude"
+
+
+def test_generar_respuesta_con_proveedor_conserva_proveedor_del_ultimo_error(monkeypatch):
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["kimi", "deepseek"])
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+
+    with pytest.raises(asesor.AsesorNoDisponible) as excinfo:
+        asesor.generar_respuesta_con_proveedor("system", [{"rol": "usuario", "contenido": "hola"}])
+    assert excinfo.value.proveedor == "deepseek"  # el último intentado
+
+
 def test_via_claude_error_de_red_se_traduce_a_no_disponible(monkeypatch):
     import requests
 

@@ -102,10 +102,18 @@ Plataforma web donde un minero artesanal peruano:
    coloquial que no menciona el nombre del instrumento legal que busca
    (ej. "papel para no tener problemas ambientales" → IGAFOM), que sí
    necesitaría búsqueda semántica para cerrarse. El dashboard admin
-   muestra `asesor_preguntas_hoy`/`asesor_fallas_hoy` (vía `Evento`, que
-   el router escribe en cada llamada) — se agregó porque una clave mala en
-   Render pasó desapercibida varios días; revisar esto antes de asumir
-   "no hay tráfico" cuando un proveedor falla en silencio. Los fragmentos
+   muestra qué proveedor respondió/falló por última vez y con qué error
+   (tabla `LlamadaAsesor`, migración `seeds/migrar_llamadas_asesor.py`,
+   confirmar antes de correr contra prod — reemplaza el conteo genérico
+   por `Evento` de antes): `asesor.generar_respuesta_con_proveedor()`
+   devuelve `(texto, proveedor)` si responde bien, y
+   `AsesorNoDisponible.proveedor` guarda quién fue el último que falló —
+   `asesor.py` sigue sin tocar la base de datos, es el router quien
+   consulta/escribe. Se agregó porque un 503 real de Gemini solo se pudo
+   diagnosticar probando en vivo desde la terminal; ahora
+   `DashboardOut.asesor_ultimo_proveedor_ok`/`asesor_ultima_falla` lo
+   dicen directo — revisar esto antes de asumir "no hay tráfico" cuando
+   un proveedor falla en silencio. Los fragmentos
    recuperados se etiquetan en formato citable (`asesor._etiqueta_citable`:
    sin subcarpeta ni extensión, guiones bajos → espacios, ej. "DS
    038-2017-EM Reglamento IGAFOM") y el system prompt le pide EXPLÍCITAMENTE
@@ -291,7 +299,7 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── database.py             ← engine SQLite/Postgres, WAL, get_db()
 │   ├── models.py               ← SQLAlchemy: Operacion, Lead, Empresa, DocumentoOperacion,
 │   │                              InteresInversion, InteresEmpresa, Notificacion, Evento,
-│   │                              DocumentoAsesor
+│   │                              DocumentoAsesor, LlamadaAsesor
 │   ├── schemas.py              ← Pydantic (request/response)
 │   ├── catalogo_diagnostico.py ← catálogo del diagnóstico: ids, tipos, condicionales,
 │   │                              brecha→estudio (BRECHA_POR_PREGUNTA)

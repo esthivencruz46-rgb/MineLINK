@@ -37,20 +37,23 @@ def preguntar_asesor(
 
     system = asesor.construir_system_prompt(payload.pregunta)
     try:
-        respuesta = asesor.generar_respuesta(system, historial)
-    except asesor.AsesorNoDisponible:
-        # "asesor_fallo"/"asesor_respondido" son eventos SOLO del servidor
-        # (nunca pasan por POST /eventos ni su lista validada de tipos) —
-        # existen para que el dashboard admin muestre si el asesor está
-        # fallando hoy sin que Esthiven tenga que probarlo a mano (julio
-        # 2026, tras un incidente real: una clave de API incompleta en
-        # Render pasó desapercibida hasta que él mismo lo notó por casualidad).
-        db.add(models.Evento(tipo="asesor_fallo"))
+        respuesta, proveedor = asesor.generar_respuesta_con_proveedor(system, historial)
+    except asesor.AsesorNoDisponible as e:
+        # LlamadaAsesor (julio 2026) registra QUÉ proveedor falló y por qué
+        # — existe para que el dashboard admin diga directamente "Gemini
+        # está fallando: 503 high demand" sin que nadie tenga que
+        # reproducir el error a mano (surgió de un incidente real: una
+        # clave de API incompleta en Render pasó desapercibida hasta que
+        # Esthiven lo notó por casualidad, y luego un 503 de Gemini que
+        # solo se diagnosticó probando en vivo desde la terminal).
+        db.add(
+            models.LlamadaAsesor(exitoso=False, proveedor=e.proveedor, detalle=str(e))
+        )
         db.commit()
         raise HTTPException(
             status_code=503,
             detail="El asesor no está disponible en este momento. Intenta de nuevo en un rato.",
         )
-    db.add(models.Evento(tipo="asesor_respondido"))
+    db.add(models.LlamadaAsesor(exitoso=True, proveedor=proveedor))
     db.commit()
     return schemas.AsesorRespuestaOut(respuesta=respuesta)

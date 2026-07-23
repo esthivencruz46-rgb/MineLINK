@@ -121,6 +121,11 @@ export interface DashboardOut {
   // real con una clave de API incompleta en Render que pasó desapercibida).
   asesor_preguntas_hoy: number;
   asesor_fallas_hoy: number;
+  // Qué proveedor respondió/falló por última vez (julio 2026, tras el 503
+  // de Gemini que solo se diagnosticó probando en vivo) — para saber qué
+  // está fallando sin reproducir el error a mano.
+  asesor_ultimo_proveedor_ok: string | null;
+  asesor_ultima_falla: { proveedor: string | null; detalle: string; created_at: string } | null;
 }
 
 // Documento subido desde /admin para nutrir al asesor sin git (julio

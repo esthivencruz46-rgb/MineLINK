@@ -358,19 +358,27 @@ def construir_system_prompt(pregunta: str) -> str:
 class AsesorNoDisponible(Exception):
     """El proveedor configurado no pudo responder (sin clave, error de red,
     error de la API) — el router lo traduce a un mensaje amable, nunca a
-    un 500 crudo."""
+    un 500 crudo. `proveedor` (julio 2026) es el nombre del que falló —
+    lo usa el router para registrar en LlamadaAsesor qué proveedor está
+    dando problemas, sin tener que reproducir el error a mano."""
+
+    def __init__(self, mensaje: str, proveedor: str | None = None):
+        super().__init__(mensaje)
+        self.proveedor = proveedor
 
 
-def generar_respuesta(system: str, historial: list[dict]) -> str:
-    """Única función que habla con un proveedor externo. `historial` es
-    una lista de {"rol": "usuario"|"asesor", "contenido": str}, ya
-    recortada a MAX_TURNOS_HISTORIAL por el caller.
+def generar_respuesta_con_proveedor(system: str, historial: list[dict]) -> tuple[str, str]:
+    """Igual que `generar_respuesta()` pero además devuelve qué proveedor
+    respondió (julio 2026, para LlamadaAsesor — así el dashboard admin
+    dice qué proveedor está fallando en vez de solo "algo falló", que
+    exigía reproducir el error a mano cada vez).
 
     Prueba cada proveedor de PROVEEDORES en orden (cadena de respaldo): si
     el que le toca falla por lo que sea (sin cuota gratis del día, clave
     inválida, error de red), pasa solo al siguiente configurado — el
     usuario nunca lo nota. Si TODOS fallan, se propaga el último error
-    para que el router avise que el asesor no está disponible."""
+    (con `.proveedor` seteado a quién fue) para que el router avise que
+    el asesor no está disponible."""
     adaptadores = {
         "claude": _via_claude,
         "gemini": _via_gemini,
@@ -382,7 +390,7 @@ def generar_respuesta(system: str, historial: list[dict]) -> str:
         "openai": _via_openai,
     }
     if PROVEEDORES == ["simulado"]:
-        return _via_simulado(system, historial)
+        return _via_simulado(system, historial), "simulado"
 
     ultimo_error: AsesorNoDisponible | None = None
     for proveedor in PROVEEDORES:
@@ -390,12 +398,22 @@ def generar_respuesta(system: str, historial: list[dict]) -> str:
         if adaptador is None:
             continue
         try:
-            return adaptador(system, historial)
+            return adaptador(system, historial), proveedor
         except AsesorNoDisponible as e:
             ultimo_error = e
     if ultimo_error is not None:
         raise ultimo_error
-    return _via_simulado(system, historial)
+    return _via_simulado(system, historial), "simulado"
+
+
+def generar_respuesta(system: str, historial: list[dict]) -> str:
+    """Única función que habla con un proveedor externo (envoltorio de
+    `generar_respuesta_con_proveedor()` para quien no necesita saber
+    cuál respondió). `historial` es una lista de {"rol":
+    "usuario"|"asesor", "contenido": str}, ya recortada a
+    MAX_TURNOS_HISTORIAL por el caller."""
+    respuesta, _proveedor = generar_respuesta_con_proveedor(system, historial)
+    return respuesta
 
 
 def _via_simulado(system: str, historial: list[dict]) -> str:
@@ -424,7 +442,7 @@ def _mensajes_openai_like(historial: list[dict]) -> list[dict]:
 def _via_claude(system: str, historial: list[dict]) -> str:
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta ANTHROPIC_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta ANTHROPIC_API_KEY en el entorno", proveedor="claude")
     try:
         resp = requests.post(
             "https://api.anthropic.com/v1/messages",
@@ -448,13 +466,13 @@ def _via_claude(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return "".join(bloque.get("text", "") for bloque in data.get("content", []))
     except (requests.RequestException, KeyError, ValueError) as e:
-        raise AsesorNoDisponible(f"Claude no respondió: {e}") from e
+        raise AsesorNoDisponible(f"Claude no respondió: {e}", proveedor="claude") from e
 
 
 def _via_gemini(system: str, historial: list[dict]) -> str:
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta GEMINI_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta GEMINI_API_KEY en el entorno", proveedor="gemini")
     try:
         resp = requests.post(
             f"https://generativelanguage.googleapis.com/v1beta/models/{_modelo_para('gemini')}:generateContent",
@@ -476,14 +494,14 @@ def _via_gemini(system: str, historial: list[dict]) -> str:
         partes = data["candidates"][0]["content"]["parts"]
         return "".join(p.get("text", "") for p in partes)
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"Gemini no respondió: {e}") from e
+        raise AsesorNoDisponible(f"Gemini no respondió: {e}", proveedor="gemini") from e
 
 
 def _via_grok(system: str, historial: list[dict]) -> str:
     # xAI expone una API compatible con el formato de OpenAI.
     api_key = os.environ.get("XAI_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta XAI_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta XAI_API_KEY en el entorno", proveedor="grok")
     try:
         resp = requests.post(
             "https://api.x.ai/v1/chat/completions",
@@ -498,7 +516,7 @@ def _via_grok(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"Grok no respondió: {e}") from e
+        raise AsesorNoDisponible(f"Grok no respondió: {e}", proveedor="grok") from e
 
 
 def _via_kimi(system: str, historial: list[dict]) -> str:
@@ -506,7 +524,7 @@ def _via_kimi(system: str, historial: list[dict]) -> str:
     # patrón que _via_grok.
     api_key = os.environ.get("MOONSHOT_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta MOONSHOT_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta MOONSHOT_API_KEY en el entorno", proveedor="kimi")
     try:
         resp = requests.post(
             "https://api.moonshot.ai/v1/chat/completions",
@@ -521,14 +539,14 @@ def _via_kimi(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"Kimi no respondió: {e}") from e
+        raise AsesorNoDisponible(f"Kimi no respondió: {e}", proveedor="kimi") from e
 
 
 def _via_deepseek(system: str, historial: list[dict]) -> str:
     # DeepSeek — API compatible con el formato de OpenAI.
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta DEEPSEEK_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta DEEPSEEK_API_KEY en el entorno", proveedor="deepseek")
     try:
         resp = requests.post(
             "https://api.deepseek.com/chat/completions",
@@ -543,7 +561,7 @@ def _via_deepseek(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"DeepSeek no respondió: {e}") from e
+        raise AsesorNoDisponible(f"DeepSeek no respondió: {e}", proveedor="deepseek") from e
 
 
 def _via_qwen(system: str, historial: list[dict]) -> str:
@@ -551,7 +569,7 @@ def _via_qwen(system: str, historial: list[dict]) -> str:
     # endpoint internacional (no el de China continental).
     api_key = os.environ.get("DASHSCOPE_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta DASHSCOPE_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta DASHSCOPE_API_KEY en el entorno", proveedor="qwen")
     try:
         resp = requests.post(
             "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
@@ -566,14 +584,14 @@ def _via_qwen(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"Qwen no respondió: {e}") from e
+        raise AsesorNoDisponible(f"Qwen no respondió: {e}", proveedor="qwen") from e
 
 
 def _via_glm(system: str, historial: list[dict]) -> str:
     # GLM / Zhipu AI (bigmodel.cn) — modo compatible con OpenAI.
     api_key = os.environ.get("ZHIPU_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta ZHIPU_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta ZHIPU_API_KEY en el entorno", proveedor="glm")
     try:
         resp = requests.post(
             "https://open.bigmodel.cn/api/paas/v4/chat/completions",
@@ -588,13 +606,13 @@ def _via_glm(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"GLM no respondió: {e}") from e
+        raise AsesorNoDisponible(f"GLM no respondió: {e}", proveedor="glm") from e
 
 
 def _via_openai(system: str, historial: list[dict]) -> str:
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise AsesorNoDisponible("Falta OPENAI_API_KEY en el entorno")
+        raise AsesorNoDisponible("Falta OPENAI_API_KEY en el entorno", proveedor="openai")
     try:
         resp = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -609,4 +627,4 @@ def _via_openai(system: str, historial: list[dict]) -> str:
         data = resp.json()
         return data["choices"][0]["message"]["content"]
     except (requests.RequestException, KeyError, IndexError, ValueError) as e:
-        raise AsesorNoDisponible(f"ChatGPT no respondió: {e}") from e
+        raise AsesorNoDisponible(f"ChatGPT no respondió: {e}", proveedor="openai") from e

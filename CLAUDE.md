@@ -116,10 +116,16 @@ Built on top of it since (all deployed):
   don't phrase things like the legal text), this fixed real zero-result queries; matching
   a colloquial phrase to a legal term the asker doesn't know the name of (ex. "papel para
   no tener problemas ambientales" → IGAFOM) is the one gap left, and would need semantic
-  search to close. Dashboard health check: `DashboardOut.asesor_preguntas_hoy` /
-  `asesor_fallas_hoy` (from `Evento` rows the router writes on every call) exist because a
-  bad key in Render once went unnoticed for days — check these before assuming "no
-  traffic" when a provider silently breaks. Retrieved fragments are labeled with a
+  search to close. Dashboard health check, `LlamadaAsesor` table (migration
+  `seeds/migrar_llamadas_asesor.py`, confirm before running against prod — replaced the
+  earlier generic `Evento`-based counter after a live Gemini 503 could only be diagnosed
+  by curling prod from a terminal): every call to `/asesor` writes one row
+  (`exitoso`, `proveedor`, `detalle`) — `asesor.generar_respuesta_con_proveedor()` returns
+  `(texto, proveedor)` on success and `AsesorNoDisponible.proveedor` carries which one
+  raised last on failure (`asesor.py` still never touches the DB — the router queries and
+  writes). `DashboardOut.asesor_ultimo_proveedor_ok` / `asesor_ultima_falla` (provider +
+  error text + timestamp) surface this — check these instead of assuming "no traffic"
+  when a provider silently breaks. Retrieved fragments are labeled with a
   citable form of their filename (`_etiqueta_citable`: strips subfolder/extension,
   underscores → spaces, ex. "DS 038-2017-EM Reglamento IGAFOM") and the system prompt
   explicitly instructs citing the specific law/decree by name in the answer (owner

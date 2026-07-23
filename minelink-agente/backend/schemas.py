@@ -1316,6 +1316,12 @@ class UltimoLead(BaseModel):
     created_at: datetime
 
 
+class UltimaFallaAsesor(BaseModel):
+    proveedor: Optional[str] = None
+    detalle: str
+    created_at: datetime
+
+
 class DashboardOut(BaseModel):
     diagnosticos_hoy: int
     diagnosticos_total: int
@@ -1344,6 +1350,12 @@ class DashboardOut(BaseModel):
     # varios días porque nadie miraba el dashboard.
     asesor_preguntas_hoy: int = 0
     asesor_fallas_hoy: int = 0
+    # Qué proveedor respondió la última pregunta exitosa y cuál falló por
+    # última vez (con el motivo) — julio 2026, para diagnosticar un
+    # proveedor caído (ej. Gemini con 503) desde el dashboard, sin
+    # reproducir el error a mano cada vez.
+    asesor_ultimo_proveedor_ok: Optional[str] = None
+    asesor_ultima_falla: Optional[UltimaFallaAsesor] = None
 
 
 TIPOS_EVENTO_VALIDOS = (

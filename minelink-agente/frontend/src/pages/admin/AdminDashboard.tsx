@@ -148,7 +148,19 @@ export function AdminDashboard() {
           <div>
             <h2 className="mb-3 text-lg font-semibold">Asesor conversacional (hoy)</h2>
             <div className="grid grid-cols-2 gap-3">
-              <Tarjeta titulo="Preguntas respondidas" valor={datos.asesor_preguntas_hoy} />
+              <div className="bg-tarjeta p-4 dark:bg-tarjeta-dark">
+                <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                  Preguntas respondidas
+                </p>
+                <p className="mt-1 font-mono text-3xl font-semibold">
+                  {datos.asesor_preguntas_hoy}
+                </p>
+                {datos.asesor_ultimo_proveedor_ok && (
+                  <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Última respondió: <span className="font-semibold">{datos.asesor_ultimo_proveedor_ok}</span>
+                  </p>
+                )}
+              </div>
               <div
                 className={`p-4 ${
                   datos.asesor_fallas_hoy > 0
@@ -162,10 +174,13 @@ export function AdminDashboard() {
                 <p className="mt-1 font-mono text-3xl font-semibold">
                   {datos.asesor_fallas_hoy}
                 </p>
-                {datos.asesor_fallas_hoy > 0 && (
+                {datos.asesor_ultima_falla && (
                   <p className="mt-1 text-xs">
-                    Revisa las claves de API en Render — puede que el proveedor configurado
-                    no esté respondiendo.
+                    {datos.asesor_ultima_falla.proveedor ?? "proveedor desconocido"}:{" "}
+                    {datos.asesor_ultima_falla.detalle}
+                    <span className="block text-texto-suave dark:text-texto-suave-dark">
+                      {new Date(datos.asesor_ultima_falla.created_at).toLocaleString("es-PE")}
+                    </span>
                   </p>
                 )}
               </div>

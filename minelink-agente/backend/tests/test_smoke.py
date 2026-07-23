@@ -3158,17 +3158,23 @@ def test_asesor_publico_registra_evento_de_exito_en_el_dashboard():
     resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
     assert resp.status_code == 200
 
-    despues = client.get("/admin/dashboard", headers=headers).json()["asesor_preguntas_hoy"]
-    assert despues == antes + 1
+    dashboard = client.get("/admin/dashboard", headers=headers).json()
+    assert dashboard["asesor_preguntas_hoy"] == antes + 1
+    assert dashboard["asesor_ultimo_proveedor_ok"] == "simulado"
 
 
 def test_asesor_publico_registra_evento_de_falla_en_el_dashboard(monkeypatch):
+    # julio 2026: además del conteo, el dashboard debe decir QUÉ proveedor
+    # falló y por qué — es lo que hubiera hecho falta para diagnosticar el
+    # 503 de Gemini sin tener que probarlo en vivo desde la terminal.
     import asesor
 
     def _siempre_falla(system, historial):
-        raise asesor.AsesorNoDisponible("proveedor simulado caído para la prueba")
+        raise asesor.AsesorNoDisponible(
+            "proveedor simulado caído para la prueba", proveedor="gemini"
+        )
 
-    monkeypatch.setattr(asesor, "generar_respuesta", _siempre_falla)
+    monkeypatch.setattr(asesor, "generar_respuesta_con_proveedor", _siempre_falla)
 
     token = _admin_token()
     headers = {"Authorization": f"Bearer {token}"}
@@ -3177,8 +3183,10 @@ def test_asesor_publico_registra_evento_de_falla_en_el_dashboard(monkeypatch):
     resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
     assert resp.status_code == 503
 
-    despues = client.get("/admin/dashboard", headers=headers).json()["asesor_fallas_hoy"]
-    assert despues == antes + 1
+    dashboard = client.get("/admin/dashboard", headers=headers).json()
+    assert dashboard["asesor_fallas_hoy"] == antes + 1
+    assert dashboard["asesor_ultima_falla"]["proveedor"] == "gemini"
+    assert "proveedor simulado caído" in dashboard["asesor_ultima_falla"]["detalle"]
 
 
 def test_subir_documento_asesor_md_queda_disponible_para_el_asesor():

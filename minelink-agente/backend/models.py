@@ -373,3 +373,21 @@ class DocumentoAsesor(Base):
     texto = Column(Text, nullable=False)
     activo = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime, default=_now)
+
+
+class LlamadaAsesor(Base):
+    """Registro de cada pregunta al asesor: qué proveedor la resolvió (o
+    el último que se intentó, si todos fallaron) y por qué, si falló.
+    Reemplaza el conteo genérico por Evento (julio 2026) — surgió de un
+    incidente real (Gemini devolviendo 503) que solo se diagnosticó
+    probando en vivo desde la terminal; con esto el dashboard admin dice
+    directamente qué proveedor está fallando y con qué error, sin que
+    nadie tenga que reproducir el problema a mano."""
+
+    __tablename__ = "llamadas_asesor"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    exitoso = Column(Boolean, nullable=False)
+    proveedor = Column(String, nullable=True)
+    detalle = Column(String, nullable=True)
+    created_at = Column(DateTime, default=_now, index=True)

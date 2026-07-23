@@ -399,16 +399,40 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
     intereses_inversion_total = db.query(models.InteresInversion).count()
 
     # Salud del asesor HOY (no total) — así el dashboard avisa si está
-    # fallando ahora mismo, no si falló alguna vez hace meses.
+    # fallando ahora mismo, no si falló alguna vez hace meses. Vía
+    # LlamadaAsesor (julio 2026, reemplaza el conteo genérico por Evento):
+    # además de cuántas, dice QUÉ proveedor respondió/falló y por qué —
+    # antes había que reproducir el error a mano para saberlo.
     asesor_preguntas_hoy = (
-        db.query(models.Evento)
-        .filter(models.Evento.tipo == "asesor_respondido", models.Evento.created_at >= inicio_hoy)
+        db.query(models.LlamadaAsesor)
+        .filter(models.LlamadaAsesor.exitoso == True, models.LlamadaAsesor.created_at >= inicio_hoy)  # noqa: E712
         .count()
     )
     asesor_fallas_hoy = (
-        db.query(models.Evento)
-        .filter(models.Evento.tipo == "asesor_fallo", models.Evento.created_at >= inicio_hoy)
+        db.query(models.LlamadaAsesor)
+        .filter(models.LlamadaAsesor.exitoso == False, models.LlamadaAsesor.created_at >= inicio_hoy)  # noqa: E712
         .count()
+    )
+    ultimo_ok = (
+        db.query(models.LlamadaAsesor)
+        .filter(models.LlamadaAsesor.exitoso == True)  # noqa: E712
+        .order_by(models.LlamadaAsesor.created_at.desc())
+        .first()
+    )
+    ultima_falla_registro = (
+        db.query(models.LlamadaAsesor)
+        .filter(models.LlamadaAsesor.exitoso == False)  # noqa: E712
+        .order_by(models.LlamadaAsesor.created_at.desc())
+        .first()
+    )
+    asesor_ultima_falla = (
+        schemas.UltimaFallaAsesor(
+            proveedor=ultima_falla_registro.proveedor,
+            detalle=ultima_falla_registro.detalle or "",
+            created_at=ultima_falla_registro.created_at,
+        )
+        if ultima_falla_registro is not None
+        else None
     )
 
     return schemas.DashboardOut(
@@ -425,6 +449,8 @@ def dashboard(db: Session = Depends(get_db), _admin: str = Depends(get_current_a
         intereses_inversion_total=intereses_inversion_total,
         asesor_preguntas_hoy=asesor_preguntas_hoy,
         asesor_fallas_hoy=asesor_fallas_hoy,
+        asesor_ultimo_proveedor_ok=ultimo_ok.proveedor if ultimo_ok is not None else None,
+        asesor_ultima_falla=asesor_ultima_falla,
     )
 
 
