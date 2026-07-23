@@ -26,6 +26,16 @@ html:not(.dark) {
   color-scheme: light;
 }
 
+/* color-scheme por sí solo no fue suficiente en la práctica (Chrome
+   sigue pintando algunas opciones de la lista en blanco) — se fuerza el
+   color explícito de cada <option> además, que sí es confiable en todos
+   los navegadores. */
+html.dark select,
+html.dark option {
+  background-color: theme("colors.tarjeta.dark");
+  color: theme("colors.texto.dark");
+}
+
 /* Mapa de la ficha (MapaGeocatmin): la geología pasa a opacidad 100% con
    el mouse encima — la transición evita el salto brusco. */
 .mapa-geocatmin .leaflet-image-layer {
