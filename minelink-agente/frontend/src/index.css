@@ -14,6 +14,18 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Sin esto, el navegador dibuja los controles nativos (el popup de
+   <select>, la barra de scroll) siempre en claro, sin importar el modo
+   oscuro del sitio — por eso la lista desplegable de "Ordenar proyectos"
+   se veía blanca dentro de una página oscura. color-scheme le avisa al
+   navegador qué paleta nativa usar. */
+html.dark {
+  color-scheme: dark;
+}
+html:not(.dark) {
+  color-scheme: light;
+}
+
 /* Mapa de la ficha (MapaGeocatmin): la geología pasa a opacidad 100% con
    el mouse encima — la transición evita el salto brusco. */
 .mapa-geocatmin .leaflet-image-layer {
