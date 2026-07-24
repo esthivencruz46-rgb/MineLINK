@@ -51,6 +51,16 @@ export function MapaGeocatmin({
       { maxZoom: 19, attribution: "Esri, Maxar" }
     ).addTo(mapa);
 
+    // Panes propios para garantizar el orden visual con CSS real (el
+    // `zIndex` que acepta esri-leaflet en el constructor no siempre se
+    // respeta de forma confiable entre capas creadas en momentos
+    // distintos): geología queda en un pane, fallas en otro por encima
+    // — así las fallas SIEMPRE se ven trazadas sobre la geología, pedido
+    // explícito de Esthiven, sin depender de en qué orden termine de
+    // cargar cada imagen.
+    mapa.createPane("geologiaPane").style.zIndex = "410";
+    mapa.createPane("fallasPane").style.zIndex = "420";
+
     // Pila visual definida por el dueño (julio 2026): satélite al fondo →
     // geología encima muy tenue en reposo (opacity 0.25 = 25% visible) →
     // al pasar el mouse sube a 100% (ver opacidadGeologia) → el polígono
@@ -87,6 +97,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       zIndex: 10,
+      pane: "geologiaPane",
       attribution: "GEOCATMIN · INGEMMET",
     });
     const geologia50 = dynamicMapLayer({
@@ -96,6 +107,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       zIndex: 11,
+      pane: "geologiaPane",
     });
 
     // Clic en el mapa → nombre de la unidad geológica en un popup (los
@@ -129,7 +141,7 @@ export function MapaGeocatmin({
           opacity: 0.9,
           f: "image",
           useCors: false,
-          zIndex: 12,
+          pane: "fallasPane",
           attribution: "GEOCATMIN · INGEMMET",
         }).addTo(mapa)
       : null;
