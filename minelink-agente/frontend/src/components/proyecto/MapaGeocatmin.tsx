@@ -201,7 +201,12 @@ export function MapaGeocatmin({
     const anomalias = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_ANOMALIA_ESPECTRAL/MapServer`,
       layers: [0],
-      opacity: 0.7,
+      // 0.7 se veía apagado, sobre todo el verde de "Arcillas" contra el
+      // satélite (julio 2026, reportado por Esthiven al corroborar
+      // contra INGEMMET) — a diferencia de geología (fondo continuo,
+      // necesita ser tenue), esta es una capa de polígonos dispersos que
+      // debe destacar; mismo nivel que "fallas".
+      opacity: 0.9,
       f: "image",
       useCors: false,
       pane: "geologiaPane",
