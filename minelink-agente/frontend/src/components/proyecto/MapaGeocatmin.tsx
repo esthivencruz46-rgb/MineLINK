@@ -54,19 +54,23 @@ export function MapaGeocatmin({
     // Panes propios para garantizar el orden visual con CSS real (el
     // `zIndex` que acepta esri-leaflet en el constructor no siempre se
     // respeta de forma confiable entre capas creadas en momentos
-    // distintos): geología queda en un pane, fallas en otro por encima
-    // — así las fallas SIEMPRE se ven trazadas sobre la geología, pedido
-    // explícito de Esthiven, sin depender de en qué orden termine de
-    // cargar cada imagen.
+    // distintos). Orden pedido por Esthiven, de abajo hacia arriba:
+    // geología → fallas (siempre sobre la geología) → catastro minero
+    // (los límites de la concesión por ENCIMA de todo lo demás, nunca
+    // tapados por ninguna otra capa).
     mapa.createPane("geologiaPane").style.zIndex = "410";
     mapa.createPane("fallasPane").style.zIndex = "420";
+    mapa.createPane("catastroPane").style.zIndex = "430";
 
     // Pila visual definida por el dueño (julio 2026): satélite al fondo →
     // geología encima muy tenue en reposo (opacity 0.25 = 25% visible) →
-    // al pasar el mouse sube a 100% (ver opacidadGeologia) → el polígono
-    // de la concesión solo con su borde. El catastro completo (todas las
-    // concesiones vecinas, con etiquetas) queda disponible en el control
-    // de capas, apagado por defecto.
+    // al pasar el mouse sube a 100% (ver opacidadGeologia) → fallas
+    // geológicas si las hay → catastro minero SIEMPRE arriba de todo
+    // (los límites de la concesión nunca deben quedar tapados). El
+    // catastro completo (todas las concesiones vecinas, con etiquetas)
+    // queda disponible en el control de capas, apagado por defecto; el
+    // polígono resaltado de la concesión del proyecto (borde sin
+    // relleno) se dibuja aparte, ver más abajo.
     // f: "image" + useCors: false son OBLIGATORIOS con GEOCATMIN: su
     // servidor no envía cabeceras CORS (verificado julio 2026). Sin
     // f:"image" el XHR de export muere por CORS; y sin useCors:false
@@ -79,6 +83,7 @@ export function MapaGeocatmin({
       opacity: 0.8,
       f: "image",
       useCors: false,
+      pane: "catastroPane",
       attribution: "GEOCATMIN · INGEMMET",
     });
 
@@ -167,11 +172,14 @@ export function MapaGeocatmin({
         anillo.map(([x, y]) => [y, x] as [number, number])
       );
       // Solo el borde de color, sin relleno — la geología de abajo se ve
-      // completa dentro de la concesión.
+      // completa dentro de la concesión. Mismo pane que "catastro" (el
+      // más alto): es el límite de ESTA concesión, nunca debe quedar
+      // tapado por ninguna otra capa.
       const poligono = L.polygon(anillos, {
         color: "#10b981",
         weight: 3,
         fill: false,
+        pane: "catastroPane",
       }).addTo(mapa);
       poligono.bindTooltip("Concesión del proyecto", { sticky: true });
       mapa.fitBounds(poligono.getBounds().pad(0.15));
