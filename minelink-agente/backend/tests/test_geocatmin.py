@@ -70,12 +70,38 @@ def test_fallas_cercanas_cae_a_100k_si_50k_no_tiene_cobertura():
 
 
 def test_fallas_cercanas_100k_verificado_sin_resultados():
-    # Ambas escalas responden pero ninguna encuentra nada dentro del radio:
-    # es "se verificó y no hay fallas cerca" (items=[]), distinto de None.
-    respuestas = [_RespuestaFalsa({"features": []}), _RespuestaFalsa({"features": []})]
-    with patch("geocatmin.requests.get", side_effect=respuestas):
+    # Ambas escalas responden pero ninguna encuentra nada dentro del radio
+    # corto NI del ampliado (3 llamadas: 50K, 100K, reintento 100K
+    # ampliado): es "se verificó y no hay fallas cerca" (items=[]),
+    # distinto de None.
+    respuestas = [
+        _RespuestaFalsa({"features": []}),
+        _RespuestaFalsa({"features": []}),
+        _RespuestaFalsa({"features": []}),
+    ]
+    with patch("geocatmin.requests.get", side_effect=respuestas) as mock_get:
         resultado = geocatmin._fallas_cercanas(-76.7, -12.5)
+    assert mock_get.call_count == 3
     assert resultado == {"escala": "100k", "items": []}
+
+
+def test_fallas_cercanas_amplia_el_radio_si_el_corto_no_encuentra_nada():
+    # Pedido explícito de Esthiven (julio 2026): si el radio corto no
+    # encuentra nada en ninguna escala, reintentar UNA vez con un radio
+    # más amplio (~10x10 km) antes de confirmar que no hay fallas cerca.
+    respuestas = [
+        _RespuestaFalsa({"features": []}),  # 50K, radio corto
+        _RespuestaFalsa({"features": []}),  # 100K, radio corto
+        _RespuestaFalsa(
+            {"features": [{"attributes": {"DESCRIP": "Falla lejana"}}]}
+        ),  # 100K, radio ampliado
+    ]
+    with patch("geocatmin.requests.get", side_effect=respuestas) as mock_get:
+        resultado = geocatmin._fallas_cercanas(-76.7, -12.5)
+    assert mock_get.call_count == 3
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["distance"] == geocatmin._DISTANCIA_FALLA_AMPLIADA_M
+    assert resultado == {"escala": "100k", "items": [{"nombre": "Falla lejana", "tipo": None}]}
 
 
 def test_fallas_cercanas_none_si_ambas_consultas_fallan():

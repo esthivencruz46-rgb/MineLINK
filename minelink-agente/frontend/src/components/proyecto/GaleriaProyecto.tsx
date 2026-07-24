@@ -62,6 +62,7 @@ export function GaleriaProyecto({
   const concesion = geocatmin?.concesion;
   const geologia = geocatmin?.geologia;
   const geologia50k = geocatmin?.geologia_50k;
+  const fallas = geocatmin?.fallas;
   // Resumen GEOCATMIN dentro del propio bloque de ubicación — el dato
   // oficial al lado del mapa, no perdido más abajo. El detalle completo
   // (titular, código, disclaimer) sigue en "Cotejo con registros públicos".
@@ -94,6 +95,12 @@ export function GaleriaProyecto({
             Geología a escala 1:50,000: {geologia50k.unidad}
           </p>
         )}
+        {fallas && fallas.items.length > 0 && (
+          <p className="mt-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+            {fallas.items.length} falla{fallas.items.length > 1 ? "s" : ""} geológica
+            {fallas.items.length > 1 ? "s" : ""} cerca del pin (trazadas en el mapa)
+          </p>
+        )}
         <p className="mt-1 text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
           GEOCATMIN · INGEMMET
         </p>
@@ -104,7 +111,14 @@ export function GaleriaProyecto({
   // (no depende de cuántas fotos haya).
   const bloqueUbicacion = ubicacionCoords ? (
     <div className="h-72 overflow-hidden rounded-xl shadow-sm sm:h-96 md:h-[28rem]">
-      <MapaGeocatmin coords={ubicacionCoords} poligonoConcesion={concesion?.poligono} />
+      <MapaGeocatmin
+        coords={ubicacionCoords}
+        poligonoConcesion={concesion?.poligono}
+        // Solo se pide la capa al mapa si de verdad hay una falla
+        // confirmada — con items=[] (verificado, sin fallas cerca) no se
+        // manda nada al mapa, para no insinuar un riesgo que no existe.
+        escalaFallas={fallas && fallas.items.length > 0 ? fallas.escala : null}
+      />
     </div>
   ) : null;
 

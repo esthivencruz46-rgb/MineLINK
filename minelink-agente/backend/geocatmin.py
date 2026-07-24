@@ -18,7 +18,9 @@ que el minero declaró, trae datos OFICIALES de registros públicos:
   nada. Es una capa de LÍNEA (una falla no tiene ancho) — un punto casi
   nunca cae justo encima, así que se busca dentro de un radio
   (`_DISTANCIA_FALLA_M`, verificado en vivo contra proyectos reales) en
-  vez de una intersección exacta.
+  vez de una intersección exacta; si ninguna escala encuentra nada ahí,
+  se reintenta una vez con un radio ampliado (`_DISTANCIA_FALLA_AMPLIADA_M`,
+  ~10x10 km) antes de confirmar que no hay fallas cerca.
 
 Es "best effort", igual que geoubicacion.py: si INGEMMET no responde se
 devuelve None y el caller conserva lo último cacheado — la ficha pública
@@ -59,6 +61,15 @@ _TIMEOUT_FALLAS = 15
 # hay señal real en zonas mineras típicas; a 500m-1km casi siempre da
 # vacío incluso donde sí hay fallas relativamente cerca.
 _DISTANCIA_FALLA_M = 2000
+# Segundo intento (pedido explícito de Esthiven, julio 2026) SOLO cuando
+# el radio corto no encontró nada en ninguna escala: un cuadrado de
+# ~10x10 km centrado en el pin, aproximado acá como radio de 5 km
+# (círculo inscrito en ese cuadrado) — prefiere mostrar una falla algo
+# más lejana a que la ficha diga "no hay" cuando en realidad sí hay, solo
+# que fuera del radio chico. Nunca reemplaza el radio corto como
+# criterio principal, ni inventa una falla: si tampoco encuentra nada
+# acá, `items` queda en `[]` (verificado, de verdad no hay).
+_DISTANCIA_FALLA_AMPLIADA_M = 5000
 # Fallas distintas que se devuelven como máximo (varias son segmentos de
 # la misma falla — se deduplica por nombre antes de aplicar este tope).
 _MAX_FALLAS = 5
@@ -149,6 +160,12 @@ def _query_cercania(
     return r.json().get("features") or []
 
 
+_CAPA_FALLAS_POR_ESCALA = {
+    "50k": ("SERV_GEOLOGIA_50K_INTEGRADA", 2, "TIPO,NOMBRE,SISTEMA"),
+    "100k": ("SERV_GEOLOGIA_100K_INTEGRADA", 3, "DESCRIP"),
+}
+
+
 def _fallas_cercanas(lng: float, lat: float) -> Optional[dict]:
     """{"escala": "50k"|"100k", "items": [{"nombre","tipo"}, ...]} — o None
     si NINGUNA de las dos consultas pudo completarse (no se pudo
@@ -156,7 +173,10 @@ def _fallas_cercanas(lng: float, lat: float) -> Optional[dict]:
     `{"escala": ..., "items": []}`). Prioriza 1:50K (más detalle); si esa
     consulta responde pero no encuentra nada dentro del radio (sin
     cobertura a esa escala en la zona, o de verdad no hay), cae a 1:100K
-    — NUNCA se combinan ambas escalas, a diferencia de geologia/geologia_50k."""
+    — NUNCA se combinan ambas escalas, a diferencia de geologia/geologia_50k.
+    Si NINGUNA escala encontró nada dentro de `_DISTANCIA_FALLA_M`, se
+    reintenta UNA vez con `_DISTANCIA_FALLA_AMPLIADA_M` antes de dar por
+    confirmado que no hay fallas cerca (pedido explícito de Esthiven)."""
     escala: Optional[str] = None
     features: list[dict] = []
     try:
@@ -172,6 +192,15 @@ def _fallas_cercanas(lng: float, lat: float) -> Optional[dict]:
         try:
             features = _query_cercania("SERV_GEOLOGIA_100K_INTEGRADA", 3, lng, lat, "DESCRIP")
             escala = "100k"  # respondió (aunque sea vacío) = verificado a esta escala
+        except requests.RequestException:
+            pass
+
+    if escala is not None and not features:
+        servicio, capa, out_fields = _CAPA_FALLAS_POR_ESCALA[escala]
+        try:
+            features = _query_cercania(
+                servicio, capa, lng, lat, out_fields, distancia_m=_DISTANCIA_FALLA_AMPLIADA_M
+            )
         except requests.RequestException:
             pass
 

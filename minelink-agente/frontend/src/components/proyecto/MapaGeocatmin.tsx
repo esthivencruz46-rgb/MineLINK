@@ -7,20 +7,29 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 
 /** Mapa de la ficha pública (julio 2026): base satelital (Esri World
  * Imagery) + las capas OFICIALES de GEOCATMIN/INGEMMET encima —
- * "Catastro minero" (polígonos de concesiones, encendida por defecto) y
+ * "Catastro minero" (polígonos de concesiones, encendida por defecto),
  * "Geología 1:100K" (apagada por defecto, se activa en el control de
- * capas). Reemplaza al embed de Google Maps, que no acepta capas
- * externas. Los servicios ArcGIS se consumen como imágenes dinámicas
- * (mismo backend REST que usa backend/geocatmin.py para el cotejo). */
+ * capas) y, si el backend encontró alguna, "Fallas geológicas cercanas"
+ * (encendida por defecto — antes solo se listaban como texto en "Cotejo
+ * con registros públicos", pedido explícito de Esthiven de mostrarlas
+ * también trazadas sobre el mapa). Reemplaza al embed de Google Maps,
+ * que no acepta capas externas. Los servicios ArcGIS se consumen como
+ * imágenes dinámicas (mismo backend REST que usa backend/geocatmin.py
+ * para el cotejo). */
 export function MapaGeocatmin({
   coords,
   poligonoConcesion,
+  escalaFallas,
 }: {
   coords: string;
   /** Anillos [lng, lat] de la concesión donde cae el pin (de GEOCATMIN,
    * vía backend — el servidor de INGEMMET no permite pedirla directo
    * desde el navegador por CORS). */
   poligonoConcesion?: number[][][] | null;
+  /** Escala a la que se encontraron fallas cercanas al pin (julio 2026):
+   * "50k" | "100k" | null/undefined si no hay ninguna que dibujar. Nunca
+   * ambas juntas — mismo criterio que backend/geocatmin.py. */
+  escalaFallas?: "50k" | "100k" | null;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
 
@@ -106,10 +115,33 @@ export function MapaGeocatmin({
     // una zona acotada (ver actualizarGeologia50 más abajo).
     const geologia = L.layerGroup([geologia100]).addTo(mapa);
 
+    // Fallas geológicas cercanas al pin (julio 2026, pedido explícito de
+    // Esthiven: la lista de texto en "Cotejo con registros públicos" no
+    // bastaba, había que verlas trazadas sobre el mapa). Una sola escala
+    // a la vez (2 = Fallas en la 50K, 3 = Fallas en la 100K) — cuál usar
+    // ya lo decidió el backend (`geocatmin._fallas_cercanas`, prioriza
+    // 50K), acá solo se dibuja. Encendida por defecto: es información de
+    // riesgo, no un detalle opcional que haya que saber buscar.
+    const fallas = escalaFallas
+      ? dynamicMapLayer({
+          url: `${GEOCATMIN}/SERV_GEOLOGIA_${escalaFallas === "50k" ? "50K" : "100K"}_INTEGRADA/MapServer`,
+          layers: [escalaFallas === "50k" ? 2 : 3],
+          opacity: 0.9,
+          f: "image",
+          useCors: false,
+          zIndex: 12,
+          attribution: "GEOCATMIN · INGEMMET",
+        }).addTo(mapa)
+      : null;
+
     L.control
       .layers(
         undefined,
-        { "Catastro minero": catastro, "Geología (50K si existe / 100K)": geologia },
+        {
+          "Catastro minero": catastro,
+          "Geología (50K si existe / 100K)": geologia,
+          ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
+        },
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
@@ -179,7 +211,7 @@ export function MapaGeocatmin({
       div.removeEventListener("mouseleave", alSalir);
       mapa.remove();
     };
-  }, [coords, poligonoConcesion]);
+  }, [coords, poligonoConcesion, escalaFallas]);
 
   return <div ref={contenedorRef} className="mapa-geocatmin z-0 h-full min-h-64 w-full" />;
 }
