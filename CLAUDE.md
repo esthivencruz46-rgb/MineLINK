@@ -58,17 +58,20 @@ Built on top of it since (all deployed):
   `GET /proyectos/{id}/mapa-cotejo.jpg`. The INTERACTIVE map on the ficha
   (`frontend/src/components/proyecto/MapaGeocatmin.tsx`, Leaflet + esri-leaflet
   `dynamicMapLayer`/`imageMapLayer`) layers catastro minero (always on top, own Leaflet
-  pane, z-index 430), geología 100K/50K, fallas (its own pane, 420, always above geología)
-  and — added July 2026 after Esthiven asked what else INGEMMET offers in satellite
-  imagery — 4 more toggles, each off by default: ASTER 9-3-1 and QICIMI
-  mineral-alteration composites, the ASTER DEM (rendered with an ad-hoc `Hillshade`
-  `renderingRule` — the raw DEM export is flat gray with no contrast, verified live),
-  and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer. Each has its own
-  independent checkbox (Esthiven explicitly asked for that over one bundled toggle) and
-  its own `minZoom: 12` (roughly the local ~10km view around the pin) so INGEMMET is
-  never asked to render half the country if one is checked while zoomed out — a
-  per-layer esri-leaflet option, not a manual add/removeLayer, specifically because
-  removing an already-registered control overlay from the map desyncs its checkbox.
+  pane, z-index 430), the operation pin (own pane, 440, the very top — a circleMarker
+  defaults to Leaflet's overlayPane at 400, which sat BELOW catastro until this was
+  fixed), geología 100K/50K, fallas (its own pane, 420, always above geología) and —
+  added July 2026 after Esthiven asked what else INGEMMET offers in satellite imagery —
+  3 more toggles, each off by default: ASTER 9-3-1 and QICIMI mineral-alteration
+  composites, and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer (a 4th, the
+  ASTER DEM rendered with an ad-hoc `Hillshade` `renderingRule`, was tried — the raw DEM
+  export is flat gray with no contrast — then removed at Esthiven's request). Each has
+  its own independent checkbox (Esthiven explicitly asked for that over one bundled
+  toggle) and its own `minZoom: 12` (roughly the local ~10km view around the pin) so
+  INGEMMET is never asked to render half the country if one is checked while zoomed
+  out — a per-layer esri-leaflet option, not a manual add/removeLayer, specifically
+  because removing an already-registered control overlay from the map desyncs its
+  checkbox.
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by

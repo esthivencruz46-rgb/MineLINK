@@ -12,15 +12,15 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
  * capas), si el backend encontró alguna "Fallas geológicas cercanas"
  * (encendida por defecto — antes solo se listaban como texto en "Cotejo
  * con registros públicos", pedido explícito de Esthiven de mostrarlas
- * también trazadas sobre el mapa) y 4 capas satelitales ASTER de
+ * también trazadas sobre el mapa) y 3 capas satelitales ASTER de
  * INGEMMET (julio 2026, pedido explícito de Esthiven tras preguntar qué
- * más ofrece INGEMMET de imágenes satelitales), cada una con su PROPIO
- * interruptor: "ASTER 9-3-1" y "Índices minerales QICIMI" —productos ya
- * procesados por el laboratorio de teledetección de INGEMMET que
- * resaltan zonas de alteración hidrotermal, indicio de mineralización—,
- * el DEM (relieve, renderizado con Hillshade porque crudo sale gris sin
- * contraste) y "Anomalías espectrales" (polígonos). Las 4 apagadas por
- * defecto y con `minZoom: 12` (equivalente a la vista local de unos
+ * más ofrece INGEMMET de imágenes satelitales — el DEM se probó
+ * (Hillshade incluido) y se quitó a pedido suyo), cada una con su
+ * PROPIO interruptor: "ASTER 9-3-1" y "Índices minerales QICIMI"
+ * —productos ya procesados por el laboratorio de teledetección de
+ * INGEMMET que resaltan zonas de alteración hidrotermal, indicio de
+ * mineralización— y "Anomalías espectrales" (polígonos). Las 3 apagadas
+ * por defecto y con `minZoom: 12` (equivalente a la vista local de unos
  * 10km alrededor del pin) para no pedirle a INGEMMET un render de medio
  * país si alguien hace zoom out con alguna marcada. Reemplaza al embed
  * de Google Maps, que no acepta capas externas. Los servicios ArcGIS se
@@ -169,9 +169,10 @@ export function MapaGeocatmin({
     // Capas satelitales/ASTER de INGEMMET (julio 2026, pedido explícito de
     // Esthiven): productos ya procesados por su laboratorio de
     // teledetección — ASTER 9-3-1 y QICIMI resaltan zonas de alteración
-    // hidrotermal (indicio de mineralización), el DEM es el relieve del
-    // terreno, y "Anomalías espectrales" es una capa propia de polígonos.
-    // Cada una con su PROPIO interruptor (a pedido explícito de Esthiven:
+    // hidrotermal (indicio de mineralización), y "Anomalías espectrales"
+    // es una capa propia de polígonos. (El DEM se probó y se quitó a
+    // pedido explícito de Esthiven.) Cada una con su PROPIO interruptor
+    // (a pedido explícito de Esthiven:
     // "sepárame ese grupo") — son pesadas, así que en vez de un
     // add/removeLayer manual por zona (que desincroniza el checkbox del
     // control de Leaflet cuando se saca una capa YA registrada como
@@ -197,23 +198,6 @@ export function MapaGeocatmin({
       pane: "geologiaPane",
       minZoom: 12,
     });
-    const dem = imageMapLayer({
-      url: `${GEOCATMIN}/PRODUCTO_SATELITAL/Aster_DEM/ImageServer`,
-      opacity: 0.6,
-      f: "image",
-      useCors: false,
-      pane: "geologiaPane",
-      minZoom: 12,
-      // El DEM crudo sale gris y sin contraste (solo valores de
-      // elevación) — verificado en vivo julio 2026 que este servicio SÍ
-      // acepta reglas de renderizado ad-hoc aunque no publique ninguna
-      // en su lista de rasterFunctionInfos; con Hillshade se ve el
-      // relieve real del terreno.
-      renderingRule: {
-        rasterFunction: "Hillshade",
-        rasterFunctionArguments: { Azimuth: 315, Altitude: 45, ZFactor: 1 },
-      },
-    });
     const anomalias = dynamicMapLayer({
       url: `${GEOCATMIN}/SERV_ANOMALIA_ESPECTRAL/MapServer`,
       layers: [0],
@@ -233,7 +217,6 @@ export function MapaGeocatmin({
           ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
           "ASTER 9-3-1 (alteración hidrotermal)": aster931,
           "Índices minerales QICIMI": qicimi,
-          "Modelo de elevación (DEM)": dem,
           "Anomalías espectrales": anomalias,
         },
         { collapsed: false, position: "topright" }
