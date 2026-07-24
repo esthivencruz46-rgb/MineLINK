@@ -532,7 +532,10 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // REINFO (verificado a mano por MineLink) — agregado julio 2026.
   const geocatmin = proyecto.geocatmin;
   const tieneCotejo =
-    geocatmin?.concesion || geocatmin?.geologia || proyecto.reinfo_verificado_manual;
+    geocatmin?.concesion ||
+    geocatmin?.geologia ||
+    geocatmin?.fallas ||
+    proyecto.reinfo_verificado_manual;
   if (tieneCotejo) {
     y = asegurarEspacio(doc, y, 26);
     y = tituloSeccion(doc, y, "Cotejo con registros públicos");
@@ -551,6 +554,18 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     if (geocatmin?.geologia?.unidad) {
       doc.text(`Geología 1:100,000: ${geocatmin.geologia.unidad}`, MARGEN, y);
       y += 5;
+    }
+    if (geocatmin?.fallas) {
+      const escalaTxt = geocatmin.fallas.escala === "50k" ? "1:50,000" : "1:100,000";
+      const lineaFallas =
+        geocatmin.fallas.items.length > 0
+          ? `Fallas geológicas cercanas (${escalaTxt}): ${geocatmin.fallas.items
+              .map((f) => f.nombre)
+              .join(", ")}`
+          : `Fallas geológicas (${escalaTxt}): ninguna registrada cerca (referencial)`;
+      const l = doc.splitTextToSize(lineaFallas, ANCHO_UTIL);
+      doc.text(l, MARGEN, y);
+      y += l.length * 4.4 + 1;
     }
     if (geocatmin?.anp?.zona === "dentro") {
       doc.setTextColor(...ROJO);

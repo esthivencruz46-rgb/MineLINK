@@ -1673,7 +1673,7 @@ def test_mapa_cotejo_no_revienta_si_el_pin_no_cae_en_concesion():
     operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
     operacion.datos_formalizacion_json = {
         **(operacion.datos_formalizacion_json or {}),
-        "_geocatmin": {"v": 5, "coords": "-12.5,-76.7", "concesion": None, "geologia": None},
+        "_geocatmin": {"v": 6, "coords": "-12.5,-76.7", "concesion": None, "geologia": None},
     }
     db.commit()
     db.close()
@@ -1698,9 +1698,9 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     def geocatmin_falso(coords):
         llamadas["geocatmin"] += 1
         return {
-            "v": 5, "coords": coords, "consultado_en": "2026-07-16",
+            "v": 6, "coords": coords, "consultado_en": "2026-07-16",
             "concesion": None, "geologia": None, "geologia_50k": None,
-            "restricciones": [], "anp": None,
+            "fallas": None, "restricciones": [], "anp": None,
         }
 
     def reinfo_falso(codigo):

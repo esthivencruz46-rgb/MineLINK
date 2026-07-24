@@ -831,6 +831,7 @@ export function ProyectoDetalle() {
               (proyecto.geocatmin.concesion ||
                 proyecto.geocatmin.geologia ||
                 proyecto.geocatmin.anp ||
+                proyecto.geocatmin.fallas ||
                 (proyecto.geocatmin.restricciones?.length ?? 0) > 0))) && (
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1034,6 +1035,38 @@ export function ProyectoDetalle() {
                     ]
                       .filter(Boolean)
                       .join(" — ")}
+                  </p>
+                </div>
+              )}
+
+              {/* Fallas geológicas cercanas al pin (julio 2026): prioriza
+                  1:50,000 (más detalle) y solo cae a 1:100,000 si esa escala
+                  no tiene cobertura ahí — a diferencia de geología arriba,
+                  acá nunca se combinan ambas escalas. items=[] = se verificó
+                  y no hay fallas dentro del radio de búsqueda (referencial,
+                  no una garantía geotécnica); el campo no aparece del todo
+                  si no se pudo verificar ninguna de las dos escalas. */}
+              {proyecto.geocatmin?.fallas && (
+                <div className="mt-3">
+                  <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Fallas geológicas cercanas (escala 1:
+                    {proyecto.geocatmin.fallas.escala === "50k" ? "50,000" : "100,000"})
+                  </p>
+                  {proyecto.geocatmin.fallas.items.length > 0 ? (
+                    <ul className="mt-0.5 space-y-0.5 text-sm font-medium">
+                      {proyecto.geocatmin.fallas.items.map((falla, i) => (
+                        <li key={i}>
+                          {[falla.nombre, falla.tipo].filter(Boolean).join(" — ")}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-0.5 text-sm font-medium">
+                      No se registran fallas dentro del radio de búsqueda.
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-texto-suave dark:text-texto-suave-dark">
+                    Dato referencial de INGEMMET, no un estudio geotécnico del terreno.
                   </p>
                 </div>
               )}

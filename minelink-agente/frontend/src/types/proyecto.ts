@@ -89,6 +89,14 @@ export interface GeocatminInfo {
     litologia?: string | null;
     descripcion?: string | null;
   } | null;
+  // Fallas geológicas cercanas al pin (julio 2026): prioriza 1:50,000
+  // (más detalle); si esa escala no tiene cobertura en la zona, usa
+  // 1:100,000 — nunca se combinan ambas. items=[] = se verificó y no hay
+  // fallas cerca; null = no se pudo verificar (distinto de "no hay").
+  fallas?: {
+    escala: "50k" | "100k";
+    items: { nombre: string; tipo?: string | null }[];
+  } | null;
   // Alertas de zona: áreas restringidas (GEOCATMIN) y ANP (SERNANP).
   restricciones?: { tipo: string; nombre?: string | null }[];
   // "fuera" = se consultó y el punto NO cae en ninguna ANP ni su

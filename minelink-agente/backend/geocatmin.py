@@ -10,6 +10,15 @@ que el minero declaró, trae datos OFICIALES de registros públicos:
   detalle, pero SOLO donde INGEMMET tiene carta a esa escala — se muestra
   además de la 100K cuando existe, nunca en su lugar (la 100K es la base
   garantizada).
+- Fallas geológicas cercanas al pin (julio 2026, pedido explícito de
+  Esthiven): capa "Fallas" a 1:50K (SERV_GEOLOGIA_50K_INTEGRADA, capa 2)
+  con reserva a 1:100K (SERV_GEOLOGIA_100K_INTEGRADA, capa 3) cuando la
+  50K no tiene cobertura ahí — a diferencia de geologia/geologia_50k, acá
+  NUNCA se muestran ambas escalas juntas, se usa 100K solo si 50K no dio
+  nada. Es una capa de LÍNEA (una falla no tiene ancho) — un punto casi
+  nunca cae justo encima, así que se busca dentro de un radio
+  (`_DISTANCIA_FALLA_M`, verificado en vivo contra proyectos reales) en
+  vez de una intersección exacta.
 
 Es "best effort", igual que geoubicacion.py: si INGEMMET no responde se
 devuelve None y el caller conserva lo último cacheado — la ficha pública
@@ -43,6 +52,16 @@ _TIMEOUT = 12
 # resultado queda cacheado 30 días, así que un primer load lento es
 # aceptable a cambio de no perder el dato cuando sí existe.
 _TIMEOUT_50K = 25
+_TIMEOUT_FALLAS = 15
+
+# Radio de búsqueda para la capa de fallas (línea, ancho cero). Calibrado
+# en vivo contra proyectos reales de producción (julio 2026): a 1-2km ya
+# hay señal real en zonas mineras típicas; a 500m-1km casi siempre da
+# vacío incluso donde sí hay fallas relativamente cerca.
+_DISTANCIA_FALLA_M = 2000
+# Fallas distintas que se devuelven como máximo (varias son segmentos de
+# la misma falla — se deduplica por nombre antes de aplicar este tope).
+_MAX_FALLAS = 5
 
 # Capas de SERV_AREA_RESERVADA que generan alerta si el pin cae dentro
 # (id de capa → etiqueta legible). La 2 ("Área de No Admisión de
@@ -96,6 +115,83 @@ def _query_punto(
     return features[0] if features else None
 
 
+def _query_cercania(
+    servicio: str,
+    capa: int,
+    lng: float,
+    lat: float,
+    out_fields: str,
+    distancia_m: int = _DISTANCIA_FALLA_M,
+    timeout: int = _TIMEOUT_FALLAS,
+) -> list[dict]:
+    """Como `_query_punto` pero para capas de LÍNEA (fallas): busca todo lo
+    que esté dentro de un radio, no una intersección exacta — una falla
+    tiene ancho cero, así que un punto casi nunca cae justo encima.
+    Verificado en vivo (julio 2026) que este servicio de INGEMMET sí
+    respeta `distance`/`units` (no todos los ArcGIS Server antiguos lo
+    hacen)."""
+    r = requests.get(
+        f"{_BASE}/{servicio}/MapServer/{capa}/query",
+        params={
+            "geometry": '{"x":%s,"y":%s,"spatialReference":{"wkid":4326}}' % (lng, lat),
+            "geometryType": "esriGeometryPoint",
+            "spatialRel": "esriSpatialRelIntersects",
+            "distance": distancia_m,
+            "units": "esriSRUnit_Meter",
+            "inSR": 4326,
+            "outFields": out_fields,
+            "returnGeometry": "false",
+            "f": "json",
+        },
+        timeout=timeout,
+    )
+    r.raise_for_status()
+    return r.json().get("features") or []
+
+
+def _fallas_cercanas(lng: float, lat: float) -> Optional[dict]:
+    """{"escala": "50k"|"100k", "items": [{"nombre","tipo"}, ...]} — o None
+    si NINGUNA de las dos consultas pudo completarse (no se pudo
+    verificar; distinto de "se verificó y no hay fallas cerca", que es
+    `{"escala": ..., "items": []}`). Prioriza 1:50K (más detalle); si esa
+    consulta responde pero no encuentra nada dentro del radio (sin
+    cobertura a esa escala en la zona, o de verdad no hay), cae a 1:100K
+    — NUNCA se combinan ambas escalas, a diferencia de geologia/geologia_50k."""
+    escala: Optional[str] = None
+    features: list[dict] = []
+    try:
+        features = _query_cercania(
+            "SERV_GEOLOGIA_50K_INTEGRADA", 2, lng, lat, "TIPO,NOMBRE,SISTEMA"
+        )
+        if features:
+            escala = "50k"
+    except requests.RequestException:
+        pass
+
+    if not features:
+        try:
+            features = _query_cercania("SERV_GEOLOGIA_100K_INTEGRADA", 3, lng, lat, "DESCRIP")
+            escala = "100k"  # respondió (aunque sea vacío) = verificado a esta escala
+        except requests.RequestException:
+            pass
+
+    if escala is None:
+        return None
+
+    vistos: set[str] = set()
+    items = []
+    for f in features:
+        attrs = f.get("attributes") or {}
+        etiqueta = attrs.get("NOMBRE") or attrs.get("SISTEMA") or attrs.get("DESCRIP")
+        if not etiqueta or etiqueta in vistos:
+            continue
+        vistos.add(etiqueta)
+        items.append({"nombre": etiqueta, "tipo": attrs.get("TIPO")})
+        if len(items) >= _MAX_FALLAS:
+            break
+    return {"escala": escala, "items": items}
+
+
 def consultar(coords: Optional[str]) -> Optional[dict]:
     """Consulta ambas capas para un "lat,lng". Devuelve el dict cacheable
     (concesion/geologia pueden ser None = el punto no cae en ninguna), o
@@ -111,13 +207,18 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
     resultado: dict = {
         # Versión del formato del caché: subir cuando cambie el shape para
         # que los cachés viejos se reconsulten solos (v4: + geología 50K;
-        # v5: anp explícito {zona:"fuera"} en vez de quedar en null).
-        "v": 5,
+        # v5: anp explícito {zona:"fuera"} en vez de quedar en null;
+        # v6: + fallas geológicas cercanas, 50K con reserva a 100K).
+        "v": 6,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
         "geologia": None,
         "geologia_50k": None,
+        # {"escala": "50k"|"100k", "items": [...]}, o None = no se pudo
+        # verificar (distinto de items=[] = se verificó y no hay fallas
+        # cerca). Ver _fallas_cercanas.
+        "fallas": None,
         # Alertas de zona: [{tipo, nombre}] — áreas restringidas de
         # GEOCATMIN + ANP/amortiguamiento de SERNANP. Lista vacía = punto
         # limpio; solo-informativas (el pin es aproximado).
@@ -188,6 +289,10 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
             }
     except requests.RequestException:
         pass
+
+    # Fallas geológicas cercanas al pin (julio 2026, pedido explícito de
+    # Esthiven) — best-effort propio, no tumba el resto si falla.
+    resultado["fallas"] = _fallas_cercanas(lng, lat)
 
     # Alertas de zona (best-effort por capa: una capa caída no tumba a las
     # demás). Áreas restringidas del propio GEOCATMIN...
