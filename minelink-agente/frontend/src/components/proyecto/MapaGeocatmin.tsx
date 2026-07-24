@@ -66,11 +66,16 @@ export function MapaGeocatmin({
     // respeta de forma confiable entre capas creadas en momentos
     // distintos). Orden pedido por Esthiven, de abajo hacia arriba:
     // geología → fallas (siempre sobre la geología) → catastro minero
-    // (los límites de la concesión por ENCIMA de todo lo demás, nunca
-    // tapados por ninguna otra capa).
+    // (los límites de la concesión por ENCIMA de todo lo demás) → el pin
+    // rojo de la operación, SIEMPRE arriba de TODO (pedido explícito de
+    // Esthiven) — L.circleMarker es un layer vectorial y por defecto usa
+    // el "overlayPane" de Leaflet (z-index 400), que queda POR DEBAJO de
+    // catastroPane (430): sin este pane propio el pin podía quedar
+    // tapado por cualquiera de las capas de arriba.
     mapa.createPane("geologiaPane").style.zIndex = "410";
     mapa.createPane("fallasPane").style.zIndex = "420";
     mapa.createPane("catastroPane").style.zIndex = "430";
+    mapa.createPane("pinPane").style.zIndex = "440";
 
     // Pila visual definida por el dueño (julio 2026): satélite al fondo →
     // geología encima muy tenue en reposo (opacity 0.25 = 25% visible) →
@@ -289,13 +294,15 @@ export function MapaGeocatmin({
     div.addEventListener("mouseleave", alSalir);
 
     // Pin de la operación (circleMarker: no depende de los PNG del icono
-    // por defecto de Leaflet, que Vite no sirve solo).
+    // por defecto de Leaflet, que Vite no sirve solo). Pane propio con
+    // el z-index más alto de todos — siempre visible, nunca tapado.
     L.circleMarker([lat, lng], {
       radius: 8,
       color: "#ffffff",
       weight: 2.5,
       fillColor: "#e11d48",
       fillOpacity: 1,
+      pane: "pinPane",
     }).addTo(mapa);
 
     return () => {
