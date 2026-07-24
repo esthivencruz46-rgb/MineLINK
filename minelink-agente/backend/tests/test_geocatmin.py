@@ -1,6 +1,18 @@
 """Tests de geocatmin.py — específicamente la consulta de fallas geológicas
 cercanas (julio 2026). Todo mockeado con requests.get; nunca hace una
 llamada de red real (mismo patrón que test_asesor.py con requests.post)."""
+import os
+
+# geocatmin.py lee esta variable UNA sola vez al importarse (_DESACTIVADO
+# queda fijo para todo el proceso). pytest importa todos los test_*.py en
+# la fase de colección antes de correr nada — si este archivo se colecciona
+# antes que test_smoke.py (que es quien fija esto normalmente), geocatmin
+# se importaría con la red real activada y quedaría así contaminando el
+# resto de la suite (regresión real, julio 2026: test_mapa_cotejo_no_revienta
+# empezó a fallar por esto). Fijarlo acá también, antes de importar
+# geocatmin, hace que el orden de colección no importe.
+os.environ.setdefault("MINELINK_GEOCATMIN", "0")
+
 from unittest.mock import patch
 
 import requests as requests_mod
