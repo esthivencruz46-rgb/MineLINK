@@ -60,14 +60,15 @@ Built on top of it since (all deployed):
   `dynamicMapLayer`/`imageMapLayer`) layers catastro minero (always on top, own Leaflet
   pane, z-index 430), geología 100K/50K, fallas (its own pane, 420, always above geología)
   and — added July 2026 after Esthiven asked what else INGEMMET offers in satellite
-  imagery — an optional "Satelital ASTER" group (off by default): ASTER 9-3-1 and QICIMI
+  imagery — 4 more toggles, each off by default: ASTER 9-3-1 and QICIMI
   mineral-alteration composites, the ASTER DEM (rendered with an ad-hoc `Hillshade`
   `renderingRule` — the raw DEM export is flat gray with no contrast, verified live),
-  and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer — all four bundled under ONE
-  checkbox and gated to a fixed 10km×10km box around the pin (`zonaSatelital`) since
-  giving each its own checkbox would desync Leaflet's layer-control UI when the
-  zone-based auto-hide kicks in (same reason `geologia_50k` lives inside the `geologia`
-  group instead of its own toggle).
+  and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer. Each has its own
+  independent checkbox (Esthiven explicitly asked for that over one bundled toggle) and
+  its own `minZoom: 12` (roughly the local ~10km view around the pin) so INGEMMET is
+  never asked to render half the country if one is checked while zoomed out — a
+  per-layer esri-leaflet option, not a manual add/removeLayer, specifically because
+  removing an already-registered control overlay from the map desyncs its checkbox.
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by

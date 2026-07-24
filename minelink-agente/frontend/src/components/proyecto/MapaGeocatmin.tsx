@@ -12,18 +12,20 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
  * capas), si el backend encontró alguna "Fallas geológicas cercanas"
  * (encendida por defecto — antes solo se listaban como texto en "Cotejo
  * con registros públicos", pedido explícito de Esthiven de mostrarlas
- * también trazadas sobre el mapa) y un grupo "Satelital ASTER" (julio
- * 2026, pedido explícito de Esthiven tras preguntar qué más ofrece
- * INGEMMET de imágenes satelitales): ASTER 9-3-1 y QICIMI —productos ya
+ * también trazadas sobre el mapa) y 4 capas satelitales ASTER de
+ * INGEMMET (julio 2026, pedido explícito de Esthiven tras preguntar qué
+ * más ofrece INGEMMET de imágenes satelitales), cada una con su PROPIO
+ * interruptor: "ASTER 9-3-1" y "Índices minerales QICIMI" —productos ya
  * procesados por el laboratorio de teledetección de INGEMMET que
  * resaltan zonas de alteración hidrotermal, indicio de mineralización—,
  * el DEM (relieve, renderizado con Hillshade porque crudo sale gris sin
- * contraste) y "Anomalías espectrales" (polígonos). Apagado por defecto
- * y limitado a un cuadrado fijo de 10x10 km alrededor del pin (son
- * servicios pesados — ver `zonaSatelital`/`actualizarCapasSatelitales`
- * más abajo). Reemplaza al embed de Google Maps, que no acepta capas
- * externas. Los servicios ArcGIS se consumen como imágenes dinámicas
- * (mismo backend REST que usa backend/geocatmin.py para el cotejo). */
+ * contraste) y "Anomalías espectrales" (polígonos). Las 4 apagadas por
+ * defecto y con `minZoom: 12` (equivalente a la vista local de unos
+ * 10km alrededor del pin) para no pedirle a INGEMMET un render de medio
+ * país si alguien hace zoom out con alguna marcada. Reemplaza al embed
+ * de Google Maps, que no acepta capas externas. Los servicios ArcGIS se
+ * consumen como imágenes dinámicas (mismo backend REST que usa
+ * backend/geocatmin.py para el cotejo). */
 export function MapaGeocatmin({
   coords,
   poligonoConcesion,
@@ -164,19 +166,22 @@ export function MapaGeocatmin({
     // teledetección — ASTER 9-3-1 y QICIMI resaltan zonas de alteración
     // hidrotermal (indicio de mineralización), el DEM es el relieve del
     // terreno, y "Anomalías espectrales" es una capa propia de polígonos.
-    // Apagadas por defecto (son técnicas/especializadas, no un fondo
-    // visual como geología) y agrupadas bajo UN solo interruptor: darle
-    // una casilla independiente a cada una y ocultarlas por zona rompería
-    // la sincronía del control de capas de Leaflet (la casilla se
-    // desmarcaría sola al salir de zona) — mismo motivo por el que
-    // geología 50K vive DENTRO del grupo "geologia" en vez de tener su
-    // propia casilla.
+    // Cada una con su PROPIO interruptor (a pedido explícito de Esthiven:
+    // "sepárame ese grupo") — son pesadas, así que en vez de un
+    // add/removeLayer manual por zona (que desincroniza el checkbox del
+    // control de Leaflet cuando se saca una capa YA registrada como
+    // overlay independiente), se usa `minZoom` propio de esri-leaflet:
+    // Leaflet mismo deja de pedirlas si el mapa se aleja más allá de
+    // zoom 12 (~equivalente a la vista local de unos 10km alrededor del
+    // pin, mismo umbral que ya usa geología 50K más abajo) sin tocar su
+    // membresía en el mapa, así el checkbox nunca se desmarca solo.
     const aster931 = imageMapLayer({
       url: `${GEOCATMIN}/PRODUCTO_SATELITAL/MD_ASTER_931/ImageServer`,
       opacity: 0.7,
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      minZoom: 12,
       attribution: "GEOCATMIN · INGEMMET",
     });
     const qicimi = imageMapLayer({
@@ -185,6 +190,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      minZoom: 12,
     });
     const dem = imageMapLayer({
       url: `${GEOCATMIN}/PRODUCTO_SATELITAL/Aster_DEM/ImageServer`,
@@ -192,6 +198,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      minZoom: 12,
       // El DEM crudo sale gris y sin contraste (solo valores de
       // elevación) — verificado en vivo julio 2026 que este servicio SÍ
       // acepta reglas de renderizado ad-hoc aunque no publique ninguna
@@ -209,8 +216,8 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      minZoom: 12,
     });
-    const satelital = L.layerGroup(); // vacío y apagado — ver actualizarCapasSatelitales
 
     L.control
       .layers(
@@ -219,34 +226,14 @@ export function MapaGeocatmin({
           "Catastro minero": catastro,
           "Geología (50K si existe / 100K)": geologia,
           ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
-          "Satelital ASTER: alteración, DEM, anomalías (INGEMMET)": satelital,
+          "ASTER 9-3-1 (alteración hidrotermal)": aster931,
+          "Índices minerales QICIMI": qicimi,
+          "Modelo de elevación (DEM)": dem,
+          "Anomalías espectrales": anomalias,
         },
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
-
-    // Las 4 capas satelitales solo se piden dentro de un cuadrado FIJO de
-    // 10x10 km centrado en el pin (pedido explícito de Esthiven) — son
-    // pesadas, no tiene sentido pedirle a INGEMMET un render de medio
-    // país si alguien hace zoom out con el grupo marcado. 1°≈111km cerca
-    // del ecuador/trópicos, aproximación suficiente para este propósito
-    // (nunca se usa para medir nada, solo para acotar qué se pide).
-    const medioLadoSatelital = 5 / 111; // 5km a cada lado = 10km de lado
-    const zonaSatelital = L.latLngBounds(
-      [lat - medioLadoSatelital, lng - medioLadoSatelital],
-      [lat + medioLadoSatelital, lng + medioLadoSatelital]
-    );
-    const capasSatelitales = [aster931, qicimi, dem, anomalias];
-    const actualizarCapasSatelitales = () => {
-      if (!mapa.hasLayer(satelital)) return; // el usuario no marcó el grupo, nada que hacer
-      const dentro = zonaSatelital.contains(mapa.getBounds());
-      for (const capa of capasSatelitales) {
-        if (dentro && !satelital.hasLayer(capa)) satelital.addLayer(capa);
-        else if (!dentro && satelital.hasLayer(capa)) satelital.removeLayer(capa);
-      }
-    };
-    mapa.on("moveend", actualizarCapasSatelitales);
-    satelital.on("add", actualizarCapasSatelitales);
 
     // Polígono EXACTO de la concesión del proyecto, resaltado sobre las
     // capas — anillos ArcGIS [lng, lat] → Leaflet [lat, lng]. El mapa se
