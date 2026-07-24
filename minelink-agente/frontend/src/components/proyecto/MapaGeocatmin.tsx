@@ -207,6 +207,16 @@ export function MapaGeocatmin({
       pane: "geologiaPane",
       minZoom: 12,
     });
+    // Sin `layerDefs`/`where`: se piden los 3 tipos tal cual los define el
+    // renderer del propio servicio (verificado en vivo julio 2026) —
+    // Óxidos en rojo, Arcillas en verde, Óxidos y Arcillas en amarillo.
+    // Popup igual que geología: clic en un polígono → qué tipo es (los
+    // colores solos no bastan para saber cuál es cuál).
+    anomalias.bindPopup((_error: unknown, featureCollection: any) => {
+      const tipo = featureCollection?.features?.[0]?.properties?.TIPO;
+      if (!tipo) return false;
+      return `<strong>Anomalía espectral: ${tipo}</strong><br/><span style="font-size:11px;color:#64748b">GEOCATMIN · INGEMMET</span>`;
+    });
 
     L.control
       .layers(
