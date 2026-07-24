@@ -48,12 +48,26 @@ Built on top of it since (all deployed):
   exposes decision data (capital, % a ceder, deudas, estructura legal) but never the
   negotiation history (INV_0_6/0_7) or perfil blocks.
 - **GEOCATMIN integration** (`backend/geocatmin.py`): with the miner's map pin, the public
-  ficha queries INGEMMET's ArcGIS REST (catastro minero + geología 1:100K), cached 30 days
-  in `datos_formalizacion_json["_geocatmin"]` (underscore key, no migration). Best-effort:
+  ficha queries INGEMMET's ArcGIS REST (catastro minero + geología 1:100K/50K + fallas
+  geológicas cercanas, proximity-searched at 2km with a widened 10km×10km fallback retry
+  when nothing is found — `_fallas_cercanas`), cached 30 days in
+  `datos_formalizacion_json["_geocatmin"]` (underscore key, no migration). Best-effort:
   ficha never breaks if INGEMMET is down. Tests disable it via `MINELINK_GEOCATMIN=0`
   (same pattern as `MINELINK_RESOLVER_MAPS=0`). It also renders the server-composited map
   (satellite + catastro + geología + pin, `imagen_mapa_cotejo`) used as the PDF cover via
-  `GET /proyectos/{id}/mapa-cotejo.jpg`.
+  `GET /proyectos/{id}/mapa-cotejo.jpg`. The INTERACTIVE map on the ficha
+  (`frontend/src/components/proyecto/MapaGeocatmin.tsx`, Leaflet + esri-leaflet
+  `dynamicMapLayer`/`imageMapLayer`) layers catastro minero (always on top, own Leaflet
+  pane, z-index 430), geología 100K/50K, fallas (its own pane, 420, always above geología)
+  and — added July 2026 after Esthiven asked what else INGEMMET offers in satellite
+  imagery — an optional "Satelital ASTER" group (off by default): ASTER 9-3-1 and QICIMI
+  mineral-alteration composites, the ASTER DEM (rendered with an ad-hoc `Hillshade`
+  `renderingRule` — the raw DEM export is flat gray with no contrast, verified live),
+  and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer — all four bundled under ONE
+  checkbox and gated to a fixed 10km×10km box around the pin (`zonaSatelital`) since
+  giving each its own checkbox would desync Leaflet's layer-control UI when the
+  zone-based auto-hide kicks in (same reason `geologia_50k` lives inside the `geologia`
+  group instead of its own toggle).
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by
