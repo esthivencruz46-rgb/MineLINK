@@ -230,13 +230,57 @@ export function MapaGeocatmin({
           "Catastro minero": catastro,
           "Geología (50K si existe / 100K)": geologia,
           ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
-          "ASTER 9-3-1 (alteración hidrotermal)": aster931,
+          "ASTER 9-3-1 (falso color, roca/vegetación)": aster931,
           "Índices minerales QICIMI": qicimi,
           "Anomalías espectrales": anomalias,
         },
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
+
+    // Leyenda de colores (julio 2026, pedido explícito de Esthiven: "que
+    // expliques qué es el color de las capas satelitales") — un control
+    // propio, plegado por defecto, para no competir en espacio con el de
+    // capas. QICIMI SÍ tiene un color = un mineral exacto (confirmado con
+    // la metadata oficial de INGEMMET/GEOIDEP); ASTER 9-3-1 es falso
+    // color de bandas crudas, se lee de forma cualitativa (un geólogo
+    // interpreta el patrón), no es una tabla 1 a 1 — el texto lo aclara
+    // para no prometer más precisión de la que el dato realmente tiene.
+    const Leyenda = L.Control.extend({
+      options: { position: "bottomleft" },
+      onAdd: function () {
+        const div = L.DomUtil.create("div", "leaflet-bar");
+        div.style.background = "white";
+        div.style.color = "#1f2937";
+        div.style.fontSize = "11px";
+        div.style.lineHeight = "1.5";
+        div.style.cursor = "pointer";
+        div.innerHTML = `
+          <div style="padding:4px 8px;font-weight:600;">ℹ️ Leyenda de colores</div>
+          <div class="leyenda-detalle" style="display:none;padding:0 8px 8px;max-width:230px;">
+            <p style="margin:2px 0;"><strong>QICIMI</strong> (un color = un mineral):
+            <span style="color:#c0392b">■</span> cuarzo-sílice ·
+            <span style="color:#16a34a">■</span> carbonatos ·
+            <span style="color:#2563eb">■</span> máficos</p>
+            <p style="margin:2px 0;"><strong>ASTER 9-3-1</strong>: falso color de bandas
+            crudas, no un índice — verde ≈ vegetación, tonos rojo/rosa/naranja ≈ roca
+            expuesta (más intensos donde hay más alteración arcillosa). Se lee de forma
+            cualitativa, no es una tabla exacta.</p>
+            <p style="margin:2px 0;"><strong>Anomalías espectrales</strong>:
+            <span style="color:red">■</span> óxidos ·
+            <span style="color:#16a34a">■</span> arcillas ·
+            <span style="color:#ca8a04">■</span> óxidos y arcillas</p>
+          </div>
+        `;
+        L.DomEvent.disableClickPropagation(div);
+        div.addEventListener("click", () => {
+          const detalle = div.querySelector<HTMLElement>(".leyenda-detalle");
+          if (detalle) detalle.style.display = detalle.style.display === "none" ? "block" : "none";
+        });
+        return div;
+      },
+    });
+    new Leyenda().addTo(mapa);
 
     // Polígono EXACTO de la concesión del proyecto, resaltado sobre las
     // capas — anillos ArcGIS [lng, lat] → Leaflet [lat, lng]. El mapa se

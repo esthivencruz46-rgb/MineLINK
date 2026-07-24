@@ -62,16 +62,22 @@ Built on top of it since (all deployed):
   defaults to Leaflet's overlayPane at 400, which sat BELOW catastro until this was
   fixed), geología 100K/50K, fallas (its own pane, 420, always above geología) and —
   added July 2026 after Esthiven asked what else INGEMMET offers in satellite imagery —
-  3 more toggles, each off by default: ASTER 9-3-1 and QICIMI mineral-alteration
-  composites, and INGEMMET's own `SERV_ANOMALIA_ESPECTRAL` polygon layer (a 4th, the
-  ASTER DEM rendered with an ad-hoc `Hillshade` `renderingRule`, was tried — the raw DEM
-  export is flat gray with no contrast — then removed at Esthiven's request). Each has
-  its own independent checkbox (Esthiven explicitly asked for that over one bundled
-  toggle) and its own `minZoom: 12` (roughly the local ~10km view around the pin) so
-  INGEMMET is never asked to render half the country if one is checked while zoomed
-  out — a per-layer esri-leaflet option, not a manual add/removeLayer, specifically
-  because removing an already-registered control overlay from the map desyncs its
-  checkbox.
+  3 more toggles, each off by default: QICIMI (a real per-pixel mineral index — red =
+  quartz/silica, green = carbonates, blue = mafics, confirmed against INGEMMET/GEOIDEP's
+  own published metadata), ASTER 9-3-1 (raw-band false color, NOT a 1:1 mineral index —
+  green ≈ vegetation, red/pink/orange ≈ exposed rock, read qualitatively), and INGEMMET's
+  own `SERV_ANOMALIA_ESPECTRAL` polygon layer (red = óxidos, green = arcillas, yellow =
+  óxidos y arcillas, with a click-to-identify popup; a 4th satellite layer, the ASTER DEM
+  rendered with an ad-hoc `Hillshade` `renderingRule`, was tried — the raw DEM export is
+  flat gray with no contrast — then removed at Esthiven's request). Each has its own
+  independent checkbox (Esthiven explicitly asked for that over one bundled toggle) and
+  its own `minZoom: 12` (roughly the local ~10km view around the pin) so INGEMMET is
+  never asked to render half the country if one is checked while zoomed out — a
+  per-layer esri-leaflet option, not a manual add/removeLayer, specifically because
+  removing an already-registered control overlay from the map desyncs its checkbox. A
+  collapsed-by-default "ℹ️ Leyenda de colores" control (bottom-left) spells out what each
+  color means — added after Esthiven asked what the satellite layer colors actually
+  represent.
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by
