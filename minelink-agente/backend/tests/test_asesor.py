@@ -480,18 +480,33 @@ def test_actualizar_documentos_admin_sin_bd_directa(tmp_path, monkeypatch):
     assert "El OEFA sanciona el incumplimiento ambiental minero." in extra
 
 
-def test_actualizar_documentos_admin_no_reconstruye_si_no_cambio(monkeypatch):
-    # No queremos rehacer el índice BM25 en cada pregunta solo porque el
-    # router consulta la tabla cada vez — solo cuando el resultado cambió
-    # de verdad (ej. subieron o borraron un documento).
+def test_documentos_admin_cambiaron_detecta_si_hay_diferencia(monkeypatch):
+    # julio 2026, reescrito tras un incidente real: reconstruir el índice
+    # sobre el corpus completo tarda 50+ segundos, así que el router
+    # SIEMPRE debe poder decidir si hace falta reconstruir SIN pagar ese
+    # costo -- esta comparación debe ser barata (no toca el índice).
     monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
-    monkeypatch.setattr(asesor, "_INDICE_CACHE", ("cache-falso", None))
 
-    asesor.actualizar_documentos_admin([])  # mismo resultado que ya había (vacío)
-    assert asesor._INDICE_CACHE == ("cache-falso", None)  # no se invalidó
+    assert asesor.documentos_admin_cambiaron([]) is False  # mismo resultado que ya había
+    assert asesor.documentos_admin_cambiaron([("Norma X", None, "contenido")]) is True
 
-    asesor.actualizar_documentos_admin([("Norma X", None, "contenido")])
-    assert asesor._INDICE_CACHE is None  # ahora sí cambió, se invalida
+
+def test_actualizar_documentos_admin_reconstruye_de_una_no_en_la_proxima_pregunta(monkeypatch, tmp_path):
+    # julio 2026, incidente real: antes esta función solo invalidaba
+    # (_INDICE_CACHE = None) y la reconstrucción de verdad quedaba para la
+    # PRÓXIMA llamada a _indice_fragmentos() -- que en el router pasaba a
+    # ser la MISMA pregunta que detectó el cambio, bloqueándola el minuto
+    # entero que tarda reconstruir. Ahora debe llamarse SOLO desde tareas
+    # en segundo plano (ver routers/asesor.py) y reconstruir de una, para
+    # que la pregunta que la disparó no la pague.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
+
+    asesor.actualizar_documentos_admin([("Norma X", None, "contenido de la norma X")])
+    assert asesor._INDICE_CACHE is not None  # ya quedó reconstruido, no en None
+    fragmentos, _indice = asesor._INDICE_CACHE
+    assert any("contenido de la norma X" in texto for _etiqueta, texto in fragmentos)
 
 
 def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, monkeypatch):

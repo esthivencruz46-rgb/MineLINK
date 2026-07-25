@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 import asesor
@@ -13,6 +13,7 @@ router = APIRouter(prefix="/asesor", tags=["asesor"])
 @router.post("", response_model=schemas.AsesorRespuestaOut)
 def preguntar_asesor(
     payload: schemas.AsesorPreguntaRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     _limite: None = Depends(limitar_preguntas_asesor),
 ):
@@ -25,15 +26,22 @@ def preguntar_asesor(
     ][-asesor.MAX_TURNOS_HISTORIAL :]
     historial.append({"rol": "usuario", "contenido": payload.pregunta})
 
-    # Documentos subidos desde /admin (sin git) — barato de consultar; solo
-    # reconstruye el índice de búsqueda si de verdad cambió algo desde la
-    # última pregunta (ver asesor.actualizar_documentos_admin).
+    # Documentos subidos desde /admin (sin git) + los que sincroniza
+    # asesor_proyectos.py — barato de consultar. Julio 2026, incidente
+    # real: reconstruir el índice sobre TODO el corpus tarda 50+ segundos
+    # (12,000+ fragmentos) — antes se reconstruía EN LÍNEA la primera vez
+    # que se detectaba un cambio, y la persona que preguntó justo en ese
+    # momento se quedaba esperando el minuto completo ("Failed to fetch").
+    # Ahora solo se compara (barato) y, si cambió algo, la reconstrucción
+    # de verdad se agenda en segundo plano — esta pregunta responde con el
+    # índice que ya estaba armado, aunque quede desactualizado por unos
+    # segundos más.
     documentos_admin = db.query(models.DocumentoAsesor).filter(
         models.DocumentoAsesor.activo == True  # noqa: E712
     ).all()
-    asesor.actualizar_documentos_admin(
-        [(d.nombre, d.categoria, d.texto) for d in documentos_admin]
-    )
+    lista_documentos = [(d.nombre, d.categoria, d.texto) for d in documentos_admin]
+    if asesor.documentos_admin_cambiaron(lista_documentos):
+        background_tasks.add_task(asesor.actualizar_documentos_admin, lista_documentos)
 
     system = asesor.construir_system_prompt(payload.pregunta)
     try:

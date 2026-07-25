@@ -3292,6 +3292,44 @@ def test_asesor_publico_rechaza_pregunta_vacia():
     assert resp.status_code == 422
 
 
+def test_preguntar_asesor_agenda_reconstruccion_en_segundo_plano_si_cambio(monkeypatch):
+    # julio 2026, incidente real reproducido en vivo: reconstruir el
+    # índice sobre el corpus completo tarda 50+ segundos -- antes se hacía
+    # en línea dentro de la pregunta que detectaba el cambio, y esa
+    # persona se quedaba esperando el minuto entero ("Failed to fetch").
+    # Ahora se agenda en segundo plano; esta pregunta responde sin esperar
+    # esa reconstrucción.
+    import asesor
+
+    llamadas = {"n": 0}
+    monkeypatch.setattr(asesor, "documentos_admin_cambiaron", lambda documentos: True)
+    monkeypatch.setattr(
+        asesor,
+        "actualizar_documentos_admin",
+        lambda documentos: llamadas.__setitem__("n", llamadas["n"] + 1),
+    )
+
+    resp = client.post("/asesor", json={"pregunta": "hola"})
+    assert resp.status_code == 200
+    assert llamadas == {"n": 1}
+
+
+def test_preguntar_asesor_no_reconstruye_si_nada_cambio(monkeypatch):
+    import asesor
+
+    llamadas = {"n": 0}
+    monkeypatch.setattr(asesor, "documentos_admin_cambiaron", lambda documentos: False)
+    monkeypatch.setattr(
+        asesor,
+        "actualizar_documentos_admin",
+        lambda documentos: llamadas.__setitem__("n", llamadas["n"] + 1),
+    )
+
+    resp = client.post("/asesor", json={"pregunta": "hola"})
+    assert resp.status_code == 200
+    assert llamadas == {"n": 0}
+
+
 def test_asesor_publico_respeta_el_limite_por_ip():
     import security
 

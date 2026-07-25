@@ -262,20 +262,46 @@ def _nucleo() -> str:
     return _NUCLEO_CACHE
 
 
-def actualizar_documentos_admin(documentos: list[tuple[str, str | None, str]]) -> None:
-    """`documentos`: (nombre, categoria, texto) — ya extraído, tal como
-    vive en DocumentoAsesor.activo=True. Se compara contra lo que ya
-    había: si no cambió nada, no se invalida el índice (evita reconstruir
-    BM25 sobre TODO el corpus en cada pregunta solo por una consulta que
-    siempre devuelve lo mismo)."""
-    global _DOCUMENTOS_ADMIN, _INDICE_CACHE
-    nuevos = [
+def _documentos_admin_normalizados(
+    documentos: list[tuple[str, str | None, str]]
+) -> list[tuple[str, str]]:
+    return [
         (f"{categoria}/{nombre}" if categoria else nombre, texto)
         for nombre, categoria, texto in documentos
     ]
-    if nuevos != _DOCUMENTOS_ADMIN:
-        _DOCUMENTOS_ADMIN = nuevos
-        _INDICE_CACHE = None  # fuerza reconstrucción en la próxima pregunta
+
+
+def documentos_admin_cambiaron(documentos: list[tuple[str, str | None, str]]) -> bool:
+    """Comparación barata (no toca el índice) — para que el router pueda
+    decidir si hace falta agendar una reconstrucción en segundo plano SIN
+    pagar el costo de esa reconstrucción él mismo. Ver
+    `actualizar_documentos_admin` más abajo para el porqué."""
+    return _documentos_admin_normalizados(documentos) != _DOCUMENTOS_ADMIN
+
+
+def actualizar_documentos_admin(documentos: list[tuple[str, str | None, str]]) -> None:
+    """`documentos`: (nombre, categoria, texto) — ya extraído, tal como
+    vive en DocumentoAsesor.activo=True.
+
+    IMPORTANTE (julio 2026, reescrito tras un incidente real): esta
+    función reconstruye el índice BM25 DE UNA, dentro del mismo llamado —
+    con el tamaño actual del corpus (12,000+ fragmentos, contando
+    context/asesor_conocimiento/ + los documentos admin + la cartera de
+    proyectos sincronizada por asesor_proyectos.py) eso tarda 50+
+    segundos. Por eso SIEMPRE debe llamarse desde una tarea en segundo
+    plano (`BackgroundTasks`), nunca en línea dentro de una pregunta real
+    — antes se llamaba directo en cada pregunta y, cuando de casualidad
+    detectaba un cambio (ej. la sincronización de un proyecto nuevo), la
+    persona que preguntó en ese momento se quedaba esperando el minuto
+    completo de la reconstrucción, viéndolo como un "Failed to fetch" sin
+    ninguna explicación. `routers/asesor.py` usa `documentos_admin_cambiaron`
+    (barato) para decidir SI hace falta, y agenda ESTA función aparte —
+    la pregunta en curso responde con el índice que ya estaba armado,
+    aunque quede un poco desactualizado por unos segundos más."""
+    global _DOCUMENTOS_ADMIN, _INDICE_CACHE
+    _DOCUMENTOS_ADMIN = _documentos_admin_normalizados(documentos)
+    _INDICE_CACHE = None
+    _indice_fragmentos()  # reconstruye ahora, en el background task -- no en la próxima pregunta
 
 
 def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
@@ -378,18 +404,28 @@ class AsesorNoDisponible(Exception):
 
 # Tope de tiempo total para TODA la cadena de respaldo (julio 2026,
 # reportado en vivo: "Failed to fetch" en el navegador al preguntarle al
-# asesor). Cada proveedor individual ya tiene su propio timeout de 30s
-# (ver _via_*), pero con hasta 8 proveedores configurados en cadena, un
-# día en que varios fallan lento en secuencia (ej. sin cuota, o la API
-# tarda en devolver el error) podía acumular varios minutos de espera --
-# tiempo de sobra para que el proxy/gateway del hosting mate la conexión
-# a medio camino, antes de que el código llegue a responder con un 503
-# limpio. El navegador ve eso como un error de red genérico ("Failed to
-# fetch"), no como el mensaje amable que el router sí manda. Con este
-# tope, una vez que ya se gastó el presupuesto no se arranca un proveedor
-# más -- se corta ahí y se responde con lo que ya se tiene (éxito o el
-# último error), siempre dentro de un tiempo acotado.
-_PRESUPUESTO_TOTAL_SEGUNDOS = 25.0
+# asesor; después, pedido explícito: "no debe ser superior a 7 segundos").
+# Cada proveedor individual ya tiene su propio timeout, bajado de 30s a 8s
+# (ver _via_*) -- Gemini responde en ~2s cuando funciona bien (medido en
+# vivo, ver comentario en _MODELO_POR_DEFECTO), así que 8s ya es 4x ese
+# margen; más que eso solo alarga la espera cuando algo está genuinamente
+# fallando, en vez de pasar rápido al siguiente proveedor. Con hasta 8
+# proveedores configurados en cadena, un día en que varios fallan lento en
+# secuencia podía acumular varios minutos de espera -- tiempo de sobra
+# para que el proxy/gateway del hosting mate la conexión a medio camino,
+# antes de que el código llegue a responder con un 503 limpio (el
+# navegador lo ve como "Failed to fetch", no como el mensaje amable que
+# el router sí manda). Con este tope, una vez que ya se gastó el
+# presupuesto no se arranca un proveedor más -- se corta ahí y se
+# responde con lo que ya se tiene (éxito o el último error), siempre
+# dentro de un tiempo acotado. NO es una garantía matemática de "siempre
+# ≤7s" (una API externa real puede tardar lo que quiera dentro de su
+# propio timeout) — acerca mucho el caso típico y el peor caso a ese
+# objetivo, pero la mejora que sí lo garantizaría de verdad es que el
+# asesor transmita la respuesta en vivo (streaming) en vez de esperar el
+# texto completo -- pendiente, es un cambio más grande (toca los 8
+# adaptadores + el endpoint + el widget del frontend).
+_PRESUPUESTO_TOTAL_SEGUNDOS = 15.0
 
 
 def generar_respuesta_con_proveedor(system: str, historial: list[dict]) -> tuple[str, str]:
@@ -491,7 +527,7 @@ def _via_claude(system: str, historial: list[dict]) -> str:
                     for m in historial
                 ],
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -518,7 +554,7 @@ def _via_gemini(system: str, historial: list[dict]) -> str:
                     for m in historial
                 ],
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -541,7 +577,7 @@ def _via_grok(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("grok"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -564,7 +600,7 @@ def _via_kimi(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("kimi"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -586,7 +622,7 @@ def _via_deepseek(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("deepseek"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -609,7 +645,7 @@ def _via_qwen(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("qwen"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -631,7 +667,7 @@ def _via_glm(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("glm"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
@@ -652,7 +688,7 @@ def _via_openai(system: str, historial: list[dict]) -> str:
                 "model": _modelo_para("openai"),
                 "messages": [{"role": "system", "content": system}] + _mensajes_openai_like(historial),
             },
-            timeout=30,
+            timeout=8,
         )
         resp.raise_for_status()
         data = resp.json()
