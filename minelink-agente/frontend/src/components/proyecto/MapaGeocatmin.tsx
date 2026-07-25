@@ -17,26 +17,21 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
 const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 
 /** Mapa de la ficha pública (julio 2026): base satelital (Esri World
- * Imagery) + las capas OFICIALES de GEOCATMIN/INGEMMET encima —
- * "Catastro minero" (polígonos de concesiones, encendida por defecto),
- * "Geología 1:100K" (apagada por defecto, se activa en el control de
- * capas), si el backend encontró alguna "Fallas geológicas cercanas"
- * (encendida por defecto — antes solo se listaban como texto en "Cotejo
- * con registros públicos", pedido explícito de Esthiven de mostrarlas
- * también trazadas sobre el mapa) y 3 capas satelitales ASTER de
- * INGEMMET (julio 2026, pedido explícito de Esthiven tras preguntar qué
- * más ofrece INGEMMET de imágenes satelitales — el DEM se probó
- * (Hillshade incluido) y se quitó a pedido suyo), cada una con su
- * PROPIO interruptor: "ASTER 9-3-1" y "Índices minerales QICIMI"
- * —productos ya procesados por el laboratorio de teledetección de
- * INGEMMET que resaltan zonas de alteración hidrotermal, indicio de
- * mineralización— y "Anomalías espectrales" (polígonos). Las 3 apagadas
- * por defecto y con `minZoom: 12` (equivalente a la vista local de unos
- * 10km alrededor del pin) para no pedirle a INGEMMET un render de medio
- * país si alguien hace zoom out con alguna marcada. Reemplaza al embed
- * de Google Maps, que no acepta capas externas. Los servicios ArcGIS se
- * consumen como imágenes dinámicas (mismo backend REST que usa
- * backend/geocatmin.py para el cotejo). */
+ * Imagery) + las capas OFICIALES de GEOCATMIN/INGEMMET en el control
+ * estándar de Leaflet — "Catastro minero" (encendida por defecto),
+ * "Geología 1:100K" (apagada por defecto) y, si el backend encontró
+ * alguna, "Fallas geológicas cercanas" (encendida por defecto). Además,
+ * un control PROPIO (`CapasAgrupadas`, más abajo) con dos apartados
+ * titulados — Leaflet no soporta encabezados de grupo en su control
+ * nativo, y con las 3 capas ASTER de INGEMMET más las 5 de Copernicus
+ * todo junto en una sola lista se veía desordenado (pedido explícito de
+ * Esthiven, julio 2026): "GEOCATMIN · INGEMMET" (ASTER 9-3-1, índices
+ * QICIMI, Anomalías espectrales — el DEM se probó y se quitó a pedido
+ * suyo) y "Sentinel-2 · Copernicus" (4 índices minerales + 1 combinado
+ * sobre el polígono REAL de la concesión, `L.imageOverlay` georreferen-
+ * ciado con el bbox que manda el backend — ver `backend/copernicus.py`;
+ * solo aparece si esa capa ya se generó). Todas apagadas por defecto.
+ * Reemplaza al embed de Google Maps, que no acepta capas externas. */
 export function MapaGeocatmin({
   coords,
   poligonoConcesion,
@@ -270,14 +265,76 @@ export function MapaGeocatmin({
           "Catastro minero": catastro,
           "Geología (50K si existe / 100K)": geologia,
           ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
-          "ASTER 9-3-1 (falso color, roca/vegetación)": aster931,
-          "Índices minerales QICIMI": qicimi,
-          "Anomalías espectrales": anomalias,
-          ...overlaysAnomalias,
         },
         { collapsed: false, position: "topright" }
       )
       .addTo(mapa);
+
+    // Control propio con las capas satelitales separadas en 2 apartados
+    // con título (julio 2026, pedido explícito de Esthiven: "se ve feo"
+    // todo junto en una sola lista) — el L.control.layers de arriba no
+    // soporta encabezados de grupo, así que esto es un control manual
+    // (mismo patrón que la Leyenda de abajo): checkbox propio que agrega
+    // o quita la capa del mapa al hacer clic.
+    const CapasAgrupadas = L.Control.extend({
+      options: { position: "topright" },
+      onAdd: function () {
+        const div = L.DomUtil.create("div", "leaflet-bar");
+        div.style.background = "white";
+        div.style.color = "#1f2937";
+        div.style.padding = "6px 10px 8px";
+        div.style.fontSize = "12px";
+        div.style.lineHeight = "1.6";
+        div.style.maxWidth = "240px";
+
+        const grupos: { titulo: string; capas: [string, L.Layer][] }[] = [
+          {
+            titulo: "GEOCATMIN · INGEMMET",
+            capas: [
+              ["ASTER 9-3-1 (falso color, roca/vegetación)", aster931],
+              ["Índices minerales QICIMI", qicimi],
+              ["Anomalías espectrales", anomalias],
+            ],
+          },
+        ];
+        if (Object.keys(overlaysAnomalias).length > 0) {
+          grupos.push({
+            titulo: "Sentinel-2 · Copernicus",
+            capas: Object.entries(overlaysAnomalias),
+          });
+        }
+
+        grupos.forEach((grupo, i) => {
+          const titulo = L.DomUtil.create("div", "", div);
+          titulo.style.fontWeight = "600";
+          titulo.style.marginTop = i === 0 ? "0" : "8px";
+          titulo.style.borderTop = i === 0 ? "none" : "1px solid #e5e7eb";
+          titulo.style.paddingTop = i === 0 ? "0" : "6px";
+          titulo.textContent = grupo.titulo;
+          grupo.capas.forEach(([label, layer]) => {
+            const fila = L.DomUtil.create("label", "", div);
+            fila.style.display = "flex";
+            fila.style.alignItems = "center";
+            fila.style.gap = "6px";
+            fila.style.fontWeight = "400";
+            fila.style.margin = "3px 0";
+            fila.style.cursor = "pointer";
+            const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
+            checkbox.type = "checkbox";
+            checkbox.checked = mapa.hasLayer(layer);
+            checkbox.addEventListener("change", () => {
+              if (checkbox.checked) mapa.addLayer(layer);
+              else mapa.removeLayer(layer);
+            });
+            fila.appendChild(document.createTextNode(label));
+          });
+        });
+
+        L.DomEvent.disableClickPropagation(div);
+        return div;
+      },
+    });
+    new CapasAgrupadas().addTo(mapa);
 
     // Leyenda de colores (julio 2026, pedido explícito de Esthiven: "que
     // expliques qué es el color de las capas satelitales") — un control
