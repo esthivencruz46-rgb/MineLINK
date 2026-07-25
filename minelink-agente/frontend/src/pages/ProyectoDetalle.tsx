@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link, useParams } from "react-router-dom";
@@ -332,13 +332,16 @@ export function ProyectoDetalle() {
         Volver a proyectos
       </Link>
 
-      {/* HEADER: título/badges/ubicación a la izquierda, recuadro de
-          puntuación arriba a la derecha (pedido explícito, julio 2026:
-          "yo lo pondría en el área superior derecha" — segundo cambio de
-          posición del mismo recuadro en la misma sesión; primero pasó de
-          junto al mapa a debajo, ahora pasa a junto al título). El mapa
-          baja a su propia fila a todo el ancho, debajo de este bloque. */}
-      <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      {/* HEADER (julio 2026, tercer rediseño de este bloque en la misma
+          sesión: "no se ve estético, mejora en detalles" — en vez de
+          acoplar una caja alta junto a un encabezado corto, cada dato va
+          en el lugar que le queda natural: título arriba a la izquierda,
+          botones de acción compactos arriba a la derecha (misma altura
+          que el título, no una columna larga), y las métricas en una
+          franja horizontal delgada debajo — sin borde de tarjeta, solo
+          una línea divisoria arriba/abajo, como una barra de datos, no
+          una caja aparte). */}
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -387,152 +390,124 @@ export function ProyectoDetalle() {
           </p>
         </div>
 
-        {(() => {
-          const hayScores =
-            typeof proyecto.score_formalizacion === "number" ||
-            typeof proyecto.score_inversion === "number";
-          return (
-          <div className="flex w-full flex-col gap-3 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark lg:w-72 lg:shrink-0">
-            {hayScores && (
-              <div className="flex flex-col gap-2 border-b border-black/10 pb-3 dark:border-white/10">
-                <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
-                <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                Track Legal
-              </p>
-              <p className={`text-lg font-semibold ${semLegal.claseTexto}`}>{trackLegalTexto}</p>
-            </div>
-            {/* Madurez técnica (antes en el sidebar de abajo, dejaba un
-                espacio en blanco acá) — pedido explícito, julio 2026. */}
-            <div className="sm:min-w-[10rem]">
-              <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                Madurez técnica
-              </p>
-              {madurez != null ? (
-                <>
-                  <div className="mt-1 flex items-center gap-1.5">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <span
-                        key={n}
-                        className={`h-2.5 w-6 rounded-full ${
-                          n <= madurez ? semTecnico.claseBarra : "bg-black/10 dark:bg-white/10"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <p className={`mt-1 text-sm font-semibold ${semTecnico.claseTexto}`}>
-                    Nivel {madurez}/5
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
-                  Aún sin operación que medir
-                </p>
-              )}
-            </div>
+        {/* Botones de acción — compactos, del alto del título, no una
+            columna larga de sidebar. */}
+        <div className="flex shrink-0 gap-2.5 sm:flex-col sm:w-52">
+          <button
+            onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
+            className="min-h-[44px] flex-1 bg-acento px-4 font-semibold text-white transition hover:bg-acento/90 sm:flex-none"
+          >
+            Me interesa este proyecto
+          </button>
+          <button
+            onClick={async () => {
+              setGenerandoPdf(true);
+              try {
+                await generarPdfProyecto(proyecto);
+              } finally {
+                setGenerandoPdf(false);
+              }
+            }}
+            disabled={generandoPdf}
+            className="min-h-[44px] flex-1 border border-black/10 px-4 font-semibold transition disabled:opacity-50 dark:border-white/10 sm:flex-none"
+          >
+            {generandoPdf ? "Generando..." : "Descargar PDF"}
+          </button>
+        </div>
+      </div>
 
-            {/* Señales verificadas + acciones (antes en el sidebar de más
-                abajo, quedaba un espacio en blanco acá) — pedido
-                explícito, julio 2026. El HECHO derivado de documentos
-                privados (liquidaciones, estados financieros, OPEX), nunca
-                el documento en sí. Un ✓ = archivo subido. */}
-            {proyecto.indicadores?.ventas_liquidacion_verificada ? (
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Ventas con liquidación
-                </p>
-                <p className="text-sm font-semibold text-emerald-500">
-                  ✓ Con respaldo — {proyecto.indicadores.ventas_liquidacion_docs} doc
-                  {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
-                  {proyecto.indicadores.ventas_liquidacion_ultima
-                    ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
-                    : ""}
-                </p>
-              </div>
-            ) : proyecto.vende_liquidacion != null ? (
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Producción con liquidación
-                </p>
-                <p className={`text-sm font-semibold ${proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}`}>
-                  {proyecto.vende_liquidacion
-                    ? "Declarada (sin respaldo aún)"
-                    : "Sin liquidación formal"}
-                </p>
-              </div>
-            ) : null}
-            {proyecto.indicadores?.contabilidad && (
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Finanzas
-                </p>
-                <p
-                  className={`text-sm font-semibold ${
-                    proyecto.indicadores.contabilidad_verificada ? "text-emerald-500" : ""
-                  }`}
-                >
-                  {proyecto.indicadores.contabilidad_verificada ? "✓ " : ""}
-                  {{
-                    auditados: "Estados financieros auditados",
-                    contabilidad_formal: "Contabilidad formal (contador)",
-                    registro_interno: "Registro interno ordenado",
-                  }[proyecto.indicadores.contabilidad] ?? proyecto.indicadores.contabilidad}
-                </p>
-              </div>
-            )}
-            {proyecto.indicadores?.opex_verificado && (
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Costos operativos
-                </p>
-                <p className="text-sm font-semibold text-emerald-500">
-                  ✓ Documentados
-                  {proyecto.indicadores.opex_costo_aprox
-                    ? ` · ~S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
-                    : ""}
-                </p>
-              </div>
-            )}
-            {proyecto.capital_buscado && (
-              <div>
-                <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-                  Busca
-                </p>
-                <p className="text-sm font-semibold">
-                  {formatearMonto(proyecto.capital_buscado)}
-                  {proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""}
-                </p>
-              </div>
-            )}
-
-            <div className="mt-2 flex flex-col gap-2.5">
-              <button
-                onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
-                className="min-h-[44px] bg-acento font-semibold text-white transition hover:bg-acento/90"
-              >
-                Me interesa este proyecto
-              </button>
-              <button
-                onClick={async () => {
-                  setGenerandoPdf(true);
-                  try {
-                    await generarPdfProyecto(proyecto);
-                  } finally {
-                    setGenerandoPdf(false);
-                  }
-                }}
-                disabled={generandoPdf}
-                className="min-h-[44px] border border-black/10 font-semibold transition disabled:opacity-50 dark:border-white/10"
-              >
-                {generandoPdf ? "Generando PDF..." : "Descargar Información (PDF)"}
-              </button>
-            </div>
-          </div>
-          );
-        })()}
+      {/* Franja de métricas: una línea, sin caja — cada dato en su chip
+          compacto, envuelve en varias líneas en pantallas chicas. */}
+      <div className="mt-4 flex flex-wrap items-start gap-x-8 gap-y-3 border-y border-black/10 py-3 dark:border-white/10">
+        <StatScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
+        <StatScore etiqueta="Inversión" valor={proyecto.score_inversion} />
+        <Stat etiqueta="Track Legal" valor={trackLegalTexto} claseValor={semLegal.claseTexto} />
+        <Stat
+          etiqueta="Madurez técnica"
+          valor={
+            madurez != null ? (
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <span
+                      key={n}
+                      className={`h-2 w-4 rounded-full ${
+                        n <= madurez ? semTecnico.claseBarra : "bg-black/10 dark:bg-white/10"
+                      }`}
+                    />
+                  ))}
+                </span>
+                <span className={semTecnico.claseTexto}>Nivel {madurez}/5</span>
+              </span>
+            ) : (
+              <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
+                Aún sin operación que medir
+              </span>
+            )
+          }
+        />
+        {/* Señales verificadas — el HECHO derivado de documentos privados
+            (liquidaciones, estados financieros, OPEX), nunca el documento
+            en sí. Un ✓ = archivo subido. */}
+        {proyecto.indicadores?.ventas_liquidacion_verificada ? (
+          <Stat
+            etiqueta="Ventas con liquidación"
+            claseValor="text-emerald-500"
+            valor={
+              <>
+                ✓ Con respaldo — {proyecto.indicadores.ventas_liquidacion_docs} doc
+                {proyecto.indicadores.ventas_liquidacion_docs !== 1 ? "s" : ""}
+                {proyecto.indicadores.ventas_liquidacion_ultima
+                  ? ` · último: ${proyecto.indicadores.ventas_liquidacion_ultima}`
+                  : ""}
+              </>
+            }
+          />
+        ) : proyecto.vende_liquidacion != null ? (
+          <Stat
+            etiqueta="Producción con liquidación"
+            claseValor={proyecto.vende_liquidacion ? "text-emerald-500" : "text-amber-500"}
+            valor={proyecto.vende_liquidacion ? "Declarada (sin respaldo aún)" : "Sin liquidación formal"}
+          />
+        ) : null}
+        {proyecto.indicadores?.contabilidad && (
+          <Stat
+            etiqueta="Finanzas"
+            claseValor={proyecto.indicadores.contabilidad_verificada ? "text-emerald-500" : ""}
+            valor={
+              <>
+                {proyecto.indicadores.contabilidad_verificada ? "✓ " : ""}
+                {{
+                  auditados: "Estados financieros auditados",
+                  contabilidad_formal: "Contabilidad formal (contador)",
+                  registro_interno: "Registro interno ordenado",
+                }[proyecto.indicadores.contabilidad] ?? proyecto.indicadores.contabilidad}
+              </>
+            }
+          />
+        )}
+        {proyecto.indicadores?.opex_verificado && (
+          <Stat
+            etiqueta="Costos operativos"
+            claseValor="text-emerald-500"
+            valor={
+              <>
+                ✓ Documentados
+                {proyecto.indicadores.opex_costo_aprox
+                  ? ` · ~S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
+                  : ""}
+              </>
+            }
+          />
+        )}
+        {proyecto.capital_buscado && (
+          <Stat
+            etiqueta="Busca"
+            valor={`${formatearMonto(proyecto.capital_buscado)}${
+              proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""
+            }`}
+          />
+        )}
       </div>
 
       {/* MOSAICO SUPERIOR: ubicación satelital + fotos, a todo el ancho
@@ -1216,9 +1191,34 @@ function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-/** Fila de score 0-100 del panel lateral — mismos umbrales de color que la
- * tarjeta de la cartera y la cuenta del minero (≥70 verde, ≥40 ámbar). */
-function FilaScore({ etiqueta, valor }: { etiqueta: string; valor?: number | null }) {
+/** Chip compacto para la franja de métricas debajo del encabezado (etiqueta
+ * chica arriba, valor abajo) — reemplaza al recuadro tipo tarjeta que se
+ * veía mal junto al título (julio 2026, reportado por Esthiven: "no se ve
+ * estético"). `claseValor` deja que cada llamado use su propio color
+ * semántico (verde/ámbar según el semáforo, o ninguno para datos neutros
+ * como "Busca"). */
+function Stat({
+  etiqueta,
+  valor,
+  claseValor = "",
+}: {
+  etiqueta: string;
+  valor: ReactNode;
+  claseValor?: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs font-medium text-texto-suave dark:text-texto-suave-dark">
+        {etiqueta}
+      </p>
+      <p className={`text-sm font-semibold ${claseValor}`}>{valor}</p>
+    </div>
+  );
+}
+
+/** Score 0-100 — mismos umbrales de color que la tarjeta de la cartera y la
+ * cuenta del minero (≥70 verde, ≥40 ámbar). null si no hay score. */
+function StatScore({ etiqueta, valor }: { etiqueta: string; valor?: number | null }) {
   if (typeof valor !== "number") return null;
   const clase =
     valor >= 70
@@ -1226,14 +1226,7 @@ function FilaScore({ etiqueta, valor }: { etiqueta: string; valor?: number | nul
       : valor >= 40
         ? "text-amber-600 dark:text-amber-400"
         : "text-red-500";
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
-        {etiqueta}
-      </p>
-      <span className={`text-sm font-semibold ${clase}`}>{valor}/100</span>
-    </div>
-  );
+  return <Stat etiqueta={etiqueta} valor={`${valor}/100`} claseValor={clase} />;
 }
 
 function Card({ children, acento }: { children: React.ReactNode; acento?: boolean }) {
