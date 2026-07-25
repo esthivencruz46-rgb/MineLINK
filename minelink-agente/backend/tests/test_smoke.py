@@ -3350,6 +3350,67 @@ def test_asesor_publico_respeta_el_limite_por_ip():
         security.MAX_PREGUNTAS_ASESOR_HORA = tope_original
 
 
+def test_limite_asesor_distingue_visitantes_por_cf_connecting_ip(monkeypatch):
+    # julio 2026, hallazgo real al revisar el asesor a fondo: detrás de
+    # Render + Cloudflare, request.client.host es la IP del proxy
+    # interno -- la MISMA para todos los visitantes. Sin leer
+    # CF-Connecting-IP, el límite de preguntas/hora se repartía entre
+    # TODO el tráfico combinado en vez de por persona: con 15-20
+    # visitantes distintos preguntando algo normal en una hora, cualquiera
+    # podía toparse con un 429 sin haber preguntado más de una vez él
+    # mismo. Confirma que dos visitantes con CF-Connecting-IP distinto
+    # tienen cupos independientes.
+    import security
+
+    security._preguntas_asesor_por_ip.clear()
+    tope_original = security.MAX_PREGUNTAS_ASESOR_HORA
+    security.MAX_PREGUNTAS_ASESOR_HORA = 2
+    try:
+        for _ in range(2):
+            resp = client.post(
+                "/asesor", json={"pregunta": "hola"}, headers={"CF-Connecting-IP": "1.2.3.4"}
+            )
+            assert resp.status_code == 200
+        resp = client.post(
+            "/asesor", json={"pregunta": "hola"}, headers={"CF-Connecting-IP": "1.2.3.4"}
+        )
+        assert resp.status_code == 429  # "1.2.3.4" ya agotó su propio cupo
+
+        # Un visitante DISTINTO (otro CF-Connecting-IP) no debe verse
+        # afectado -- antes, sin leer el header, hubiera compartido el
+        # mismo bucket (vía request.client.host) y también recibido 429.
+        resp = client.post(
+            "/asesor", json={"pregunta": "hola"}, headers={"CF-Connecting-IP": "5.6.7.8"}
+        )
+        assert resp.status_code == 200
+    finally:
+        security.MAX_PREGUNTAS_ASESOR_HORA = tope_original
+
+
+def test_ip_real_prioriza_cf_connecting_ip_luego_x_forwarded_for_luego_conexion_directa():
+    import security
+
+    class _RequestFalso:
+        def __init__(self, headers: dict, client_host: str | None):
+            self.headers = headers
+            self.client = type("Cliente", (), {"host": client_host})() if client_host else None
+
+    assert (
+        security._ip_real(
+            _RequestFalso(
+                {"cf-connecting-ip": "1.2.3.4", "x-forwarded-for": "9.9.9.9"}, "10.0.0.1"
+            )
+        )
+        == "1.2.3.4"
+    )
+    assert (
+        security._ip_real(_RequestFalso({"x-forwarded-for": "9.9.9.9, 10.0.0.1"}, "10.0.0.1"))
+        == "9.9.9.9"
+    )
+    assert security._ip_real(_RequestFalso({}, "10.0.0.1")) == "10.0.0.1"
+    assert security._ip_real(_RequestFalso({}, None)) == "desconocida"
+
+
 def _proyecto_publico_de_prueba(**overrides):
     import schemas
 
@@ -4137,7 +4198,7 @@ def test_limite_de_intentos_de_login():
 
     import security
 
-    peticion = SimpleNamespace(client=SimpleNamespace(host="ip-de-prueba-unica"))
+    peticion = SimpleNamespace(client=SimpleNamespace(host="ip-de-prueba-unica"), headers={})
     for _ in range(security.MAX_INTENTOS):
         security.limitar_intentos_login(peticion)
     with pytest.raises(HTTPException) as exc:

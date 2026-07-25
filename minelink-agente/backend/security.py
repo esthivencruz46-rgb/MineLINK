@@ -39,6 +39,31 @@ def _barrer_si_toca(registro: dict[str, deque], ventana: float) -> None:
         del registro[clave]
 
 
+def _ip_real(request: Request) -> str:
+    """`request.client.host` es la IP del último salto TCP antes de
+    llegar a uvicorn -- en producción eso es el proxy interno de Render
+    (con Cloudflare por delante), NO el visitante real (julio 2026,
+    hallazgo al revisar el asesor a fondo: nunca se verificó esto). Si
+    TODOS los visitantes comparten esa misma IP de proxy, un límite "por
+    IP" como MAX_PREGUNTAS_ASESOR_HORA en realidad se reparte entre TODOS
+    los visitantes combinados -- con tráfico normal (15-20 personas
+    distintas preguntando algo en una hora), cualquiera podía toparse con
+    un 429 "demasiadas preguntas desde esta conexión" sin haber preguntado
+    más de una vez él mismo. `CF-Connecting-IP` lo pone Cloudflare en su
+    borde y no se puede falsificar desde el navegador (más confiable que
+    X-Forwarded-For, que en teoría el cliente podría intentar mandar
+    armado); si no está (ej. desarrollo local, sin Cloudflare por medio),
+    cae a X-Forwarded-For (primer valor = IP original) y por último al
+    host de la conexión directa."""
+    cf_ip = request.headers.get("cf-connecting-ip")
+    if cf_ip:
+        return cf_ip.strip()
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "desconocida"
+
+
 def _limitar_por_ip(
     request: Request,
     registro: dict[str, deque],
@@ -46,7 +71,7 @@ def _limitar_por_ip(
     ventana: float,
     detalle: str,
 ) -> None:
-    ip = request.client.host if request.client else "desconocida"
+    ip = _ip_real(request)
     ahora = time.monotonic()
     _barrer_si_toca(registro, ventana)
     cola = registro[ip]
