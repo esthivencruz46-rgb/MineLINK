@@ -3465,6 +3465,34 @@ def test_asesor_publico_registra_evento_de_falla_en_el_dashboard(monkeypatch):
     assert "proveedor simulado caído" in dashboard["asesor_ultima_falla"]["detalle"]
 
 
+def test_asesor_publico_error_inesperado_no_se_escapa_como_500_crudo(monkeypatch):
+    # julio 2026, reproducido en vivo probando contra producción: un error
+    # que NO es AsesorNoDisponible (ej. un bug de parseo puntual de algún
+    # proveedor) escapaba como 500 crudo de FastAPI, sin quedar registrado
+    # en LlamadaAsesor -- invisible en el dashboard admin. Ahora se atrapa,
+    # se registra igual (proveedor=None, ya que no se sabe cuál lo causó) y
+    # se responde con un 503 limpio, nunca el "Internal Server Error" crudo.
+    import asesor
+
+    def _explota(system, historial):
+        raise ValueError("algo que no es un AsesorNoDisponible")
+
+    monkeypatch.setattr(asesor, "generar_respuesta_con_proveedor", _explota)
+
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    antes = client.get("/admin/dashboard", headers=headers).json()["asesor_fallas_hoy"]
+
+    resp = client.post("/asesor", json={"pregunta": "¿qué es el REINFO?"})
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "El asesor tuvo un problema inesperado. Intenta de nuevo en un rato."
+
+    dashboard = client.get("/admin/dashboard", headers=headers).json()
+    assert dashboard["asesor_fallas_hoy"] == antes + 1
+    assert dashboard["asesor_ultima_falla"]["proveedor"] is None
+    assert "algo que no es un AsesorNoDisponible" in dashboard["asesor_ultima_falla"]["detalle"]
+
+
 def test_subir_documento_asesor_md_queda_disponible_para_el_asesor():
     # julio 2026, pedido explícito: "imagina que ya no uso Claude Code" —
     # Esthiven debe poder nutrir al asesor subiendo un archivo desde

@@ -64,6 +64,21 @@ def preguntar_asesor(
             status_code=503,
             detail="El asesor ya usó su cuota gratuita de preguntas por hoy. Vuelve a estar disponible mañana.",
         )
+    except Exception as e:
+        # Red de seguridad (julio 2026, encontrado en vivo probando desde
+        # la terminal): un error que NO es AsesorNoDisponible -- un bug de
+        # parseo en algún proveedor, un conflicto de sesión, lo que sea --
+        # antes escapaba como un 500 crudo de FastAPI, invisible en
+        # LlamadaAsesor/el dashboard admin (nadie se enteraba de qué pasó
+        # sin reproducirlo a mano). rollback() primero: si el error vino de
+        # la propia sesión de BD, un commit directo fallaría también.
+        db.rollback()
+        db.add(models.LlamadaAsesor(exitoso=False, proveedor=None, detalle=f"Error inesperado: {e}"))
+        db.commit()
+        raise HTTPException(
+            status_code=503,
+            detail="El asesor tuvo un problema inesperado. Intenta de nuevo en un rato.",
+        )
     db.add(models.LlamadaAsesor(exitoso=True, proveedor=proveedor))
     db.commit()
     return schemas.AsesorRespuestaOut(respuesta=respuesta)

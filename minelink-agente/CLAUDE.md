@@ -121,7 +121,7 @@ Plataforma web donde un minero artesanal peruano:
    necesitaría búsqueda semántica para cerrarse. El dashboard admin
    muestra qué proveedor respondió/falló por última vez y con qué error
    (tabla `LlamadaAsesor`, migración `seeds/migrar_llamadas_asesor.py`,
-   confirmar antes de correr contra prod — reemplaza el conteo genérico
+   confirmada corrida contra prod julio 2026 — reemplaza el conteo genérico
    por `Evento` de antes): `asesor.generar_respuesta_con_proveedor()`
    devuelve `(texto, proveedor)` si responde bien, y
    `AsesorNoDisponible.proveedor` guarda quién fue el último que falló —
@@ -141,8 +141,8 @@ Plataforma web donde un minero artesanal peruano:
    "imagina que ya no uso Claude Code"): `/admin/asesor` deja subir un
    PDF/.md/.txt directo desde el navegador. Se extrae y guarda SOLO el
    texto (no el archivo crudo) en la tabla nueva `DocumentoAsesor`
-   (migración `seeds/migrar_documentos_asesor.py`, aún sin correr contra
-   producción — confirmar antes). `asesor.py` nunca toca la base de
+   (migración `seeds/migrar_documentos_asesor.py`, confirmada corrida
+   contra producción julio 2026). `asesor.py` nunca toca la base de
    datos por sí mismo (sus tests siguen corriendo sin BD): el router
    consulta `DocumentoAsesor.activo` en cada pregunta y llama a
    `asesor.actualizar_documentos_admin(...)`, que solo reconstruye el
