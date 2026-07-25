@@ -43,8 +43,15 @@ def preguntar_asesor(
     if asesor.documentos_admin_cambiaron(lista_documentos):
         background_tasks.add_task(asesor.actualizar_documentos_admin, lista_documentos)
 
-    system = asesor.construir_system_prompt(payload.pregunta)
     try:
+        # `construir_system_prompt` va DENTRO del try (julio 2026, bug real
+        # encontrado en vivo: quedaba afuera, así que si tronaba ahí -- ej.
+        # al recuperar fragmentos, leer el filesystem, etc. -- se escapaba
+        # como 500 crudo sin pasar por ninguno de los except de abajo, ni
+        # loguearse en LlamadaAsesor. La red de seguridad solo cubría la
+        # llamada al proveedor, no todo lo que hace falta para armar la
+        # pregunta).
+        system = asesor.construir_system_prompt(payload.pregunta)
         respuesta, proveedor = asesor.generar_respuesta_con_proveedor(system, historial)
     except asesor.AsesorNoDisponible as e:
         # LlamadaAsesor (julio 2026) registra QUÉ proveedor falló y por qué

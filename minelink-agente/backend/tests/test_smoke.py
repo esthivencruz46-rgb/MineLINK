@@ -3531,6 +3531,33 @@ def test_asesor_publico_error_inesperado_no_se_escapa_como_500_crudo(monkeypatch
     assert "algo que no es un AsesorNoDisponible" in dashboard["asesor_ultima_falla"]["detalle"]
 
 
+def test_asesor_publico_error_en_construir_system_prompt_tampoco_se_escapa(monkeypatch):
+    # julio 2026, bug real encontrado en vivo: `construir_system_prompt`
+    # (recupera fragmentos, arma el prompt) quedaba FUERA del try/except en
+    # routers/asesor.py -- un error ahí (ej. al leer el filesystem, al
+    # reconstruir el índice) se escapaba igual como 500 crudo pese a la red
+    # de seguridad de arriba, porque esa solo cubría la llamada al
+    # proveedor. Reproducido probando "que es el IGAFOM" contra producción.
+    import asesor
+
+    def _explota(pregunta):
+        raise RuntimeError("fallo armando el prompt, no llamando a un proveedor")
+
+    monkeypatch.setattr(asesor, "construir_system_prompt", _explota)
+
+    token = _admin_token()
+    headers = {"Authorization": f"Bearer {token}"}
+    antes = client.get("/admin/dashboard", headers=headers).json()["asesor_fallas_hoy"]
+
+    resp = client.post("/asesor", json={"pregunta": "¿qué es el IGAFOM?"})
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == "El asesor tuvo un problema inesperado. Intenta de nuevo en un rato."
+
+    dashboard = client.get("/admin/dashboard", headers=headers).json()
+    assert dashboard["asesor_fallas_hoy"] == antes + 1
+    assert "fallo armando el prompt" in dashboard["asesor_ultima_falla"]["detalle"]
+
+
 def test_subir_documento_asesor_md_queda_disponible_para_el_asesor():
     # julio 2026, pedido explícito: "imagina que ya no uso Claude Code" —
     # Esthiven debe poder nutrir al asesor subiendo un archivo desde
