@@ -209,15 +209,34 @@ export async function preguntarAsesor(
   pregunta: string,
   historial: MensajeAsesor[]
 ): Promise<string> {
-  const resp = await fetch(`${BASE_URL}/asesor`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ pregunta, historial }),
-  });
-  if (!resp.ok) {
-    const detalle = await resp.json().catch(() => null);
-    throw new Error(detalle?.detail ?? "No pudimos responder tu pregunta.");
+  // Sin esto, si la conexión se cuelga a nivel de red (no del servidor —
+  // el backend ya tiene su propio tope de ~15s en la cadena de
+  // proveedores, más margen para el caso raro de arranque en frío del
+  // índice tras un redeploy), el navegador esperaría indefinidamente sin
+  // ningún límite propio, mostrando solo el spinner sin explicación
+  // (julio 2026, hallado al revisar el asesor a fondo). 45s es generoso
+  // a propósito: no debe cortar una respuesta lenta pero real.
+  const controlador = new AbortController();
+  const limiteTiempo = setTimeout(() => controlador.abort(), 45000);
+  try {
+    const resp = await fetch(`${BASE_URL}/asesor`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pregunta, historial }),
+      signal: controlador.signal,
+    });
+    if (!resp.ok) {
+      const detalle = await resp.json().catch(() => null);
+      throw new Error(detalle?.detail ?? "No pudimos responder tu pregunta.");
+    }
+    const data = await resp.json();
+    return data.respuesta as string;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "AbortError") {
+      throw new Error("La respuesta tardó demasiado. Intenta de nuevo en un rato.");
+    }
+    throw e;
+  } finally {
+    clearTimeout(limiteTiempo);
   }
-  const data = await resp.json();
-  return data.respuesta as string;
 }
