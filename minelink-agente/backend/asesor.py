@@ -62,6 +62,7 @@ un solo proveedor, por compatibilidad.
 """
 import os
 import re
+import time
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -367,6 +368,22 @@ class AsesorNoDisponible(Exception):
         self.proveedor = proveedor
 
 
+# Tope de tiempo total para TODA la cadena de respaldo (julio 2026,
+# reportado en vivo: "Failed to fetch" en el navegador al preguntarle al
+# asesor). Cada proveedor individual ya tiene su propio timeout de 30s
+# (ver _via_*), pero con hasta 8 proveedores configurados en cadena, un
+# día en que varios fallan lento en secuencia (ej. sin cuota, o la API
+# tarda en devolver el error) podía acumular varios minutos de espera --
+# tiempo de sobra para que el proxy/gateway del hosting mate la conexión
+# a medio camino, antes de que el código llegue a responder con un 503
+# limpio. El navegador ve eso como un error de red genérico ("Failed to
+# fetch"), no como el mensaje amable que el router sí manda. Con este
+# tope, una vez que ya se gastó el presupuesto no se arranca un proveedor
+# más -- se corta ahí y se responde con lo que ya se tiene (éxito o el
+# último error), siempre dentro de un tiempo acotado.
+_PRESUPUESTO_TOTAL_SEGUNDOS = 25.0
+
+
 def generar_respuesta_con_proveedor(system: str, historial: list[dict]) -> tuple[str, str]:
     """Igual que `generar_respuesta()` pero además devuelve qué proveedor
     respondió (julio 2026, para LlamadaAsesor — así el dashboard admin
@@ -376,9 +393,10 @@ def generar_respuesta_con_proveedor(system: str, historial: list[dict]) -> tuple
     Prueba cada proveedor de PROVEEDORES en orden (cadena de respaldo): si
     el que le toca falla por lo que sea (sin cuota gratis del día, clave
     inválida, error de red), pasa solo al siguiente configurado — el
-    usuario nunca lo nota. Si TODOS fallan, se propaga el último error
-    (con `.proveedor` seteado a quién fue) para que el router avise que
-    el asesor no está disponible."""
+    usuario nunca lo nota. Si TODOS fallan, o se agota
+    _PRESUPUESTO_TOTAL_SEGUNDOS antes de terminar la cadena, se propaga el
+    último error (con `.proveedor` seteado a quién fue) para que el
+    router avise que el asesor no está disponible."""
     adaptadores = {
         "claude": _via_claude,
         "gemini": _via_gemini,
@@ -392,11 +410,16 @@ def generar_respuesta_con_proveedor(system: str, historial: list[dict]) -> tuple
     if PROVEEDORES == ["simulado"]:
         return _via_simulado(system, historial), "simulado"
 
+    inicio = time.monotonic()
     ultimo_error: AsesorNoDisponible | None = None
     for proveedor in PROVEEDORES:
         adaptador = adaptadores.get(proveedor)
         if adaptador is None:
             continue
+        # Solo corta ENTRE intentos (nunca a medio de uno ya en curso): el
+        # primer proveedor siempre se prueba completo sin importar esto.
+        if ultimo_error is not None and time.monotonic() - inicio > _PRESUPUESTO_TOTAL_SEGUNDOS:
+            break
         try:
             return adaptador(system, historial), proveedor
         except AsesorNoDisponible as e:

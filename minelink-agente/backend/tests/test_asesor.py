@@ -268,6 +268,32 @@ def test_generar_respuesta_con_proveedor_conserva_proveedor_del_ultimo_error(mon
     assert excinfo.value.proveedor == "deepseek"  # el último intentado
 
 
+def test_generar_respuesta_con_proveedor_corta_la_cadena_si_se_agota_el_presupuesto(monkeypatch):
+    # julio 2026, reportado en vivo: "Failed to fetch" en el navegador al
+    # preguntarle al asesor -- con varios proveedores fallando en cadena,
+    # el tiempo total podía acumularse tanto que el proxy del hosting
+    # mataba la conexión antes de que el código respondiera un 503
+    # limpio. Simula el reloj saltando de golpe tras el primer fallo
+    # (kimi, falla al toque por falta de clave) para confirmar que NO
+    # llega a intentar deepseek -- aunque deepseek sí tiene clave y
+    # podría haber respondido.
+    monkeypatch.setattr(asesor, "PROVEEDORES", ["kimi", "deepseek"])
+    monkeypatch.delenv("MOONSHOT_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "clave-de-prueba")
+
+    tiempos = iter([0.0, 100.0])  # inicio, luego chequeo antes de deepseek
+    monkeypatch.setattr(asesor.time, "monotonic", lambda: next(tiempos))
+
+    with patch("requests.post") as mock_post:
+        with pytest.raises(asesor.AsesorNoDisponible) as excinfo:
+            asesor.generar_respuesta_con_proveedor(
+                "system", [{"rol": "usuario", "contenido": "hola"}]
+            )
+
+    mock_post.assert_not_called()  # nunca llegó a intentar deepseek
+    assert excinfo.value.proveedor == "kimi"
+
+
 def test_via_claude_error_de_red_se_traduce_a_no_disponible(monkeypatch):
     import requests
 
