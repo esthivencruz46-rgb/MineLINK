@@ -219,6 +219,20 @@ def _tokenizar(texto: str) -> list[str]:
     return _STEMMER_ES.stemWords(palabras)
 
 
+def _leer_texto_plano(ruta: Path) -> str:
+    """Best-effort, igual que `_extraer_texto_pdf` (julio 2026, hallazgo al
+    revisar el asesor a fondo: los .md/.txt NO tenían esta misma
+    protección — un solo archivo con codificación inválida (ej. pegado
+    desde Word con caracteres Windows-1252) tumbaba la reconstrucción del
+    índice ENTERA, no solo ese archivo. Ningún archivo real tiene hoy este
+    problema (verificado), pero es inconsistente con el resto del módulo
+    dejarlo sin cubrir."""
+    try:
+        return ruta.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError):
+        return ""
+
+
 def _cargar_fragmentos_extra() -> list[tuple[str, str]]:
     """Recorre `asesor_conocimiento/` (recursivo — cualquier subcarpeta
     por tema) y devuelve (etiqueta, texto_del_fragmento) por cada
@@ -234,9 +248,13 @@ def _cargar_fragmentos_extra() -> list[tuple[str, str]]:
             fragmentos.append((etiqueta, trozo))
 
     for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.md")):
-        _agregar(ruta, ruta.read_text(encoding="utf-8"))
+        texto = _leer_texto_plano(ruta)
+        if texto.strip():
+            _agregar(ruta, texto)
     for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.txt")):
-        _agregar(ruta, ruta.read_text(encoding="utf-8"))
+        texto = _leer_texto_plano(ruta)
+        if texto.strip():
+            _agregar(ruta, texto)
     for ruta in sorted(_RUTA_CONOCIMIENTO_EXTRA.rglob("*.pdf")):
         texto = _extraer_texto_pdf(ruta)
         if texto.strip():
@@ -284,36 +302,67 @@ def actualizar_documentos_admin(documentos: list[tuple[str, str | None, str]]) -
     vive en DocumentoAsesor.activo=True.
 
     IMPORTANTE (julio 2026, reescrito tras un incidente real): esta
-    función reconstruye el índice BM25 DE UNA, dentro del mismo llamado —
-    con el tamaño actual del corpus (12,000+ fragmentos, contando
-    context/asesor_conocimiento/ + los documentos admin + la cartera de
-    proyectos sincronizada por asesor_proyectos.py) eso tarda 50+
-    segundos. Por eso SIEMPRE debe llamarse desde una tarea en segundo
-    plano (`BackgroundTasks`), nunca en línea dentro de una pregunta real
-    — antes se llamaba directo en cada pregunta y, cuando de casualidad
+    función reconstruye el índice BM25 DE UNA, dentro del mismo llamado.
+    Por eso SIEMPRE debe llamarse desde una tarea en segundo plano
+    (`BackgroundTasks`), nunca en línea dentro de una pregunta real —
+    antes se llamaba directo en cada pregunta y, cuando de casualidad
     detectaba un cambio (ej. la sincronización de un proyecto nuevo), la
-    persona que preguntó en ese momento se quedaba esperando el minuto
-    completo de la reconstrucción, viéndolo como un "Failed to fetch" sin
-    ninguna explicación. `routers/asesor.py` usa `documentos_admin_cambiaron`
+    persona que preguntó en ese momento se quedaba esperando la
+    reconstrucción, viéndolo como un "Failed to fetch" sin ninguna
+    explicación. `routers/asesor.py` usa `documentos_admin_cambiaron`
     (barato) para decidir SI hace falta, y agenda ESTA función aparte —
     la pregunta en curso responde con el índice que ya estaba armado,
-    aunque quede un poco desactualizado por unos segundos más."""
+    aunque quede un poco desactualizado por unos segundos más. Ver
+    `_indice_fragmentos` para por qué esto ya no tarda 50+ segundos como
+    antes."""
     global _DOCUMENTOS_ADMIN, _INDICE_CACHE
     _DOCUMENTOS_ADMIN = _documentos_admin_normalizados(documentos)
     _INDICE_CACHE = None
     _indice_fragmentos()  # reconstruye ahora, en el background task -- no en la próxima pregunta
 
 
+_FRAGMENTOS_FS_CACHE: list[tuple[str, str]] | None = None
+_TOKENS_FS_CACHE: list[list[str]] | None = None
+
+
+def _fragmentos_y_tokens_filesystem() -> tuple[list[tuple[str, str]], list[list[str]]]:
+    """Julio 2026, medido en vivo (el hallazgo detrás del incidente de los
+    50+ segundos): de esos 50s, leer los archivos + extraer PDFs tarda
+    0.12s y construir el índice BM25 tarda 0.4s -- el 99% del tiempo
+    (52s medidos con el corpus real, 12,000+ fragmentos, 1.5 millones de
+    palabras) es STEMMEAR cada fragmento con snowballstemmer (puro
+    Python, sin aceleración nativa). El contenido de
+    context/asesor_conocimiento/ NO cambia sin un redeploy (que reinicia
+    el proceso igual), así que da lo mismo tokenizarlo una vez al
+    arrancar o cada vez que cambia un documento admin/un proyecto de la
+    cartera -- salvo que la segunda opción repite 52 segundos de trabajo
+    idéntico cada vez. Cacheado acá aparte de `_INDICE_CACHE`, para
+    siempre por proceso: solo `_DOCUMENTOS_ADMIN` (mucho más chico) se
+    vuelve a tokenizar en cada reconstrucción real."""
+    global _FRAGMENTOS_FS_CACHE, _TOKENS_FS_CACHE
+    if _FRAGMENTOS_FS_CACHE is None:
+        _FRAGMENTOS_FS_CACHE = _cargar_fragmentos_extra()
+        _TOKENS_FS_CACHE = [_tokenizar(texto) for _, texto in _FRAGMENTOS_FS_CACHE]
+    return _FRAGMENTOS_FS_CACHE, _TOKENS_FS_CACHE
+
+
 def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
     """Se construye una sola vez por proceso (o hasta que cambien los
-    documentos admin) — trocear + indexar decenas de PDFs tarda varios
-    segundos, no queremos pagar ese costo en cada pregunta."""
+    documentos admin) — ver `_fragmentos_y_tokens_filesystem` para por qué
+    esto ya es rápido (<1s) salvo la primera vez."""
     global _INDICE_CACHE
     if _INDICE_CACHE is None:
-        fragmentos = _cargar_fragmentos_extra()
-        for etiqueta, texto in _DOCUMENTOS_ADMIN:
-            fragmentos.extend((etiqueta, trozo) for trozo in _trocear(texto))
-        indice = BM25Okapi([_tokenizar(texto) for _, texto in fragmentos]) if fragmentos else None
+        fragmentos_fs, tokens_fs = _fragmentos_y_tokens_filesystem()
+        fragmentos_admin = [
+            (etiqueta, trozo)
+            for etiqueta, texto in _DOCUMENTOS_ADMIN
+            for trozo in _trocear(texto)
+        ]
+        tokens_admin = [_tokenizar(texto) for _, texto in fragmentos_admin]
+
+        fragmentos = fragmentos_fs + fragmentos_admin
+        tokens = tokens_fs + tokens_admin
+        indice = BM25Okapi(tokens) if fragmentos else None
         _INDICE_CACHE = (fragmentos, indice)
     return _INDICE_CACHE
 

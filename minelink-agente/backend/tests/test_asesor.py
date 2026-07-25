@@ -326,6 +326,12 @@ def test_recuperar_fragmentos_relevantes_encuentra_por_palabra_clave(tmp_path, m
     # carpeta real.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     _agregar_relleno(tmp_path)
     (tmp_path / "reinfo.md").write_text(
         "El REINFO puede suspenderse por incumplimiento de las obligaciones ambientales.",
@@ -355,6 +361,12 @@ def test_recuperar_fragmentos_relevantes_encuentra_pregunta_coloquial_por_conjug
     # stemming esto devolvía vacío aunque el contenido exista.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     _agregar_relleno(tmp_path)
     (tmp_path / "reinfo.md").write_text(
         "Si tu REINFO está suspendido debes regularizar tus obligaciones ambientales.",
@@ -376,6 +388,12 @@ def test_recuperar_fragmentos_relevantes_lee_subcarpetas(tmp_path, monkeypatch):
     # _cargar_fragmentos_extra(), no del texto final mandado al modelo.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     _agregar_relleno(tmp_path)
     subcarpeta = tmp_path / "03_ambiental_seia"
     subcarpeta.mkdir()
@@ -408,6 +426,12 @@ def test_etiqueta_citable_quita_subcarpeta_extension_y_guiones_bajos():
 def test_construir_system_prompt_instruye_citar_la_norma(tmp_path, monkeypatch):
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     _agregar_relleno(tmp_path)
     (tmp_path / "DS_038-2017-EM_Reglamento_IGAFOM.md").write_text(
         "El IGAFOM es el instrumento de gestión ambiental para la formalización.",
@@ -425,6 +449,12 @@ def test_recuperar_fragmentos_relevantes_extrae_pdfs(tmp_path, monkeypatch):
     # que él tenga que convertir nada a mano primero.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     _agregar_relleno(tmp_path)
     ruta_pdf = tmp_path / "jurisprudencia.pdf"
     doc = fitz.open()
@@ -444,6 +474,30 @@ def test_extraer_texto_pdf_con_archivo_corrupto_no_revienta(tmp_path):
     ruta = tmp_path / "corrupto.pdf"
     ruta.write_bytes(b"esto no es un PDF valido")
     assert asesor._extraer_texto_pdf(ruta) == ""
+
+
+def test_leer_texto_plano_con_codificacion_invalida_no_revienta(tmp_path):
+    # julio 2026, hallazgo al revisar el asesor a fondo: los .md/.txt no
+    # tenían la misma protección best-effort que ya tienen los PDF -- un
+    # solo archivo con bytes que no son UTF-8 válido (ej. pegado desde
+    # Word con codificación Windows-1252) tumbaba la reconstrucción del
+    # índice ENTERA en vez de solo aportar menos contenido.
+    ruta = tmp_path / "con_bytes_invalidos.md"
+    ruta.write_bytes(b"\xff\xfe texto con bytes que no son UTF-8 valido")
+    assert asesor._leer_texto_plano(ruta) == ""
+
+
+def test_cargar_fragmentos_extra_ignora_archivo_con_codificacion_invalida(tmp_path, monkeypatch):
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    (tmp_path / "bueno.md").write_text(
+        "Contenido válido sobre formalización minera.", encoding="utf-8"
+    )
+    (tmp_path / "malo.md").write_bytes(b"\xff\xfe bytes invalidos que no son UTF-8")
+
+    fragmentos = asesor._cargar_fragmentos_extra()
+    etiquetas = {etiqueta for etiqueta, _texto in fragmentos}
+    assert "bueno.md" in etiquetas
+    assert "malo.md" not in etiquetas  # se ignora, no revienta la carga entera
 
 
 def test_extraer_texto_pdf_bytes_funciona_sin_archivo_en_disco():
@@ -469,6 +523,12 @@ def test_actualizar_documentos_admin_sin_bd_directa(tmp_path, monkeypatch):
     # consultados y los mezcla con el contenido del filesystem al buscar.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
     _agregar_relleno(tmp_path)
 
@@ -501,12 +561,53 @@ def test_actualizar_documentos_admin_reconstruye_de_una_no_en_la_proxima_pregunt
     # que la pregunta que la disparó no la pague.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
 
     asesor.actualizar_documentos_admin([("Norma X", None, "contenido de la norma X")])
     assert asesor._INDICE_CACHE is not None  # ya quedó reconstruido, no en None
     fragmentos, _indice = asesor._INDICE_CACHE
     assert any("contenido de la norma X" in texto for _etiqueta, texto in fragmentos)
+
+
+def test_fragmentos_de_filesystem_se_tokenizan_una_sola_vez_por_proceso(tmp_path, monkeypatch):
+    # julio 2026, la optimización detrás del incidente real de los 50+
+    # segundos: medido en vivo, el 99% de ese tiempo era re-stemmear los
+    # fragmentos de asesor_conocimiento/ (que NO cambian sin un redeploy)
+    # una y otra vez en cada reconstrucción. Confirma que una SEGUNDA
+    # llamada a actualizar_documentos_admin (ej. subieron otro documento)
+    # no vuelve a tokenizar el contenido del filesystem, solo lo nuevo.
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [])
+    _agregar_relleno(tmp_path, n=5)
+
+    llamadas = {"n": 0}
+    tokenizar_real = asesor._tokenizar
+
+    def _tokenizar_contando(texto):
+        llamadas["n"] += 1
+        return tokenizar_real(texto)
+
+    monkeypatch.setattr(asesor, "_tokenizar", _tokenizar_contando)
+
+    asesor.actualizar_documentos_admin([("Norma A", None, "contenido de la norma A")])
+    assert llamadas["n"] > 5  # tokenizó el relleno del filesystem + la norma A
+
+    llamadas["n"] = 0
+    asesor.actualizar_documentos_admin(
+        [("Norma A", None, "contenido de la norma A"), ("Norma B", None, "contenido de la norma B")]
+    )
+    # Esta vez NO debería volver a tokenizar los 5 archivos de relleno del
+    # filesystem -- solo los 2 documentos admin (chicos).
+    assert llamadas["n"] <= 2
 
 
 def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, monkeypatch):
@@ -517,6 +618,12 @@ def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, mon
     # contexto real para probarlo.
     monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
     monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    # El caché de fragmentos/tokens del filesystem (julio 2026, separado de
+    # _INDICE_CACHE para no re-stemmear 1.5M de palabras en cada pregunta)
+    # también hay que resetearlo -- si no, un test reusaría el filesystem
+    # falso de OTRO test ya cacheado en memoria del proceso.
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
     for i in range(200):
         (tmp_path / f"norma_{i}.md").write_text(
             f"Norma número {i}: disposición general sobre catastro minero. " * 20,
