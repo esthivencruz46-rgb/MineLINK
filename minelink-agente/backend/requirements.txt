@@ -13,3 +13,5 @@ Pillow==10.2.0
 PyMuPDF==1.24.13
 rank_bm25==0.2.2
 snowballstemmer==3.1.1
+sentinelhub==3.11.5
+numpy

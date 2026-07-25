@@ -52,7 +52,24 @@ Plataforma web donde un minero artesanal peruano:
    legal...); "Datos de la operación"; **"Cotejo con registros públicos"**
    (GEOCATMIN/INGEMMET: concesión del catastro minero + geología del
    punto, caché 30 días, siempre referencial); indicadores verificados en
-   el panel lateral; y descarga de ficha en PDF (jsPDF, 2 páginas).
+   el panel lateral; y descarga de ficha en PDF (jsPDF, 2 páginas). El
+   mapa interactivo de la ficha (`MapaGeocatmin.tsx`) también puede
+   mostrar, como capas opcionales georreferenciadas (julio 2026,
+   `backend/copernicus.py`, DESACTIVADO por defecto —
+   `MINELINK_COPERNICUS=1` + credenciales de Copernicus Data Space
+   Ecosystem en Render), anomalías espectrales minerales calculadas con
+   Sentinel-2 sobre el POLÍGONO REAL de la concesión: óxidos de hierro,
+   arcillas, hierro ferroso, arcilla/sulfatos/mica (fórmulas del
+   repositorio curado "awesome-mining-band-ratio") y un mapa combinado
+   que las superpone sobre la foto real. Cada capa solo pinta el 10% más
+   alto de su índice (percentil relativo, se recalcula por proyecto) — el
+   resto queda transparente; NO es una clasificación fina de alteración
+   hidrotermal (propilítica/argílica/filítica), eso necesitaría ASTER
+   (evaluado y descartado por costo — ver más abajo). Se genera en
+   segundo plano igual que GEOCATMIN/REINFO (primera visita = None,
+   background task cachea, segunda visita ya sirve las 5 imágenes PNG
+   desde storage) para no gastar créditos de Sentinel Hub en cada carga
+   de la ficha — caché de 90 días.
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado
@@ -182,7 +199,12 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 - **Variables de entorno de producción**: viven en los paneles de Render y Vercel (no en el repo).
   Render necesita: DATABASE_URL, ADMIN_USERNAME, ADMIN_PASSWORD, SECRET_KEY, FRONTEND_URL,
   PYTHON_VERSION=3.12.8 (¡crítico: sin ella el build falla con Python nuevo!), SUPABASE_URL,
-  SUPABASE_SERVICE_KEY. Vercel: VITE_API_URL_WEB y VITE_API_URL_NATIVE.
+  SUPABASE_SERVICE_KEY. Para las anomalías satelitales (julio 2026, opcional — sin esto la
+  feature queda simplemente apagada, no rompe nada): MINELINK_COPERNICUS=1,
+  CDSE_CLIENT_ID, CDSE_CLIENT_SECRET (Dashboard de dataspace.copernicus.eu → User Settings →
+  OAuth Clients — cuenta gratis, nivel "General user" con 10,000 Processing Units/mes,
+  ~20-25 PU por concesión completa, alcanza para cientos de concesiones al mes). Vercel:
+  VITE_API_URL_WEB y VITE_API_URL_NATIVE.
 - **UptimeRobot** visita /health cada 5 min: mantiene despierto el plan gratuito de Render y
   alerta por correo si algo cae.
 - El APK de Android apunta al backend público. Tras cambios de frontend, el ciclo completo es:
@@ -316,6 +338,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   │                              auto-reparación al leer: reparar_ubicacion_coords)
 │   ├── geocatmin.py            ← INGEMMET por punto: catastro minero + geología (best-effort,
 │   │                              caché 30 días en datos_formalizacion_json["_geocatmin"])
+│   ├── copernicus.py           ← anomalías espectrales minerales (Sentinel-2 vía Copernicus
+│   │                              Data Space Ecosystem) sobre el polígono real de la concesión —
+│   │                              DESACTIVADO por defecto (MINELINK_COPERNICUS=1 + credenciales)
 │   ├── uploads_config.py       ← categorías de archivos + equivalencias + fotos de perfil
 │   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
 │   ├── asesor.py                ← asesor público: retrieval (context/) + generación

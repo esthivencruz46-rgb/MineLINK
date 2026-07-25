@@ -5,6 +5,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, selectinload
 
+import copernicus
 import database
 import geocatmin
 import models
@@ -486,6 +487,56 @@ def _refrescar_reinfo_en_segundo_plano(operacion_id: str, codigo: str) -> None:
         db.close()
 
 
+def _anomalias_desde_cache(operacion: models.Operacion) -> Optional[dict]:
+    """Lectura pura, sin red. Son solo metadatos {bbox, generado_en, v,
+    capas: [nombres]} -- los PNG en si viven en storage (pesan demasiado
+    para una columna JSON), servidos via
+    /proyectos/{id}/anomalias/{capa}.png."""
+    cache = (operacion.datos_formalizacion_json or {}).get("_anomalias_satelitales")
+    return cache if isinstance(cache, dict) else None
+
+
+def _anomalias_necesita_refresco(operacion: models.Operacion, poligono: Optional[list]) -> bool:
+    if not poligono:
+        return False
+    cache = _anomalias_desde_cache(operacion)
+    if not isinstance(cache, dict) or cache.get("v") != 1:
+        return True
+    try:
+        generado = date.fromisoformat(cache.get("generado_en", ""))
+    except ValueError:
+        return True
+    return date.today() - generado > timedelta(days=copernicus.DIAS_REFRESCO)
+
+
+def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> None:
+    resultado = copernicus.generar_capas(poligono)
+    if resultado is None:
+        return
+    db = database.SessionLocal()
+    try:
+        operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+        if operacion is None:
+            return
+        for nombre, contenido in resultado["capas"].items():
+            storage.guardar(
+                "anomalias_satelitales", f"{operacion_id}_{nombre}.png", contenido, "image/png"
+            )
+        datos = operacion.datos_formalizacion_json or {}
+        operacion.datos_formalizacion_json = {
+            **datos,
+            "_anomalias_satelitales": {
+                "bbox": resultado["bbox"],
+                "generado_en": resultado["generado_en"],
+                "v": resultado["v"],
+                "capas": list(resultado["capas"].keys()),
+            },
+        }
+        db.commit()
+    finally:
+        db.close()
+
+
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
 def detalle_proyecto(
     operacion_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
@@ -609,10 +660,12 @@ def detalle_proyecto(
         e for e in estudios_aplicables if e not in pendientes and _tiene_respaldo(e)
     )
 
-    # Refresco de GEOCATMIN/REINFO en segundo plano (ver comentario arriba
-    # de _geocatmin_desde_cache): la respuesta ya lleva lo cacheado, así
-    # que esto NUNCA demora al inversionista — corre después de responder.
+    # Refresco de GEOCATMIN/REINFO/anomalías satelitales en segundo plano
+    # (ver comentario arriba de _geocatmin_desde_cache): la respuesta ya
+    # lleva lo cacheado, así que esto NUNCA demora al inversionista —
+    # corre después de responder.
     codigo_reinfo = lead.codigo_reinfo or operacion.codigo_reinfo
+    geocatmin_cache = _geocatmin_desde_cache(operacion, lead.ubicacion_coords)
     if _geocatmin_necesita_refresco(operacion, lead.ubicacion_coords):
         background_tasks.add_task(
             _refrescar_geocatmin_en_segundo_plano, operacion.id, lead.ubicacion_coords
@@ -620,6 +673,11 @@ def detalle_proyecto(
     if _reinfo_necesita_refresco(operacion, codigo_reinfo):
         background_tasks.add_task(
             _refrescar_reinfo_en_segundo_plano, operacion.id, codigo_reinfo
+        )
+    poligono_concesion = ((geocatmin_cache or {}).get("concesion") or {}).get("poligono")
+    if _anomalias_necesita_refresco(operacion, poligono_concesion):
+        background_tasks.add_task(
+            _refrescar_anomalias_en_segundo_plano, operacion.id, poligono_concesion
         )
 
     return schemas.ProyectoDetalleOut(
@@ -641,9 +699,20 @@ def detalle_proyecto(
             for k, v in (operacion.inv_respuestas_json or {}).items()
             if k in IDS_INV_PUBLICOS
         },
-        geocatmin=_geocatmin_desde_cache(operacion, lead.ubicacion_coords),
+        geocatmin=geocatmin_cache,
         mapa_cotejo_url=(
             f"/proyectos/{operacion_id}/mapa-cotejo.jpg" if lead.ubicacion_coords else None
+        ),
+        anomalias_satelitales=(
+            {
+                "bbox": cache_anomalias["bbox"],
+                "capas": {
+                    nombre: f"/proyectos/{operacion_id}/anomalias/{nombre}.png"
+                    for nombre in cache_anomalias["capas"]
+                },
+            }
+            if (cache_anomalias := _anomalias_desde_cache(operacion))
+            else None
         ),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
         reinfo_verificado_manual=operacion.reinfo_verificado_manual,
@@ -798,6 +867,26 @@ def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
     return Response(content=imagen, media_type="image/jpeg")
+
+
+@router.get("/{operacion_id}/anomalias/{capa}.png")
+def anomalia_satelital_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
+    """Imagen PNG (transparente salvo donde el índice mineral está en el
+    10% más alto) de una de las 5 capas de anomalías espectrales de
+    Copernicus (ver backend/copernicus.py). SIEMPRE se sirve desde el
+    caché en storage — nunca se genera al vuelo aquí, eso lo hace
+    `_refrescar_anomalias_en_segundo_plano` en segundo plano (Sentinel Hub
+    tarda varios segundos y cuesta créditos reales, no se puede pedir
+    dentro de una respuesta que el inversionista está esperando). 404 si
+    todavía no se generó para este proyecto (primera visita) o el nombre
+    de capa no existe."""
+    _lead_y_operacion_visibles(db, operacion_id)
+    if capa not in copernicus.NOMBRES_CAPAS:
+        raise HTTPException(status_code=404, detail="Capa no reconocida")
+    contenido = storage.leer("anomalias_satelitales", f"{operacion_id}_{capa}.png")
+    if contenido is None:
+        raise HTTPException(status_code=404, detail="Todavía no se generó esta capa")
+    return Response(content=contenido, media_type="image/png")
 
 
 @router.get("/{operacion_id}/documentos/{documento_id}")

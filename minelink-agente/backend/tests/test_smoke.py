@@ -22,6 +22,8 @@ os.environ["MINELINK_REINFO"] = "0"
 os.environ["MINELINK_ASESOR_PROVEEDORES"] = ""
 os.environ["MINELINK_ASESOR_PROVEEDOR"] = ""
 
+from datetime import date
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -1695,10 +1697,17 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
 
     llamadas = {"geocatmin": 0, "reinfo": 0}
 
+    # consultado_en = HOY (no una fecha fija): con una fecha fija, esta
+    # prueba de "caché fresco no se repite" se volvía flaky con el simple
+    # paso del tiempo real — una fecha fija a mano superaba el umbral de
+    # DIAS_REFRESCO (7 dias en reinfo.py) tarde o temprano y la 2ª visita
+    # volvía a llamar (regresión real, detectada julio 2026).
+    hoy_iso = date.today().isoformat()
+
     def geocatmin_falso(coords):
         llamadas["geocatmin"] += 1
         return {
-            "v": 6, "coords": coords, "consultado_en": "2026-07-16",
+            "v": 6, "coords": coords, "consultado_en": hoy_iso,
             "concesion": None, "geologia": None, "geologia_50k": None,
             "fallas": None, "restricciones": [], "anp": None,
         }
@@ -1706,7 +1715,7 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     def reinfo_falso(codigo):
         llamadas["reinfo"] += 1
         return {
-            "v": 2, "codigo": codigo, "consultado_en": "2026-07-16",
+            "v": 2, "codigo": codigo, "consultado_en": hoy_iso,
             "estado": "VIGENTE", "declarante": None, "derecho": None, "distrito": None,
             "ruc": None, "departamento": None, "provincia": None,
         }
@@ -1742,6 +1751,84 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     assert detalle["geocatmin"]["concesion"] is None  # viene del fake, pero YA está poblado
     assert detalle["reinfo"]["estado"] == "VIGENTE"
     assert llamadas == {"geocatmin": 1, "reinfo": 1}  # con caché fresco, no se repite
+
+
+def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypatch):
+    # Mismo patrón que geocatmin/reinfo arriba: 1ª visita agenda el
+    # refresco en background (sin bloquear), 2ª visita ya lo tiene
+    # cacheado. Acá se pre-siembra el caché de geocatmin CON polígono
+    # (a diferencia del test de arriba, que lo deja en None) porque sin
+    # polígono de concesión no hay AOI que mandarle a Copernicus.
+    import copernicus as copernicus_modulo
+
+    llamadas = {"n": 0}
+    poligono_falso = [[[-77.51, -8.02], [-77.48, -8.02], [-77.48, -7.99], [-77.51, -7.99]]]
+
+    def generar_capas_falso(poligono):
+        llamadas["n"] += 1
+        return {
+            "bbox": list(copernicus_modulo.bbox_de_poligono(poligono)),
+            "generado_en": date.today().isoformat(),
+            "v": 1,
+            "capas": {"oxidos_de_hierro": b"PNG-FALSO-OXIDOS", "combinado": b"PNG-FALSO-COMBINADO"},
+        }
+
+    monkeypatch.setattr(copernicus_modulo, "generar_capas", generar_capas_falso)
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="anomaliassat1"))
+    _hacer_apto_inversionistas(diag["id"], "anomaliassat1")
+
+    db = TestingSessionLocal()
+    lead_db = db.query(models.Lead).filter(models.Lead.username == "anomaliassat1").first()
+    lead_db.ubicacion_coords = "-8.0,-77.5"
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_geocatmin": {
+            "v": 6, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
+            "concesion": {"poligono": poligono_falso}, "geologia": None, "geologia_50k": None,
+            "fallas": None, "restricciones": [], "anp": None,
+        },
+    }
+    db.commit()
+    db.close()
+
+    # 1ª visita: nada cacheado todavía para anomalías.
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["anomalias_satelitales"] is None
+    assert llamadas == {"n": 1}
+
+    # 2ª visita: ya está cacheado (URLs relativas, no los bytes).
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["anomalias_satelitales"]["bbox"] == [-77.51, -8.02, -77.48, -7.99]
+    assert detalle["anomalias_satelitales"]["capas"] == {
+        "oxidos_de_hierro": f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png",
+        "combinado": f"/proyectos/{diag['id']}/anomalias/combinado.png",
+    }
+    assert llamadas == {"n": 1}  # con caché fresco, no se vuelve a generar
+
+    # La imagen servida es la misma que guardó el background task.
+    resp = client.get(f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png")
+    assert resp.status_code == 200
+    assert resp.content == b"PNG-FALSO-OXIDOS"
+    assert resp.headers["content-type"] == "image/png"
+
+
+def test_anomalias_satelitales_404_si_no_hay_nada_cacheado():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="anomaliassat2"))
+    _hacer_apto_inversionistas(diag["id"], "anomaliassat2")
+    resp = client.get(f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png")
+    assert resp.status_code == 404
+
+
+def test_anomalias_satelitales_404_si_capa_no_existe():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="anomaliassat3"))
+    _hacer_apto_inversionistas(diag["id"], "anomaliassat3")
+    resp = client.get(f"/proyectos/{diag['id']}/anomalias/no-existe.png")
+    assert resp.status_code == 404
 
 
 def test_admin_marca_y_desmarca_reinfo_verificado_manual():

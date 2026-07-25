@@ -15,6 +15,12 @@ DOCUMENTOS_MINERO_DIR.mkdir(parents=True, exist_ok=True)
 
 DOCUMENTO_TAMANO_MAXIMO_BYTES = 10 * 1024 * 1024  # 10 MB
 
+# Capas de anomalías espectrales generadas con Copernicus (ver
+# backend/copernicus.py) — cacheadas en disco/Storage para no gastar
+# créditos de Sentinel Hub en cada visita a la ficha.
+ANOMALIAS_SATELITALES_DIR = Path(__file__).parent / "uploads" / "anomalias_satelitales"
+ANOMALIAS_SATELITALES_DIR.mkdir(parents=True, exist_ok=True)
+
 # Fotos de la mina: mínimo 3 para que el proyecto se vea completo ante
 # inversionistas (checklist de /mi-cuenta), máximo 10 por operación
 # (subido de 5 en julio 2026 — un solo álbum genérico se quedaba corto

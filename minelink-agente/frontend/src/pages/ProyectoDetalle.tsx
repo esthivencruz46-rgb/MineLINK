@@ -391,6 +391,7 @@ export function ProyectoDetalle() {
             fotos={proyecto.fotos}
             ubicacionCoords={proyecto.ubicacion_coords}
             geocatmin={proyecto.geocatmin}
+            anomaliasSatelitales={proyecto.anomalias_satelitales}
           />
         </div>
         {(() => {

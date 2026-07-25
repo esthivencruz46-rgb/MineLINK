@@ -18,10 +18,17 @@ export function GaleriaProyecto({
   fotos,
   ubicacionCoords,
   geocatmin,
+  anomaliasSatelitales,
 }: {
   fotos: FotoPublica[];
   ubicacionCoords?: string | null;
   geocatmin?: GeocatminInfo | null;
+  /** Anomalías espectrales de Copernicus sobre el polígono real de la
+   * concesión — ver MapaGeocatmin. */
+  anomaliasSatelitales?: {
+    bbox: [number, number, number, number];
+    capas: Record<string, string>;
+  } | null;
 }) {
   const [indiceAbierto, setIndiceAbierto] = useState<number | null>(null);
 
@@ -118,6 +125,7 @@ export function GaleriaProyecto({
         // confirmada — con items=[] (verificado, sin fallas cerca) no se
         // manda nada al mapa, para no insinuar un riesgo que no existe.
         escalaFallas={fallas && fallas.items.length > 0 ? fallas.escala : null}
+        anomaliasSatelitales={anomaliasSatelitales}
       />
     </div>
   ) : null;

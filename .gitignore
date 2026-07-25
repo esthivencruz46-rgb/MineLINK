@@ -3,3 +3,9 @@
 
 # Logs sueltos
 *.log
+
+# Experimentos aislados (Google Earth Engine / Copernicus) — julio 2026:
+# prototipos fuera del producto, con credenciales propias, nunca se suben.
+experimentos_gee/
+experimentos_copernicus/
+.env

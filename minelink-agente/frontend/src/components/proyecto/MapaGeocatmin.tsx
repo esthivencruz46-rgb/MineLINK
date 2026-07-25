@@ -2,6 +2,17 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { dynamicMapLayer, imageMapLayer } from "esri-leaflet";
 import "leaflet/dist/leaflet.css";
+import { BASE_URL } from "../../services/api";
+
+// Nombre tecnico -> etiqueta legible para el control de capas (mismo
+// orden/nombres que backend/copernicus.py NOMBRES_CAPAS).
+const TITULOS_ANOMALIAS: Record<string, string> = {
+  oxidos_de_hierro: "Anomalía: óxidos de hierro",
+  arcillas: "Anomalía: arcillas",
+  hierro_ferroso: "Anomalía: hierro ferroso",
+  arcilla_sulfatos_mica: "Anomalía: arcilla/sulfatos/mica",
+  combinado: "Anomalías combinadas (todas)",
+};
 
 const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 
@@ -30,6 +41,7 @@ export function MapaGeocatmin({
   coords,
   poligonoConcesion,
   escalaFallas,
+  anomaliasSatelitales,
 }: {
   coords: string;
   /** Anillos [lng, lat] de la concesión donde cae el pin (de GEOCATMIN,
@@ -40,6 +52,14 @@ export function MapaGeocatmin({
    * "50k" | "100k" | null/undefined si no hay ninguna que dibujar. Nunca
    * ambas juntas — mismo criterio que backend/geocatmin.py. */
   escalaFallas?: "50k" | "100k" | null;
+  /** Anomalías espectrales minerales de Copernicus sobre el polígono real
+   * de la concesión (julio 2026, ver backend/copernicus.py) — bbox +
+   * URLs de las 5 capas (4 índices + combinado). null/undefined = sin
+   * polígono de concesión o todavía no se generó. */
+  anomaliasSatelitales?: {
+    bbox: [number, number, number, number];
+    capas: Record<string, string>;
+  } | null;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
 
@@ -223,6 +243,26 @@ export function MapaGeocatmin({
       return `<strong>Anomalía espectral: ${tipo}</strong><br/><span style="font-size:11px;color:#64748b">GEOCATMIN · INGEMMET</span>`;
     });
 
+    // Anomalías espectrales minerales de Copernicus sobre el polígono REAL
+    // de la concesión (julio 2026, pedido explícito de Esthiven tras el
+    // experimento aislado con Sentinel-2) — 4 índices + 1 combinado. A
+    // diferencia de las capas de arriba (servicios ArcGIS en vivo), esto
+    // es un PNG ya generado y cacheado por el backend con su propio bbox
+    // conocido, así que se superpone con L.imageOverlay (georeferenciado
+    // directo), no con un dynamicMapLayer.
+    const overlaysAnomalias: Record<string, L.ImageOverlay> = {};
+    if (anomaliasSatelitales) {
+      const [xmin, ymin, xmax, ymax] = anomaliasSatelitales.bbox;
+      const bounds = L.latLngBounds([ymin, xmin], [ymax, xmax]);
+      for (const [nombre, url] of Object.entries(anomaliasSatelitales.capas)) {
+        overlaysAnomalias[TITULOS_ANOMALIAS[nombre] ?? nombre] = L.imageOverlay(
+          `${BASE_URL}${url}`,
+          bounds,
+          { pane: "geologiaPane" }
+        );
+      }
+    }
+
     L.control
       .layers(
         undefined,
@@ -233,6 +273,7 @@ export function MapaGeocatmin({
           "ASTER 9-3-1 (falso color, roca/vegetación)": aster931,
           "Índices minerales QICIMI": qicimi,
           "Anomalías espectrales": anomalias,
+          ...overlaysAnomalias,
         },
         { collapsed: false, position: "topright" }
       )
@@ -266,10 +307,14 @@ export function MapaGeocatmin({
             crudas, no un índice — verde ≈ vegetación, tonos rojo/rosa/naranja ≈ roca
             expuesta (más intensos donde hay más alteración arcillosa). Se lee de forma
             cualitativa, no es una tabla exacta.</p>
-            <p style="margin:2px 0;"><strong>Anomalías espectrales</strong>:
+            <p style="margin:2px 0;"><strong>Anomalías espectrales</strong> (INGEMMET):
             <span style="color:red">■</span> óxidos ·
             <span style="color:#16a34a">■</span> arcillas ·
             <span style="color:#ca8a04">■</span> óxidos y arcillas</p>
+            <p style="margin:2px 0;"><strong>Anomalías: [nombre]</strong> (Copernicus/Sentinel-2,
+            sobre el polígono real de la concesión): cada una solo pinta el 10% más alto de
+            ese índice — el resto queda transparente. No es una clasificación fina de
+            alteración (propilítica/argílica/filítica); eso necesitaría ASTER.</p>
           </div>
         `;
         L.DomEvent.disableClickPropagation(div);
@@ -352,7 +397,7 @@ export function MapaGeocatmin({
       div.removeEventListener("mouseleave", alSalir);
       mapa.remove();
     };
-  }, [coords, poligonoConcesion, escalaFallas]);
+  }, [coords, poligonoConcesion, escalaFallas, anomaliasSatelitales]);
 
   return <div ref={contenedorRef} className="mapa-geocatmin z-0 h-full min-h-64 w-full" />;
 }

@@ -161,6 +161,15 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // Imagen compuesta (satélite + catastro + geología + pin) que el PDF usa
   // como portada — null si no hay pin declarado.
   mapa_cotejo_url?: string | null;
+  // Anomalías espectrales minerales (Copernicus/Sentinel Hub) sobre el
+  // polígono real de la concesión — 4 índices individuales + 1 combinado,
+  // cada uno transparente salvo el 10% más alto (ver backend/copernicus.py).
+  // null = sin polígono de concesión, o primera visita (se genera en
+  // segundo plano, aparece recién en la siguiente carga de la ficha).
+  anomalias_satelitales?: {
+    bbox: [number, number, number, number];
+    capas: Record<string, string>;
+  } | null;
   // Cotejo del código REINFO contra el padrón del MINEM.
   reinfo?: ReinfoVerificado | null;
   // Verificación MANUAL del código REINFO por Esthiven — el cotejo

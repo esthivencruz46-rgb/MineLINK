@@ -835,6 +835,12 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # el PDF usa como portada — None si no hay pin declarado (el generador
     # del PDF cae de vuelta a una foto normal del minero en ese caso).
     mapa_cotejo_url: Optional[str] = None
+    # Anomalías espectrales minerales de Copernicus/Sentinel Hub sobre el
+    # polígono real de la concesión (ver backend/copernicus.py):
+    # {bbox: [xmin,ymin,xmax,ymax], capas: {nombre: url_png}}. None = sin
+    # polígono de concesión o todavía no se generó (primera visita — se
+    # agenda en segundo plano, ver _refrescar_anomalias_en_segundo_plano).
+    anomalias_satelitales: Optional[dict] = None
     # Verificación del código REINFO contra el padrón oficial del MINEM:
     # {codigo, consultado_en, estado VIGENTE/SUSPENDIDO/no_encontrado,
     # declarante, derecho, distrito} — ver reinfo.consultar_reinfo. None =

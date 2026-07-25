@@ -78,6 +78,33 @@ Built on top of it since (all deployed):
   collapsed-by-default "ℹ️ Leyenda de colores" control (bottom-left) spells out what each
   color means — added after Esthiven asked what the satellite layer colors actually
   represent.
+- **Copernicus mineral anomaly layers** (`backend/copernicus.py`, July 2026): after
+  exploring Google Earth Engine and finding MineLink doesn't qualify for its free
+  noncommercial tier (a for-profit platform doing R&D toward a commercial product is
+  explicitly excluded — confirmed against EE's own eligibility docs; the honest path
+  would be Google for Startups credits or a paid plan, not misdeclaring the project as
+  nonprofit), the same "compute in the cloud, only fetch the final image" idea was built
+  instead with **Copernicus Data Space Ecosystem** (Sentinel-2, ESA/ Copernicus's own
+  portal) — free by USAGE QUOTA (10,000 Processing Units/month) regardless of commercial
+  status, no eligibility questionnaire. Computes 4 mineral exploration band-ratio indices
+  (iron oxide, clay, ferrous iron, clay/sulfate/mica — formulas confirmed against the
+  curated "awesome-mining-band-ratio" reference) over the project's REAL concession
+  polygon (not a fixed test square), isolates only each index's top 10th percentile
+  (transparent elsewhere — a relative, self-calibrating threshold, not a hardcoded one)
+  and a combined map overlaying all 4 on the real photo. DISABLED by default
+  (`MINELINK_COPERNICUS=1` + `CDSE_CLIENT_ID`/`CDSE_CLIENT_SECRET` on Render, same
+  disabled-unless-explicitly-enabled pattern as `reinfo.py`) since every generation costs
+  real credits. Generated in the background exactly like GEOCATMIN/REINFO (first ficha
+  visit schedules it, second visit serves the cached PNGs from storage,
+  `GET /proyectos/{id}/anomalias/{capa}.png`) so no investor ever waits on a live
+  Sentinel Hub call — 90-day cache. NOT a fine hydrothermal-alteration classification
+  (propylitic/argillic/phyllic): Sentinel-2 only has 2 broad SWIR bands vs ASTER's 6
+  narrow ones, which is specifically what that classification needs — confirmed against
+  the remote-sensing literature, documented as a known limitation rather than overclaimed
+  precision. A parallel, fully isolated prototype (`experimentos_gee/`,
+  `experimentos_copernicus/` at the repo root, gitignored, own venvs, own `.env` —
+  intentionally never imported by the real backend) is where this was designed and tested
+  before being ported into `backend/copernicus.py`.
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by

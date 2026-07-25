@@ -16,7 +16,7 @@ from urllib.parse import quote
 import requests
 from dotenv import load_dotenv
 
-from uploads_config import DOCUMENTOS_MINERO_DIR, UPLOADS_DIR
+from uploads_config import ANOMALIAS_SATELITALES_DIR, DOCUMENTOS_MINERO_DIR, UPLOADS_DIR
 
 load_dotenv()
 
@@ -28,6 +28,7 @@ BUCKET = "archivos-minelink"
 _DIRS_LOCALES = {
     "documentos_mineros": DOCUMENTOS_MINERO_DIR,
     "cvs": UPLOADS_DIR,
+    "anomalias_satelitales": ANOMALIAS_SATELITALES_DIR,
 }
 
 
