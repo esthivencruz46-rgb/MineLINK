@@ -2,8 +2,12 @@
 el entorno de tests, `generar_capas` siempre debe devolver None (best-
 effort, igual que geocatmin/reinfo) — nunca intenta una llamada de red
 real. `bbox_de_poligono` y `_capa_coincidencias` son lógica pura, se
-prueban directo."""
+prueban directo. Un test aparte mockea `_pedir`/`_config` para probar
+`generar_capas` de punta a punta sin red real (ver más abajo)."""
+from io import BytesIO
+
 import numpy as np
+from PIL import Image
 
 import copernicus
 
@@ -52,3 +56,39 @@ def test_capa_coincidencias_solo_pinta_pixeles_con_2_o_mas():
     assert tuple(pixeles[0, 1]) == (0, 0, 0, 0)
     assert tuple(pixeles[1, 0]) == (*copernicus._COLOR_COINCIDENCIAS, 140)
     assert tuple(pixeles[1, 1]) == (*copernicus._COLOR_COINCIDENCIAS, 255)
+
+
+def _alpha(png_bytes: bytes) -> np.ndarray:
+    return np.array(Image.open(BytesIO(png_bytes)).convert("RGBA"))[:, :, 3]
+
+
+def test_generar_capas_combinado_transparente_donde_ningun_indice_detecto_nada(monkeypatch):
+    # julio 2026, reportado en vivo con captura: "combinado" traía su
+    # propia foto RGB de fondo (una consulta aparte a Sentinel Hub) y
+    # tapaba el mapa entero al activarlo -- "solo pido los colores, no la
+    # imagen de fondo". Ahora debe quedar transparente exactamente donde
+    # NINGUNO de los 4 índices detectó nada, igual que las capas
+    # individuales -- se verifica contra la unión real de sus máscaras,
+    # no contra un umbral calculado a mano.
+    monkeypatch.setattr(copernicus, "_DESACTIVADO", False)
+    monkeypatch.setattr(copernicus, "_config", lambda: object())
+
+    rng = np.random.default_rng(42)
+
+    def _pedir_falso(config, bbox, evalscript, formato):
+        return rng.random((6, 6)).astype(np.float32)
+
+    monkeypatch.setattr(copernicus, "_pedir", _pedir_falso)
+
+    poligono = [[[-77.51, -8.02], [-77.48, -8.02], [-77.48, -7.99], [-77.51, -7.99]]]
+    resultado = copernicus.generar_capas(poligono)
+    assert resultado is not None
+
+    alpha_combinado = _alpha(resultado["capas"]["combinado"])
+    alpha_union = np.zeros((6, 6), dtype=bool)
+    for nombre in copernicus._INDICES:
+        alpha_union |= _alpha(resultado["capas"][nombre]) > 0
+
+    assert alpha_union.any()  # sanity check: la mezcla aleatoria sí generó algo
+    assert bool((alpha_combinado[~alpha_union] == 0).all())
+    assert bool((alpha_combinado[alpha_union] > 0).all())

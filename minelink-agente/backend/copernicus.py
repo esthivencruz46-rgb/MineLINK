@@ -4,8 +4,18 @@ experimentos_copernicus/): usa Copernicus Data Space Ecosystem (Sentinel
 Hub) para calcular, sobre el polígono REAL de la concesión del proyecto,
 4 índices de exploración minera (óxidos de hierro, arcillas, hierro
 ferroso, arcilla/sulfatos/mica — fórmulas confirmadas contra el
-repositorio curado "awesome-mining-band-ratio") más un mapa combinado que
-los superpone sobre la foto real del terreno.
+repositorio curado "awesome-mining-band-ratio") más un mapa "combinado"
+que superpone los 4 a la vez.
+
+"combinado" es TRANSPARENTE salvo donde hay anomalía, igual que las 4
+capas individuales — corregido julio 2026 (reportado en vivo con
+captura: "solo pido los colores, no la imagen de fondo... eso también
+lo agarras y no quiero eso"). Antes traía su PROPIA foto RGB de
+Sentinel-2 (una consulta aparte) como lienzo de fondo, así que al
+activarlo tapaba el mapa entero con esa foto -- distinta en resolución/
+color a la base satelital del mapa (Esri World Imagery) — en vez de
+mostrar solo los colores por encima de ella. Ya no se pide esa foto en
+absoluto: una llamada menos a Sentinel Hub, más barato también.
 
 Cada capa se recorta a solo el percentil 90+ de cada índice (el 10% más
 alto) — el resto queda TRANSPARENTE — para no prometer una clasificación
@@ -34,9 +44,11 @@ ficha pública.
 
 Cuota gratis del nivel "General user" de Copernicus: 10,000 Processing
 Units/mes. Cada concesión completa (6 capas: 4 índices + combinado +
-coincidencias, esta última sin costo por ser derivada localmente)
-cuesta ~20-25 PU con el tamaño de imagen usado acá (calculado en vivo,
-julio 2026) -- de sobra para varios cientos de concesiones al mes.
+coincidencias, estas dos últimas sin costo adicional por ser derivadas
+localmente de los 4 índices ya pedidos -- ya no se pide una foto RGB
+aparte) cuesta ~15-20 PU con el tamaño de imagen usado acá (calculado en
+vivo, julio 2026 -- bajó de ~20-25 PU al quitar la llamada de la foto
+RGB) -- de sobra para varios cientos de concesiones al mes.
 """
 import math
 import os
@@ -86,12 +98,6 @@ def _evalscript_crudo(bandas: list, formula: str) -> str:
     """
 
 
-_EVALSCRIPT_RGB = """
-    //VERSION=3
-    function setup() { return { input: ["B02","B03","B04"], output: { bands: 3 } }; }
-    function evaluatePixel(s) { return [s.B04*2.5, s.B03*2.5, s.B02*2.5]; }
-"""
-
 # Formulas confirmadas julio 2026 contra el repositorio curado
 # "awesome-mining-band-ratio" (ver CLAUDE.md) — mismas que
 # experimentos_copernicus/procesar_aoi.py, portadas tal cual.
@@ -125,12 +131,13 @@ _INDICES = {
 NOMBRES_CAPAS = [*_INDICES.keys(), "combinado", "coincidencias"]
 
 # Sube cuando cambia qué guarda `generar_capas` (ej. se agregó
-# "coincidencias" acá — julio 2026) — es lo único que fuerza un refresco
-# inmediato en `_anomalias_necesita_refresco` (routers/proyectos.py);
-# sin esto, el caché ya generado con la forma vieja se sigue sirviendo
-# tal cual hasta los DIAS_REFRESCO (90 días), mismo patrón que ya usan
-# geocatmin/reinfo para sus propios cachés versionados.
-VERSION_CACHE = 2
+# "coincidencias", y luego "combinado" dejó de traer su propia foto de
+# fondo — julio 2026) — es lo único que fuerza un refresco inmediato en
+# `_anomalias_necesita_refresco` (routers/proyectos.py); sin esto, el
+# caché ya generado con la forma vieja se sigue sirviendo tal cual hasta
+# los DIAS_REFRESCO (90 días), mismo patrón que ya usan geocatmin/reinfo
+# para sus propios cachés versionados.
+VERSION_CACHE = 3
 
 # Violeta: no lo usa ninguno de los 4 índices individuales (rojo/azul/
 # naranja/amarillo), para que la coincidencia se distinga a simple vista
@@ -235,8 +242,12 @@ def generar_capas(poligono: list) -> Optional[dict]:
 
     try:
         bbox = BBox(bbox_coords, crs=CRS.WGS84)
-        base = _pedir(config, bbox, _EVALSCRIPT_RGB, MimeType.PNG)
-        lienzo_combinado = Image.fromarray(base).convert("RGBA")
+        # "combinado" arranca TRANSPARENTE (julio 2026, reportado en vivo:
+        # "solo pido los colores, no la imagen de fondo") -- antes pedía su
+        # propia foto RGB de Sentinel-2 como lienzo y tapaba el mapa entero
+        # con ella al activarlo. Ya no se pide esa foto en absoluto: una
+        # llamada menos a Sentinel Hub por generación.
+        lienzo_combinado: Optional[Image.Image] = None
 
         capas: dict[str, bytes] = {}
         conteo_coincidencias: Optional[np.ndarray] = None
@@ -249,6 +260,8 @@ def generar_capas(poligono: list) -> Optional[dict]:
             rgba[mascara] = [*info["color"], 255]
             capas[nombre] = _png_bytes(Image.fromarray(rgba, mode="RGBA"))
 
+            if lienzo_combinado is None:
+                lienzo_combinado = Image.new("RGBA", (mascara.shape[1], mascara.shape[0]), (0, 0, 0, 0))
             capa_media = np.zeros((*mascara.shape, 4), dtype=np.uint8)
             capa_media[mascara] = [*info["color"], 128]
             lienzo_combinado = Image.alpha_composite(
