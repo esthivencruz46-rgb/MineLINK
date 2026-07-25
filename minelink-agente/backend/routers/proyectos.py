@@ -500,7 +500,7 @@ def _anomalias_necesita_refresco(operacion: models.Operacion, poligono: Optional
     if not poligono:
         return False
     cache = _anomalias_desde_cache(operacion)
-    if not isinstance(cache, dict) or cache.get("v") != 1:
+    if not isinstance(cache, dict) or cache.get("v") != copernicus.VERSION_CACHE:
         return True
     try:
         generado = date.fromisoformat(cache.get("generado_en", ""))

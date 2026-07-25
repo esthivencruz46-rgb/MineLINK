@@ -124,6 +124,14 @@ _INDICES = {
 }
 NOMBRES_CAPAS = [*_INDICES.keys(), "combinado", "coincidencias"]
 
+# Sube cuando cambia qué guarda `generar_capas` (ej. se agregó
+# "coincidencias" acá — julio 2026) — es lo único que fuerza un refresco
+# inmediato en `_anomalias_necesita_refresco` (routers/proyectos.py);
+# sin esto, el caché ya generado con la forma vieja se sigue sirviendo
+# tal cual hasta los DIAS_REFRESCO (90 días), mismo patrón que ya usan
+# geocatmin/reinfo para sus propios cachés versionados.
+VERSION_CACHE = 2
+
 # Violeta: no lo usa ninguno de los 4 índices individuales (rojo/azul/
 # naranja/amarillo), para que la coincidencia se distinga a simple vista
 # de cualquier índice aislado. Más opaco mientras más índices coinciden
@@ -210,7 +218,7 @@ def _png_bytes(imagen: Image.Image) -> bytes:
 
 
 def generar_capas(poligono: list) -> Optional[dict]:
-    """{"bbox": [xmin,ymin,xmax,ymax], "generado_en": iso, "v": 1,
+    """{"bbox": [xmin,ymin,xmax,ymax], "generado_en": iso, "v": VERSION_CACHE,
     "capas": {"oxidos_de_hierro": bytes_png, ..., "combinado": bytes_png,
     "coincidencias": bytes_png}} -- o None si esta desactivado, faltan
     credenciales, no hay poligono, o la consulta a Copernicus falla
@@ -257,7 +265,7 @@ def generar_capas(poligono: list) -> Optional[dict]:
         return {
             "bbox": list(bbox_coords),
             "generado_en": date.today().isoformat(),
-            "v": 1,
+            "v": VERSION_CACHE,
             "capas": capas,
         }
     except Exception:

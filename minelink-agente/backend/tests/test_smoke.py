@@ -1769,7 +1769,7 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
         return {
             "bbox": list(copernicus_modulo.bbox_de_poligono(poligono)),
             "generado_en": date.today().isoformat(),
-            "v": 1,
+            "v": copernicus_modulo.VERSION_CACHE,
             "capas": {"oxidos_de_hierro": b"PNG-FALSO-OXIDOS", "combinado": b"PNG-FALSO-COMBINADO"},
         }
 
@@ -1813,6 +1813,73 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
     assert resp.status_code == 200
     assert resp.content == b"PNG-FALSO-OXIDOS"
     assert resp.headers["content-type"] == "image/png"
+
+
+def test_anomalias_satelitales_con_version_vieja_se_refresca_aunque_este_fresca(monkeypatch):
+    # Regresión real (julio 2026): al agregar la capa "coincidencias" a
+    # generar_capas, un caché generado con la forma vieja (menos capas)
+    # se siguió sirviendo tal cual hasta los 90 días de DIAS_REFRESCO,
+    # porque nada distinguía "caché fresco" de "caché con forma
+    # desactualizada" — de ahí VERSION_CACHE. Acá se siembra un caché con
+    # "v" viejo y generado_en HOY (fresco por fecha) y se confirma que
+    # igual dispara un refresco inmediato.
+    import copernicus as copernicus_modulo
+
+    llamadas = {"n": 0}
+    poligono_falso = [[[-77.51, -8.02], [-77.48, -8.02], [-77.48, -7.99], [-77.51, -7.99]]]
+
+    def generar_capas_falso(poligono):
+        llamadas["n"] += 1
+        return {
+            "bbox": list(copernicus_modulo.bbox_de_poligono(poligono)),
+            "generado_en": date.today().isoformat(),
+            "v": copernicus_modulo.VERSION_CACHE,
+            "capas": {"coincidencias": b"PNG-FALSO-COINCIDENCIAS"},
+        }
+
+    monkeypatch.setattr(copernicus_modulo, "generar_capas", generar_capas_falso)
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="anomaliassatvieja"))
+    _hacer_apto_inversionistas(diag["id"], "anomaliassatvieja")
+
+    db = TestingSessionLocal()
+    lead_db = db.query(models.Lead).filter(models.Lead.username == "anomaliassatvieja").first()
+    lead_db.ubicacion_coords = "-8.0,-77.5"
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_geocatmin": {
+            "v": 6, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
+            "concesion": {"poligono": poligono_falso}, "geologia": None, "geologia_50k": None,
+            "fallas": None, "restricciones": [], "anp": None,
+        },
+        # Caché de anomalías con versión vieja, generado "hoy" -- fresco
+        # por fecha, pero desactualizado en forma.
+        "_anomalias_satelitales": {
+            "bbox": [-77.51, -8.02, -77.48, -7.99],
+            "generado_en": date.today().isoformat(),
+            "v": copernicus_modulo.VERSION_CACHE - 1,
+            "capas": ["oxidos_de_hierro", "combinado"],
+        },
+    }
+    db.commit()
+    db.close()
+
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    # Antes del fix: seguía mostrando las capas viejas sin "coincidencias".
+    assert detalle["anomalias_satelitales"]["capas"] == {
+        "oxidos_de_hierro": f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png",
+        "combinado": f"/proyectos/{diag['id']}/anomalias/combinado.png",
+    }
+    assert llamadas == {"n": 1}  # se disparó el refresco pese a "fresco" por fecha
+
+    # 2ª visita: ya con la forma nueva.
+    detalle = client.get(f"/proyectos/{diag['id']}").json()
+    assert detalle["anomalias_satelitales"]["capas"] == {
+        "coincidencias": f"/proyectos/{diag['id']}/anomalias/coincidencias.png",
+    }
+    assert llamadas == {"n": 1}  # y ya no se repite
 
 
 def test_anomalias_satelitales_404_si_no_hay_nada_cacheado():
