@@ -72,15 +72,32 @@ html.dark .mapa-geocatmin .mapa-leyenda {
   max-width: 260px;
 }
 
+/* Título "Capas" clickeable, plegado por defecto (julio 2026, pedido
+   explícito: "al igual que el botón Leyenda se vuelve pequeño, quiero
+   que sea lo mismo con Capas") — mismo patrón de flechita que
+   mapa-leyenda-flecha más abajo. */
 .mapa-geocatmin .capas-panel-titulo {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   font-size: 13px;
   font-weight: 600;
-  padding-bottom: 6px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid rgba(17, 24, 39, 0.1);
+  cursor: pointer;
+  user-select: none;
 }
-html.dark .mapa-geocatmin .capas-panel-titulo {
-  border-bottom-color: rgba(255, 255, 255, 0.12);
+.mapa-geocatmin .capas-panel-flecha {
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.15s;
+  transform: rotate(-90deg); /* plegada por defecto */
+}
+.mapa-geocatmin .capas-panel-contenido {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+}
+html.dark .mapa-geocatmin .capas-panel-contenido {
+  border-top-color: rgba(255, 255, 255, 0.12);
 }
 
 .mapa-geocatmin .capas-grupo-encabezado {

@@ -24,11 +24,15 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
  * en vez del control nativo de Leaflet + un control aparte apilado
  * debajo — ese esquema de dos cajas con dos estilos visuales distintos
  * fue el motivo del pedido "mejóralo, se ve feo" (julio 2026); ahora
- * todo vive en un solo panel con tipografía y colores de marca, en 3
- * apartados colapsables:
+ * todo vive en un solo panel con tipografía y colores de marca. El
+ * panel entero arranca plegado a un botón chico "Capas" (pedido
+ * explícito: "al igual que el botón Leyenda se vuelve pequeño, quiero
+ * que sea lo mismo con Capas") — clic en el título lo despliega, mismo
+ * patrón que la Leyenda de abajo. Ya desplegado, tiene 3 apartados
+ * colapsables:
  * - "Catastro y geología" (Catastro minero, Geología, Fallas cercanas
- *   si el backend encontró alguna) — el único grupo EXPANDIDO por
- *   defecto, es la referencia base de toda ficha.
+ *   si el backend encontró alguna) — el único grupo que arranca
+ *   EXPANDIDO dentro del panel, es la referencia base de toda ficha.
  * - "Sensores satelitales · INGEMMET" (ASTER 9-3-1, índices QICIMI,
  *   Anomalías espectrales, Libre denuncio/aviso de retiro) — colapsado
  *   por defecto, son capas pesadas y de uso puntual.
@@ -318,7 +322,12 @@ export function MapaGeocatmin({
     // propio de principio a fin (clases `capas-*`, ver overrides en
     // index.css) y 3 apartados colapsables — checkbox propio que agrega
     // o quita la capa del mapa al hacer clic (mismo patrón que la
-    // Leyenda de abajo).
+    // Leyenda de abajo). El panel entero arranca plegado a un botón
+    // chico "Capas" (pedido explícito, julio 2026: "al igual que el
+    // botón Leyenda se vuelve pequeño, quiero que sea lo mismo con
+    // Capas") — antes el panel completo (con "Catastro y geología" ya
+    // expandido) ocupaba espacio de entrada; ahora, igual que la
+    // Leyenda, hay que hacer clic en el título para verlo.
     const PanelCapas = L.Control.extend({
       options: { position: "topright" },
       onAdd: function () {
@@ -328,7 +337,16 @@ export function MapaGeocatmin({
         );
 
         const titulo = L.DomUtil.create("div", "capas-panel-titulo", div);
-        titulo.textContent = "Capas";
+        titulo.innerHTML = `<span class="capas-panel-flecha">▾</span>Capas`;
+
+        const contenido = L.DomUtil.create("div", "capas-panel-contenido", div);
+        contenido.style.display = "none";
+        titulo.addEventListener("click", () => {
+          const expandido = contenido.style.display !== "none";
+          contenido.style.display = expandido ? "none" : "block";
+          const flecha = titulo.querySelector<HTMLElement>(".capas-panel-flecha");
+          if (flecha) flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
+        });
 
         const grupos: { titulo: string; expandido: boolean; capas: [string, L.Layer][] }[] = [
           {
@@ -367,9 +385,9 @@ export function MapaGeocatmin({
         // golpe encima del mapa).
         grupos.forEach((grupo, i) => {
           if (i > 0) {
-            L.DomUtil.create("div", "leaflet-control-layers-separator", div);
+            L.DomUtil.create("div", "leaflet-control-layers-separator", contenido);
           }
-          const encabezado = L.DomUtil.create("div", "capas-grupo-encabezado", div);
+          const encabezado = L.DomUtil.create("div", "capas-grupo-encabezado", contenido);
           encabezado.style.display = "flex";
           encabezado.style.alignItems = "center";
           encabezado.style.gap = "4px";
@@ -390,7 +408,7 @@ export function MapaGeocatmin({
 
           L.DomUtil.create("span", "", encabezado).textContent = grupo.titulo;
 
-          const listaCapas = L.DomUtil.create("div", "", div);
+          const listaCapas = L.DomUtil.create("div", "", contenido);
           if (!grupo.expandido) listaCapas.style.display = "none";
           encabezado.addEventListener("click", () => {
             const expandido = listaCapas.style.display !== "none";
