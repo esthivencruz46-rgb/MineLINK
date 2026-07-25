@@ -409,13 +409,17 @@ export function MapaGeocatmin({
     new PanelCapas().addTo(mapa);
 
     // Leyenda de colores (julio 2026, pedido explícito de Esthiven: "que
-    // expliques qué es el color de las capas satelitales") — un control
-    // propio, plegado por defecto, para no competir en espacio con el de
-    // capas. QICIMI SÍ tiene un color = un mineral exacto (confirmado con
-    // la metadata oficial de INGEMMET/GEOIDEP); ASTER 9-3-1 es falso
-    // color de bandas crudas, se lee de forma cualitativa (un geólogo
-    // interpreta el patrón), no es una tabla 1 a 1 — el texto lo aclara
-    // para no prometer más precisión de la que el dato realmente tiene.
+    // expliques qué es el color de las capas satelitales" — y luego,
+    // rediseñada, "la veo engorrosa" con la versión de puros párrafos de
+    // texto corrido) — un control propio, plegado por defecto. Ahora es
+    // una lista real de muestras de color (cuadradito + etiqueta corta),
+    // agrupada en los mismos 2 apartados que el panel de Capas, en vez
+    // de 5 párrafos de prosa con puntos separando colores en el medio
+    // del texto. QICIMI SÍ tiene un color = un mineral exacto (confirmado
+    // con la metadata oficial de INGEMMET/GEOIDEP); ASTER 9-3-1 es falso
+    // color de bandas crudas, no una tabla 1 a 1 — esa y otras
+    // aclaraciones que no son "color = significado" van en una sola nota
+    // al pie, no repartidas en cada grupo.
     const Leyenda = L.Control.extend({
       options: { position: "bottomleft" },
       onAdd: function () {
@@ -425,42 +429,46 @@ export function MapaGeocatmin({
         // "mapa-leyenda" (ver overrides de tema en index.css), igual que
         // el panel de capas.
         const div = L.DomUtil.create("div", "leaflet-bar mapa-leyenda");
+        const muestra = (color: string, etiqueta: string) => `
+          <div class="leyenda-fila">
+            <span class="leyenda-punto" style="background:${color}"></span>${etiqueta}
+          </div>`;
         div.innerHTML = `
-          <div class="mapa-leyenda-titulo">ℹ️ Leyenda de colores</div>
+          <div class="mapa-leyenda-titulo">
+            <span class="mapa-leyenda-flecha">▾</span>ℹ️ Leyenda de colores
+          </div>
           <div class="leyenda-detalle" style="display:none;">
-            <p style="margin:2px 0;"><strong>QICIMI</strong> (un color = un mineral):
-            <span style="color:#c0392b">■</span> cuarzo-sílice ·
-            <span style="color:#16a34a">■</span> carbonatos ·
-            <span style="color:#2563eb">■</span> máficos</p>
-            <p style="margin:2px 0;"><strong>ASTER 9-3-1</strong>: falso color de bandas
-            crudas, no un índice — verde ≈ vegetación, tonos rojo/rosa/naranja ≈ roca
-            expuesta (más intensos donde hay más alteración arcillosa). Se lee de forma
-            cualitativa, no es una tabla exacta.</p>
-            <p style="margin:2px 0;"><strong>Anomalías espectrales</strong> (INGEMMET):
-            <span style="color:red">■</span> óxidos ·
-            <span style="color:#16a34a">■</span> arcillas ·
-            <span style="color:#ca8a04">■</span> óxidos y arcillas</p>
-            <p style="margin:2px 0;"><strong>Libre denuncio / aviso de retiro</strong>:
-            concesiones extinguidas en proceso de liberarse para un petitorio nuevo —
-            <span style="color:#f6c567">■</span> Libre Denunciabilidad (ya se puede pedir) ·
-            <span style="color:#df73ff">■</span> Aviso de Retiro (Ley 30428, todavía en plazo).
-            Referencial, verificar siempre contra el trámite real en INGEMMET.</p>
-            <p style="margin:2px 0;"><strong>Anomalías: [nombre]</strong> (Copernicus/Sentinel-2,
-            sobre el polígono real de la concesión): cada una solo pinta el 10% más alto de
-            ese índice — el resto queda transparente. No es una clasificación fina de
-            alteración (propilítica/argílica/filítica); eso necesitaría ASTER.</p>
-            <p style="margin:2px 0;"><strong>Coincidencia de 2+ anomalías</strong>
-            (Copernicus/Sentinel-2): <span style="color:#9b00c8">■</span> píxeles donde 2 o
-            más de los 4 índices minerales caen a la vez en su percentil más alto — más
-            opaco mientras más índices coinciden ahí. Señal más confiable que cualquier
-            índice aislado: que varios reaccionen al mismo punto es menos probable que sea
-            casualidad.</p>
+            <p class="leyenda-grupo-titulo">Sensores satelitales · INGEMMET</p>
+            ${muestra("#c0392b", "QICIMI: cuarzo / sílice")}
+            ${muestra("#16a34a", "QICIMI: carbonatos")}
+            ${muestra("#2563eb", "QICIMI: máficos")}
+            ${muestra("red", "Anomalía espectral: óxidos")}
+            ${muestra("#16a34a", "Anomalía espectral: arcillas")}
+            ${muestra("#ca8a04", "Anomalía espectral: óxidos y arcillas")}
+            ${muestra("#f6c567", "Libre denunciabilidad")}
+            ${muestra("#df73ff", "Aviso de retiro (Ley 30428)")}
+
+            <p class="leyenda-grupo-titulo">Sentinel-2 · Copernicus</p>
+            ${muestra("rgb(220,20,20)", "Óxidos de hierro")}
+            ${muestra("rgb(0,102,204)", "Arcillas")}
+            ${muestra("rgb(255,140,0)", "Hierro ferroso")}
+            ${muestra("rgb(204,204,0)", "Arcilla / sulfatos / mica")}
+            ${muestra("rgb(155,0,200)", "Coincidencia de 2+ índices")}
+
+            <p class="leyenda-nota">Cada índice de Sentinel-2 solo pinta el 10% más alto de
+            ese valor — el resto queda transparente. ASTER 9-3-1 es falso color de bandas
+            crudas, sin tabla de colores: verde ≈ vegetación, rojo/rosa/naranja ≈ roca
+            expuesta. Ninguna es una clasificación fina de alteración hidrotermal
+            (propilítica/argílica/filítica).</p>
           </div>
         `;
         L.DomEvent.disableClickPropagation(div);
         div.addEventListener("click", () => {
           const detalle = div.querySelector<HTMLElement>(".leyenda-detalle");
-          if (detalle) detalle.style.display = detalle.style.display === "none" ? "block" : "none";
+          const flecha = div.querySelector<HTMLElement>(".mapa-leyenda-flecha");
+          const expandido = detalle?.style.display !== "none";
+          if (detalle) detalle.style.display = expandido ? "none" : "block";
+          if (flecha) flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
         });
         return div;
       },

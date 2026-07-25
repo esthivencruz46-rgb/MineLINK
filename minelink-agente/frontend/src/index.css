@@ -123,10 +123,67 @@ html.dark .mapa-geocatmin .capas-fila:hover {
   cursor: pointer;
 }
 .mapa-geocatmin .mapa-leyenda-titulo {
-  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
   font-weight: 600;
 }
+.mapa-geocatmin .mapa-leyenda-flecha {
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.15s;
+  transform: rotate(-90deg); /* plegada por defecto, igual que el detalle */
+}
+
+/* Leyenda reescrita (julio 2026, pedido explícito: "la veo engorrosa")
+   como una lista real de muestras de color en vez de párrafos de prosa
+   con puntos separando colores en el medio del texto — mismo patrón
+   visual que las filas del panel de Capas (capas-fila), pero sin
+   checkbox ni interacción, solo para leer. */
 .mapa-geocatmin .leyenda-detalle {
-  padding: 0 10px 10px;
-  max-width: 230px;
+  padding: 2px 10px 10px;
+  max-width: 260px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.mapa-geocatmin .leyenda-grupo-titulo {
+  margin: 10px 0 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #0c6b58;
+}
+html.dark .mapa-geocatmin .leyenda-grupo-titulo {
+  color: #34d399;
+}
+.mapa-geocatmin .leyenda-grupo-titulo:first-child {
+  margin-top: 0;
+}
+.mapa-geocatmin .leyenda-fila {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 12px;
+}
+.mapa-geocatmin .leyenda-punto {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.mapa-geocatmin .leyenda-nota {
+  margin: 10px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+  font-size: 10.5px;
+  line-height: 1.5;
+  color: #4b5566;
+}
+html.dark .mapa-geocatmin .leyenda-nota {
+  border-top-color: rgba(255, 255, 255, 0.12);
+  color: #93a2b3;
 }
