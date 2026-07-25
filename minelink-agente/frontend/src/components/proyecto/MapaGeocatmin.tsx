@@ -238,6 +238,33 @@ export function MapaGeocatmin({
       return `<strong>Anomalía espectral: ${tipo}</strong><br/><span style="font-size:11px;color:#64748b">GEOCATMIN · INGEMMET</span>`;
     });
 
+    // Libre denunciabilidad / aviso de retiro (julio 2026, pedido
+    // explícito de Esthiven): concesiones extinguidas que quedaron en
+    // proceso de liberarse para un petitorio nuevo — ámbar = "Libre
+    // Denunciabilidad" (ya se puede pedir), morado = "Aviso de Retiro"
+    // (Ley 30428, todavía en plazo de aviso antes de abrirse). Sin
+    // `layerDefs`: se muestran ambos estados tal cual los define el
+    // renderer del propio servicio. `minZoom: 11` (un paso más lejos que
+    // las demás capas de este grupo, ~20km de vista) porque Esthiven
+    // pidió un radio más amplio que el resto — es información de
+    // oportunidad, no de riesgo puntual, tiene sentido verla en un área
+    // más grande alrededor del pin.
+    const libreDenuncio = dynamicMapLayer({
+      url: `${GEOCATMIN}/SERV_LIBREDENUNCIABILIDAD/MapServer`,
+      layers: [0],
+      opacity: 0.85,
+      f: "image",
+      useCors: false,
+      pane: "geologiaPane",
+      minZoom: 11,
+    });
+    libreDenuncio.bindPopup((_error: unknown, featureCollection: any) => {
+      const props = featureCollection?.features?.[0]?.properties;
+      if (!props?.LEYENDA) return false;
+      const concesion = props.CONCESION ? `<br/>Antigua concesión: ${props.CONCESION}` : "";
+      return `<strong>${props.LEYENDA}</strong>${concesion}<br/><span style="font-size:11px;color:#64748b">GEOCATMIN · INGEMMET</span>`;
+    });
+
     // Anomalías espectrales minerales de Copernicus sobre el polígono REAL
     // de la concesión (julio 2026, pedido explícito de Esthiven tras el
     // experimento aislado con Sentinel-2) — 4 índices + 1 combinado. A
@@ -297,6 +324,7 @@ export function MapaGeocatmin({
               ["ASTER 9-3-1 (falso color, roca/vegetación)", aster931],
               ["Índices minerales QICIMI", qicimi],
               ["Anomalías espectrales", anomalias],
+              ["Libre denuncio / aviso de retiro (~20km)", libreDenuncio],
             ],
           },
         ];
@@ -376,6 +404,11 @@ export function MapaGeocatmin({
             <span style="color:red">■</span> óxidos ·
             <span style="color:#16a34a">■</span> arcillas ·
             <span style="color:#ca8a04">■</span> óxidos y arcillas</p>
+            <p style="margin:2px 0;"><strong>Libre denuncio / aviso de retiro</strong>:
+            concesiones extinguidas en proceso de liberarse para un petitorio nuevo —
+            <span style="color:#f6c567">■</span> Libre Denunciabilidad (ya se puede pedir) ·
+            <span style="color:#df73ff">■</span> Aviso de Retiro (Ley 30428, todavía en plazo).
+            Referencial, verificar siempre contra el trámite real en INGEMMET.</p>
             <p style="margin:2px 0;"><strong>Anomalías: [nombre]</strong> (Copernicus/Sentinel-2,
             sobre el polígono real de la concesión): cada una solo pinta el 10% más alto de
             ese índice — el resto queda transparente. No es una clasificación fina de
