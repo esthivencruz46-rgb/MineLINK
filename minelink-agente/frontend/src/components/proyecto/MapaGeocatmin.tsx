@@ -12,6 +12,9 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
   hierro_ferroso: "Anomalía: hierro ferroso",
   arcilla_sulfatos_mica: "Anomalía: arcilla/sulfatos/mica",
   combinado: "Anomalías combinadas (todas)",
+  // Píxeles donde 2 o más de los 4 índices coinciden a la vez (julio
+  // 2026, pedido explícito de Esthiven) — ver backend/copernicus.py.
+  coincidencias: "Coincidencia de 2+ anomalías (más confiable)",
 };
 
 const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
@@ -446,6 +449,12 @@ export function MapaGeocatmin({
             sobre el polígono real de la concesión): cada una solo pinta el 10% más alto de
             ese índice — el resto queda transparente. No es una clasificación fina de
             alteración (propilítica/argílica/filítica); eso necesitaría ASTER.</p>
+            <p style="margin:2px 0;"><strong>Coincidencia de 2+ anomalías</strong>
+            (Copernicus/Sentinel-2): <span style="color:#9b00c8">■</span> píxeles donde 2 o
+            más de los 4 índices minerales caen a la vez en su percentil más alto — más
+            opaco mientras más índices coinciden ahí. Señal más confiable que cualquier
+            índice aislado: que varios reaccionen al mismo punto es menos probable que sea
+            casualidad.</p>
           </div>
         `;
         L.DomEvent.disableClickPropagation(div);

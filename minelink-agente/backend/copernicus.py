@@ -14,6 +14,16 @@ Sentinel-2 no puede dar con solo 2 bandas SWIR (eso necesitaría ASTER,
 pausado por costo — ver conversación). Es una señal de "acá hay más
 óxido/arcilla que en el resto de la concesión", no un diagnóstico.
 
+Capa adicional "coincidencias" (julio 2026, pedido explícito de Esthiven:
+una capa donde 2+ de los otros índices se intersecten en el mismo
+píxel) — que varios índices independientes coincidan en el mismo punto
+es una señal más fuerte que cualquiera aislado (cada uno reacciona a un
+mineral distinto; su coincidencia por azar es más rara), así que resalta
+esos píxeles en un color propio (violeta, no usado por ningún índice
+individual), más intenso mientras más índices coinciden ahí. Se calcula
+sumando las 4 máscaras booleanas ya obtenidas en el mismo loop — CERO
+llamadas ni créditos adicionales a Sentinel Hub.
+
 DESACTIVADO por defecto (como reinfo.py): activar con
 MINELINK_COPERNICUS=1 una vez que Esthiven cargue CDSE_CLIENT_ID /
 CDSE_CLIENT_SECRET en el panel de Render (Dashboard de
@@ -23,7 +33,8 @@ igual que todos los servicios externos de este proyecto, nunca rompe la
 ficha pública.
 
 Cuota gratis del nivel "General user" de Copernicus: 10,000 Processing
-Units/mes. Cada concesión completa (5 capas: 4 índices + 1 combinado)
+Units/mes. Cada concesión completa (6 capas: 4 índices + combinado +
+coincidencias, esta última sin costo por ser derivada localmente)
 cuesta ~20-25 PU con el tamaño de imagen usado acá (calculado en vivo,
 julio 2026) -- de sobra para varios cientos de concesiones al mes.
 """
@@ -111,7 +122,24 @@ _INDICES = {
         "color": (204, 204, 0),
     },
 }
-NOMBRES_CAPAS = [*_INDICES.keys(), "combinado"]
+NOMBRES_CAPAS = [*_INDICES.keys(), "combinado", "coincidencias"]
+
+# Violeta: no lo usa ninguno de los 4 índices individuales (rojo/azul/
+# naranja/amarillo), para que la coincidencia se distinga a simple vista
+# de cualquier índice aislado. Más opaco mientras más índices coinciden
+# en el mismo píxel (2 de 4 ya es una señal; 4 de 4 es la más fuerte).
+_COLOR_COINCIDENCIAS = (155, 0, 200)
+_ALPHA_POR_COINCIDENCIAS = {2: 140, 3: 200, 4: 255}
+
+
+def _capa_coincidencias(conteo: np.ndarray) -> Image.Image:
+    """`conteo[y,x]` = en cuántos de los 4 índices ese píxel cayó en su
+    percentil 90+. Píxeles con 0 o 1 quedan transparentes (no es una
+    coincidencia, es ruido de un solo índice)."""
+    rgba = np.zeros((*conteo.shape, 4), dtype=np.uint8)
+    for n, alpha in _ALPHA_POR_COINCIDENCIAS.items():
+        rgba[conteo == n] = [*_COLOR_COINCIDENCIAS, alpha]
+    return Image.fromarray(rgba, mode="RGBA")
 
 
 def bbox_de_poligono(poligono: list) -> Optional[tuple]:
@@ -183,10 +211,11 @@ def _png_bytes(imagen: Image.Image) -> bytes:
 
 def generar_capas(poligono: list) -> Optional[dict]:
     """{"bbox": [xmin,ymin,xmax,ymax], "generado_en": iso, "v": 1,
-    "capas": {"oxidos_de_hierro": bytes_png, ..., "combinado": bytes_png}}
-    -- o None si esta desactivado, faltan credenciales, no hay poligono,
-    o la consulta a Copernicus falla (best-effort, igual que geocatmin y
-    reinfo: nunca rompe la ficha, el caller conserva lo último cacheado)."""
+    "capas": {"oxidos_de_hierro": bytes_png, ..., "combinado": bytes_png,
+    "coincidencias": bytes_png}} -- o None si esta desactivado, faltan
+    credenciales, no hay poligono, o la consulta a Copernicus falla
+    (best-effort, igual que geocatmin y reinfo: nunca rompe la ficha, el
+    caller conserva lo último cacheado)."""
     if _DESACTIVADO:
         return None
     config = _config()
@@ -202,6 +231,7 @@ def generar_capas(poligono: list) -> Optional[dict]:
         lienzo_combinado = Image.fromarray(base).convert("RGBA")
 
         capas: dict[str, bytes] = {}
+        conteo_coincidencias: Optional[np.ndarray] = None
         for nombre, info in _INDICES.items():
             valores = _pedir(config, bbox, info["evalscript_crudo"], MimeType.TIFF)
             umbral = float(np.percentile(valores, _PERCENTIL))
@@ -217,7 +247,13 @@ def generar_capas(poligono: list) -> Optional[dict]:
                 lienzo_combinado, Image.fromarray(capa_media, mode="RGBA")
             )
 
+            mascara_uint8 = mascara.astype(np.uint8)
+            conteo_coincidencias = (
+                mascara_uint8 if conteo_coincidencias is None else conteo_coincidencias + mascara_uint8
+            )
+
         capas["combinado"] = _png_bytes(lienzo_combinado)
+        capas["coincidencias"] = _png_bytes(_capa_coincidencias(conteo_coincidencias))
         return {
             "bbox": list(bbox_coords),
             "generado_en": date.today().isoformat(),

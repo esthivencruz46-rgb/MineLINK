@@ -1,7 +1,10 @@
 """Tests de copernicus.py (julio 2026). Sin credenciales de CDSE reales en
 el entorno de tests, `generar_capas` siempre debe devolver None (best-
 effort, igual que geocatmin/reinfo) — nunca intenta una llamada de red
-real. `bbox_de_poligono` es lógica pura, se prueba directo."""
+real. `bbox_de_poligono` y `_capa_coincidencias` son lógica pura, se
+prueban directo."""
+import numpy as np
+
 import copernicus
 
 
@@ -28,11 +31,24 @@ def test_bbox_de_poligono_vacio_devuelve_none():
     assert copernicus.bbox_de_poligono([[]]) is None
 
 
-def test_nombres_capas_incluye_los_4_indices_y_el_combinado():
+def test_nombres_capas_incluye_los_4_indices_el_combinado_y_coincidencias():
     assert copernicus.NOMBRES_CAPAS == [
         "oxidos_de_hierro",
         "arcillas",
         "hierro_ferroso",
         "arcilla_sulfatos_mica",
         "combinado",
+        "coincidencias",
     ]
+
+
+def test_capa_coincidencias_solo_pinta_pixeles_con_2_o_mas():
+    # 2x2: (0,0) ningún índice, (0,1) 1 índice, (1,0) 2 índices, (1,1) 4.
+    conteo = np.array([[0, 1], [2, 4]], dtype=np.uint8)
+    imagen = copernicus._capa_coincidencias(conteo)
+    pixeles = np.array(imagen)
+
+    assert tuple(pixeles[0, 0]) == (0, 0, 0, 0)
+    assert tuple(pixeles[0, 1]) == (0, 0, 0, 0)
+    assert tuple(pixeles[1, 0]) == (*copernicus._COLOR_COINCIDENCIAS, 140)
+    assert tuple(pixeles[1, 1]) == (*copernicus._COLOR_COINCIDENCIAS, 255)
