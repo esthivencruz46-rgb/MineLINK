@@ -382,31 +382,36 @@ export function ProyectoDetalle() {
       {/* MOSAICO SUPERIOR: ubicación satelital en la parte ancha + fotos
           del proyecto al costado (la tarjeta "Ubicación" aparte se
           eliminó — vivía abajo y dejaba este espacio a medio usar). El
-          recuadro de puntuación (antes solo en el sidebar, más abajo) sube
-          al costado del mapa (pedido explícito, julio 2026): el mapa queda
-          menos ancho y las miniaturas se corren más a la izquierda. */}
-      <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-stretch">
-        <div className="md:w-2/3">
-          <GaleriaProyecto
-            fotos={proyecto.fotos}
-            ubicacionCoords={proyecto.ubicacion_coords}
-            geocatmin={proyecto.geocatmin}
-            anomaliasSatelitales={proyecto.anomalias_satelitales}
-          />
-        </div>
+          recuadro de puntuación baja DEBAJO del mapa, a todo el ancho
+          (pedido explícito, julio 2026: "el recuadro de la derecha más
+          abajo, para que ubicación ocupe todo ese espacio" — revierte el
+          acomodo anterior, donde compartía fila con el mapa y lo
+          angostaba). Adentro, sus bloques pasan de una columna angosta
+          (pensada para un sidebar de 1/3) a una fila que se ajusta sola
+          en pantallas grandes, para no verse como una sola columna
+          angosta perdida en un recuadro ancho. */}
+      <div className="mt-6">
+        <GaleriaProyecto
+          fotos={proyecto.fotos}
+          ubicacionCoords={proyecto.ubicacion_coords}
+          geocatmin={proyecto.geocatmin}
+          anomaliasSatelitales={proyecto.anomalias_satelitales}
+        />
+      </div>
+      <div className="mt-3">
         {(() => {
           const hayScores =
             typeof proyecto.score_formalizacion === "number" ||
             typeof proyecto.score_inversion === "number";
           return (
-          <div className="flex flex-col gap-3 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark md:w-1/3">
+          <div className="flex flex-col gap-4 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-10">
             {hayScores && (
-              <div className="flex flex-col gap-2 border-b border-black/10 pb-3 dark:border-white/10">
+              <div className="flex flex-col gap-2 sm:min-w-[10rem]">
                 <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
                 <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
               </div>
             )}
-            <div>
+            <div className="sm:min-w-[10rem]">
               <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                 Track Legal
               </p>
@@ -414,7 +419,7 @@ export function ProyectoDetalle() {
             </div>
             {/* Madurez técnica (antes en el sidebar de abajo, dejaba un
                 espacio en blanco acá) — pedido explícito, julio 2026. */}
-            <div>
+            <div className="sm:min-w-[10rem]">
               <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                 Madurez técnica
               </p>
@@ -447,7 +452,7 @@ export function ProyectoDetalle() {
                 privados (liquidaciones, estados financieros, OPEX), nunca
                 el documento en sí. Un ✓ = archivo subido. */}
             {proyecto.indicadores?.ventas_liquidacion_verificada ? (
-              <div>
+              <div className="sm:min-w-[10rem]">
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Ventas con liquidación
                 </p>
@@ -460,7 +465,7 @@ export function ProyectoDetalle() {
                 </p>
               </div>
             ) : proyecto.vende_liquidacion != null ? (
-              <div>
+              <div className="sm:min-w-[10rem]">
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Producción con liquidación
                 </p>
@@ -472,7 +477,7 @@ export function ProyectoDetalle() {
               </div>
             ) : null}
             {proyecto.indicadores?.contabilidad && (
-              <div>
+              <div className="sm:min-w-[10rem]">
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Finanzas
                 </p>
@@ -491,7 +496,7 @@ export function ProyectoDetalle() {
               </div>
             )}
             {proyecto.indicadores?.opex_verificado && (
-              <div>
+              <div className="sm:min-w-[10rem]">
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Costos operativos
                 </p>
@@ -504,7 +509,7 @@ export function ProyectoDetalle() {
               </div>
             )}
             {proyecto.capital_buscado && (
-              <div>
+              <div className="sm:min-w-[10rem]">
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Busca
                 </p>
@@ -515,7 +520,7 @@ export function ProyectoDetalle() {
               </div>
             )}
 
-            <div className="mt-2 flex flex-col gap-2.5">
+            <div className="flex w-full flex-col gap-2.5 sm:ml-auto sm:w-56 sm:self-end">
               <button
                 onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
                 className="min-h-[44px] bg-acento font-semibold text-white transition hover:bg-acento/90"
