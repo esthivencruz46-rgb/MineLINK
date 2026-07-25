@@ -44,6 +44,14 @@ tiene sesión vía `Depends(get_db)`) antes de cada pregunta. Es barato
 comparar y solo se reconstruye BM25 si los documentos admin cambiaron
 desde la última pregunta.
 
+Tercera vía, la misma tabla `DocumentoAsesor` pero escrita por código, no a
+mano (julio 2026, pedido explícito: que el asesor conozca la cartera pública
+de proyectos): `asesor_proyectos.py` sincroniza un `DocumentoAsesor` por cada
+proyecto públicamente apto para inversionistas — mismos datos que cualquiera
+ya ve en /proyectos, nada privado ni personalizado a un caso (esa decisión de
+fondo no cambia). Se dispara como tarea en segundo plano desde
+`routers/proyectos.py` al listar la cartera.
+
 Generación intercambiable entre proveedores (julio 2026, pedido
 explícito): `generar_respuesta()` es la ÚNICA función que sabe hablar con
 una API externa. Todo lo demás (el prompt, el historial, los

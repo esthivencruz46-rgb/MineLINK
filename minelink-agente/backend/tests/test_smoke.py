@@ -3312,6 +3312,116 @@ def test_asesor_publico_respeta_el_limite_por_ip():
         security.MAX_PREGUNTAS_ASESOR_HORA = tope_original
 
 
+def _proyecto_publico_de_prueba(**overrides):
+    import schemas
+
+    base = dict(
+        operacion_id="op-asesor-1",
+        nombre_proyecto="Minera Los Andes",
+        region="Puno",
+        mineral="oro",
+        tipo_mina="socavon",
+        situacion="operando",
+        perfil="C",
+        semaforo_legal="verde",
+        semaforo_tecnico="verde",
+        indice_madurez=4,
+        vende_liquidacion=True,
+        ventas_verificadas=True,
+        capital_buscado="150000",
+        uso_fondos="ampliar planta",
+        descripcion_operacion="Operación aurífera en Puno.",
+        created_at=date.today(),
+    )
+    base.update(overrides)
+    return schemas.ProyectoPublicoOut(**base)
+
+
+def test_generar_texto_proyecto_incluye_los_campos_publicos():
+    # julio 2026, pedido explícito de Esthiven: alimentar al asesor con la
+    # info pública de la cartera. El texto se arma SOLO desde
+    # ProyectoPublicoOut -- por construcción no puede filtrar nada privado.
+    import asesor_proyectos
+
+    texto = asesor_proyectos.generar_texto_proyecto(_proyecto_publico_de_prueba())
+    assert "Minera Los Andes" in texto
+    assert "oro" in texto
+    assert "Puno" in texto
+    assert "Track Legal: verde" in texto
+    assert "Madurez técnica: 4/5" in texto
+    assert "150000" in texto
+    assert "/proyectos/op-asesor-1" in texto
+
+
+def test_sincronizar_documentos_asesor_crea_actualiza_y_desactiva():
+    import asesor_proyectos
+
+    db = TestingSessionLocal()
+    try:
+        # Crea.
+        asesor_proyectos.sincronizar_documentos_asesor(db, [_proyecto_publico_de_prueba()])
+        doc = (
+            db.query(models.DocumentoAsesor)
+            .filter(models.DocumentoAsesor.categoria == "proyecto_op-asesor-1")
+            .first()
+        )
+        assert doc is not None
+        assert doc.activo is True
+        assert "Minera Los Andes" in doc.nombre
+
+        # Actualiza en vez de duplicar si algo público cambió.
+        asesor_proyectos.sincronizar_documentos_asesor(
+            db, [_proyecto_publico_de_prueba(indice_madurez=5)]
+        )
+        docs = (
+            db.query(models.DocumentoAsesor)
+            .filter(models.DocumentoAsesor.categoria == "proyecto_op-asesor-1")
+            .all()
+        )
+        assert len(docs) == 1
+        assert "5/5" in docs[0].texto
+
+        # Ya no está en la lista de aptos (ej. semáforo legal pasó a rojo)
+        # -> se desactiva, no se borra.
+        asesor_proyectos.sincronizar_documentos_asesor(db, [])
+        doc = (
+            db.query(models.DocumentoAsesor)
+            .filter(models.DocumentoAsesor.categoria == "proyecto_op-asesor-1")
+            .first()
+        )
+        assert doc.activo is False
+
+        # Vuelve a estar apto -> se reactiva (no queda huérfano para siempre).
+        asesor_proyectos.sincronizar_documentos_asesor(db, [_proyecto_publico_de_prueba()])
+        db.refresh(doc)
+        assert doc.activo is True
+    finally:
+        db.close()
+
+
+def test_listar_proyectos_dispara_sincronizacion_del_asesor_en_segundo_plano(monkeypatch):
+    import routers.proyectos as proyectos_router
+
+    # Debounce en memoria del proceso -- se resetea para que este test no
+    # dependa de si otro test ya lo disparó antes.
+    monkeypatch.setattr(proyectos_router, "_ULTIMA_SINCRONIZACION_ASESOR", None)
+
+    llamadas = {"n": 0}
+    monkeypatch.setattr(
+        proyectos_router, "_sincronizar_asesor_en_segundo_plano", lambda: llamadas.__setitem__("n", llamadas["n"] + 1)
+    )
+
+    resp = client.get("/proyectos")
+    assert resp.status_code == 200
+    assert llamadas == {"n": 1}
+
+    # Con el debounce todavía vigente, una segunda visita NO vuelve a
+    # disparar la sincronización.
+    resp = client.get("/proyectos")
+    assert resp.status_code == 200
+    assert llamadas == {"n": 1}
+
+
 def test_asesor_publico_registra_evento_de_exito_en_el_dashboard():
     # Julio 2026, tras un incidente real (clave de API incompleta en Render
     # pasó desapercibida varios días): el dashboard admin debe reflejar si

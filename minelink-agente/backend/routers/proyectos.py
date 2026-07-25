@@ -1,3 +1,4 @@
+import time
 from datetime import date, timedelta
 from typing import Optional
 
@@ -5,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from fastapi.responses import Response
 from sqlalchemy.orm import Session, selectinload
 
+import asesor_proyectos
 import copernicus
 import database
 import geocatmin
@@ -273,8 +275,44 @@ def _fotos_portada(db: Session, operacion_ids: list[str]) -> dict[str, str]:
     }
 
 
+# Sincronización cartera → conocimiento del asesor (julio 2026, ver
+# asesor_proyectos.py): debounce en memoria del proceso, NO por proyecto —
+# es una reconciliación global (crea/actualiza/desactiva), no tiene sentido
+# correrla en cada carga de /proyectos, el endpoint público más visitado.
+# time.monotonic() en vez de datetime: no importa la hora del día, solo
+# cuánto pasó desde la última corrida (mismo patrón que el presupuesto de
+# tiempo del asesor, ver asesor.py).
+_ULTIMA_SINCRONIZACION_ASESOR: Optional[float] = None
+_INTERVALO_SINCRONIZACION_ASESOR_SEGUNDOS = 30 * 60
+
+
+def _sincronizar_asesor_en_segundo_plano() -> None:
+    """Consulta su PROPIA lista completa de proyectos aptos (sin el filtro
+    de mineral/región de la petición que la disparó) — pasarle una lista ya
+    filtrada desactivaría por error los proyectos que quedaron fuera de ese
+    filtro puntual (ver advertencia en asesor_proyectos.sincronizar_documentos_asesor)."""
+    db = database.SessionLocal()
+    try:
+        filas = _proyectos_visibles(db)
+        visibles = []
+        for lead, operacion in filas:
+            seguimiento = estado_seguimiento(operacion)
+            if not seguimiento.get("apto_inversionistas"):
+                continue
+            visibles.append((lead, operacion, seguimiento))
+        portadas = _fotos_portada(db, [o.id for _l, o, _s in visibles])
+        proyectos_publicos = [
+            _proyecto_publico_out(lead, operacion, seguimiento, portadas.get(operacion.id))
+            for lead, operacion, seguimiento in visibles
+        ]
+        asesor_proyectos.sincronizar_documentos_asesor(db, proyectos_publicos)
+    finally:
+        db.close()
+
+
 @router.get("", response_model=list[schemas.ProyectoPublicoOut])
 def listar_proyectos(
+    background_tasks: BackgroundTasks,
     mineral: Optional[str] = None,
     region: Optional[str] = None,
     db: Session = Depends(get_db),
@@ -285,6 +323,15 @@ def listar_proyectos(
     perfiles sin proyecto publicable (A / sin clasificar / modelo viejo).
     Se recalcula al vuelo porque la urgencia del plazo REINFO cambia con
     el paso del tiempo."""
+    global _ULTIMA_SINCRONIZACION_ASESOR
+    ahora = time.monotonic()
+    if (
+        _ULTIMA_SINCRONIZACION_ASESOR is None
+        or ahora - _ULTIMA_SINCRONIZACION_ASESOR > _INTERVALO_SINCRONIZACION_ASESOR_SEGUNDOS
+    ):
+        _ULTIMA_SINCRONIZACION_ASESOR = ahora
+        background_tasks.add_task(_sincronizar_asesor_en_segundo_plano)
+
     filas = _proyectos_visibles(db)
 
     visibles = []
