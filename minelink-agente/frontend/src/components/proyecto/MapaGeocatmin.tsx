@@ -335,24 +335,51 @@ export function MapaGeocatmin({
           });
         }
 
+        // Cada grupo es colapsable (pedido explícito de Esthiven, con una
+        // captura del panel de capas de ArcGIS Online como referencia):
+        // encabezado con flecha que se hace clic para expandir/contraer,
+        // capas indentadas debajo — igual idea que un árbol de capas,
+        // simplificada (sin el menú "..." de opacidad de ArcGIS, que acá
+        // no aplica porque no hay controles de transparencia por capa).
         grupos.forEach((grupo, i) => {
           if (i > 0) {
             L.DomUtil.create("div", "leaflet-control-layers-separator", div);
           }
-          const titulo = L.DomUtil.create("div", "", div);
-          titulo.style.fontWeight = "600";
-          titulo.style.fontSize = "12px";
-          titulo.style.textTransform = "uppercase";
-          titulo.style.letterSpacing = "0.02em";
-          titulo.style.color = "#6b7280";
-          titulo.style.margin = i === 0 ? "0 0 4px" : "6px 0 4px";
-          titulo.textContent = grupo.titulo;
+          const encabezado = L.DomUtil.create("div", "", div);
+          encabezado.style.display = "flex";
+          encabezado.style.alignItems = "center";
+          encabezado.style.gap = "4px";
+          encabezado.style.cursor = "pointer";
+          encabezado.style.userSelect = "none";
+          encabezado.style.fontWeight = "600";
+          encabezado.style.fontSize = "12px";
+          encabezado.style.textTransform = "uppercase";
+          encabezado.style.letterSpacing = "0.02em";
+          encabezado.style.color = "#6b7280";
+          encabezado.style.margin = i === 0 ? "0 0 4px" : "6px 0 4px";
+
+          const flecha = L.DomUtil.create("span", "", encabezado);
+          flecha.textContent = "▾";
+          flecha.style.fontSize = "10px";
+          flecha.style.display = "inline-block";
+          flecha.style.transition = "transform 0.15s";
+
+          L.DomUtil.create("span", "", encabezado).textContent = grupo.titulo;
+
+          const listaCapas = L.DomUtil.create("div", "", div);
+          encabezado.addEventListener("click", () => {
+            const expandido = listaCapas.style.display !== "none";
+            listaCapas.style.display = expandido ? "none" : "block";
+            flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
+          });
+
           grupo.capas.forEach(([label, layer]) => {
-            const fila = L.DomUtil.create("label", "", div);
+            const fila = L.DomUtil.create("label", "", listaCapas);
             fila.style.display = "flex";
             fila.style.alignItems = "center";
             fila.style.gap = "6px";
             fila.style.cursor = "pointer";
+            fila.style.marginLeft = "14px"; // indentado bajo el grupo
             const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
             checkbox.type = "checkbox";
             checkbox.checked = mapa.hasLayer(layer);
