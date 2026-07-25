@@ -206,12 +206,21 @@ export function MapaGeocatmin({
     // zoom 12 (~equivalente a la vista local de unos 10km alrededor del
     // pin, mismo umbral que ya usa geología 50K más abajo) sin tocar su
     // membresía en el mapa, así el checkbox nunca se desmarca solo.
+    // `zIndex` >= 20 (julio 2026, pedido explícito: "quiero que las
+    // anomalías, sea cualquiera, puedan sobreponerse a la capa de
+    // geología") — comparten el pane "geologiaPane" con geología, y
+    // geología ya usa zIndex 10/11 (ver más abajo); sin un zIndex propio
+    // acá, esri-leaflet las deja en su default (más bajo que 10/11), así
+    // que con ambas activas geología SIEMPRE quedaba pintada encima,
+    // aunque fuera semitransparente — apagaba el color de la anomalía en
+    // vez de dejarla resaltar.
     const aster931 = imageMapLayer({
       url: `${GEOCATMIN}/PRODUCTO_SATELITAL/MD_ASTER_931/ImageServer`,
       opacity: 0.7,
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      zIndex: 20,
       minZoom: 12,
       attribution: "GEOCATMIN · INGEMMET",
     });
@@ -221,6 +230,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      zIndex: 21,
       minZoom: 12,
     });
     const anomalias = dynamicMapLayer({
@@ -235,6 +245,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      zIndex: 22,
       minZoom: 12,
     });
     // Sin `layerDefs`/`where`: se piden los 3 tipos tal cual los define el
@@ -266,6 +277,7 @@ export function MapaGeocatmin({
       f: "image",
       useCors: false,
       pane: "geologiaPane",
+      zIndex: 23,
       minZoom: 11,
     });
     libreDenuncio.bindPopup((_error: unknown, featureCollection: any) => {
@@ -286,11 +298,15 @@ export function MapaGeocatmin({
     if (anomaliasSatelitales) {
       const [xmin, ymin, xmax, ymax] = anomaliasSatelitales.bbox;
       const bounds = L.latLngBounds([ymin, xmin], [ymax, xmax]);
+      // zIndex >= 30, mismo motivo que aster931/qicimi/anomalias arriba:
+      // sin esto, `L.imageOverlay` cae en su default (zIndex:1) — muy por
+      // debajo de geología (10/11) — y quedaba tapada por ella.
+      let zIndexAnomalia = 30;
       for (const [nombre, url] of Object.entries(anomaliasSatelitales.capas)) {
         overlaysAnomalias[TITULOS_ANOMALIAS[nombre] ?? nombre] = L.imageOverlay(
           `${BASE_URL}${url}`,
           bounds,
-          { pane: "geologiaPane" }
+          { pane: "geologiaPane", zIndex: zIndexAnomalia++ }
         );
       }
     }
