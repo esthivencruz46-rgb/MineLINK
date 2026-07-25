@@ -83,6 +83,18 @@ def _reset_db():
 
 client = TestClient(app)
 
+
+def test_health_responde_a_get_y_head():
+    # Regresión real (julio 2026): UptimeRobot manda HEAD para el ping de
+    # "mantener despierto" a Render, y una ruta declarada solo con
+    # @app.get no responde a HEAD (405) -- el monitor estuvo marcando el
+    # backend como "caído" 18 días seguidos aunque siempre estuvo vivo,
+    # porque nadie probó el verbo que UptimeRobot realmente usa.
+    assert client.get("/health").json() == {"status": "ok"}
+    resp_head = client.head("/health")
+    assert resp_head.status_code == 200
+
+
 # PDF mínimo pero real (con página) — los documentos legales del minero se
 # convierten a imagen en el servidor (ver imagenes.convertir_pdf_a_imagen),
 # así que un "%PDF-..." sin páginas de verdad ya no basta para pasar.

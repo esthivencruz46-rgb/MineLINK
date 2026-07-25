@@ -62,5 +62,10 @@ app.include_router(admin.router)
 
 
 @app.get("/health")
+@app.head("/health")  # UptimeRobot manda HEAD, no GET -- sin esto, FastAPI
+# no agrega HEAD automáticamente a una ruta declarada solo con @app.get, y
+# UptimeRobot reportaba 405 (marcado "caído" 18 días seguidos aunque el
+# backend siempre estuvo vivo) — descubierto julio 2026 al revisar por qué
+# el ping de mantener despierto a Render no parecía estar funcionando.
 def health():
     return {"status": "ok"}
