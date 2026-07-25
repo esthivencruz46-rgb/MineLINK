@@ -50,9 +50,19 @@ def preguntar_asesor(
             models.LlamadaAsesor(exitoso=False, proveedor=e.proveedor, detalle=str(e))
         )
         db.commit()
+        # Mensaje específico (julio 2026, pedido explícito de Esthiven):
+        # "Intenta de nuevo en un rato" sonaba a que reintentar en un par
+        # de minutos podía funcionar, cuando en la práctica el único
+        # proveedor con cuota gratis real es Gemini (~1500 preg/día) y el
+        # resto necesita facturación que todavía no está activada — si
+        # TODA la cadena falló, casi siempre es porque se acabó esa cuota
+        # del día, y no vuelve a estar disponible hasta que se reinicia
+        # (al día siguiente). El widget lo muestra igual sea cual sea la
+        # página pública en la que esté (se monta una sola vez en
+        # App.tsx, fuera del router).
         raise HTTPException(
             status_code=503,
-            detail="El asesor no está disponible en este momento. Intenta de nuevo en un rato.",
+            detail="El asesor ya usó su cuota gratuita de preguntas por hoy. Vuelve a estar disponible mañana.",
         )
     db.add(models.LlamadaAsesor(exitoso=True, proveedor=proveedor))
     db.commit()
