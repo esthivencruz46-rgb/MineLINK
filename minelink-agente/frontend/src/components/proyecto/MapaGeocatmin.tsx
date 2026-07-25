@@ -279,13 +279,16 @@ export function MapaGeocatmin({
     const CapasAgrupadas = L.Control.extend({
       options: { position: "topright" },
       onAdd: function () {
-        const div = L.DomUtil.create("div", "leaflet-bar");
-        div.style.background = "white";
-        div.style.color = "#1f2937";
-        div.style.padding = "6px 10px 8px";
-        div.style.fontSize = "12px";
-        div.style.lineHeight = "1.6";
-        div.style.maxWidth = "240px";
+        // Reusa las clases nativas de Leaflet (leaflet-control-layers +
+        // -expanded) en vez de estilos inline propios: así hereda gratis
+        // la misma sombra, esquinas redondeadas, tipografía y padding que
+        // el panel de Catastro/Geología/Fallas de arriba, en vez de verse
+        // como un cuadro aparte con su propio estilo improvisado.
+        const div = L.DomUtil.create(
+          "div",
+          "leaflet-control-layers leaflet-control-layers-expanded"
+        );
+        div.style.maxWidth = "250px";
 
         const grupos: { titulo: string; capas: [string, L.Layer][] }[] = [
           {
@@ -305,19 +308,22 @@ export function MapaGeocatmin({
         }
 
         grupos.forEach((grupo, i) => {
+          if (i > 0) {
+            L.DomUtil.create("div", "leaflet-control-layers-separator", div);
+          }
           const titulo = L.DomUtil.create("div", "", div);
           titulo.style.fontWeight = "600";
-          titulo.style.marginTop = i === 0 ? "0" : "8px";
-          titulo.style.borderTop = i === 0 ? "none" : "1px solid #e5e7eb";
-          titulo.style.paddingTop = i === 0 ? "0" : "6px";
+          titulo.style.fontSize = "12px";
+          titulo.style.textTransform = "uppercase";
+          titulo.style.letterSpacing = "0.02em";
+          titulo.style.color = "#6b7280";
+          titulo.style.margin = i === 0 ? "0 0 4px" : "6px 0 4px";
           titulo.textContent = grupo.titulo;
           grupo.capas.forEach(([label, layer]) => {
             const fila = L.DomUtil.create("label", "", div);
             fila.style.display = "flex";
             fila.style.alignItems = "center";
             fila.style.gap = "6px";
-            fila.style.fontWeight = "400";
-            fila.style.margin = "3px 0";
             fila.style.cursor = "pointer";
             const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
             checkbox.type = "checkbox";
@@ -326,7 +332,9 @@ export function MapaGeocatmin({
               if (checkbox.checked) mapa.addLayer(layer);
               else mapa.removeLayer(layer);
             });
-            fila.appendChild(document.createTextNode(label));
+            const texto = L.DomUtil.create("span", "", fila);
+            texto.textContent = label;
+            texto.style.fontSize = "13px";
           });
         });
 
