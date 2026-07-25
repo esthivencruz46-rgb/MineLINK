@@ -95,6 +95,16 @@ html.dark .mapa-geocatmin .mapa-leyenda {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid rgba(17, 24, 39, 0.1);
+  /* Julio 2026, pedido explícito: en el celular en vertical el mapa mide
+     solo ~288px de alto (h-72) -- Leaflet recorta su propio contenedor
+     (.leaflet-container tiene overflow:hidden por defecto), así que con
+     los 3 grupos abiertos a la vez (13 filas en total, contando las 6 de
+     Sentinel-2 con "combinado" y "coincidencias") el panel se salía del
+     mapa y esas últimas capas quedaban invisibles E inalcanzables al
+     tacto. Con scroll propio acá, nunca depende de la altura del mapa. */
+  max-height: 200px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 html.dark .mapa-geocatmin .capas-panel-contenido {
   border-top-color: rgba(255, 255, 255, 0.12);
