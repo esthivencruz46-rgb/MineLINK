@@ -41,3 +41,92 @@ html.dark option {
 .mapa-geocatmin .leaflet-image-layer {
   transition: opacity 0.3s ease;
 }
+
+/* Panel de capas + leyenda del mapa (julio 2026, pedido explícito:
+   "mejora la estética de ubicación y las capas") — antes eran controles
+   de Leaflet con el estilo gris genérico por defecto (fuente del
+   navegador, sombra dura, checkboxes sin color); esto los alinea con la
+   identidad institucional del resto del sitio: tipografía Inter, verde
+   de marca, borde fino en vez de sombra pesada. Todo escapado bajo
+   ".mapa-geocatmin" — es el único mapa Leaflet del sitio, pero así
+   queda explícito que no es un override global. */
+.mapa-geocatmin .leaflet-control-layers,
+.mapa-geocatmin .mapa-leyenda {
+  font-family: inherit;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.1);
+  background: #ffffff;
+  color: #111827;
+}
+html.dark .mapa-geocatmin .leaflet-control-layers,
+html.dark .mapa-geocatmin .mapa-leyenda {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #141f2e;
+  color: #eef2f6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.mapa-geocatmin .leaflet-control-layers-expanded {
+  padding: 10px 12px;
+  max-width: 260px;
+}
+
+.mapa-geocatmin .capas-panel-titulo {
+  font-size: 13px;
+  font-weight: 600;
+  padding-bottom: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid rgba(17, 24, 39, 0.1);
+}
+html.dark .mapa-geocatmin .capas-panel-titulo {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.mapa-geocatmin .capas-grupo-encabezado {
+  color: #0c6b58;
+}
+html.dark .mapa-geocatmin .capas-grupo-encabezado {
+  color: #34d399;
+}
+.mapa-geocatmin .capas-grupo-encabezado:hover {
+  opacity: 0.7;
+}
+
+.mapa-geocatmin .leaflet-control-layers-separator {
+  border-top: 1px solid rgba(17, 24, 39, 0.1);
+  margin: 8px 0;
+}
+html.dark .mapa-geocatmin .leaflet-control-layers-separator {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+.mapa-geocatmin .capas-fila {
+  padding: 3px 6px 3px 0;
+  border-radius: 4px;
+  transition: background-color 0.1s ease;
+}
+.mapa-geocatmin .capas-fila:hover {
+  background-color: rgba(12, 107, 88, 0.08);
+}
+html.dark .mapa-geocatmin .capas-fila:hover {
+  background-color: rgba(52, 211, 153, 0.12);
+}
+
+.mapa-geocatmin input[type="checkbox"] {
+  accent-color: #0c6b58;
+}
+
+.mapa-geocatmin .mapa-leyenda {
+  font-size: 11px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.mapa-geocatmin .mapa-leyenda-titulo {
+  padding: 6px 10px;
+  font-weight: 600;
+}
+.mapa-geocatmin .leyenda-detalle {
+  padding: 0 10px 10px;
+  max-width: 230px;
+}

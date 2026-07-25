@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BASE_URL } from "../../services/api";
 import { MapaGeocatmin } from "./MapaGeocatmin";
 import type { FotoPublica, GeocatminInfo } from "../../types/proyecto";
@@ -60,7 +60,7 @@ export function GaleriaProyecto({
 
   if (fotos.length === 0 && !ubicacionCoords) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-black/10 bg-tarjeta text-sm text-texto-suave dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+      <div className="flex h-40 items-center justify-center border border-dashed border-black/10 bg-tarjeta text-sm text-texto-suave dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-suave-dark">
         Aún no hay fotos ni ubicación de este proyecto
       </div>
     );
@@ -77,7 +77,7 @@ export function GaleriaProyecto({
   // solo aparece donde INGEMMET tiene carta a esa escala.
   const panelGeocatmin =
     geocatmin && (concesion || geologia) ? (
-      <div className="h-full rounded-xl bg-tarjeta p-3 shadow-sm dark:bg-tarjeta-dark">
+      <div className="h-full rounded-lg border border-black/10 bg-fondo p-3 dark:border-white/10 dark:bg-fondo-dark">
         {concesion ? (
           <p className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             <BadgeCheck size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden />
@@ -117,7 +117,7 @@ export function GaleriaProyecto({
   // Bloque de UBICACIÓN: el mapa a todo lo ancho, con altura propia fija
   // (no depende de cuántas fotos haya).
   const bloqueUbicacion = ubicacionCoords ? (
-    <div className="h-72 overflow-hidden rounded-xl shadow-sm sm:h-96 md:h-[28rem]">
+    <div className="h-72 overflow-hidden rounded-lg border border-black/10 dark:border-white/10 sm:h-96 md:h-[28rem]">
       <MapaGeocatmin
         coords={ubicacionCoords}
         poligonoConcesion={concesion?.poligono}
@@ -167,18 +167,40 @@ export function GaleriaProyecto({
       </div>
     ) : null;
 
+  // Encabezado "Ubicación" solo cuando de verdad hay mapa que mostrar —
+  // con fotos pero sin coordenadas (caso raro) no tiene sentido un
+  // título que no corresponde a nada debajo.
+  const hayUbicacion = Boolean(bloqueUbicacion);
+
   return (
     <>
-      {bloqueUbicacion}
-      {/* Panel GEOCATMIN al costado de las fotos de presentación (pedido
-          explícito, julio 2026) — no una debajo de la otra. En móvil se
-          apilan (el panel primero) porque no entran lado a lado. */}
-      {(panelGeocatmin || tiraFotos) && (
-        <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-stretch">
-          {panelGeocatmin && <div className="md:w-2/5">{panelGeocatmin}</div>}
-          {tiraFotos}
-        </div>
-      )}
+      {/* Todo el bloque envuelto en una tarjeta institucional (julio
+          2026, pedido explícito: "mejora la estética de ubicación") —
+          antes flotaba suelto, sin borde ni encabezado, desconectado del
+          resto de la ficha (Resumen Ejecutivo, Formalización, etc. sí
+          usan esta misma tarjeta con borde fino). */}
+      <div className="border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark sm:p-6">
+        {hayUbicacion && (
+          <>
+            <div className="flex items-center gap-2">
+              <MapPin size={18} strokeWidth={2} className="text-acento" aria-hidden />
+              <h2 className="text-lg font-semibold">Ubicación</h2>
+            </div>
+            <div className="mt-3">{bloqueUbicacion}</div>
+          </>
+        )}
+        {/* Panel GEOCATMIN al costado de las fotos de presentación (pedido
+            explícito, julio 2026) — no una debajo de la otra. En móvil se
+            apilan (el panel primero) porque no entran lado a lado. */}
+        {(panelGeocatmin || tiraFotos) && (
+          <div
+            className={`flex flex-col gap-3 md:flex-row md:items-stretch ${hayUbicacion ? "mt-3" : ""}`}
+          >
+            {panelGeocatmin && <div className="md:w-2/5">{panelGeocatmin}</div>}
+            {tiraFotos}
+          </div>
+        )}
+      </div>
 
       {indiceAbierto !== null && (
         <div

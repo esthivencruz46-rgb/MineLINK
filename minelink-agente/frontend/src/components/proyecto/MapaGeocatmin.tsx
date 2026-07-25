@@ -17,20 +17,27 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
 const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 
 /** Mapa de la ficha pública (julio 2026): base satelital (Esri World
- * Imagery) + las capas OFICIALES de GEOCATMIN/INGEMMET en el control
- * estándar de Leaflet — "Catastro minero" (encendida por defecto),
- * "Geología 1:100K" (apagada por defecto) y, si el backend encontró
- * alguna, "Fallas geológicas cercanas" (encendida por defecto). Además,
- * un control PROPIO (`CapasAgrupadas`, más abajo) con dos apartados
- * titulados — Leaflet no soporta encabezados de grupo en su control
- * nativo, y con las 3 capas ASTER de INGEMMET más las 5 de Copernicus
- * todo junto en una sola lista se veía desordenado (pedido explícito de
- * Esthiven, julio 2026): "GEOCATMIN · INGEMMET" (ASTER 9-3-1, índices
- * QICIMI, Anomalías espectrales — el DEM se probó y se quitó a pedido
- * suyo) y "Sentinel-2 · Copernicus" (4 índices minerales + 1 combinado
- * sobre el polígono REAL de la concesión, `L.imageOverlay` georreferen-
- * ciado con el bbox que manda el backend — ver `backend/copernicus.py`;
- * solo aparece si esa capa ya se generó). Todas apagadas por defecto.
+ * Imagery) + un ÚNICO panel de capas propio (`PanelCapas`, más abajo),
+ * en vez del control nativo de Leaflet + un control aparte apilado
+ * debajo — ese esquema de dos cajas con dos estilos visuales distintos
+ * fue el motivo del pedido "mejóralo, se ve feo" (julio 2026); ahora
+ * todo vive en un solo panel con tipografía y colores de marca, en 3
+ * apartados colapsables:
+ * - "Catastro y geología" (Catastro minero, Geología, Fallas cercanas
+ *   si el backend encontró alguna) — el único grupo EXPANDIDO por
+ *   defecto, es la referencia base de toda ficha.
+ * - "Sensores satelitales · INGEMMET" (ASTER 9-3-1, índices QICIMI,
+ *   Anomalías espectrales, Libre denuncio/aviso de retiro) — colapsado
+ *   por defecto, son capas pesadas y de uso puntual.
+ * - "Sentinel-2 · Copernicus" (4 índices minerales + 1 combinado sobre
+ *   el polígono REAL de la concesión, `L.imageOverlay` georreferenciado
+ *   con el bbox que manda el backend — ver `backend/copernicus.py`) —
+ *   colapsado por defecto, solo aparece si esa capa ya se generó.
+ * De paso (julio 2026) se corrigió un bug real encontrado al rediseñar
+ * este panel: "Catastro minero" nunca llegaba a `.addTo(mapa)` pese a
+ * que el código y la documentación decían "encendida por defecto" — el
+ * checkbox aparecía sin marcar y la capa jamás se veía hasta que
+ * alguien la activaba a mano.
  * Reemplaza al embed de Google Maps, que no acepta capas externas. */
 export function MapaGeocatmin({
   coords,
@@ -115,7 +122,7 @@ export function MapaGeocatmin({
       useCors: false,
       pane: "catastroPane",
       attribution: "GEOCATMIN · INGEMMET",
-    });
+    }).addTo(mapa); // encendida por defecto — ver nota de bug corregido arriba
 
     // Geología en dos escalas APILADAS bajo un solo interruptor: la 100K
     // cubre todo el país (base garantizada) y la 50K —más detallada— se
@@ -285,41 +292,38 @@ export function MapaGeocatmin({
       }
     }
 
-    L.control
-      .layers(
-        undefined,
-        {
-          "Catastro minero": catastro,
-          "Geología (50K si existe / 100K)": geologia,
-          ...(fallas ? { "Fallas geológicas cercanas": fallas } : {}),
-        },
-        { collapsed: false, position: "topright" }
-      )
-      .addTo(mapa);
-
-    // Control propio con las capas satelitales separadas en 2 apartados
-    // con título (julio 2026, pedido explícito de Esthiven: "se ve feo"
-    // todo junto en una sola lista) — el L.control.layers de arriba no
-    // soporta encabezados de grupo, así que esto es un control manual
-    // (mismo patrón que la Leyenda de abajo): checkbox propio que agrega
-    // o quita la capa del mapa al hacer clic.
-    const CapasAgrupadas = L.Control.extend({
+    // Panel de capas ÚNICO (julio 2026, rediseño pedido explícitamente:
+    // "mejora la estética de ubicación y las capas") — antes había dos
+    // controles apilados con look distinto (el nativo de Leaflet arriba,
+    // el agrupado propio debajo); ahora es un solo control con estilo
+    // propio de principio a fin (clases `capas-*`, ver overrides en
+    // index.css) y 3 apartados colapsables — checkbox propio que agrega
+    // o quita la capa del mapa al hacer clic (mismo patrón que la
+    // Leyenda de abajo).
+    const PanelCapas = L.Control.extend({
       options: { position: "topright" },
       onAdd: function () {
-        // Reusa las clases nativas de Leaflet (leaflet-control-layers +
-        // -expanded) en vez de estilos inline propios: así hereda gratis
-        // la misma sombra, esquinas redondeadas, tipografía y padding que
-        // el panel de Catastro/Geología/Fallas de arriba, en vez de verse
-        // como un cuadro aparte con su propio estilo improvisado.
         const div = L.DomUtil.create(
           "div",
           "leaflet-control-layers leaflet-control-layers-expanded"
         );
-        div.style.maxWidth = "250px";
 
-        const grupos: { titulo: string; capas: [string, L.Layer][] }[] = [
+        const titulo = L.DomUtil.create("div", "capas-panel-titulo", div);
+        titulo.textContent = "Capas";
+
+        const grupos: { titulo: string; expandido: boolean; capas: [string, L.Layer][] }[] = [
           {
-            titulo: "GEOCATMIN · INGEMMET",
+            titulo: "Catastro y geología",
+            expandido: true,
+            capas: [
+              ["Catastro minero", catastro],
+              ["Geología (50K si existe / 100K)", geologia],
+              ...(fallas ? ([["Fallas geológicas cercanas", fallas]] as [string, L.Layer][]) : []),
+            ],
+          },
+          {
+            titulo: "Sensores satelitales · INGEMMET",
+            expandido: false,
             capas: [
               ["ASTER 9-3-1 (falso color, roca/vegetación)", aster931],
               ["Índices minerales QICIMI", qicimi],
@@ -331,21 +335,22 @@ export function MapaGeocatmin({
         if (Object.keys(overlaysAnomalias).length > 0) {
           grupos.push({
             titulo: "Sentinel-2 · Copernicus",
+            expandido: false,
             capas: Object.entries(overlaysAnomalias),
           });
         }
 
         // Cada grupo es colapsable (pedido explícito de Esthiven, con una
         // captura del panel de capas de ArcGIS Online como referencia):
-        // encabezado con flecha que se hace clic para expandir/contraer,
-        // capas indentadas debajo — igual idea que un árbol de capas,
-        // simplificada (sin el menú "..." de opacidad de ArcGIS, que acá
-        // no aplica porque no hay controles de transparencia por capa).
+        // solo "Catastro y geología" arranca expandido — el resto son
+        // capas pesadas de uso puntual, no hace falta mostrarlas todas
+        // de entrada (antes SÍ arrancaban expandidas, 9 checkboxes de
+        // golpe encima del mapa).
         grupos.forEach((grupo, i) => {
           if (i > 0) {
             L.DomUtil.create("div", "leaflet-control-layers-separator", div);
           }
-          const encabezado = L.DomUtil.create("div", "", div);
+          const encabezado = L.DomUtil.create("div", "capas-grupo-encabezado", div);
           encabezado.style.display = "flex";
           encabezado.style.alignItems = "center";
           encabezado.style.gap = "4px";
@@ -355,18 +360,19 @@ export function MapaGeocatmin({
           encabezado.style.fontSize = "12px";
           encabezado.style.textTransform = "uppercase";
           encabezado.style.letterSpacing = "0.02em";
-          encabezado.style.color = "#6b7280";
-          encabezado.style.margin = i === 0 ? "0 0 4px" : "6px 0 4px";
+          encabezado.style.margin = "0 0 4px";
 
           const flecha = L.DomUtil.create("span", "", encabezado);
           flecha.textContent = "▾";
           flecha.style.fontSize = "10px";
           flecha.style.display = "inline-block";
           flecha.style.transition = "transform 0.15s";
+          if (!grupo.expandido) flecha.style.transform = "rotate(-90deg)";
 
           L.DomUtil.create("span", "", encabezado).textContent = grupo.titulo;
 
           const listaCapas = L.DomUtil.create("div", "", div);
+          if (!grupo.expandido) listaCapas.style.display = "none";
           encabezado.addEventListener("click", () => {
             const expandido = listaCapas.style.display !== "none";
             listaCapas.style.display = expandido ? "none" : "block";
@@ -374,12 +380,12 @@ export function MapaGeocatmin({
           });
 
           grupo.capas.forEach(([label, layer]) => {
-            const fila = L.DomUtil.create("label", "", listaCapas);
+            const fila = L.DomUtil.create("label", "capas-fila", listaCapas);
             fila.style.display = "flex";
             fila.style.alignItems = "center";
             fila.style.gap = "6px";
             fila.style.cursor = "pointer";
-            fila.style.marginLeft = "14px"; // indentado bajo el grupo
+            fila.style.marginLeft = "12px"; // indentado bajo el grupo
             const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
             checkbox.type = "checkbox";
             checkbox.checked = mapa.hasLayer(layer);
@@ -397,7 +403,7 @@ export function MapaGeocatmin({
         return div;
       },
     });
-    new CapasAgrupadas().addTo(mapa);
+    new PanelCapas().addTo(mapa);
 
     // Leyenda de colores (julio 2026, pedido explícito de Esthiven: "que
     // expliques qué es el color de las capas satelitales") — un control
@@ -410,15 +416,15 @@ export function MapaGeocatmin({
     const Leyenda = L.Control.extend({
       options: { position: "bottomleft" },
       onAdd: function () {
-        const div = L.DomUtil.create("div", "leaflet-bar");
-        div.style.background = "white";
-        div.style.color = "#1f2937";
-        div.style.fontSize = "11px";
-        div.style.lineHeight = "1.5";
-        div.style.cursor = "pointer";
+        // Antes fijaba fondo blanco + texto oscuro por estilo inline sin
+        // importar el tema — en modo oscuro quedaba un recuadro blanco
+        // brillante rompiendo el resto de la página. Ahora usa la clase
+        // "mapa-leyenda" (ver overrides de tema en index.css), igual que
+        // el panel de capas.
+        const div = L.DomUtil.create("div", "leaflet-bar mapa-leyenda");
         div.innerHTML = `
-          <div style="padding:4px 8px;font-weight:600;">ℹ️ Leyenda de colores</div>
-          <div class="leyenda-detalle" style="display:none;padding:0 8px 8px;max-width:230px;">
+          <div class="mapa-leyenda-titulo">ℹ️ Leyenda de colores</div>
+          <div class="leyenda-detalle" style="display:none;">
             <p style="margin:2px 0;"><strong>QICIMI</strong> (un color = un mineral):
             <span style="color:#c0392b">■</span> cuarzo-sílice ·
             <span style="color:#16a34a">■</span> carbonatos ·
