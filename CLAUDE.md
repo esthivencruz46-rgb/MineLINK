@@ -77,7 +77,19 @@ Built on top of it since (all deployed):
   removing an already-registered control overlay from the map desyncs its checkbox. A
   collapsed-by-default "ℹ️ Leyenda de colores" control (bottom-left) spells out what each
   color means — added after Esthiven asked what the satellite layer colors actually
-  represent.
+  represent. A 4th INGEMMET toggle, "Libre denuncio / aviso de retiro" (own service,
+  `SERV_LIBREDENUNCIABILIDAD`), shows extinguished concessions now in the process of
+  opening up for a new petitorio — amber = "Libre Denunciabilidad" (open now), purple =
+  "Aviso de Retiro" (Ley 30428 notice period) — directly relevant to perfil A miners
+  looking for available ground; its own `minZoom: 11` (~20km view, one step wider than
+  the other satellite toggles) because Esthiven explicitly asked for a bigger radius on
+  this one specifically. Because Leaflet's native `L.control.layers` has no concept of
+  grouped/titled sections, these INGEMMET toggles plus the 5 Copernicus ones (below) live
+  in a second, hand-built control (`CapasAgrupadas`, same custom-control pattern as the
+  legend) with two labeled sections — "se ve feo" was Esthiven's exact complaint about
+  having 9 unrelated toggles flattened into one list, and the fix reuses Leaflet's own
+  `leaflet-control-layers`/`-expanded` CSS classes so the two panels share the native
+  look instead of a custom style bolted on.
 - **Copernicus mineral anomaly layers** (`backend/copernicus.py`, July 2026): after
   exploring Google Earth Engine and finding MineLink doesn't qualify for its free
   noncommercial tier (a for-profit platform doing R&D toward a commercial product is
