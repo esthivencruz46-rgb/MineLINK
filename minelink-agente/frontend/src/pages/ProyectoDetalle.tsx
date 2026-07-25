@@ -332,86 +332,74 @@ export function ProyectoDetalle() {
         Volver a proyectos
       </Link>
 
-      {/* HEADER */}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-          <BadgeCheck size={13} strokeWidth={2} aria-hidden />
-          Con documentos de respaldo
-        </span>
-        <span className={`border border-black/10 px-2.5 py-1 text-xs font-medium dark:border-white/10 ${semLegal.claseTexto}`}>
-          {trackLegalTexto}
-        </span>
-        {destacado && (
-          <span className="inline-flex items-center gap-1 border border-secundario/30 px-2.5 py-1 text-xs font-medium text-secundario">
-            <Star size={12} strokeWidth={2} fill="currentColor" aria-hidden />
-            Destacado
-          </span>
-        )}
-      </div>
+      {/* HEADER: título/badges/ubicación a la izquierda, recuadro de
+          puntuación arriba a la derecha (pedido explícito, julio 2026:
+          "yo lo pondría en el área superior derecha" — segundo cambio de
+          posición del mismo recuadro en la misma sesión; primero pasó de
+          junto al mapa a debajo, ahora pasa a junto al título). El mapa
+          baja a su propia fila a todo el ancho, debajo de este bloque. */}
+      <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+              <BadgeCheck size={13} strokeWidth={2} aria-hidden />
+              Con documentos de respaldo
+            </span>
+            <span className={`border border-black/10 px-2.5 py-1 text-xs font-medium dark:border-white/10 ${semLegal.claseTexto}`}>
+              {trackLegalTexto}
+            </span>
+            {destacado && (
+              <span className="inline-flex items-center gap-1 border border-secundario/30 px-2.5 py-1 text-xs font-medium text-secundario">
+                <Star size={12} strokeWidth={2} fill="currentColor" aria-hidden />
+                Destacado
+              </span>
+            )}
+          </div>
 
-      <h1 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
-        {proyecto.nombre_proyecto}{" "}
-        <span className="text-texto-suave dark:text-texto-suave-dark">
-          — {cap(proyecto.mineral)}
-        </span>
-      </h1>
+          <h1 className="mt-3 text-2xl font-semibold tracking-tight md:text-3xl">
+            {proyecto.nombre_proyecto}{" "}
+            <span className="text-texto-suave dark:text-texto-suave-dark">
+              — {cap(proyecto.mineral)}
+            </span>
+          </h1>
 
-      <p className="mt-2 flex flex-wrap items-center gap-3 text-texto-suave dark:text-texto-suave-dark">
-        <span className="inline-flex items-center gap-1">
-          <MapPin size={15} strokeWidth={2} aria-hidden />
-          {cap(proyecto.region)}, Perú
-        </span>
-        <button
-          onClick={compartir}
-          className="inline-flex items-center gap-1 border border-black/10 px-2.5 py-1 text-xs font-medium hover:border-acento/40 dark:border-white/10"
-        >
-          {enlaceCopiado ? (
-            <>
-              <Check size={13} strokeWidth={2} aria-hidden />
-              Enlace copiado
-            </>
-          ) : (
-            <>
-              <ArrowUpRight size={13} strokeWidth={2} aria-hidden />
-              Compartir
-            </>
-          )}
-        </button>
-      </p>
+          <p className="mt-2 flex flex-wrap items-center gap-3 text-texto-suave dark:text-texto-suave-dark">
+            <span className="inline-flex items-center gap-1">
+              <MapPin size={15} strokeWidth={2} aria-hidden />
+              {cap(proyecto.region)}, Perú
+            </span>
+            <button
+              onClick={compartir}
+              className="inline-flex items-center gap-1 border border-black/10 px-2.5 py-1 text-xs font-medium hover:border-acento/40 dark:border-white/10"
+            >
+              {enlaceCopiado ? (
+                <>
+                  <Check size={13} strokeWidth={2} aria-hidden />
+                  Enlace copiado
+                </>
+              ) : (
+                <>
+                  <ArrowUpRight size={13} strokeWidth={2} aria-hidden />
+                  Compartir
+                </>
+              )}
+            </button>
+          </p>
+        </div>
 
-      {/* MOSAICO SUPERIOR: ubicación satelital en la parte ancha + fotos
-          del proyecto al costado (la tarjeta "Ubicación" aparte se
-          eliminó — vivía abajo y dejaba este espacio a medio usar). El
-          recuadro de puntuación baja DEBAJO del mapa, a todo el ancho
-          (pedido explícito, julio 2026: "el recuadro de la derecha más
-          abajo, para que ubicación ocupe todo ese espacio" — revierte el
-          acomodo anterior, donde compartía fila con el mapa y lo
-          angostaba). Adentro, sus bloques pasan de una columna angosta
-          (pensada para un sidebar de 1/3) a una fila que se ajusta sola
-          en pantallas grandes, para no verse como una sola columna
-          angosta perdida en un recuadro ancho. */}
-      <div className="mt-6">
-        <GaleriaProyecto
-          fotos={proyecto.fotos}
-          ubicacionCoords={proyecto.ubicacion_coords}
-          geocatmin={proyecto.geocatmin}
-          anomaliasSatelitales={proyecto.anomalias_satelitales}
-        />
-      </div>
-      <div className="mt-3">
         {(() => {
           const hayScores =
             typeof proyecto.score_formalizacion === "number" ||
             typeof proyecto.score_inversion === "number";
           return (
-          <div className="flex flex-col gap-4 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark sm:flex-row sm:flex-wrap sm:items-start sm:gap-x-10">
+          <div className="flex w-full flex-col gap-3 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark lg:w-72 lg:shrink-0">
             {hayScores && (
-              <div className="flex flex-col gap-2 sm:min-w-[10rem]">
+              <div className="flex flex-col gap-2 border-b border-black/10 pb-3 dark:border-white/10">
                 <FilaScore etiqueta="Formalización" valor={proyecto.score_formalizacion} />
                 <FilaScore etiqueta="Inversión" valor={proyecto.score_inversion} />
               </div>
             )}
-            <div className="sm:min-w-[10rem]">
+            <div>
               <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                 Track Legal
               </p>
@@ -452,7 +440,7 @@ export function ProyectoDetalle() {
                 privados (liquidaciones, estados financieros, OPEX), nunca
                 el documento en sí. Un ✓ = archivo subido. */}
             {proyecto.indicadores?.ventas_liquidacion_verificada ? (
-              <div className="sm:min-w-[10rem]">
+              <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Ventas con liquidación
                 </p>
@@ -465,7 +453,7 @@ export function ProyectoDetalle() {
                 </p>
               </div>
             ) : proyecto.vende_liquidacion != null ? (
-              <div className="sm:min-w-[10rem]">
+              <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Producción con liquidación
                 </p>
@@ -477,7 +465,7 @@ export function ProyectoDetalle() {
               </div>
             ) : null}
             {proyecto.indicadores?.contabilidad && (
-              <div className="sm:min-w-[10rem]">
+              <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Finanzas
                 </p>
@@ -496,7 +484,7 @@ export function ProyectoDetalle() {
               </div>
             )}
             {proyecto.indicadores?.opex_verificado && (
-              <div className="sm:min-w-[10rem]">
+              <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Costos operativos
                 </p>
@@ -509,7 +497,7 @@ export function ProyectoDetalle() {
               </div>
             )}
             {proyecto.capital_buscado && (
-              <div className="sm:min-w-[10rem]">
+              <div>
                 <p className="text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
                   Busca
                 </p>
@@ -520,7 +508,7 @@ export function ProyectoDetalle() {
               </div>
             )}
 
-            <div className="flex w-full flex-col gap-2.5 sm:ml-auto sm:w-56 sm:self-end">
+            <div className="mt-2 flex flex-col gap-2.5">
               <button
                 onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
                 className="min-h-[44px] bg-acento font-semibold text-white transition hover:bg-acento/90"
@@ -547,10 +535,22 @@ export function ProyectoDetalle() {
         })()}
       </div>
 
-      {/* CONTENIDO PRINCIPAL — el panel lateral (indicadores + botones)
-          subió al recuadro de puntuación junto al mapa (pedido explícito,
-          julio 2026), así que esto ya no necesita ser un grid de 2
-          columnas — todo el contenido va a ancho completo. */}
+      {/* MOSAICO SUPERIOR: ubicación satelital + fotos, a todo el ancho
+          (el recuadro de puntuación ya no comparte fila con esto — ver
+          el bloque de arriba, junto al título). */}
+      <div className="mt-6">
+        <GaleriaProyecto
+          fotos={proyecto.fotos}
+          ubicacionCoords={proyecto.ubicacion_coords}
+          geocatmin={proyecto.geocatmin}
+          anomaliasSatelitales={proyecto.anomalias_satelitales}
+        />
+      </div>
+
+      {/* CONTENIDO PRINCIPAL — el panel lateral (indicadores + botones) vive
+          en el recuadro de puntuación junto al título (ver arriba), así que
+          esto no necesita ser un grid de 2 columnas — todo el contenido va
+          a ancho completo. */}
       <div className="mt-8">
         <div className="flex flex-col gap-6">
           {/* RESUMEN EJECUTIVO */}
