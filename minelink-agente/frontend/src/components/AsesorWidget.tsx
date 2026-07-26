@@ -10,6 +10,13 @@ const PREGUNTAS_SUGERIDAS = [
   "¿Qué es un IGAFOM?",
 ];
 
+// julio 2026, pedido explícito: mostrar el límite de entrada, antes de que
+// alguien lo choque sin saber que existía. Debe coincidir con
+// security.MAX_PREGUNTAS_ASESOR_HORA del backend -- no hay un endpoint que
+// lo exponga (es un solo número que casi nunca cambia), así que si se
+// ajusta ahí, hay que actualizar este valor a mano también.
+const MAX_PREGUNTAS_POR_HORA = 15;
+
 /** Widget flotante del asesor conversacional PÚBLICO (julio 2026, pedido
  * explícito del dueño: que esté disponible "en cualquier parte", pegado
  * al lado derecho, SIN navegar a otra pantalla). Se monta una sola vez en
@@ -83,6 +90,9 @@ export function AsesorWidget() {
                     </button>
                   ))}
                 </div>
+                <p className="text-[11px] text-texto-suave dark:text-texto-suave-dark">
+                  Hasta {MAX_PREGUNTAS_POR_HORA} preguntas por hora.
+                </p>
               </div>
             )}
 

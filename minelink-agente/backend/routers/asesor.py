@@ -72,12 +72,21 @@ def preguntar_asesor(
         # resto necesita facturación que todavía no está activada — si
         # TODA la cadena falló, casi siempre es porque se acabó esa cuota
         # del día, y no vuelve a estar disponible hasta que se reinicia
-        # (al día siguiente). El widget lo muestra igual sea cual sea la
-        # página pública en la que esté (se monta una sola vez en
+        # (al día siguiente). "Vuelve a decir SU cuota" (julio 2026,
+        # corregido tras confusión real: un visitante hizo 3 preguntas y
+        # vio este mensaje, pensando que él la había agotado) — la cuota
+        # es del SITIO completo, compartida entre todos los visitantes,
+        # no algo que una sola persona gasta con pocas preguntas; el
+        # texto ahora lo aclara. El widget lo muestra igual sea cual sea
+        # la página pública en la que esté (se monta una sola vez en
         # App.tsx, fuera del router).
         raise HTTPException(
             status_code=503,
-            detail="El asesor ya usó su cuota gratuita de preguntas por hoy. Vuelve a estar disponible mañana.",
+            detail=(
+                "El asesor alcanzó el límite gratuito de preguntas de hoy "
+                "(compartido entre todos los visitantes, no algo que hayas gastado tú). "
+                "Vuelve a estar disponible mañana."
+            ),
         )
     except Exception as e:
         # Red de seguridad (julio 2026, encontrado en vivo probando desde
