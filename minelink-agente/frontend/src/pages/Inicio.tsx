@@ -3,6 +3,7 @@ import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
 import { Briefcase, Check, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
+import { NoticiasSection } from "../components/NoticiasSection";
 
 interface TarjetaPerfil {
   Icono: LucideIcon;
@@ -126,6 +127,8 @@ export function Inicio() {
             </div>
           ))}
         </div>
+
+        <NoticiasSection />
 
         {/* Dentro de la app instalada no tiene sentido ofrecer descargarla */}
         {!Capacitor.isNativePlatform() && (

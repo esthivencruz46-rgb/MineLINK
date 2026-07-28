@@ -1420,6 +1420,17 @@ class AsesorRespuestaOut(BaseModel):
     respuesta: str
 
 
+# ---------- Noticias del sector minero en la portada (julio 2026) ----------
+# Solo título + descripción corta + enlace al artículo original (nunca se
+# republica el contenido) — ver noticias.py.
+
+class NoticiaOut(BaseModel):
+    titulo: str
+    descripcion: str
+    enlace: str
+    fecha: str
+
+
 # ---------- Documentos del asesor subidos desde /admin (julio 2026) ----------
 # Para nutrir al asesor sin git/GitHub/Claude Code — ver DocumentoAsesor en
 # models.py y routers/admin.py.

@@ -14,6 +14,7 @@ from routers import (
     inversionistas,
     leads,
     mineros,
+    noticias,
     proyectos,
 )
 
@@ -58,6 +59,7 @@ app.include_router(leads.router)
 app.include_router(mineros.router)
 app.include_router(inversionistas.router)
 app.include_router(proyectos.router)
+app.include_router(noticias.router)
 app.include_router(admin.router)
 
 
