@@ -102,21 +102,38 @@ Built on top of it since (all deployed):
   (iron oxide, clay, ferrous iron, clay/sulfate/mica — formulas confirmed against the
   curated "awesome-mining-band-ratio" reference) over the project's REAL concession
   polygon (not a fixed test square), isolates only each index's top 10th percentile
-  (transparent elsewhere — a relative, self-calibrating threshold, not a hardcoded one)
-  and a combined map overlaying all 4 on the real photo. DISABLED by default
-  (`MINELINK_COPERNICUS=1` + `CDSE_CLIENT_ID`/`CDSE_CLIENT_SECRET` on Render, same
-  disabled-unless-explicitly-enabled pattern as `reinfo.py`) since every generation costs
-  real credits. Generated in the background exactly like GEOCATMIN/REINFO (first ficha
-  visit schedules it, second visit serves the cached PNGs from storage,
-  `GET /proyectos/{id}/anomalias/{capa}.png`) so no investor ever waits on a live
-  Sentinel Hub call — 90-day cache. NOT a fine hydrothermal-alteration classification
+  (transparent elsewhere — a relative, self-calibrating threshold, not a hardcoded one),
+  plus two derived layers: "combinado" (overlays all 4 at once) and "coincidencias"
+  (July 2026, pixels where 2+ of the 4 indices agree at the same time — a stronger
+  signal than any index alone, computed for free from the same masks already fetched, no
+  extra Sentinel Hub cost). **"combinado" is fully transparent outside actual anomalies**
+  — it used to fetch its own separate RGB photo as a canvas and paint over the whole map
+  with it (bug fixed July 2026, reported live with a screenshot: "solo pido los colores,
+  no la imagen de fondo"); now, like every other layer, it starts from a blank canvas and
+  only paints where at least one index fires. `NOMBRES_CAPAS` lists all 6 (4 indices +
+  combinado + coincidencias); `VERSION_CACHE` in `copernicus.py` must be bumped whenever
+  the shape of what a layer returns changes, or already-cached PNGs silently keep serving
+  the old (buggy) version for up to `DIAS_REFRESCO` (90 days) — this exact class of bug
+  bit twice in July 2026 (once for coincidencias, once for the combinado transparency fix).
+  DISABLED by default (`MINELINK_COPERNICUS=1` + `CDSE_CLIENT_ID`/`CDSE_CLIENT_SECRET` on
+  Render, same disabled-unless-explicitly-enabled pattern as `reinfo.py`) since every
+  generation costs real credits (~15-20 PU per concession, down from ~20-25 after dropping
+  the now-unneeded RGB photo fetch). Generated in the background exactly like
+  GEOCATMIN/REINFO (first ficha visit schedules it, second visit serves the cached PNGs
+  from storage, `GET /proyectos/{id}/anomalias/{capa}.png`) so no investor ever waits on a
+  live Sentinel Hub call. NOT a fine hydrothermal-alteration classification
   (propylitic/argillic/phyllic): Sentinel-2 only has 2 broad SWIR bands vs ASTER's 6
   narrow ones, which is specifically what that classification needs — confirmed against
   the remote-sensing literature, documented as a known limitation rather than overclaimed
-  precision. A parallel, fully isolated prototype (`experimentos_gee/`,
-  `experimentos_copernicus/` at the repo root, gitignored, own venvs, own `.env` —
-  intentionally never imported by the real backend) is where this was designed and tested
-  before being ported into `backend/copernicus.py`.
+  precision. In the interactive map (`MapaGeocatmin.tsx`), all layer toggles (GEOCATMIN +
+  Copernicus) live in one unified custom control (`PanelCapas`, collapsed to a small
+  "Capas" button by default, same pattern as the color-legend control) — z-index within
+  the shared `geologiaPane` matters: geología has an explicit `zIndex` (10/11), so any
+  anomaly layer sharing that pane needs its own higher `zIndex` (20+) or geología silently
+  paints over it when both are on (bug found and fixed July 2026). A parallel, fully
+  isolated prototype (`experimentos_gee/`, `experimentos_copernicus/` at the repo root,
+  gitignored, own venvs, own `.env` — intentionally never imported by the real backend) is
+  where this was designed and tested before being ported into `backend/copernicus.py`.
 - **Empresas bulk import** (`POST /admin/empresas/importar`) accepts TWO CSV formats,
   auto-detected by headers: the native one AND the raw Google Places scraping file
   (name,address,phone,website,category,keyword,block...) converted by
@@ -197,15 +214,53 @@ Built on top of it since (all deployed):
 - **Second way to feed the advisor — no git needed** (owner request: "imagine I stop
   using Claude Code"): `/admin/asesor` lets Esthiven upload a PDF/.md/.txt straight from
   the browser. The backend extracts the text (`asesor.extraer_texto_pdf_bytes`) and
-  stores it — not the raw file — in the new `DocumentoAsesor` table (migration
-  `seeds/migrar_documentos_asesor.py`, not yet run against prod — confirm before
-  running). `asesor.py` itself never touches the DB (keeps its tests DB-free): the
-  router queries `DocumentoAsesor.activo` on every question and calls
-  `asesor.actualizar_documentos_admin(...)`, which only rebuilds the cached BM25 index
-  if that list actually changed since the last question — no redeploy needed, live
-  within one request of uploading. This is fully independent of and complementary to
-  the git-committed `context/asesor_conocimiento/` folder; both get merged into the
-  same search index.
+  stores it — not the raw file — in the `DocumentoAsesor` table (migration
+  `seeds/migrar_documentos_asesor.py`, confirmed already run against prod, July 2026).
+  `asesor.py` itself never touches the DB (keeps its tests DB-free): the router queries
+  `DocumentoAsesor.activo` on every question and, if the list changed since last time,
+  **schedules** `asesor.actualizar_documentos_admin(...)` as a background task — it used
+  to call it inline, which is fine when the change list is small, but see the perf note
+  right below for why that stopped being safe. This is fully independent of and
+  complementary to the git-committed `context/asesor_conocimiento/` folder; both get
+  merged into the same search index.
+- **Third way to feed the advisor — the public project cartera itself**
+  (`backend/asesor_proyectos.py`, July 2026, owner request): every publicly-listed
+  project (same fields already shown on `/proyectos` — mineral, region, Track Legal,
+  madurez, verified indicators, capital sought; nothing private, nothing
+  personalized-to-a-case — that boundary doesn't change) gets synced into a
+  `DocumentoAsesor` row (`categoria=f"proyecto_{operacion_id}"`, doesn't leak into the
+  citation shown to users), so a visitor can ask the advisor things like "what gold
+  projects do you have in Puno?". Reconciled as a background task off `GET /proyectos`
+  (the highest-traffic public endpoint), debounced 30 min in-process — creates/updates
+  entries for currently-apto projects and **deactivates** (never deletes) ones that
+  stopped being apto (ex. a legal semáforo turned red), so the advisor never keeps
+  talking about a delisted project.
+- **Index-rebuild performance — read before touching `asesor.py`'s BM25 machinery**
+  (July 2026, root cause of a real "Failed to fetch"/90s-hang incident, found by
+  profiling live): of the ~50s it took to rebuild the BM25 index over the full corpus
+  (12,000+ fragments), 99% was `snowballstemmer` re-stemming ~1.5M words — reading files
+  (0.1s) and building `BM25Okapi` itself (0.4s) were never the bottleneck. The
+  `context/asesor_conocimiento/` filesystem content doesn't change without a redeploy
+  (which restarts the process anyway), so re-tokenizing it on every `DocumentoAsesor`
+  change (every admin upload, every 30-min cartera sync) was pure waste. Fixed by
+  splitting the cache: `_fragmentos_y_tokens_filesystem()` tokenizes the filesystem
+  content ONCE per process and is never invalidated by `actualizar_documentos_admin`;
+  only the (small) `DocumentoAsesor` fragments get re-tokenized per rebuild. First rebuild
+  after a deploy still costs ~50s (unavoidable, nothing to reuse yet); every rebuild after
+  that costs <1s. **Consequence that must hold**: `actualizar_documentos_admin()` must
+  NEVER be called inline inside a live request — it always eagerly rebuilds now (so the
+  process that calls it pays whatever that rebuild currently costs) and is only safe as a
+  `BackgroundTasks` callback (see `routers/asesor.py`). Route handlers must instead call
+  the cheap `documentos_admin_cambiaron()` to decide whether to schedule it.
+- **Rate limiting behind Render + Cloudflare uses the real visitor IP, not the proxy's**
+  (July 2026, found while investigating intermittent 429s unrelated to actual per-visitor
+  usage): `request.client.host` is the last TCP hop before uvicorn, which in production is
+  Render's internal proxy — the SAME for every visitor, not who's actually asking. Any new
+  per-IP limiter must go through `security._ip_real(request)` (checks `CF-Connecting-IP`
+  first — set by Cloudflare's edge, can't be spoofed from the browser — then
+  `X-Forwarded-For`, then the raw connection as a last resort for local dev), not
+  `request.client.host` directly, or the limit ends up shared across all visitors combined
+  instead of applying per person.
 
 Still pending:
 - Old question sets are PAUSED, not deleted (owner decision, do not delete):

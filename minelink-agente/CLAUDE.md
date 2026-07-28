@@ -60,16 +60,27 @@ Plataforma web donde un minero artesanal peruano:
    Ecosystem en Render), anomalías espectrales minerales calculadas con
    Sentinel-2 sobre el POLÍGONO REAL de la concesión: óxidos de hierro,
    arcillas, hierro ferroso, arcilla/sulfatos/mica (fórmulas del
-   repositorio curado "awesome-mining-band-ratio") y un mapa combinado
-   que las superpone sobre la foto real. Cada capa solo pinta el 10% más
-   alto de su índice (percentil relativo, se recalcula por proyecto) — el
-   resto queda transparente; NO es una clasificación fina de alteración
-   hidrotermal (propilítica/argílica/filítica), eso necesitaría ASTER
-   (evaluado y descartado por costo — ver más abajo). Se genera en
-   segundo plano igual que GEOCATMIN/REINFO (primera visita = None,
-   background task cachea, segunda visita ya sirve las 5 imágenes PNG
-   desde storage) para no gastar créditos de Sentinel Hub en cada carga
-   de la ficha — caché de 90 días.
+   repositorio curado "awesome-mining-band-ratio"), "combinado" (superpone
+   los 4) y "coincidencias" (julio 2026: píxeles donde 2+ índices
+   coinciden a la vez, señal más confiable, gratis — se calcula de las
+   máscaras ya obtenidas, sin llamada extra a Sentinel Hub). Cada índice
+   solo pinta el 10% más alto (percentil relativo, se recalcula por
+   proyecto) — el resto queda transparente; NO es una clasificación fina
+   de alteración hidrotermal (propilítica/argílica/filítica), eso
+   necesitaría ASTER (evaluado y descartado por costo — ver más abajo).
+   "combinado" arranca de un lienzo TRANSPARENTE, igual que los demás —
+   antes traía su propia foto RGB de fondo y tapaba el mapa entero al
+   activarlo (bug real, corregido julio 2026 tras reporte con captura).
+   `copernicus.VERSION_CACHE` hay que subirlo cada vez que cambia la
+   forma de lo que devuelve una capa, o el caché ya guardado sigue
+   sirviendo la versión vieja hasta `DIAS_REFRESCO` (90 días) — mordió
+   dos veces en julio 2026. Se genera en segundo plano igual que
+   GEOCATMIN/REINFO (primera visita = None, background task cachea,
+   segunda visita ya sirve las 6 imágenes PNG desde storage) para no
+   gastar créditos de Sentinel Hub en cada carga de la ficha — caché de
+   90 días. Dentro del mismo pane de Leaflet que geología, cualquier capa
+   nueva necesita su propio `zIndex` por encima de geología (10/11) o
+   geología la tapa en silencio cuando ambas están activas.
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado
@@ -147,9 +158,43 @@ Plataforma web donde un minero artesanal peruano:
    consulta `DocumentoAsesor.activo` en cada pregunta y llama a
    `asesor.actualizar_documentos_admin(...)`, que solo reconstruye el
    índice BM25 si la lista cambió de verdad desde la última pregunta —
-   sin redeploy, disponible en la siguiente pregunta de cualquiera. Es
-   independiente y se combina en el mismo índice con la carpeta
-   `context/asesor_conocimiento/` del repositorio.
+   agendado como tarea en segundo plano, nunca en línea (ver nota de
+   rendimiento abajo). Es independiente y se combina en el mismo índice
+   con la carpeta `context/asesor_conocimiento/` del repositorio.
+10. **Tercera forma de nutrir al asesor — la propia cartera pública**
+    (`backend/asesor_proyectos.py`, julio 2026): cada proyecto listado en
+    `/proyectos` se sincroniza como un `DocumentoAsesor` (mismos datos ya
+    públicos — mineral, región, Track Legal, madurez, indicadores
+    verificados, capital buscado — nada privado ni personalizado a un
+    caso) para que se pueda preguntar "¿qué proyectos de oro tienen en
+    Puno?". Se reconcilia en segundo plano al listar `/proyectos`
+    (debounce de 30 min en memoria del proceso): crea/actualiza los
+    aptos, **desactiva** (nunca borra) los que dejaron de serlo.
+11. **Rendimiento del índice BM25 — leer antes de tocar `asesor.py`**
+    (julio 2026, causa raíz de un incidente real de 90s de cuelgue,
+    encontrada perfilando en vivo): de los ~50 segundos que tarda
+    reconstruir el índice sobre el corpus completo (12,000+ fragmentos),
+    99% es `snowballstemmer` re-stemmeando ~1.5M de palabras — leer
+    archivos y construir `BM25Okapi` no son el cuello de botella.
+    `context/asesor_conocimiento/` no cambia sin un redeploy (que
+    reinicia el proceso igual), así que re-tokenizarlo en CADA cambio de
+    `DocumentoAsesor` (cada subida admin, cada sincronización de la
+    cartera) era trabajo redundante. `_fragmentos_y_tokens_filesystem()`
+    lo tokeniza UNA vez por proceso; `actualizar_documentos_admin()` solo
+    re-tokeniza los documentos (chicos) que cambiaron. Consecuencia que
+    debe mantenerse: `actualizar_documentos_admin()` reconstruye YA
+    (dentro del mismo llamado) y por eso **nunca** debe llamarse en línea
+    dentro de una pregunta real — solo desde `BackgroundTasks`
+    (`routers/asesor.py` usa `documentos_admin_cambiaron()`, barato, para
+    decidir si hace falta agendarla).
+12. **El rate-limit por IP usa la IP real del visitante, no la del proxy**
+    (julio 2026): detrás de Render + Cloudflare, `request.client.host` es
+    el proxy interno de Render — la MISMA para todos los visitantes.
+    Cualquier límite por IP nuevo debe pasar por `security._ip_real(request)`
+    (prioriza `CF-Connecting-IP`, luego `X-Forwarded-For`, por último la
+    conexión directa) — usar `request.client.host` a secas hace que el
+    límite se reparta entre TODO el tráfico combinado en vez de aplicarse
+    por persona.
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el
@@ -331,7 +376,8 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   │                              (lógica pura, `hoy` inyectable)
 │   ├── scoring_legacy.py       ← ⏸️ MineScore viejo (EN PAUSA, no importar)
 │   ├── auth.py                 ← JWT admin/minero/inversionista, hashing de passwords
-│   ├── security.py             ← rate-limit de logins y validación de magic bytes
+│   ├── security.py             ← rate-limit de logins y validación de magic bytes;
+│   │                              _ip_real() para IP real detrás de Render+Cloudflare
 │   ├── storage.py              ← archivos en Supabase Storage (prod) o disco local (dev/tests)
 │   ├── imagenes.py             ← compresión de fotos y conversión PDF → foto (PyMuPDF)
 │   ├── geoubicacion.py         ← enlace de Google Maps → coordenadas (best-effort, con
@@ -345,6 +391,8 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
 │   ├── asesor.py                ← asesor público: retrieval (context/) + generación
 │   │                              intercambiable por proveedor (claude/gemini/grok/simulado)
+│   ├── asesor_proyectos.py     ← sincroniza la cartera pública de /proyectos como
+│   │                              DocumentoAsesor (tercera vía de nutrición, ver arriba)
 │   ├── routers/
 │   │   ├── diagnostico.py      ← POST /diagnostico
 │   │   ├── asesor.py            ← POST /asesor (público, sin auth, rate-limit por IP)
