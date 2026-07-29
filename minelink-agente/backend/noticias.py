@@ -1,10 +1,25 @@
 """Noticias del sector minero peruano en la portada (julio 2026, pedido
 explícito de Esthiven): un feed RSS real de un medio especializado
 (Rumbo Minero — confirmado en vivo que expone RSS estándar en
-rumbominero.com/feed/, se actualiza cada hora), filtrado por palabras
-clave relevantes a formalización minera — el feed general trae de todo
-(precio del cobre, minería internacional), no solo lo que le importa a
-un minero artesanal peruano.
+rumbominero.com/feed/, se actualiza cada hora), filtrado para excluir lo
+internacional — el feed general trae de todo (Costa de Marfil, Zimbabue,
+Chile, Bolivia...), no solo lo que le importa a un minero o inversionista
+peruano.
+
+Filtro por CATEGORÍA del feed, no por palabra clave en el texto (julio
+2026, corregido tras un reporte en vivo de Esthiven — "cómo que no hay
+noticias peruanas, hay bastante" — con captura de pantalla del sitio real
+mostrando Quellaveco, Huánuco, Fujimori. Revisando el XML crudo del feed
+se confirmó que cada <item> trae sus propias <category> de WordPress, y
+TODO artículo internacional está etiquetado explícitamente
+"Internacionales" (a veces también "OTROS PAÍSES" o el país en
+mayúsculas: BOLIVIA, CHILE). Los artículos peruanos no llevan esa
+etiqueta. Buscar "Perú" en el título/descripción fallaba porque una
+noticia puede ser 100% peruana sin decir la palabra "Perú" en ningún
+lado (ej. "Quellaveco genera S/ X millones en Moquegua"). Como Rumbo
+Minero ya es un sitio 100% de minería/energía, todo lo que NO esté
+etiquetado como internacional es relevante por defecto — no hace falta
+además que hable de REINFO/formalización específicamente.
 
 Deliberadamente simple: NO se republica el contenido del artículo (sería
 tomar contenido ajeno) — solo título + descripción corta + el enlace al
@@ -50,22 +65,28 @@ _MAX_CARACTERES_DESCRIPCION = 220
 # sin pedirle de más a su servidor.
 _INTERVALO_REFRESCO_SEGUNDOS = 6 * 60 * 60
 
-# "Relevante para un minero artesanal peruano" — el feed general trae de
-# todo (precio del cobre, minería internacional); esto filtra solo lo
-# que de verdad le importa a quien usa MineLink. Sin tildes porque
-# _es_relevante normaliza el texto antes de comparar.
-_PALABRAS_CLAVE = [
-    "reinfo",
-    "formalizacion",
-    "igafom",
-    "mineria artesanal",
-    "pequena mineria",
-    "minem",
-    "concesion minera",
-    "mineria informal",
-    "mape",
-    "ingemmet",
-]
+# Categorías de WordPress que Rumbo Minero usa para marcar contenido NO
+# peruano (confirmado contra el feed real en vivo, julio 2026). Todo lo
+# que NO caiga en esta lista se trata como relevante — el sitio entero ya
+# es de minería/energía, y esto es una exclusión, no un filtro positivo.
+# "internacionales"/"otros paises" son las etiquetas genéricas que el
+# propio sitio usa en TODOS los casos vistos; los países sueltos son
+# defensa en profundidad por si algún artículo lleva el país pero no la
+# etiqueta genérica (no se vio ese caso en vivo, pero el sitio también
+# tiene secciones propias por país en su menú).
+_CATEGORIAS_EXCLUIDAS = {
+    "internacionales",
+    "otros paises",
+    "bolivia",
+    "chile",
+    "mexico",
+    "colombia",
+    "argentina",
+    "ecuador",
+    "usa",
+    "estados unidos",
+    "canada",
+}
 
 _CACHE: list[dict] | None = None
 _ULTIMO_REFRESCO: float | None = None
@@ -77,9 +98,12 @@ def _sin_tildes(texto: str) -> str:
     )
 
 
-def _es_relevante(titulo: str, descripcion: str) -> bool:
-    texto = _sin_tildes(f"{titulo} {descripcion}".lower())
-    return any(palabra in texto for palabra in _PALABRAS_CLAVE)
+def _es_relevante(categorias: list[str]) -> bool:
+    """Relevante = NO está etiquetado como internacional. Sin categorías
+    (formato inesperado, feed distinto) también cuenta como relevante —
+    el sitio entero ya es de minería/energía peruana por defecto."""
+    normalizadas = {_sin_tildes(c.strip().lower()) for c in categorias if c.strip()}
+    return normalizadas.isdisjoint(_CATEGORIAS_EXCLUIDAS)
 
 
 def _limpiar_descripcion(texto: str) -> str:
@@ -102,9 +126,16 @@ def _parsear_rss(contenido: bytes) -> list[dict]:
         enlace = (item.findtext("link") or "").strip()
         descripcion = (item.findtext("description") or "").strip()
         fecha = (item.findtext("pubDate") or "").strip()
+        categorias = [(c.text or "").strip() for c in item.findall("category")]
         if titulo and enlace:
             items.append(
-                {"titulo": titulo, "descripcion": descripcion, "enlace": enlace, "fecha": fecha}
+                {
+                    "titulo": titulo,
+                    "descripcion": descripcion,
+                    "enlace": enlace,
+                    "fecha": fecha,
+                    "categorias": categorias,
+                }
             )
     return items
 
@@ -146,7 +177,7 @@ def refrescar() -> None:
                 "fecha": item["fecha"],
             }
             for item in items
-            if _es_relevante(item["titulo"], item["descripcion"])
+            if _es_relevante(item["categorias"])
         ][:_MAX_NOTICIAS]
         _CACHE = relevantes
     except Exception:
