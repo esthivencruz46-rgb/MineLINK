@@ -2,7 +2,6 @@ import type { DiagnosticoRequest, DiagnosticoResponse } from "../types/diagnosti
 import type { Empresa, EmpresaPublica } from "../types/empresa";
 import type { LeadRequest, LeadResponse } from "../types/lead";
 import type { MensajeAsesor } from "../types/minero";
-import type { Noticia } from "../types/noticia";
 import type {
   InteresInversionRequest,
   ProyectoDetalle,
@@ -239,20 +238,5 @@ export async function preguntarAsesor(
     throw e;
   } finally {
     clearTimeout(limiteTiempo);
-  }
-}
-
-/** Noticias del sector minero en la portada (julio 2026) — solo
- * título/descripción/enlace, nunca el contenido del artículo. Si el
- * backend no responde (feed externo caído, red), no debe romper el
- * Inicio: se traga el error y devuelve vacío, la sección simplemente
- * no se muestra. */
-export async function obtenerNoticias(): Promise<Noticia[]> {
-  try {
-    const resp = await fetch(`${BASE_URL}/noticias`);
-    if (!resp.ok) return [];
-    return (await resp.json()) as Noticia[];
-  } catch {
-    return [];
   }
 }

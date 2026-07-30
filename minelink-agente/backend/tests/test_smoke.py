@@ -14,7 +14,6 @@ os.environ["SUPABASE_SERVICE_KEY"] = ""
 os.environ["MINELINK_RESOLVER_MAPS"] = "0"
 os.environ["MINELINK_GEOCATMIN"] = "0"
 os.environ["MINELINK_REINFO"] = "0"
-os.environ["MINELINK_NOTICIAS"] = "0"
 # El asesor SIEMPRE corre en modo simulado en los tests — sin esto, si
 # backend/.env tiene claves reales configuradas (para probar en local),
 # los tests terminan llamando a la API real de pago (julio 2026, hallado
@@ -3520,61 +3519,6 @@ def test_listar_proyectos_dispara_sincronizacion_del_asesor_en_segundo_plano(mon
     resp = client.get("/proyectos")
     assert resp.status_code == 200
     assert llamadas == {"n": 1}
-
-
-def test_listar_noticias_devuelve_el_cache_y_agenda_refresco_si_hace_falta(monkeypatch):
-    import noticias
-
-    monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
-    monkeypatch.setattr(
-        noticias,
-        "_CACHE",
-        [{"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f", "imagen": "https://x/i.jpg"}],
-    )
-
-    llamadas = {"n": 0}
-    monkeypatch.setattr(noticias, "refrescar", lambda: llamadas.__setitem__("n", llamadas["n"] + 1))
-    # necesita_refresco() real revisa _DESACTIVADO -- en tests siempre está
-    # desactivado (MINELINK_NOTICIAS=0), así que se fuerza directamente
-    # para probar que el router SÍ agenda la tarea cuando corresponde.
-    monkeypatch.setattr(noticias, "necesita_refresco", lambda: True)
-
-    resp = client.get("/noticias")
-    assert resp.status_code == 200
-    assert resp.json() == [
-        {"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f", "imagen": "https://x/i.jpg"}
-    ]
-    assert llamadas == {"n": 1}
-
-
-def test_listar_noticias_no_agenda_refresco_si_no_hace_falta(monkeypatch):
-    import noticias
-
-    llamadas = {"n": 0}
-    monkeypatch.setattr(noticias, "refrescar", lambda: llamadas.__setitem__("n", llamadas["n"] + 1))
-    monkeypatch.setattr(noticias, "necesita_refresco", lambda: False)
-
-    resp = client.get("/noticias")
-    assert resp.status_code == 200
-    assert llamadas == {"n": 0}
-
-
-def test_estado_noticias_es_publico_y_no_sensible(monkeypatch):
-    import noticias
-
-    monkeypatch.setattr(noticias, "_DESACTIVADO", False)
-    monkeypatch.setattr(noticias, "_CACHE", [{"titulo": "t"}])
-    monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
-    monkeypatch.setattr(noticias, "_ULTIMO_ERROR", "ConnectionError('timeout')")
-
-    resp = client.get("/noticias/estado")
-    assert resp.status_code == 200
-    assert resp.json() == {
-        "desactivado": False,
-        "cantidad_en_cache": 1,
-        "ultimo_refresco_hace_segundos": None,
-        "ultimo_error": "ConnectionError('timeout')",
-    }
 
 
 def test_asesor_publico_registra_evento_de_exito_en_el_dashboard():
