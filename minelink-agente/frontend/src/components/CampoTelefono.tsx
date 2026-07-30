@@ -9,7 +9,7 @@ interface Props {
  * usuario escribe únicamente su número (9 dígitos). */
 export function CampoTelefono({ value, onChange, placeholder = "987654321" }: Props) {
   return (
-    <div className="flex min-h-[44px] w-full items-stretch overflow-hidden border border-black/10 dark:border-white/10">
+    <div className="flex min-h-[44px] w-full items-stretch overflow-hidden border border-black/10 transition-colors focus-within:border-acento dark:border-white/10">
       <span className="flex items-center border-r border-black/10 bg-black/5 px-3 font-medium text-texto-suave dark:border-white/10 dark:bg-white/5 dark:text-texto-suave-dark">
         +51
       </span>

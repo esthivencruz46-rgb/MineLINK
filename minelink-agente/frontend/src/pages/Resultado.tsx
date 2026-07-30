@@ -41,9 +41,14 @@ export function Resultado() {
 
       {/* Encabezado de resultado: antes era un <h1> genérico igual al de
           cualquier pantalla del wizard — ahora marca claramente que el
-          diagnóstico TERMINÓ y entrega algo concreto (julio 2026). */}
-      <div className="text-center">
-        <PartyPopper size={22} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
+          diagnóstico TERMINÓ y entrega algo concreto (julio 2026). Insignia
+          circular con tinte (mismo patrón que Inicio) en vez del ícono
+          suelto, y entrada animada sutil para que se sienta como un logro,
+          no solo otra pantalla más del wizard. */}
+      <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-acento/10 text-acento">
+          <PartyPopper size={24} strokeWidth={1.75} aria-hidden />
+        </div>
         <h1 className="mt-3 text-xl font-semibold tracking-tight">Este es tu diagnóstico</h1>
         <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
           Basado en lo que nos contaste, así está tu situación hoy.
@@ -63,7 +68,9 @@ export function Resultado() {
           Track Legal ocupa todo el ancho en vez de verse apachurrado en
           media grilla. Si algún día Track Técnico vuelve, aquí se parte
           en dos columnas otra vez. */}
-      <div className={respuesta.semaforo_tecnico ? "grid grid-cols-2 gap-4" : ""}>
+      <div
+        className={`motion-safe:animate-[hero-entrada_0.5s_ease-out_0.08s_both] ${respuesta.semaforo_tecnico ? "grid grid-cols-2 gap-4" : ""}`}
+      >
         <SemaforoCard
           titulo="Track Legal"
           semaforo={semLegal}
@@ -105,7 +112,7 @@ export function Resultado() {
           Código REINFO (opcional)
         </label>
         <input
-          className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Tu código REINFO, si lo tienes"
           value={codigoReinfo}
           onChange={(e) => {
@@ -132,7 +139,9 @@ export function Resultado() {
           demás; ahora es la tarjeta con más peso de la página —
           intencional, es la acción que más nos importa que tome. */}
       <div className="border border-acento bg-acento/[0.04] p-5 text-center">
-        <UserPlus size={20} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-acento text-white">
+          <UserPlus size={20} strokeWidth={1.75} aria-hidden />
+        </div>
         <p className="mt-3 text-sm font-medium text-texto-suave dark:text-texto-suave-dark">
           {respuesta.perfil === "A" || respuesta.perfil === "A_avanzado"
             ? "Guarda tu avance con una cuenta: cuando tengas tu concesión, ya estarás dentro."
@@ -140,7 +149,7 @@ export function Resultado() {
         </p>
         <button
           onClick={() => navigate("/registro")}
-          className="mt-4 min-h-[44px] w-full bg-acento px-6 py-3 font-semibold text-white transition hover:bg-acento/90"
+          className="mt-4 min-h-[44px] w-full bg-acento px-6 py-3 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
         >
           Registrarme gratis
         </button>

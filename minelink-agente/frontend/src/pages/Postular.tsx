@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
+import { CheckCircle2, Upload } from "lucide-react";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
 import { NOMBRES_DIMENSION } from "../data/preguntas";
@@ -32,6 +33,9 @@ const VACIO: Formulario = {
 };
 
 const CV_TAMANO_MAXIMO_BYTES = 5 * 1024 * 1024; // 5 MB, igual que el backend
+
+const CLASE_INPUT =
+  "min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto transition-colors focus:border-acento focus:outline-none dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark";
 
 function validar(f: Formulario, cv: File | null): Record<string, string> {
   const errores: Record<string, string> = {};
@@ -107,7 +111,10 @@ export function Postular() {
 
   if (enviado) {
     return (
-      <div className="mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+      <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] mx-auto flex min-h-[80vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-acento/10 text-acento">
+          <CheckCircle2 size={26} strokeWidth={1.75} aria-hidden />
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">¡Gracias por postular!</h1>
         <p className="text-texto-suave dark:text-texto-suave-dark">
           Esthiven revisará tus datos y credenciales. Si todo está en orden, tu perfil
@@ -132,7 +139,7 @@ export function Postular() {
         <div className="flex flex-col gap-5">
       <div>
         <input
-          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className={CLASE_INPUT}
           placeholder="Tu nombre completo"
           value={form.nombre}
           onChange={(e) => setForm({ ...form, nombre: e.target.value })}
@@ -142,7 +149,7 @@ export function Postular() {
 
       <div>
         <input
-          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className={CLASE_INPUT}
           placeholder="N° de colegiatura (solo el número, ej. 123456)"
           value={form.colegiatura}
           onChange={(e) => setForm({ ...form, colegiatura: e.target.value })}
@@ -164,7 +171,7 @@ export function Postular() {
       <div>
         <input
           type="email"
-          className="min-h-[44px] w-full border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className={CLASE_INPUT}
           placeholder="Tu email"
           value={form.email}
           onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -185,10 +192,13 @@ export function Postular() {
         </div>
         <div className="grid grid-cols-2 gap-x-2 gap-y-1.5 border border-black/10 p-3 dark:border-white/10 sm:grid-cols-3 md:grid-cols-4">
           {DEPARTAMENTOS.map((d) => (
-            <label key={d} className="flex items-center gap-1.5 text-xs">
+            <label
+              key={d}
+              className="flex items-center gap-1.5 rounded px-1 py-0.5 text-xs transition-colors hover:bg-acento/5"
+            >
               <input
                 type="checkbox"
-                className="h-3.5 w-3.5"
+                className="h-3.5 w-3.5 accent-acento"
                 checked={form.regiones_json.includes(d.toLowerCase())}
                 onChange={() => alternarLista("regiones_json", d.toLowerCase())}
               />
@@ -203,13 +213,14 @@ export function Postular() {
 
       <div>
         <p className="mb-1 text-sm font-medium">Tu CV (PDF, máx. 5MB)</p>
-        <label className="flex min-h-[44px] w-full cursor-pointer items-center border border-dashed border-black/20 bg-tarjeta px-3 text-sm dark:border-white/20 dark:bg-tarjeta-dark">
+        <label className="flex min-h-[44px] w-full cursor-pointer items-center gap-2 border border-dashed border-black/20 bg-tarjeta px-3 text-sm transition-colors hover:border-acento/50 hover:bg-acento/5 dark:border-white/20 dark:bg-tarjeta-dark">
           <input
             type="file"
             accept="application/pdf"
             className="hidden"
             onChange={(e) => setCv(e.target.files?.[0] ?? null)}
           />
+          <Upload size={16} strokeWidth={1.75} className="shrink-0 text-acento" aria-hidden />
           <span className={cv ? "" : "text-texto-suave dark:text-texto-suave-dark"}>
             {cv ? cv.name : "Elegir archivo PDF..."}
           </span>
@@ -232,17 +243,20 @@ export function Postular() {
             ).map((dim) => (
               <div
                 key={dim}
-                className="border border-black/10 p-3 dark:border-white/10"
+                className="border border-black/10 p-3 transition-colors hover:border-acento/30 dark:border-white/10"
               >
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-acento">
                   {NOMBRES_DIMENSION[dim]}
                 </p>
                 <div className="flex flex-col gap-1.5">
                   {ESTUDIOS_POR_DIMENSION_CON_PREGUNTA[dim].map((estudio) => (
-                    <label key={estudio} className="flex items-start gap-2 text-sm">
+                    <label
+                      key={estudio}
+                      className="flex items-start gap-2 rounded px-1 py-0.5 text-sm transition-colors hover:bg-acento/5"
+                    >
                       <input
                         type="checkbox"
-                        className="mt-0.5"
+                        className="mt-0.5 accent-acento"
                         checked={form.estudios_json.includes(estudio)}
                         onChange={() => alternarLista("estudios_json", estudio)}
                       />
@@ -266,7 +280,7 @@ export function Postular() {
       <button
         disabled={enviando}
         onClick={enviar}
-        className="min-h-[44px] bg-acento px-6 py-3 font-semibold text-white transition hover:bg-acento/90 disabled:opacity-50"
+        className="min-h-[44px] bg-acento px-6 py-3 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
       >
         {enviando ? "Enviando..." : "Enviar postulación"}
       </button>

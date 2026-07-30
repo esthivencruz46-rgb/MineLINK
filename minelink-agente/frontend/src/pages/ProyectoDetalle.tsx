@@ -341,7 +341,7 @@ export function ProyectoDetalle() {
           franja horizontal delgada debajo — sin borde de tarjeta, solo
           una línea divisoria arriba/abajo, como una barra de datos, no
           una caja aparte). */}
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
@@ -395,7 +395,7 @@ export function ProyectoDetalle() {
         <div className="flex shrink-0 gap-2.5 sm:flex-col sm:w-52">
           <button
             onClick={() => setModalMensaje("Quiero más información sobre este proyecto.")}
-            className="min-h-[44px] flex-1 bg-acento px-4 font-semibold text-white transition hover:bg-acento/90 sm:flex-none"
+            className="min-h-[44px] flex-1 bg-acento px-4 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 sm:flex-none"
           >
             Me interesa este proyecto
           </button>
@@ -409,7 +409,7 @@ export function ProyectoDetalle() {
               }
             }}
             disabled={generandoPdf}
-            className="min-h-[44px] flex-1 border border-black/10 px-4 font-semibold transition disabled:opacity-50 dark:border-white/10 sm:flex-none"
+            className="min-h-[44px] flex-1 border border-black/10 px-4 font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-acento/40 disabled:pointer-events-none disabled:opacity-50 dark:border-white/10 sm:flex-none"
           >
             {generandoPdf ? "Generando..." : "Descargar PDF"}
           </button>
