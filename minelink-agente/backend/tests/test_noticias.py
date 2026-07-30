@@ -2,76 +2,58 @@
 tests (ver tests/test_smoke.py) -- `refrescar()` nunca debe intentar una
 llamada de red real. El resto es lógica pura, se prueba directo.
 
-Fuente real: la API REST de WordPress (`wp-json/wp/v2/posts`), no el RSS
-(ver docstring de noticias.py -- se migró de RSS a wp-json porque el RSS
-no trae imagen destacada y wp-json sí, además de separar categoría real
-de simples etiquetas). El filtro es por CATEGORÍA (taxonomy="category"),
-no por palabra clave en el texto -- Rumbo Minero etiqueta explícitamente
-todo lo internacional como "Internacionales"/país en mayúsculas; lo
-peruano no lleva esa etiqueta aunque no diga "Perú" en ningún lado."""
+Fuente real: el RSS de Rumbo Minero (`/feed/`) -- se probó migrar a la
+API `wp-json/wp/v2/posts` (traía imagen destacada) pero devolvía 403
+Forbidden en producción desde Render (ver docstring de noticias.py), así
+que se volvió al RSS, que es un endpoint mucho más estándar y con menos
+chances de terminar bloqueado. El filtro es por CATEGORÍA del <category>
+del RSS, no por palabra clave en el texto -- Rumbo Minero etiqueta
+explícitamente todo lo internacional como "Internacionales"/país en
+mayúsculas; lo peruano no lleva esa etiqueta aunque no diga "Perú" en
+ningún lado."""
 from unittest.mock import patch
 
 import noticias
 
+_RSS_DE_PRUEBA = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Rumbo Minero</title>
+    <item>
+      <title>MINEM plantea ampliar el REINFO hasta diciembre de 2026</title>
+      <link>https://www.rumbominero.com/reinfo-2026</link>
+      <description>&lt;p&gt;El Ministerio de Energ&amp;iacute;a y Minas anunci&amp;oacute; una propuesta de ampliaci&amp;oacute;n.&lt;/p&gt;</description>
+      <pubDate>Tue, 28 Jul 2026 10:00:00 +0000</pubDate>
+      <category><![CDATA[Actualidad]]></category>
+      <category><![CDATA[REINFO]]></category>
+    </item>
+    <item>
+      <title>Quellaveco genera S/ 40 millones en regalías para Moquegua</title>
+      <link>https://www.rumbominero.com/quellaveco-moquegua</link>
+      <description>El proyecto cuprífero sigue impulsando la economía regional.</description>
+      <pubDate>Tue, 28 Jul 2026 09:30:00 +0000</pubDate>
+      <category><![CDATA[Portada2]]></category>
+      <category><![CDATA[Cobre]]></category>
+    </item>
+    <item>
+      <title>El cobre en Chile bate récord de producción en el primer semestre</title>
+      <link>https://www.rumbominero.com/chile-cobre-record</link>
+      <description>Analisis del mercado internacional de metales.</description>
+      <pubDate>Tue, 28 Jul 2026 09:00:00 +0000</pubDate>
+      <category><![CDATA[Internacionales]]></category>
+      <category><![CDATA[OTROS PAÍSES]]></category>
+      <category><![CDATA[CHILE]]></category>
+    </item>
+  </channel>
+</rss>""".encode("utf-8")
 
-def _post(
-    titulo: str,
-    enlace: str,
-    descripcion_html: str,
-    fecha: str,
-    categorias: list[str],
-    tags: list[str] | None = None,
-    imagen: str | None = "https://www.rumbominero.com/wp-content/uploads/2026/07/foto.jpg",
-) -> dict:
-    """Arma un post con la misma forma que devuelve wp-json con
-    `_embed=wp:featuredmedia,wp:term` -- categorías y etiquetas viven en
-    grupos separados dentro de `_embedded["wp:term"]`, distinguidos por
-    `taxonomy`."""
-    embebido: dict = {
-        "wp:term": [
-            [{"name": c, "taxonomy": "category"} for c in categorias],
-            [{"name": t, "taxonomy": "post_tag"} for t in (tags or [])],
-        ]
-    }
-    if imagen is not None:
-        embebido["wp:featuredmedia"] = [
-            {"media_details": {"sizes": {"medium": {"source_url": imagen}, "full": {"source_url": imagen}}}}
-        ]
-    return {
-        "title": {"rendered": titulo},
-        "link": enlace,
-        "excerpt": {"rendered": descripcion_html},
-        "date": fecha,
-        "_embedded": embebido,
-    }
 
+class _RespuestaFalsa:
+    def __init__(self, contenido: bytes):
+        self.content = contenido
 
-_POSTS_DE_PRUEBA = [
-    _post(
-        "MINEM plantea ampliar el REINFO hasta diciembre de 2026",
-        "https://www.rumbominero.com/reinfo-2026",
-        "<p>El Ministerio de Energ&iacute;a y Minas anunci&oacute; una propuesta de ampliaci&oacute;n.</p>",
-        "2026-07-28T10:00:00",
-        ["Actualidad", "REINFO"],
-        tags=["formalizacion"],
-    ),
-    _post(
-        "Quellaveco genera S/ 40 millones en regalías para Moquegua",
-        "https://www.rumbominero.com/quellaveco-moquegua",
-        "El proyecto cuprífero sigue impulsando la economía regional.",
-        "2026-07-28T09:30:00",
-        ["Portada2"],
-        tags=["Cobre"],
-    ),
-    _post(
-        "El cobre en Chile bate récord de producción en el primer semestre",
-        "https://www.rumbominero.com/chile-cobre-record",
-        "Analisis del mercado internacional de metales.",
-        "2026-07-28T09:00:00",
-        ["Internacionales", "OTROS PAÍSES", "CHILE"],
-        imagen=None,
-    ),
-]
+    def raise_for_status(self):
+        pass
 
 
 def test_desactivado_en_el_entorno_de_tests():
@@ -98,7 +80,7 @@ def test_es_relevante_descarta_pais_suelto_sin_etiqueta_generica():
 
 
 def test_es_relevante_acepta_sin_categorias():
-    # Formato inesperado / API distinta: por defecto se trata como
+    # Formato inesperado / feed distinto: por defecto se trata como
     # relevante, el sitio entero ya es de minería/energía peruana.
     assert noticias._es_relevante([]) is True
 
@@ -117,28 +99,14 @@ def test_limpiar_descripcion_trunca_texto_largo():
     assert limpio.endswith("…")
 
 
-def test_extraer_imagen_toma_el_tamano_preferido():
-    post = _post("t", "e", "d", "2026-01-01T00:00:00", ["Actualidad"])
-    assert noticias._extraer_imagen(post) == (
-        "https://www.rumbominero.com/wp-content/uploads/2026/07/foto.jpg"
-    )
-
-
-def test_extraer_imagen_none_si_no_hay_imagen_destacada():
-    post = _post("t", "e", "d", "2026-01-01T00:00:00", ["Actualidad"], imagen=None)
-    assert noticias._extraer_imagen(post) is None
-
-
-def test_parsear_posts_extrae_titulo_link_descripcion_fecha_categorias_e_imagen():
-    items = noticias._parsear_posts(_POSTS_DE_PRUEBA)
+def test_parsear_rss_extrae_titulo_link_descripcion_fecha_y_categorias():
+    items = noticias._parsear_rss(_RSS_DE_PRUEBA)
     assert len(items) == 3
     assert items[0]["titulo"] == "MINEM plantea ampliar el REINFO hasta diciembre de 2026"
     assert items[0]["enlace"] == "https://www.rumbominero.com/reinfo-2026"
-    assert items[0]["fecha"] == "2026-07-28T10:00:00"
+    assert items[0]["fecha"] == "Tue, 28 Jul 2026 10:00:00 +0000"
     assert items[0]["categorias"] == ["Actualidad", "REINFO"]
-    assert items[0]["imagen"] is not None
     assert items[2]["categorias"] == ["Internacionales", "OTROS PAÍSES", "CHILE"]
-    assert items[2]["imagen"] is None
 
 
 def test_refrescar_filtra_por_categoria_internacional(monkeypatch):
@@ -146,8 +114,7 @@ def test_refrescar_filtra_por_categoria_internacional(monkeypatch):
     monkeypatch.setattr(noticias, "_CACHE", None)
     monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
 
-    respuesta_falsa = type("R", (), {"raise_for_status": lambda self: None, "json": lambda self: _POSTS_DE_PRUEBA})()
-    with patch("requests.get", return_value=respuesta_falsa):
+    with patch("requests.get", return_value=_RespuestaFalsa(_RSS_DE_PRUEBA)):
         noticias.refrescar()
 
     resultado = noticias.noticias_desde_cache()
@@ -158,12 +125,11 @@ def test_refrescar_filtra_por_categoria_internacional(monkeypatch):
     # categoría "Internacionales".
     assert "Quellaveco genera S/ 40 millones en regalías para Moquegua" in titulos
     assert "El cobre en Chile bate récord de producción en el primer semestre" not in titulos
-    # La descripción llegó limpia (sin HTML crudo, entidades decodificadas)
-    # y la imagen viajó hasta el resultado final.
+    # La descripción llegó limpia (sin HTML crudo, entidades decodificadas).
     noticia_reinfo = next(n for n in resultado if "REINFO" in n["titulo"])
     assert "<p>" not in noticia_reinfo["descripcion"]
     assert "Energía" in noticia_reinfo["descripcion"]
-    assert noticia_reinfo["imagen"] is not None
+    assert noticia_reinfo["imagen"] is None
 
 
 def test_refrescar_mejor_esfuerzo_si_falla_la_red(monkeypatch):
@@ -184,8 +150,24 @@ def test_refrescar_mejor_esfuerzo_si_falla_la_red(monkeypatch):
         {"titulo": "vieja pero valida", "descripcion": "", "enlace": "x", "fecha": "", "imagen": None}
     ]
     # Aun con el fallo, se marca el intento -- para no reintentar en cada
-    # visita mientras el sitio externo esté caído.
+    # visita mientras el sitio externo esté caído. El error real queda
+    # visible en _ULTIMO_ERROR/estado() -- ver el caso real de julio 2026
+    # que motivó esto (403 de Rumbo Minero contra Render, indiagnosticable
+    # hasta agregar esto).
     assert noticias._ULTIMO_REFRESCO is not None
+    assert "timeout de red" in noticias._ULTIMO_ERROR
+
+
+def test_refrescar_limpia_ultimo_error_tras_un_exito(monkeypatch):
+    monkeypatch.setattr(noticias, "_DESACTIVADO", False)
+    monkeypatch.setattr(noticias, "_CACHE", None)
+    monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
+    monkeypatch.setattr(noticias, "_ULTIMO_ERROR", "algo fallo antes")
+
+    with patch("requests.get", return_value=_RespuestaFalsa(_RSS_DE_PRUEBA)):
+        noticias.refrescar()
+
+    assert noticias._ULTIMO_ERROR is None
 
 
 def test_necesita_refresco_es_true_la_primera_vez(monkeypatch):
@@ -197,3 +179,17 @@ def test_necesita_refresco_es_true_la_primera_vez(monkeypatch):
 def test_necesita_refresco_es_false_si_esta_desactivado(monkeypatch):
     monkeypatch.setattr(noticias, "_DESACTIVADO", True)
     assert noticias.necesita_refresco() is False
+
+
+def test_estado_expone_diagnostico_publico(monkeypatch):
+    monkeypatch.setattr(noticias, "_DESACTIVADO", False)
+    monkeypatch.setattr(noticias, "_CACHE", [{"titulo": "a"}, {"titulo": "b"}])
+    monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
+    monkeypatch.setattr(noticias, "_ULTIMO_ERROR", None)
+
+    assert noticias.estado() == {
+        "desactivado": False,
+        "cantidad_en_cache": 2,
+        "ultimo_refresco_hace_segundos": None,
+        "ultimo_error": None,
+    }
