@@ -47,11 +47,25 @@ const CONFIANZA = [
   "Tu contacto nunca se muestra públicamente",
 ];
 
-// julio 2026, tercer pase sobre esta página (pedido explícito: "se parece
-// mucho a ¿Cómo funciona?, debe ser más simplista, menos letra... más
-// vistoso") — Inicio y ComoFunciona.tsx compartían la misma estructura
-// (lista de filas con borde, un párrafo de descripción por perfil): entrar
-// a "¿Cómo funciona?" se sentía como leer la misma página dos veces, solo
+// julio 2026, cuarto pase sobre esta página (pedido explícito: "algo que
+// me diera ganas de entrar" — la portada se sentía plana). El hero pasa
+// de un bloque de texto centrado sobre gris a un panel a todo el ancho
+// con degradado verde institucional + un patrón de líneas topográficas
+// dibujado en SVG (evoca los mapas de catastro/geología que MineLink ya
+// muestra en la ficha vía GEOCATMIN — una textura con sentido para el
+// producto, no una foto de stock genérica) y una entrada animada sutil
+// (motion-safe: de Tailwind, se desactiva sola si el visitante tiene
+// reduced-motion). El resto de la estructura (grilla de 3 tarjetas,
+// bloque de APK, insignias de confianza) se mantiene: solo se les suma
+// una interacción más viva al pasar el mouse, sin salir de la línea
+// institucional (bordes finos, sin sombras, colores semánticos donde
+// corresponde).
+//
+// Tercer pase previo (pedido explícito: "se parece mucho a ¿Cómo
+// funciona?, debe ser más simplista, menos letra... más vistoso") —
+// Inicio y ComoFunciona.tsx compartían la misma estructura (lista de
+// filas con borde, un párrafo de descripción por perfil): entrar a
+// "¿Cómo funciona?" se sentía como leer la misma página dos veces, solo
 // que más larga. Ahora son estructuralmente distintas: Inicio es una
 // grilla de 3 tarjetas grandes y escaneables con una frase corta cada una
 // (el elegí-tu-camino rápido); ComoFunciona sigue siendo la lista
@@ -67,35 +81,69 @@ export function Inicio() {
 
   return (
     <div className="flex flex-col items-center">
-      <section className="w-full border-b border-black/10 dark:border-white/10">
-        <div className="mx-auto max-w-2xl px-4 pb-14 pt-16 text-center md:pb-20 md:pt-24">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-texto-suave dark:text-texto-suave-dark">
+      <section className="relative w-full overflow-hidden bg-gradient-to-br from-acento via-acento to-acento-profundo text-white">
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.14]"
+          aria-hidden="true"
+          preserveAspectRatio="xMidYMid slice"
+        >
+          <defs>
+            <pattern id="contornos-hero" width="240" height="150" patternUnits="userSpaceOnUse">
+              <path
+                d="M-20 30 Q 40 -20, 100 30 T 220 30 T 340 30"
+                fill="none"
+                stroke="white"
+                strokeWidth="1"
+              />
+              <path
+                d="M-20 75 Q 40 25, 100 75 T 220 75 T 340 75"
+                fill="none"
+                stroke="white"
+                strokeWidth="1"
+              />
+              <path
+                d="M-20 120 Q 40 70, 100 120 T 220 120 T 340 120"
+                fill="none"
+                stroke="white"
+                strokeWidth="1"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#contornos-hero)" />
+        </svg>
+
+        <div className="relative mx-auto max-w-2xl px-4 pb-14 pt-16 text-center md:pb-20 md:pt-24">
+          <p className="motion-safe:animate-[hero-entrada_0.7s_ease-out_both] text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
             Formalización minera artesanal · Perú
           </p>
-          <h1 className="mx-auto mt-5 max-w-xl text-4xl font-semibold leading-[1.1] tracking-tight md:text-6xl">
+          <h1 className="motion-safe:animate-[hero-entrada_0.7s_ease-out_0.1s_both] mx-auto mt-5 max-w-xl text-4xl font-semibold leading-[1.1] tracking-tight md:text-6xl">
             Formaliza tu minería.
             <br />
-            <span className="text-acento">Conecta con inversionistas.</span>
+            <span className="text-secundario-claro">Conecta con inversionistas.</span>
           </h1>
-          <p className="mx-auto mt-6 max-w-sm text-base text-texto-suave dark:text-texto-suave-dark">
+          <p className="motion-safe:animate-[hero-entrada_0.7s_ease-out_0.2s_both] mx-auto mt-6 max-w-sm text-base text-white/80">
             Diagnóstico gratuito, proyectos verificados, clientes reales.
           </p>
         </div>
       </section>
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-4 py-12 md:py-16">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="relative grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div
+            className="pointer-events-none absolute -inset-x-8 -inset-y-10 -z-10 bg-[radial-gradient(ellipse_at_top,_theme(colors.acento/0.07),_transparent_65%)]"
+            aria-hidden="true"
+          />
           {PERFILES.map((p) => (
             <div
               key={p.titulo}
-              className={`flex flex-col items-start gap-3 border p-6 ${
+              className={`group flex flex-col items-start gap-3 border p-6 transition duration-200 hover:-translate-y-1 ${
                 p.destacada
-                  ? "border-acento/30 bg-acento/[0.04]"
-                  : "border-black/10 dark:border-white/10"
+                  ? "border-acento/30 bg-acento/[0.04] hover:border-acento/50 hover:shadow-[0_8px_24px_-12px_theme(colors.acento/0.5)]"
+                  : "border-black/10 hover:border-acento/30 dark:border-white/10 dark:hover:border-acento/40"
               }`}
             >
               <div
-                className={`flex h-12 w-12 items-center justify-center rounded-full ${
+                className={`flex h-12 w-12 items-center justify-center rounded-full transition-transform duration-200 group-hover:scale-105 ${
                   p.destacada ? "bg-acento text-white" : "bg-acento/10 text-acento"
                 }`}
               >
@@ -131,7 +179,7 @@ export function Inicio() {
         {!Capacitor.isNativePlatform() && (
           <a
             href="https://khbztuyjekqzllplinmg.supabase.co/storage/v1/object/public/descargas/MineLink.apk"
-            className="flex w-full max-w-md flex-col items-center self-center border border-black/10 p-4 text-center transition hover:border-acento/30 dark:border-white/10"
+            className="flex w-full max-w-md flex-col items-center self-center border border-black/10 p-4 text-center transition duration-200 hover:-translate-y-0.5 hover:border-acento/30 dark:border-white/10"
           >
             <span className="flex items-center justify-center gap-1.5 text-sm font-semibold">
               <Download size={16} strokeWidth={1.75} aria-hidden />
