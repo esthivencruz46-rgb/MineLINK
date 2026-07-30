@@ -11,6 +11,7 @@ import {
 import { postularConsultor } from "../services/api";
 import { CampoTelefono } from "../components/CampoTelefono";
 import { AceptaLegal } from "../components/AceptaLegal";
+import { HeroFranja } from "../components/HeroFranja";
 
 interface Formulario {
   nombre: string;
@@ -117,15 +118,14 @@ export function Postular() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Quiero ser consultor en {MARCA}</h1>
-        <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
-          Para postular necesitas colegiatura vigente y tu CV actualizado.
-          Tu perfil queda pendiente de revisión antes de aparecer públicamente.
-        </p>
-      </div>
-
+    <div className="flex flex-col items-center">
+      <HeroFranja
+        eyebrow="Soy consultor o empresa"
+        titulo={`Quiero ser consultor en ${MARCA}`}
+        subtitulo="Para postular necesitas colegiatura vigente y tu CV actualizado. Tu perfil queda pendiente de revisión antes de aparecer públicamente."
+        ancho="max-w-4xl"
+      />
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5 px-4 py-8">
       {/* Web ancha: dos columnas (tus datos a la izquierda, en qué ayudas a
           la derecha) — en celular/APK se apilan en una sola. */}
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
@@ -270,6 +270,7 @@ export function Postular() {
       >
         {enviando ? "Enviando..." : "Enviar postulación"}
       </button>
+      </div>
     </div>
   );
 }

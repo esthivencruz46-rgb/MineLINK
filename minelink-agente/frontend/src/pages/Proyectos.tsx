@@ -4,6 +4,7 @@ import { MARCA } from "../config/marca";
 import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
+import { HeroFranja } from "../components/HeroFranja";
 import { TarjetaProyectoSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { BASE_URL, obtenerProyectos, registrarEvento } from "../services/api";
@@ -88,95 +89,93 @@ export function Proyectos() {
   const enPreparacion = ordenados.filter((p) => p.perfil !== "C" && p.perfil !== "D");
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Proyectos mineros</h1>
-        <p className="mt-1 text-texto-suave dark:text-texto-suave-dark">
-          Proyectos con su situación legal en orden — los que tienen un
-          bloqueante legal activo no se muestran hasta resolverlo. Búscalos por
-          mineral o departamento.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-3 border border-black/10 p-3 dark:border-white/10 md:flex-row">
-        <Autocomplete
-          opciones={ELEMENTOS}
-          value={mineral}
-          onChange={setMineral}
-          placeholder="Buscar mineral (ej. Oro)"
-        />
-        <Autocomplete
-          opciones={DEPARTAMENTOS}
-          value={region}
-          onChange={setRegion}
-          placeholder="Buscar departamento"
-        />
-        <select
-          value={orden}
-          onChange={(e) => setOrden(e.target.value as OrdenCartera)}
-          aria-label="Ordenar proyectos"
-          className="min-h-[44px] border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
-        >
-          {(Object.keys(ETIQUETA_ORDEN) as OrdenCartera[]).map((o) => (
-            <option key={o} value={o}>
-              {ETIQUETA_ORDEN[o]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {error && <p className="text-red-500">{error}</p>}
-
-      {cargando && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          {[0, 1].map((col) => (
-            <div key={col} className="flex flex-col gap-4">
-              <TarjetaProyectoSkeleton />
-              <TarjetaProyectoSkeleton />
-            </div>
-          ))}
+    <div className="flex flex-col items-center">
+      <HeroFranja
+        eyebrow="Inversionistas y curiosos"
+        titulo="Proyectos mineros"
+        subtitulo="Proyectos con su situación legal en orden — los que tienen un bloqueante legal activo no se muestran hasta resolverlo. Búscalos por mineral o departamento."
+      />
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8">
+        <div className="flex flex-col gap-3 border border-black/10 p-3 dark:border-white/10 md:flex-row">
+          <Autocomplete
+            opciones={ELEMENTOS}
+            value={mineral}
+            onChange={setMineral}
+            placeholder="Buscar mineral (ej. Oro)"
+          />
+          <Autocomplete
+            opciones={DEPARTAMENTOS}
+            value={region}
+            onChange={setRegion}
+            placeholder="Buscar departamento"
+          />
+          <select
+            value={orden}
+            onChange={(e) => setOrden(e.target.value as OrdenCartera)}
+            aria-label="Ordenar proyectos"
+            className="min-h-[44px] border border-black/10 bg-transparent px-3 text-sm dark:border-white/10"
+          >
+            {(Object.keys(ETIQUETA_ORDEN) as OrdenCartera[]).map((o) => (
+              <option key={o} value={o}>
+                {ETIQUETA_ORDEN[o]}
+              </option>
+            ))}
+          </select>
         </div>
-      )}
 
-      {!cargando && proyectos.length === 0 && (
-        <p className="border border-black/10 p-6 text-center dark:border-white/10">
-          Todavía no hay proyectos que calcen con esta búsqueda.
-        </p>
-      )}
+        {error && <p className="text-red-500">{error}</p>}
 
-      {!cargando && proyectos.length > 0 && (
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-          {[
-            { titulo: "Operaciones en marcha", grupo: operando, icono: "pickaxe" },
-            { titulo: "Concesiones en preparación", grupo: enPreparacion, icono: "mapa" },
-          ].map(({ titulo, grupo, icono }) => (
-            <div key={titulo} className="flex flex-col gap-4">
-              <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 font-semibold dark:border-white/10">
-                {icono === "pickaxe" ? (
-                  <Pickaxe size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
+        {cargando && (
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {[0, 1].map((col) => (
+              <div key={col} className="flex flex-col gap-4">
+                <TarjetaProyectoSkeleton />
+                <TarjetaProyectoSkeleton />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!cargando && proyectos.length === 0 && (
+          <p className="border border-black/10 p-6 text-center dark:border-white/10">
+            Todavía no hay proyectos que calcen con esta búsqueda.
+          </p>
+        )}
+
+        {!cargando && proyectos.length > 0 && (
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            {[
+              { titulo: "Operaciones en marcha", grupo: operando, icono: "pickaxe" },
+              { titulo: "Concesiones en preparación", grupo: enPreparacion, icono: "mapa" },
+            ].map(({ titulo, grupo, icono }) => (
+              <div key={titulo} className="flex flex-col gap-4">
+                <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 font-semibold dark:border-white/10">
+                  {icono === "pickaxe" ? (
+                    <Pickaxe size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
+                  ) : (
+                    <MapPin size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
+                  )}
+                  {titulo}
+                  <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
+                    ({grupo.length})
+                  </span>
+                </h2>
+                {grupo.length === 0 ? (
+                  <p className="border border-black/10 p-4 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
+                    Todavía no hay proyectos en este grupo.
+                  </p>
                 ) : (
-                  <MapPin size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
+                  <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
+                    {grupo.map((p) => (
+                      <ProyectoCard key={p.operacion_id} proyecto={p} />
+                    ))}
+                  </div>
                 )}
-                {titulo}
-                <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
-                  ({grupo.length})
-                </span>
-              </h2>
-              {grupo.length === 0 ? (
-                <p className="border border-black/10 p-4 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-                  Todavía no hay proyectos en este grupo.
-                </p>
-              ) : (
-                <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
-                  {grupo.map((p) => (
-                    <ProyectoCard key={p.operacion_id} proyecto={p} />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

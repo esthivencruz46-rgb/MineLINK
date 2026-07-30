@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useTitulo } from "../hooks/useTitulo";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Check, Lightbulb } from "lucide-react";
+import { HeroFranja } from "../components/HeroFranja";
 import { ProgressBar } from "../components/ProgressBar";
 import {
   MODULO_0,
@@ -334,68 +335,81 @@ export function Cuestionario() {
     const indiceActual = visibles.findIndex((p) => p.id === actual.id);
     const esNumerica = actual.tipo === "numero" || actual.tipo === "anio";
     const puedeContinuar = borrador.trim().length > 0;
+    // La franja de entrada solo se ve en la primera pregunta (M0_1) — es
+    // pura presentación adicional, no cambia el orden ni la lógica del
+    // wizard (indiceActual ya se deriva igual que antes).
     return (
-      <TarjetaPregunta
-        footer={
-          <div className="flex items-center justify-between gap-3">
-            <BotonVolver onClick={indiceActual > 0 ? volver : undefined} />
-            <button
-              disabled={!puedeContinuar}
-              onClick={() => responder(borrador)}
-              className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
-            >
-              Continuar →
-            </button>
-          </div>
-        }
-      >
-        <ProgressBar actual={indiceActual + 1} total={visibles.length} />
-
-        <div className="mt-4 flex flex-col gap-3">
-          {perfil && perfil !== "sin_ruta" && actual.id !== "M0_1" && (
-            <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
-              {NOMBRE_PERFIL[perfil] ?? perfil}
-            </p>
-          )}
-          <h2 className="text-xl font-semibold">{actual.texto}</h2>
-          {actual.ayuda && (
-            <div className="flex items-start gap-2 rounded-lg bg-acento/5 p-3 text-sm text-texto-suave dark:bg-acento/10 dark:text-texto-suave-dark">
-              <Lightbulb size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-acento" aria-hidden />
-              <p>
-                <span className="font-semibold">¿Qué es esto? </span>
-                {actual.ayuda}
-              </p>
+      <div className="flex flex-col items-center">
+        {indiceActual === 0 && (
+          <HeroFranja
+            eyebrow="Soy minero"
+            titulo="Tu diagnóstico de formalización"
+            subtitulo="Gratis, en pocos minutos. Responde con honestidad — no hay respuestas correctas o incorrectas, solo te ayuda a ver en qué etapa estás y qué te falta."
+            ancho="max-w-2xl"
+          />
+        )}
+        <TarjetaPregunta
+          footer={
+            <div className="flex items-center justify-between gap-3">
+              <BotonVolver onClick={indiceActual > 0 ? volver : undefined} />
+              <button
+                disabled={!puedeContinuar}
+                onClick={() => responder(borrador)}
+                className="min-h-[44px] rounded-lg bg-acento px-6 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                Continuar →
+              </button>
             </div>
-          )}
-        </div>
+          }
+        >
+          <ProgressBar actual={indiceActual + 1} total={visibles.length} />
 
-        {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+          <div className="mt-4 flex flex-col gap-3">
+            {perfil && perfil !== "sin_ruta" && actual.id !== "M0_1" && (
+              <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                {NOMBRE_PERFIL[perfil] ?? perfil}
+              </p>
+            )}
+            <h2 className="text-xl font-semibold">{actual.texto}</h2>
+            {actual.ayuda && (
+              <div className="flex items-start gap-2 rounded-lg bg-acento/5 p-3 text-sm text-texto-suave dark:bg-acento/10 dark:text-texto-suave-dark">
+                <Lightbulb size={17} strokeWidth={2} className="mt-0.5 shrink-0 text-acento" aria-hidden />
+                <p>
+                  <span className="font-semibold">¿Qué es esto? </span>
+                  {actual.ayuda}
+                </p>
+              </div>
+            )}
+          </div>
 
-        <div className="mt-4">
-          {esNumerica ? (
-            <input
-              key={actual.id}
-              className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
-              type="number"
-              placeholder={actual.placeholder}
-              min={actual.min}
-              max={actual.max}
-              value={borrador}
-              onChange={(e) => setBorrador(e.target.value)}
-            />
-          ) : (
-            <OpcionesSeleccionables
-              opciones={actual.opciones ?? []}
-              valorActual={borrador}
-              disabled={enviando}
-              onSeleccionar={(v) => {
-                setBorrador(v);
-                responder(v);
-              }}
-            />
-          )}
-        </div>
-      </TarjetaPregunta>
+          {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+
+          <div className="mt-4">
+            {esNumerica ? (
+              <input
+                key={actual.id}
+                className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+                type="number"
+                placeholder={actual.placeholder}
+                min={actual.min}
+                max={actual.max}
+                value={borrador}
+                onChange={(e) => setBorrador(e.target.value)}
+              />
+            ) : (
+              <OpcionesSeleccionables
+                opciones={actual.opciones ?? []}
+                valorActual={borrador}
+                disabled={enviando}
+                onSeleccionar={(v) => {
+                  setBorrador(v);
+                  responder(v);
+                }}
+              />
+            )}
+          </div>
+        </TarjetaPregunta>
+      </div>
     );
   }
 
