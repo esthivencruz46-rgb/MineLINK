@@ -233,7 +233,12 @@ def refrescar() -> None:
             if _es_relevante(item["categorias"])
         ][:_MAX_NOTICIAS]
         _CACHE = relevantes
-    except Exception:
-        pass
+    except Exception as error:
+        # No debe romper nunca la portada (mejor esfuerzo), pero un fallo
+        # en silencio total es indiagnosticable en producción -- julio
+        # 2026, tras un caso real donde /noticias quedó vacío varios
+        # minutos después de un deploy y no había ninguna pista de por
+        # qué (Render captura stdout en su panel de Logs).
+        print(f"[noticias] refrescar() fallo: {error!r}")
     finally:
         _ULTIMO_REFRESCO = time.monotonic()
