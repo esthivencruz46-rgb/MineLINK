@@ -3,4 +3,5 @@ export interface Noticia {
   descripcion: string;
   enlace: string;
   fecha: string;
+  imagen: string | null;
 }

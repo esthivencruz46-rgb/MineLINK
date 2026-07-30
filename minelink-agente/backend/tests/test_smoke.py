@@ -3527,7 +3527,9 @@ def test_listar_noticias_devuelve_el_cache_y_agenda_refresco_si_hace_falta(monke
 
     monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
     monkeypatch.setattr(
-        noticias, "_CACHE", [{"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f"}]
+        noticias,
+        "_CACHE",
+        [{"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f", "imagen": "https://x/i.jpg"}],
     )
 
     llamadas = {"n": 0}
@@ -3539,7 +3541,9 @@ def test_listar_noticias_devuelve_el_cache_y_agenda_refresco_si_hace_falta(monke
 
     resp = client.get("/noticias")
     assert resp.status_code == 200
-    assert resp.json() == [{"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f"}]
+    assert resp.json() == [
+        {"titulo": "t", "descripcion": "d", "enlace": "e", "fecha": "f", "imagen": "https://x/i.jpg"}
+    ]
     assert llamadas == {"n": 1}
 
 
