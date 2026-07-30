@@ -15,11 +15,13 @@ categoría real de WordPress (`taxonomy: "category"`) de las simples
 etiquetas del post (`taxonomy: "post_tag"`, ej. "ORO"/"INVERSION"), un
 filtro más preciso que leer el `<category>` del RSS a secas (que mezclaba
 ambas cosas, aunque en la práctica no cambiaba el resultado). Se piden
-`_POSTS_A_CONSULTAR` (20) en vez de los ~10 que trae el RSS por defecto:
-en días con varias notas internacionales seguidas, los últimos 10 posts
-no alcanzan para completar `_MAX_NOTICIAS` solo con contenido peruano
+`_POSTS_A_CONSULTAR` (40) en vez de los ~10 que trae el RSS por defecto:
+en días con varias notas internacionales seguidas, los últimos posts no
+alcanzan para completar `_MAX_NOTICIAS` solo con contenido peruano
 (confirmado en vivo julio 2026, reporte con captura de Esthiven mostrando
-Huánuco/Fujimori/Quellaveco que quedaban fuera de los primeros 10).
+Huánuco/Fujimori/Quellaveco que quedaban fuera de los primeros 10 — y
+luego, pedido explícito de que aparezcan más al hacer scroll en vez de
+una lista fija corta, ver `_MAX_NOTICIAS` más abajo).
 
 Filtro por CATEGORÍA, no por palabra clave en el texto (corregido tras
 ese mismo reporte — "cómo que no hay noticias peruanas, hay bastante").
@@ -71,15 +73,23 @@ _DESACTIVADO = os.environ.get("MINELINK_NOTICIAS") != "1"
 
 _API_URL = "https://www.rumbominero.com/wp-json/wp/v2/posts"
 _TIMEOUT = 10
-_MAX_NOTICIAS = 6
+# julio 2026, pedido explícito de Esthiven: que aparezcan más noticias al
+# hacer scroll, no una lista fija de 6 — el frontend revela de a
+# _LOTE_FRONTEND (ver NoticiasSection.tsx) sobre esta misma lista ya
+# cacheada, sin pedir nada nuevo al backend en cada scroll. _MAX_NOTICIAS
+# es cuánto guarda el caché en total (~3 "páginas" de scroll);
+# _POSTS_A_CONSULTAR es cuántos posts crudos se piden a wp-json para
+# tener de dónde filtrar -- verificado en vivo que con 40 salen ~20
+# relevantes en un día normal, suficiente margen para completar
+# _MAX_NOTICIAS incluso en un día con muchas notas internacionales
+# seguidas (ver docstring del módulo).
+_MAX_NOTICIAS = 18
 _MAX_CARACTERES_DESCRIPCION = 220
-# Buffer generoso: en días con varias notas internacionales seguidas, los
-# últimos 10 posts no alcanzan para completar _MAX_NOTICIAS solo con
-# contenido peruano (ver docstring del módulo).
-_POSTS_A_CONSULTAR = 20
+_POSTS_A_CONSULTAR = 40
 # Tamaño de imagen de WordPress a usar como miniatura de tarjeta — ni el
 # thumbnail cuadrado de 150x150 (se ve recortado en una miniatura
-# horizontal) ni el "full" original (pesado para una lista de 6 notas).
+# horizontal) ni el "full" original (pesado para una lista de hasta 18
+# notas).
 _TAMANO_IMAGEN_PREFERIDO = "medium"
 # Rumbo Minero se actualiza cada hora, pero no hace falta consultarlo tan
 # seguido — 6h alcanza para que se sienta "fresco" sin pedirle de más a

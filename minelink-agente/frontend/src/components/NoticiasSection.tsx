@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Newspaper } from "lucide-react";
 import { obtenerNoticias } from "../services/api";
 import type { Noticia } from "../types/noticia";
+
+// julio 2026, pedido explícito: que aparezcan más noticias al hacer
+// scroll en vez de una lista fija corta. El backend ya trae hasta 18 en
+// una sola respuesta (ver noticias.py); esto solo revela de a LOTE sobre
+// esa misma lista ya en memoria -- no dispara ningún pedido nuevo al
+// backend ni a Rumbo Minero por cada scroll.
+const LOTE = 6;
 
 function formatearFecha(fecha: string): string {
   const d = new Date(fecha);
@@ -20,12 +27,31 @@ function formatearFecha(fecha: string): string {
  * en el Inicio. */
 export function NoticiasSection() {
   const [noticias, setNoticias] = useState<Noticia[]>([]);
+  const [visibles, setVisibles] = useState(LOTE);
+  const centinelaRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     obtenerNoticias().then(setNoticias);
   }, []);
 
+  useEffect(() => {
+    const centinela = centinelaRef.current;
+    if (!centinela) return;
+    const observador = new IntersectionObserver(
+      ([entrada]) => {
+        if (entrada.isIntersecting) {
+          setVisibles((actual) => Math.min(actual + LOTE, noticias.length));
+        }
+      },
+      { rootMargin: "200px" }
+    );
+    observador.observe(centinela);
+    return () => observador.disconnect();
+  }, [noticias.length]);
+
   if (noticias.length === 0) return null;
+
+  const mostradas = noticias.slice(0, visibles);
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,7 +60,7 @@ export function NoticiasSection() {
         <h2 className="text-lg font-semibold">Noticias del sector</h2>
       </div>
       <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
-        {noticias.map((n) => (
+        {mostradas.map((n) => (
           <a
             key={n.enlace}
             href={n.enlace}
@@ -68,6 +94,7 @@ export function NoticiasSection() {
           </a>
         ))}
       </div>
+      {visibles < noticias.length && <div ref={centinelaRef} className="h-1" aria-hidden />}
     </div>
   );
 }
