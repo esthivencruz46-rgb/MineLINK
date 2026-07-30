@@ -42,18 +42,18 @@ export function DocumentosEnviados() {
   }, []);
 
   return (
-    <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
+    <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10">
         <Check size={32} strokeWidth={2} className="text-emerald-500" aria-hidden />
       </div>
-      <h1 className="text-xl font-bold">{titulo}</h1>
+      <h1 className="text-xl font-semibold">{titulo}</h1>
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">{mensaje}</p>
 
       {ofrecerInversion && (
         <>
           <button
             onClick={() => navigate(volverA, { state: { abrirInversion: true } })}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-acento px-6 py-3 font-semibold text-white"
+            className="flex w-full items-center justify-center gap-2 bg-acento px-6 py-3 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
           >
             <TrendingUp size={18} strokeWidth={2} aria-hidden />
             Continuar con tu perfil de inversión →
@@ -66,10 +66,10 @@ export function DocumentosEnviados() {
 
       <button
         onClick={() => navigate(volverA)}
-        className={`min-h-[44px] rounded-lg px-6 font-semibold ${
+        className={`min-h-[44px] px-6 font-semibold transition duration-200 hover:-translate-y-0.5 ${
           ofrecerInversion
-            ? "border border-black/10 dark:border-white/10"
-            : "bg-acento text-white"
+            ? "border border-black/10 hover:border-acento/40 dark:border-white/10"
+            : "bg-acento text-white hover:bg-acento/90"
         }`}
       >
         Volver a mi cuenta

@@ -57,7 +57,7 @@ export function Registro() {
         ← Volver a mi diagnóstico
       </button>
 
-      <h1 className="mt-4 text-xl font-bold">{texto.titulo}</h1>
+      <h1 className="mt-4 text-xl font-semibold">{texto.titulo}</h1>
       <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
         {texto.descripcion} No compartimos tus datos con nadie más.
       </p>

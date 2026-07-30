@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Briefcase, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
+import { HeroFranja } from "../components/HeroFranja";
 
 interface Paso {
   numero: string;
@@ -111,19 +112,15 @@ const SECCIONES: Seccion[] = [
 export function ComoFunciona() {
   useTitulo("Cómo funciona");
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-8 px-4 py-8">
-      <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight md:text-3xl">
-          ¿Cómo funciona {MARCA}?
-        </h1>
-        <p className="mx-auto mt-2 max-w-xl text-texto-suave dark:text-texto-suave-dark">
-          Tres caminos, un mismo objetivo: que la minería artesanal del Perú se
-          formalice y crezca.
-        </p>
-      </div>
-
+    <div className="flex flex-col items-center">
+      <HeroFranja
+        titulo={`¿Cómo funciona ${MARCA}?`}
+        subtitulo="Tres caminos, un mismo objetivo: que la minería artesanal del Perú se formalice y crezca."
+        ancho="max-w-3xl"
+      />
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-8">
       {SECCIONES.map((s) => (
-        <div key={s.titulo} className="border border-black/10 p-6 dark:border-white/10">
+        <div key={s.titulo} className="border border-black/10 p-6 transition-colors hover:border-acento/25 dark:border-white/10">
           <h2 className="flex items-center gap-2.5 text-xl font-semibold">
             <s.Icono size={22} strokeWidth={1.75} className="shrink-0 text-acento" aria-hidden />
             {s.titulo}
@@ -145,7 +142,7 @@ export function ComoFunciona() {
           </div>
           <Link
             to={s.ruta}
-            className="mt-5 flex min-h-[44px] items-center justify-center bg-acento px-4 font-semibold text-white transition hover:bg-acento/90"
+            className="mt-5 flex min-h-[44px] items-center justify-center bg-acento px-4 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
           >
             {s.accion}
           </Link>
@@ -156,6 +153,7 @@ export function ComoFunciona() {
         100% gratis para mineros · Sin tramitadores · Tus datos de contacto
         nunca se muestran públicamente
       </p>
+      </div>
     </div>
   );
 }

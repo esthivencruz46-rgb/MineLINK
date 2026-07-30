@@ -108,10 +108,10 @@ export function Empresas() {
       )}
 
       <div className="flex flex-col gap-3 border border-black/10 bg-tarjeta p-3 dark:border-white/10 dark:bg-tarjeta-dark md:flex-row">
-        <div className="flex min-h-[44px] flex-1 items-center gap-2 border border-black/10 px-3 dark:border-white/10">
+        <div className="flex min-h-[44px] flex-1 items-center gap-2 border border-black/10 px-3 transition-colors focus-within:border-acento dark:border-white/10">
           <MapPin size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
           <select
-            className="min-h-[44px] w-full bg-transparent text-texto dark:text-texto-dark"
+            className="min-h-[44px] w-full bg-transparent text-texto outline-none dark:text-texto-dark"
             value={region}
             onChange={(e) => setRegion(e.target.value)}
           >
@@ -126,7 +126,7 @@ export function Empresas() {
           </select>
         </div>
 
-        <details className="relative min-h-[44px] flex-1 border border-black/10 px-3 py-2 dark:border-white/10">
+        <details className="relative min-h-[44px] flex-1 border border-black/10 px-3 py-2 transition-colors focus-within:border-acento dark:border-white/10">
           <summary className="flex cursor-pointer select-none items-center gap-2">
             <SlidersHorizontal size={16} strokeWidth={2} className="shrink-0 text-texto-suave dark:text-texto-suave-dark" aria-hidden />
             Tipo de estudio ({estudiosFiltro.length})
@@ -155,7 +155,9 @@ export function Empresas() {
 
       {!cargando && empresas.length === 0 && (
         <div className="border border-black/10 p-6 text-center dark:border-white/10">
-          <SearchX size={22} strokeWidth={1.75} className="mx-auto text-acento" aria-hidden />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-acento/10 text-acento">
+            <SearchX size={22} strokeWidth={1.75} aria-hidden />
+          </div>
           <p className="mt-3">Aún no tenemos empresas registradas para esto en tu departamento.</p>
           {yaTieneCuenta ? (
             // julio 2026: antes este mensaje ni el botón de abajo existían
@@ -170,7 +172,7 @@ export function Empresas() {
           ) : (
             <button
               onClick={() => setMostrarModal(true)}
-              className="mt-4 min-h-[44px] bg-acento px-6 font-semibold text-white transition hover:bg-acento/90"
+              className="mt-4 min-h-[44px] bg-acento px-6 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
             >
               Avísenme cuando haya
             </button>
@@ -219,7 +221,7 @@ export function Empresas() {
       {!yaTieneCuenta && !cargando && empresas.length > 0 && (
         <button
           onClick={() => setMostrarModal(true)}
-          className="min-h-[44px] border border-acento px-6 font-semibold text-acento transition hover:bg-acento/5"
+          className="min-h-[44px] border border-acento px-6 font-semibold text-acento transition duration-200 hover:-translate-y-0.5 hover:bg-acento/5"
         >
           Registrarme para que me ayuden
         </button>

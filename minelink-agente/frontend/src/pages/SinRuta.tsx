@@ -9,10 +9,10 @@ import { AlertTriangle, ArrowRight, Compass } from "lucide-react";
 export function SinRuta() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-10">
-      <div className="flex items-start gap-3 rounded-lg bg-amber-500/10 p-4">
+      <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] flex items-start gap-3 border border-amber-500/25 bg-amber-500/5 p-4">
         <AlertTriangle size={22} strokeWidth={2} className="mt-0.5 shrink-0 text-amber-500" aria-hidden />
         <div>
-          <h1 className="text-xl font-bold">Hoy operas sin amparo legal</h1>
+          <h1 className="text-xl font-semibold">Hoy operas sin amparo legal</h1>
           <p className="mt-1 text-sm text-texto-suave dark:text-texto-suave-dark">
             Por lo que nos contaste, extraes mineral sin concesión propia, sin
             contrato con un titular y sin inscripción en el REINFO. El REINFO
@@ -23,7 +23,7 @@ export function SinRuta() {
         </div>
       </div>
 
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+      <div className="border border-black/10 bg-tarjeta p-5 dark:border-white/10 dark:bg-tarjeta-dark">
         <h2 className="font-semibold">Los riesgos reales de seguir así</h2>
         <ul className="mt-3 flex flex-col gap-2 text-sm text-texto-suave dark:text-texto-suave-dark">
           <li>• Interdicción: las autoridades pueden paralizar tu operación en cualquier momento.</li>
@@ -33,7 +33,7 @@ export function SinRuta() {
         </ul>
       </div>
 
-      <div className="rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
+      <div className="border border-black/10 bg-tarjeta p-5 dark:border-white/10 dark:bg-tarjeta-dark">
         <div className="flex items-center gap-2">
           <Compass size={19} strokeWidth={2} className="text-acento" aria-hidden />
           <h2 className="font-semibold">La ruta legal que sí existe</h2>
@@ -57,14 +57,14 @@ export function SinRuta() {
         <div className="mt-4 flex flex-col gap-2.5 sm:flex-row">
           <Link
             to="/diagnostico"
-            className="inline-flex min-h-[44px] items-center justify-center gap-1 rounded-lg bg-acento px-5 font-semibold text-white"
+            className="inline-flex min-h-[44px] items-center justify-center gap-1 bg-acento px-5 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
           >
             Explorar esa ruta
             <ArrowRight size={16} strokeWidth={2.25} aria-hidden />
           </Link>
           <Link
             to="/empresas"
-            className="inline-flex min-h-[44px] items-center justify-center rounded-lg border border-black/10 px-5 font-semibold dark:border-white/10"
+            className="inline-flex min-h-[44px] items-center justify-center border border-black/10 px-5 font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-acento/40 dark:border-white/10"
           >
             Buscar asesoría legal
           </Link>

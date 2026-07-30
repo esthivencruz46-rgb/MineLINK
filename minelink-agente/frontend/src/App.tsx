@@ -92,13 +92,53 @@ const Terminos = lazy(() =>
   import("./pages/Terminos").then((m) => ({ default: m.Terminos }))
 );
 
+// julio 2026, pedido explícito ("mejora áreas que te falten de la página
+// web total"): antes era solo el logo + el botón de tema, sin un solo
+// link de navegación, en TODAS las páginas públicas — quien llegaba a
+// cualquier página que no fuera Inicio (ej. un enlace compartido a una
+// ficha de proyecto) no tenía forma de moverse por el sitio sin bajar
+// hasta el Footer. Los 3 links espejan los del Footer (mismo destino,
+// visibles arriba también); "Ingresar" apunta al login del minero
+// (`/ingresar`) — es el perfil principal del sitio (la tarjeta
+// "destacada" en Inicio) — el inversionista tiene su propio acceso
+// desde Proyectos/Inicio. En celular se esconden los links secundarios
+// (quedan disponibles en el Footer) pero "Ingresar" se mantiene siempre
+// visible: es la acción que más le sirve a alguien que ya tiene cuenta
+// y llegó a una página interna.
 function PublicHeader() {
   return (
-    <header className="flex items-center justify-between px-4 py-3">
-      <Link to="/" className="font-bold text-acento">
-        {MARCA}
-      </Link>
-      <ThemeToggle />
+    <header className="border-b border-black/10 dark:border-white/10">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+        <Link to="/" className="shrink-0 text-lg font-semibold tracking-tight text-acento">
+          {MARCA}
+        </Link>
+        <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
+          <Link
+            to="/proyectos"
+            className="text-texto-suave transition-colors hover:text-acento dark:text-texto-suave-dark"
+          >
+            Proyectos
+          </Link>
+          <Link
+            to="/como-funciona"
+            className="text-texto-suave transition-colors hover:text-acento dark:text-texto-suave-dark"
+          >
+            Cómo funciona
+          </Link>
+          <Link
+            to="/postular"
+            className="text-texto-suave transition-colors hover:text-acento dark:text-texto-suave-dark"
+          >
+            Soy consultor
+          </Link>
+        </nav>
+        <div className="flex shrink-0 items-center gap-3">
+          <Link to="/ingresar" className="text-sm font-semibold text-acento hover:underline">
+            Ingresar
+          </Link>
+          <ThemeToggle />
+        </div>
+      </div>
     </header>
   );
 }

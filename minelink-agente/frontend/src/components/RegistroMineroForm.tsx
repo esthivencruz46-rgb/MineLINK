@@ -89,7 +89,7 @@ export function RegistroMineroForm({
     <form onSubmit={handleSubmit}>
       <div className="mt-4 flex flex-col gap-3">
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Tu nombre"
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
@@ -100,7 +100,7 @@ export function RegistroMineroForm({
           placeholder="Tu WhatsApp (9 dígitos)"
         />
         <select
-          className="min-h-[44px] rounded-lg border border-black/10 bg-tarjeta px-3 text-texto dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
+          className="min-h-[44px] border border-black/10 bg-tarjeta px-3 text-texto transition-colors focus:border-acento focus:outline-none dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-dark"
           value={region}
           onChange={(e) => setRegion(e.target.value)}
         >
@@ -114,7 +114,7 @@ export function RegistroMineroForm({
           ))}
         </select>
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder={
             esConcesionario
               ? "Nombre de tu proyecto o concesión (opcional)"
@@ -124,14 +124,14 @@ export function RegistroMineroForm({
           onChange={(e) => setNombreOperacion(e.target.value)}
         />
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Email (opcional)"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Código REINFO (opcional)"
           value={codigoReinfo}
           onChange={(e) => setCodigoReinfo(e.target.value)}
@@ -140,7 +140,7 @@ export function RegistroMineroForm({
         <hr className="my-1 border-black/10 dark:border-white/10" />
 
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Elige un usuario (mín. 3 caracteres)"
           name="username"
           autoComplete="username"
@@ -185,7 +185,7 @@ export function RegistroMineroForm({
           <button
             type="button"
             onClick={onCancelar}
-            className="min-h-[44px] flex-1 rounded-lg border border-black/10 font-semibold dark:border-white/10"
+            className="min-h-[44px] flex-1 border border-black/10 font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-acento/40 dark:border-white/10"
           >
             Cancelar
           </button>
@@ -193,7 +193,7 @@ export function RegistroMineroForm({
         <button
           type="submit"
           disabled={!valido || enviando}
-          className="min-h-[44px] flex-1 rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+          className="min-h-[44px] flex-1 bg-acento font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
         >
           {enviando ? "Enviando..." : "Registrarme"}
         </button>

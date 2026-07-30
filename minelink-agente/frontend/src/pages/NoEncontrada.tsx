@@ -10,10 +10,10 @@ export function NoEncontrada() {
   useTitulo("Página no encontrada");
   return (
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-acento/10 text-acento">
+      <span className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] flex h-16 w-16 items-center justify-center rounded-full bg-acento/10 text-acento">
         <Compass size={32} strokeWidth={1.75} aria-hidden />
       </span>
-      <h1 className="text-2xl font-bold">Esta página no existe</h1>
+      <h1 className="text-2xl font-semibold">Esta página no existe</h1>
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
         Puede que el enlace esté mal escrito o que la página se haya movido.
         Nada se perdió — todo {MARCA} sigue funcionando normal.
@@ -21,13 +21,13 @@ export function NoEncontrada() {
       <div className="mt-2 flex flex-wrap justify-center gap-3">
         <Link
           to="/"
-          className="min-h-[44px] rounded-lg bg-acento px-5 py-2.5 font-semibold text-white"
+          className="min-h-[44px] bg-acento px-5 py-2.5 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
         >
           Ir a la portada
         </Link>
         <Link
           to="/proyectos"
-          className="min-h-[44px] rounded-lg border border-black/10 px-5 py-2.5 font-semibold dark:border-white/10"
+          className="min-h-[44px] border border-black/10 px-5 py-2.5 font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-acento/40 dark:border-white/10"
         >
           Ver proyectos
         </Link>

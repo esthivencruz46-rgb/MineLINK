@@ -92,14 +92,14 @@ export function MiCuenta() {
   return (
     <div key={recarga} className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Hola, {perfil.nombre}</h1>
+        <h1 className="text-2xl font-semibold">Hola, {perfil.nombre}</h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
               cargarPerfil();
               setRecarga((k) => k + 1);
             }}
-            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="flex min-h-[44px] items-center gap-1.5 bg-emerald-600 px-4 text-sm font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-emerald-700"
           >
             <RefreshCw size={15} strokeWidth={2.25} aria-hidden />
             Guardar
@@ -107,7 +107,7 @@ export function MiCuenta() {
           <NotificacionesBell />
           <button
             onClick={cerrarSesion}
-            className="min-h-[44px] rounded-lg border border-black/10 px-4 text-sm font-semibold dark:border-white/10"
+            className="min-h-[44px] border border-black/10 px-4 text-sm font-semibold transition duration-200 hover:-translate-y-0.5 hover:border-acento/40 dark:border-white/10"
           >
             Cerrar sesión
           </button>
@@ -123,7 +123,7 @@ export function MiCuenta() {
       {/* Franja superior: Tus datos + (si ya está publicado) el aviso de
           visibilidad para inversionistas, lado a lado. */}
       <div className="flex flex-col gap-3 lg:flex-row">
-        <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-tarjeta px-5 py-3 text-sm text-texto-suave dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+        <div className="flex flex-1 flex-wrap items-center gap-x-4 gap-y-1 border border-black/10 bg-tarjeta px-5 py-3 text-sm text-texto-suave dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-suave-dark">
           <span className="font-semibold text-texto dark:text-texto-dark">Tus datos:</span>
           <span>WhatsApp {perfil.whatsapp}</span>
           {perfil.email && <span>· {perfil.email}</span>}
@@ -134,7 +134,7 @@ export function MiCuenta() {
       </div>
 
       {mostrarBienvenida && (
-        <div className="flex items-start justify-between gap-3 rounded-lg bg-acento/10 p-4 text-sm text-acento">
+        <div className="flex items-start justify-between gap-3 border border-acento/25 bg-acento/5 p-4 text-sm text-acento">
           <p>
             <span className="font-semibold">¡Ya estás dentro! </span>
             Esta es tu cuenta: aquí puedes subir tus fotos y documentos ahora
@@ -155,7 +155,7 @@ export function MiCuenta() {
       {/* Solo se avisa cuando el admin YA contactó — la promesa genérica de
           "estamos buscando quién te ayude" se retiró (julio 2026). */}
       {perfil.brechas_pendientes.length > 0 && perfil.estado_contacto === "contactado" && (
-        <div className="flex items-start gap-3 rounded-lg bg-emerald-500/10 p-4 text-sm text-emerald-600 dark:text-emerald-400">
+        <div className="flex items-start gap-3 border border-emerald-500/25 bg-emerald-500/5 p-4 text-sm text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 size={20} strokeWidth={2} aria-hidden />
           <p>
             Ya te contactamos por WhatsApp para ayudarte con lo que te falta. Revisa tus
@@ -173,16 +173,16 @@ export function MiCuenta() {
           la sidebar queda debajo. */}
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6">
         <div className="flex flex-col gap-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-texto-suave dark:text-texto-suave-dark">
             Formalización{" "}
             {typeof perfil.score_formalizacion === "number" && (
               <span
-                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${
+                className={`inline-flex items-center border border-current/25 px-1.5 py-0.5 text-xs font-medium ${
                   perfil.score_formalizacion >= 70
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    ? "text-emerald-600 dark:text-emerald-400"
                     : perfil.score_formalizacion >= 40
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                      : "bg-red-500/15 text-red-500"
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-500"
                 }`}
               >
                 {perfil.score_formalizacion}/100
@@ -193,7 +193,7 @@ export function MiCuenta() {
           <SemaforoCard titulo="Track Legal" semaforo={semLegal} grande />
 
           {perfil.etiquetas_bloqueantes.length > 0 && (
-            <div className="rounded-lg bg-red-900/10 p-4">
+            <div className="border border-red-500/25 bg-red-500/5 p-4">
               <h3 className="mb-2 flex items-center gap-2 font-semibold text-red-600">
                 <AlertTriangle size={18} /> Primero resolvamos esto
               </h3>
@@ -243,16 +243,16 @@ export function MiCuenta() {
         </div>
 
         <div className="flex flex-col gap-5">
-          <h2 className="flex items-center gap-2 text-lg font-bold text-texto-suave dark:text-texto-suave-dark">
+          <h2 className="flex items-center gap-2 text-lg font-semibold text-texto-suave dark:text-texto-suave-dark">
             Inversión{" "}
             {typeof perfil.score_inversion === "number" && (
               <span
-                className={`rounded-full px-2.5 py-0.5 text-sm font-bold ${
+                className={`inline-flex items-center border border-current/25 px-1.5 py-0.5 text-xs font-medium ${
                   perfil.score_inversion >= 70
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    ? "text-emerald-600 dark:text-emerald-400"
                     : perfil.score_inversion >= 40
-                      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
-                      : "bg-red-500/15 text-red-500"
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-red-500"
                 }`}
               >
                 {perfil.score_inversion}/100

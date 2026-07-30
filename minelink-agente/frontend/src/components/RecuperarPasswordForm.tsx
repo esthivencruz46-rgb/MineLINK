@@ -84,7 +84,7 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
     return (
       <form onSubmit={buscarPregunta} className="flex flex-col gap-3">
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Tu usuario"
           name="username"
           autoComplete="username"
@@ -95,7 +95,7 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           disabled={cargando || !username.trim()}
-          className="min-h-[44px] rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+          className="min-h-[44px] bg-acento font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
         >
           {cargando ? "Buscando..." : "Continuar"}
         </button>
@@ -105,11 +105,11 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
 
   return (
     <form onSubmit={enviarRespuesta} className="flex flex-col gap-3">
-      <div className="rounded-lg bg-acento/5 p-3 text-sm dark:bg-acento/10">
+      <div className="border border-acento/25 bg-acento/5 p-3 text-sm">
         <p className="font-semibold">{pregunta}</p>
       </div>
       <input
-        className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+        className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
         placeholder="Tu respuesta"
         value={respuesta}
         onChange={(e) => setRespuesta(e.target.value)}
@@ -136,7 +136,7 @@ export function RecuperarPasswordForm({ apiPrefix, onExito }: Props) {
       {error && <p className="text-sm text-red-500">{error}</p>}
       <button
         disabled={cargando || !respuesta.trim() || !passwordValida || !passwordsCoinciden}
-        className="min-h-[44px] rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+        className="min-h-[44px] bg-acento font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
       >
         {cargando ? "Verificando..." : "Cambiar contraseña"}
       </button>

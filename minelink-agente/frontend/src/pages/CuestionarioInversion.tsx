@@ -154,14 +154,14 @@ export function CuestionarioInversion() {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center gap-4 px-4 text-center">
         <Check size={36} strokeWidth={2} className="text-emerald-500" aria-hidden />
-        <h1 className="text-xl font-bold">¡Enviado!</h1>
+        <h1 className="text-xl font-semibold">¡Enviado!</h1>
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
           Tu perfil de inversión ya quedó guardado. En cuanto también tengas tus documentos de
           formalización enviados, tu proyecto se publica solo en la cartera.
         </p>
         <button
           onClick={() => navigate(-1)}
-          className="min-h-[44px] rounded-lg bg-acento px-6 font-semibold text-white"
+          className="min-h-[44px] bg-acento px-6 font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90"
         >
           Volver a mi cuenta
         </button>
@@ -173,7 +173,7 @@ export function CuestionarioInversion() {
     return (
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center gap-6 px-4 py-16">
         <BotonVolver onClick={volver} />
-        <h1 className="text-xl font-bold">Listo para enviar</h1>
+        <h1 className="text-xl font-semibold">Listo para enviar</h1>
         <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
           Respondiste todas las preguntas del perfil de inversión.
           {categoriasRequeridas.length > 0 &&
@@ -181,7 +181,7 @@ export function CuestionarioInversion() {
         </p>
 
         {categoriasRequeridas.length > 0 && (
-          <div className="flex flex-col gap-3 rounded-lg bg-tarjeta p-4 dark:bg-tarjeta-dark">
+          <div className="flex flex-col gap-3 border border-black/10 bg-tarjeta p-4 dark:border-white/10 dark:bg-tarjeta-dark">
             <h2 className="text-sm font-semibold uppercase text-texto-suave dark:text-texto-suave-dark">
               Documentos de sustento
             </h2>

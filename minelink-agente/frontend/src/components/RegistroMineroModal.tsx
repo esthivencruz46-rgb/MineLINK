@@ -22,7 +22,7 @@ export function RegistroMineroModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 md:items-center md:p-4">
       <div className="max-h-[92dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-tarjeta p-6 dark:bg-tarjeta-dark md:max-h-[90vh] md:rounded-2xl">
-        <h2 className="text-lg font-bold">
+        <h2 className="text-lg font-semibold">
           {esConcesionario
             ? "Regístrate para que te ayudemos con tu concesión"
             : "Regístrate para que te ayudemos"}

@@ -25,7 +25,7 @@ export function CampoPassword({
   return (
     <div className="relative">
       <input
-        className="min-h-[44px] w-full rounded-lg border border-black/10 bg-transparent px-3 pr-12 dark:border-white/10"
+        className="min-h-[44px] w-full border border-black/10 bg-transparent px-3 pr-12 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
         placeholder={placeholder}
         type={visible ? "text" : "password"}
         value={value}

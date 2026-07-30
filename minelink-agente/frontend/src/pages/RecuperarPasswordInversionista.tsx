@@ -10,7 +10,7 @@ export function RecuperarPasswordInversionista() {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center gap-4 px-4">
-      <h1 className="text-xl font-bold">Recuperar tu contraseña</h1>
+      <h1 className="text-xl font-semibold">Recuperar tu contraseña</h1>
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
         Escribe tu usuario, responde tu pregunta de seguridad (tienes 4
         intentos) y elige una contraseña nueva.

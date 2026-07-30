@@ -33,13 +33,13 @@ export function LoginInversionista() {
 
   return (
     <div className="mx-auto flex min-h-[80vh] max-w-sm flex-col justify-center gap-4 px-4">
-      <h1 className="text-xl font-bold">Ingresa a tu cuenta de inversionista</h1>
+      <h1 className="text-xl font-semibold">Ingresa a tu cuenta de inversionista</h1>
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
         Usa el usuario y contraseña que elegiste al dejar tu interés en un proyecto.
       </p>
       <form onSubmit={enviar} className="flex flex-col gap-3">
         <input
-          className="min-h-[44px] rounded-lg border border-black/10 bg-transparent px-3 dark:border-white/10"
+          className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"
           placeholder="Usuario"
           name="username"
           autoComplete="username"
@@ -57,7 +57,7 @@ export function LoginInversionista() {
         {error && <p className="text-sm text-red-500">{error}</p>}
         <button
           disabled={enviando || !username || !password}
-          className="min-h-[44px] rounded-lg bg-acento font-semibold text-white disabled:opacity-50"
+          className="min-h-[44px] bg-acento font-semibold text-white transition duration-200 hover:-translate-y-0.5 hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
         >
           {enviando ? "Ingresando..." : "Ingresar"}
         </button>
