@@ -121,6 +121,7 @@ _CATEGORIAS_EXCLUIDAS = {
 
 _CACHE: list[dict] | None = None
 _ULTIMO_REFRESCO: float | None = None
+_ULTIMO_ERROR: str | None = None
 
 
 def _sin_tildes(texto: str) -> str:
@@ -204,12 +205,32 @@ def noticias_desde_cache() -> list[dict]:
     return _CACHE or []
 
 
+def estado() -> dict:
+    """Diagnóstico público (julio 2026, tras un caso real de /noticias
+    vacío en producción sin ninguna pista de por qué): sin esto, revisar
+    un fallo de esta llamada externa exige entrar al panel de Logs de
+    Render a mano. Nada sensible viaja en este pedido (no hay
+    credenciales de por medio, a diferencia del asesor), así que no hace
+    falta protegerlo con auth de admin -- solo se expone lo mínimo para
+    diagnosticar: si está activado, cuántas hay en caché, hace cuánto
+    fue el último intento y el error del último intento fallido, si
+    hubo uno."""
+    return {
+        "desactivado": _DESACTIVADO,
+        "cantidad_en_cache": len(_CACHE or []),
+        "ultimo_refresco_hace_segundos": (
+            round(time.monotonic() - _ULTIMO_REFRESCO, 1) if _ULTIMO_REFRESCO is not None else None
+        ),
+        "ultimo_error": _ULTIMO_ERROR,
+    }
+
+
 def refrescar() -> None:
     """Mejor esfuerzo: cualquier fallo (red, formato inesperado de la
     API) deja el caché anterior intacto — nunca lo vacía por un error
     puntual. Marca `_ULTIMO_REFRESCO` incluso si falla, para no reintentar
     en cada visita mientras el sitio externo esté caído."""
-    global _CACHE, _ULTIMO_REFRESCO
+    global _CACHE, _ULTIMO_REFRESCO, _ULTIMO_ERROR
     if _DESACTIVADO:
         return
     try:
@@ -233,12 +254,16 @@ def refrescar() -> None:
             if _es_relevante(item["categorias"])
         ][:_MAX_NOTICIAS]
         _CACHE = relevantes
+        _ULTIMO_ERROR = None
     except Exception as error:
         # No debe romper nunca la portada (mejor esfuerzo), pero un fallo
         # en silencio total es indiagnosticable en producción -- julio
         # 2026, tras un caso real donde /noticias quedó vacío varios
         # minutos después de un deploy y no había ninguna pista de por
-        # qué (Render captura stdout en su panel de Logs).
+        # qué. Se guarda en _ULTIMO_ERROR (ver estado(), consultable sin
+        # entrar a Render) y además se imprime (Render captura stdout en
+        # su panel de Logs, por si hace falta más detalle).
+        _ULTIMO_ERROR = repr(error)
         print(f"[noticias] refrescar() fallo: {error!r}")
     finally:
         _ULTIMO_REFRESCO = time.monotonic()

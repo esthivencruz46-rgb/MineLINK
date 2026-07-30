@@ -3559,6 +3559,24 @@ def test_listar_noticias_no_agenda_refresco_si_no_hace_falta(monkeypatch):
     assert llamadas == {"n": 0}
 
 
+def test_estado_noticias_es_publico_y_no_sensible(monkeypatch):
+    import noticias
+
+    monkeypatch.setattr(noticias, "_DESACTIVADO", False)
+    monkeypatch.setattr(noticias, "_CACHE", [{"titulo": "t"}])
+    monkeypatch.setattr(noticias, "_ULTIMO_REFRESCO", None)
+    monkeypatch.setattr(noticias, "_ULTIMO_ERROR", "ConnectionError('timeout')")
+
+    resp = client.get("/noticias/estado")
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "desactivado": False,
+        "cantidad_en_cache": 1,
+        "ultimo_refresco_hace_segundos": None,
+        "ultimo_error": "ConnectionError('timeout')",
+    }
+
+
 def test_asesor_publico_registra_evento_de_exito_en_el_dashboard():
     # Julio 2026, tras un incidente real (clave de API incompleta en Render
     # pasó desapercibida varios días): el dashboard admin debe reflejar si

@@ -14,3 +14,11 @@ def listar_noticias(background_tasks: BackgroundTasks):
     if noticias.necesita_refresco():
         background_tasks.add_task(noticias.refrescar)
     return noticias.noticias_desde_cache()
+
+
+@router.get("/estado")
+def estado_noticias():
+    """Diagnóstico público (nada sensible, ver noticias.estado()) para
+    poder revisar por qué el caché sigue vacío sin entrar al panel de
+    Logs de Render."""
+    return noticias.estado()
