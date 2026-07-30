@@ -17,6 +17,17 @@ MINERO_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 bearer_scheme = HTTPBearer()
 _pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Hash bcrypt válido de un valor fijo cualquiera -- julio 2026, hallazgo de
+# auditoría de seguridad: los login de minero/inversionista comparaban
+# `lead is None or ... or not verify_password(...)` con cortocircuito, así
+# que un usuario INEXISTENTE respondía casi al instante (nunca se llamaba a
+# verify_password) mientras uno real tardaba lo que tarda bcrypt en
+# verificar (~100-300ms) -- esa diferencia de tiempo deja adivinar qué
+# usuarios existen sin necesidad de acertar la contraseña. Verificar
+# siempre contra ESTE hash cuando la cuenta no existe iguala el tiempo de
+# respuesta en ambos casos.
+_HASH_DUMMY = "$2b$12$iF5imD/AipSxhz8F0KOmheLEEygNTgqPv0pmBApa9CUI19xmxyeEC"
+
 
 def hash_password(password: str) -> str:
     return _pwd_context.hash(password)
@@ -24,6 +35,14 @@ def hash_password(password: str) -> str:
 
 def verify_password(password: str, password_hash: str) -> bool:
     return _pwd_context.verify(password, password_hash)
+
+
+def verify_password_o_dummy(password: str, password_hash: str | None) -> bool:
+    """Igual que verify_password, pero nunca deja que la ausencia de hash
+    (cuenta inexistente o sin contraseña) evite la llamada a bcrypt -- ver
+    _HASH_DUMMY arriba. Usar SIEMPRE en un login público en vez de
+    cortocircuitar con `hash is None or not verify_password(...)`."""
+    return _pwd_context.verify(password, password_hash or _HASH_DUMMY)
 
 
 def authenticate_admin(username: str, password: str) -> bool:

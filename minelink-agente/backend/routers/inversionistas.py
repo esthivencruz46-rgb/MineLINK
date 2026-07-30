@@ -3,7 +3,13 @@ from sqlalchemy.orm import Session
 
 import models
 import schemas
-from auth import create_inversionista_token, get_current_inversionista_id, hash_password, verify_password
+from auth import (
+    create_inversionista_token,
+    get_current_inversionista_id,
+    hash_password,
+    verify_password,
+    verify_password_o_dummy,
+)
 from database import get_db
 from scoring import estado_seguimiento, nombre_proyecto_publico
 from security import (
@@ -28,9 +34,13 @@ def login(
         .filter(models.InteresInversion.username == payload.username.strip().lower())
         .first()
     )
-    if interes is None or interes.password_hash is None or not verify_password(
-        payload.password, interes.password_hash
-    ):
+    # verify_password_o_dummy() SIEMPRE llama a bcrypt, exista o no la
+    # cuenta -- evita que el tiempo de respuesta delate qué usuarios
+    # existen (ver auth.py).
+    password_ok = verify_password_o_dummy(
+        payload.password, interes.password_hash if interes else None
+    )
+    if interes is None or interes.password_hash is None or not password_ok:
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
 
     return schemas.Token(access_token=create_inversionista_token(interes.id))

@@ -1021,6 +1021,20 @@ def test_mineros_login_credenciales_invalidas():
     assert resp.status_code == 401
 
 
+def test_mineros_login_usuario_inexistente_da_el_mismo_error():
+    # julio 2026, auditoría de seguridad: antes esta rama nunca llamaba a
+    # verify_password (cortocircuito de `lead is None or ...`), lo que
+    # respondía casi al instante y delataba por tiempo qué usuarios
+    # existen. Ahora corre el mismo camino -- este test solo confirma que
+    # sigue devolviendo el mismo 401 genérico, no mide tiempos (eso se
+    # verificó a mano).
+    resp = client.post(
+        "/mineros/login", json={"username": "usuario-que-no-existe", "password": "loquesea"}
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Usuario o contraseña incorrectos"
+
+
 def test_mineros_me_requiere_jwt():
     resp = client.get("/mineros/me")
     assert resp.status_code == 403
@@ -3038,6 +3052,16 @@ def test_inversionistas_login_credenciales_invalidas():
         json={"username": "inversionistamal", "password": "malacontrasena"},
     )
     assert resp.status_code == 401
+
+
+def test_inversionistas_login_usuario_inexistente_da_el_mismo_error():
+    # Mismo hallazgo de auditoría que en mineros -- ver el test equivalente ahí.
+    resp = client.post(
+        "/inversionistas/login",
+        json={"username": "usuario-que-no-existe", "password": "loquesea"},
+    )
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Usuario o contraseña incorrectos"
 
 
 def test_inversionistas_me_requiere_jwt():

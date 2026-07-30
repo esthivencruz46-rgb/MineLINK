@@ -8,7 +8,13 @@ from sqlalchemy.orm import Session
 import models
 import schemas
 import storage
-from auth import create_minero_token, get_current_lead_id, hash_password, verify_password
+from auth import (
+    create_minero_token,
+    get_current_lead_id,
+    hash_password,
+    verify_password,
+    verify_password_o_dummy,
+)
 from database import get_db
 from geoubicacion import resolver_coordenadas
 from imagenes import comprimir_si_es_imagen, convertir_pdf_a_imagen
@@ -255,9 +261,13 @@ def login(
         .filter(models.Lead.username == payload.username.strip().lower())
         .first()
     )
-    if lead is None or lead.password_hash is None or not verify_password(
-        payload.password, lead.password_hash
-    ):
+    # verify_password_o_dummy() SIEMPRE llama a bcrypt, exista o no la
+    # cuenta -- evita que el tiempo de respuesta delate qué usuarios
+    # existen (ver auth.py).
+    password_ok = verify_password_o_dummy(
+        payload.password, lead.password_hash if lead else None
+    )
+    if lead is None or lead.password_hash is None or not password_ok:
         raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
 
     return schemas.Token(access_token=create_minero_token(lead.id))
