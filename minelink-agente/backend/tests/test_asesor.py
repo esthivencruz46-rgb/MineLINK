@@ -610,6 +610,46 @@ def test_fragmentos_de_filesystem_se_tokenizan_una_sola_vez_por_proceso(tmp_path
     assert llamadas["n"] <= 2
 
 
+def test_indice_fragmentos_es_seguro_entre_hilos(tmp_path, monkeypatch):
+    # julio 2026, bug real en producción encontrado por auditoría:
+    # "unsupported operand type(s) for +: 'NoneType' and 'list'". FastAPI
+    # corre los endpoints sync en un threadpool -- dos preguntas a la vez
+    # (o una pregunta + el BackgroundTask de actualizar_documentos_admin)
+    # podían entrar a _fragmentos_y_tokens_filesystem() al mismo tiempo;
+    # sin lock, un hilo alcanzaba a leer _TOKENS_FS_CACHE todavía en None
+    # justo después de que otro hilo ya había asignado
+    # _FRAGMENTOS_FS_CACHE pero no _TOKENS_FS_CACHE (dos líneas, no
+    # atómico). Lanza muchos hilos a la vez contra el caché recién
+    # invalidado -- sin el lock, esto revienta con bastante regularidad.
+    import threading
+
+    monkeypatch.setattr(asesor, "_RUTA_CONOCIMIENTO_EXTRA", tmp_path)
+    monkeypatch.setattr(asesor, "_INDICE_CACHE", None)
+    monkeypatch.setattr(asesor, "_FRAGMENTOS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_TOKENS_FS_CACHE", None)
+    monkeypatch.setattr(asesor, "_DOCUMENTOS_ADMIN", [("Norma A", "contenido de la norma A")])
+    _agregar_relleno(tmp_path, n=10)
+
+    errores: list[BaseException] = []
+
+    def _llamar():
+        try:
+            asesor._indice_fragmentos()
+        except BaseException as e:  # noqa: BLE001 -- justo lo que el test quiere atrapar
+            errores.append(e)
+
+    hilos = [threading.Thread(target=_llamar) for _ in range(20)]
+    for h in hilos:
+        h.start()
+    for h in hilos:
+        h.join()
+
+    assert errores == []
+    fragmentos, indice = asesor._INDICE_CACHE
+    assert indice is not None
+    assert any("contenido de la norma A" in texto for _etiqueta, texto in fragmentos)
+
+
 def test_construir_system_prompt_no_crece_con_el_tamano_del_corpus(tmp_path, monkeypatch):
     # La garantía central de este diseño: sin importar cuántos archivos
     # tenga asesor_conocimiento/, el prompt final se queda acotado porque

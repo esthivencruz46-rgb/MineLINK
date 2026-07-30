@@ -70,6 +70,7 @@ un solo proveedor, por compatibilidad.
 """
 import os
 import re
+import threading
 import time
 from pathlib import Path
 
@@ -323,6 +324,21 @@ def actualizar_documentos_admin(documentos: list[tuple[str, str | None, str]]) -
 
 _FRAGMENTOS_FS_CACHE: list[tuple[str, str]] | None = None
 _TOKENS_FS_CACHE: list[list[str]] | None = None
+# julio 2026, hallazgo de auditoría (bug real en producción: "unsupported
+# operand type(s) for +: 'NoneType' and 'list'"): FastAPI/Starlette corre
+# los endpoints sync en un threadpool, así que dos preguntas simultáneas
+# (o una pregunta en curso + el BackgroundTask de
+# actualizar_documentos_admin reconstruyendo el índice) podían entrar
+# ACÁ a la vez. Sin lock, un hilo podía alcanzar a asignar
+# _FRAGMENTOS_FS_CACHE pero no _TOKENS_FS_CACHE todavía (dos líneas
+# separadas, no es atómico) justo cuando otro hilo pasaba el `if ... is
+# None` y devolvía el segundo como None -- ese None llegaba hasta
+# `tokens_fs + tokens_admin` en _indice_fragmentos() y reventaba. Mismo
+# candado en las dos funciones, patrón "doble chequeo": se vuelve a
+# comprobar DENTRO del lock por si otro hilo ya terminó de construir
+# mientras se esperaba turno.
+_LOCK_FRAGMENTOS_FS = threading.Lock()
+_LOCK_INDICE = threading.Lock()
 
 
 def _fragmentos_y_tokens_filesystem() -> tuple[list[tuple[str, str]], list[list[str]]]:
@@ -341,8 +357,12 @@ def _fragmentos_y_tokens_filesystem() -> tuple[list[tuple[str, str]], list[list[
     vuelve a tokenizar en cada reconstrucción real."""
     global _FRAGMENTOS_FS_CACHE, _TOKENS_FS_CACHE
     if _FRAGMENTOS_FS_CACHE is None:
-        _FRAGMENTOS_FS_CACHE = _cargar_fragmentos_extra()
-        _TOKENS_FS_CACHE = [_tokenizar(texto) for _, texto in _FRAGMENTOS_FS_CACHE]
+        with _LOCK_FRAGMENTOS_FS:
+            if _FRAGMENTOS_FS_CACHE is None:
+                fragmentos = _cargar_fragmentos_extra()
+                tokens = [_tokenizar(texto) for _, texto in fragmentos]
+                _FRAGMENTOS_FS_CACHE = fragmentos
+                _TOKENS_FS_CACHE = tokens
     return _FRAGMENTOS_FS_CACHE, _TOKENS_FS_CACHE
 
 
@@ -352,18 +372,20 @@ def _indice_fragmentos() -> tuple[list[tuple[str, str]], BM25Okapi | None]:
     esto ya es rápido (<1s) salvo la primera vez."""
     global _INDICE_CACHE
     if _INDICE_CACHE is None:
-        fragmentos_fs, tokens_fs = _fragmentos_y_tokens_filesystem()
-        fragmentos_admin = [
-            (etiqueta, trozo)
-            for etiqueta, texto in _DOCUMENTOS_ADMIN
-            for trozo in _trocear(texto)
-        ]
-        tokens_admin = [_tokenizar(texto) for _, texto in fragmentos_admin]
+        with _LOCK_INDICE:
+            if _INDICE_CACHE is None:
+                fragmentos_fs, tokens_fs = _fragmentos_y_tokens_filesystem()
+                fragmentos_admin = [
+                    (etiqueta, trozo)
+                    for etiqueta, texto in _DOCUMENTOS_ADMIN
+                    for trozo in _trocear(texto)
+                ]
+                tokens_admin = [_tokenizar(texto) for _, texto in fragmentos_admin]
 
-        fragmentos = fragmentos_fs + fragmentos_admin
-        tokens = tokens_fs + tokens_admin
-        indice = BM25Okapi(tokens) if fragmentos else None
-        _INDICE_CACHE = (fragmentos, indice)
+                fragmentos = fragmentos_fs + fragmentos_admin
+                tokens = tokens_fs + tokens_admin
+                indice = BM25Okapi(tokens) if fragmentos else None
+                _INDICE_CACHE = (fragmentos, indice)
     return _INDICE_CACHE
 
 
