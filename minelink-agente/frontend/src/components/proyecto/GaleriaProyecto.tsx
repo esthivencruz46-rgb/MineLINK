@@ -68,48 +68,31 @@ export function GaleriaProyecto({
 
   const concesion = geocatmin?.concesion;
   const geologia = geocatmin?.geologia;
-  const geologia50k = geocatmin?.geologia_50k;
   const fallas = geocatmin?.fallas;
-  // Resumen GEOCATMIN dentro del propio bloque de ubicación — el dato
-  // oficial al lado del mapa, no perdido más abajo. El detalle completo
-  // (titular, código, disclaimer) sigue en "Cotejo con registros públicos".
-  // Geología en las DOS escalas cuando existen — 1:50,000 (más detalle)
-  // solo aparece donde INGEMMET tiene carta a esa escala.
+  // Resumen GEOCATMIN dentro del propio bloque de ubicación: julio 2026,
+  // recortado a una sola señal de confianza (dentro/fuera de concesión)
+  // -- antes repetía nombre de concesión, hectáreas, geología en las dos
+  // escalas y conteo de fallas, exactamente los mismos datos que
+  // "Cotejo con registros públicos" muestra completos más abajo en la
+  // misma ficha (pedido explícito: "elimina las cosas que se repiten").
+  // Acá solo importa la primera impresión rápida junto a las fotos; el
+  // detalle completo (titular, código, disclaimer, geología, fallas)
+  // vive en un solo lugar, no en dos.
   const panelGeocatmin =
     geocatmin && (concesion || geologia) ? (
-      <div className="h-full rounded-lg border border-black/10 bg-fondo p-3 dark:border-white/10 dark:bg-fondo-dark">
+      <div className="flex h-full flex-col justify-center gap-1 rounded-lg border border-black/10 bg-fondo p-3 dark:border-white/10 dark:bg-fondo-dark">
         {concesion ? (
           <p className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
             <BadgeCheck size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden />
-            <span>
-              Concesión {concesion.nombre}
-              {concesion.leyenda ? ` · ${concesion.leyenda.toLowerCase()}` : ""}
-              {concesion.hectareas != null ? ` · ${Math.round(concesion.hectareas)} ha` : ""}
-            </span>
+            <span>Dentro de una concesión registrada en el catastro minero</span>
           </p>
         ) : (
           <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
             Pin fuera de una concesión registrada (referencial)
           </p>
         )}
-        {geologia?.unidad && (
-          <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-            Geología a escala 1:100,000: {geologia.unidad}
-          </p>
-        )}
-        {geologia50k?.unidad && (
-          <p className="mt-0.5 text-xs text-texto-suave dark:text-texto-suave-dark">
-            Geología a escala 1:50,000: {geologia50k.unidad}
-          </p>
-        )}
-        {fallas && fallas.items.length > 0 && (
-          <p className="mt-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
-            {fallas.items.length} falla{fallas.items.length > 1 ? "s" : ""} geológica
-            {fallas.items.length > 1 ? "s" : ""} cerca del pin (trazadas en el mapa)
-          </p>
-        )}
-        <p className="mt-1 text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
-          GEOCATMIN · INGEMMET
+        <p className="text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+          Detalle completo en "Cotejo con registros públicos" ↓
         </p>
       </div>
     ) : null;

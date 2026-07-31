@@ -224,13 +224,14 @@ export function ProyectoDetalle() {
     }
   }
 
-  // Resumen ejecutivo: foco en el score y la oportunidad de inversión, con
-  // los puntos a favor como chips cortos en vez de una lista/tarjeta aparte.
-  const partesResumen: string[] = [
-    `${proyecto.nombre_proyecto}: ${trackLegalTexto.toLowerCase()}${
-      madurez != null ? `, con madurez técnica ${madurez}/5` : ""
-    }.`,
-  ];
+  // Resumen ejecutivo: julio 2026, recortado para no repetir lo que la
+  // franja de métricas ya dice dos líneas más arriba (nombre = el <h1>,
+  // Track Legal y madurez = los primeros stats de la franja) -- antes la
+  // primera frase del resumen literalmente repetía esos 3 datos apenas
+  // bajabas la vista (pedido explícito: "elimina las cosas que se
+  // repiten"). Ahora arranca directo con lo que la franja NO dice: en
+  // qué queda pendiente y cuánto capital busca.
+  const partesResumen: string[] = [];
   if (proyecto.brechas_pendientes.length === 0) {
     partesResumen.push("Completó todos los requisitos del diagnóstico de formalización.");
   } else {
@@ -248,18 +249,15 @@ export function ProyectoDetalle() {
     );
   }
 
+  // Solo el punto a favor que NO está ya en la franja de métricas de
+  // arriba (trámites resueltos es un conteo que no aparece en ningún
+  // otro lado) -- "sin pendientes legales", "ventas con liquidación" y
+  // "madurez alta" se quitaron por repetir, con otras palabras, el mismo
+  // dato que ya se ve en la franja.
   const puntosAFavor: string[] = [];
-  if (proyecto.semaforo_legal === "verde") puntosAFavor.push("Sin pendientes legales en su etapa");
-  if (proyecto.indicadores?.ventas_liquidacion_verificada) {
-    puntosAFavor.push("Ventas con liquidación respaldadas");
-  } else if (proyecto.vende_liquidacion) {
-    puntosAFavor.push("Vende con liquidación formal");
-  }
-  if ((madurez ?? 0) >= 4) puntosAFavor.push("Madurez técnica alta");
   if (proyecto.brechas_resueltas.length > 0) {
     puntosAFavor.push(`${proyecto.brechas_resueltas.length} trámite(s) resuelto(s)`);
   }
-  if (proyecto.capital_buscado) puntosAFavor.push("Busca capital activamente");
 
   // Respuestas públicas del Módulo INV traducidas a etiquetas legibles con
   // el mismo catálogo del cuestionario (data/preguntasInversion.ts).
@@ -296,7 +294,12 @@ export function ProyectoDetalle() {
     );
 
   // Datos estructurados de la operación (los escribe el minero junto a sus
-  // archivos de respaldo — ver DocumentosInversionSustento).
+  // archivos de respaldo — ver DocumentosInversionSustento). El costo
+  // operativo NO se repite acá cuando ya está verificado: ese caso
+  // exacto (mismo número, "S/ X por TN") ya se ve arriba en la franja de
+  // métricas, con el sello ✓ de verificado incluido -- solo se muestra
+  // acá si hay un valor declarado pero SIN verificar (la franja no dice
+  // nada en ese caso, así que no hay de dónde más enterarse).
   const filasOperacion = [
     { etiqueta: "Ley promedio del mineral", valor: proyecto.ley_promedio, icono: Gem },
     { etiqueta: "Minerales y litología", valor: proyecto.especie_mineral, icono: Mountain },
@@ -304,9 +307,10 @@ export function ProyectoDetalle() {
     {
       etiqueta: "Costo operativo aproximado",
       icono: Coins,
-      valor: proyecto.indicadores?.opex_costo_aprox
-        ? `S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
-        : null,
+      valor:
+        proyecto.indicadores?.opex_costo_aprox && !proyecto.indicadores?.opex_verificado
+          ? `S/ ${proyecto.indicadores.opex_costo_aprox} por TN`
+          : null,
     },
     {
       etiqueta: "Equipo de trabajo",
@@ -344,12 +348,13 @@ export function ProyectoDetalle() {
       <div className="motion-safe:animate-[hero-entrada_0.5s_ease-out_both] mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap gap-2">
+            {/* Track Legal NO se repite acá -- ya es el primer dato de la
+                franja de métricas, dos líneas más abajo (antes salía dos
+                veces seguidas, pedido explícito: "elimina las cosas que
+                se repiten"). */}
             <span className="inline-flex items-center gap-1 border border-emerald-500/30 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
               <BadgeCheck size={13} strokeWidth={2} aria-hidden />
               Con documentos de respaldo
-            </span>
-            <span className={`border border-black/10 px-2.5 py-1 text-xs font-medium dark:border-white/10 ${semLegal.claseTexto}`}>
-              {trackLegalTexto}
             </span>
             {destacado && (
               <span className="inline-flex items-center gap-1 border border-secundario/30 px-2.5 py-1 text-xs font-medium text-secundario">
@@ -500,14 +505,10 @@ export function ProyectoDetalle() {
             }
           />
         )}
-        {proyecto.capital_buscado && (
-          <Stat
-            etiqueta="Busca"
-            valor={`${formatearMonto(proyecto.capital_buscado)}${
-              proyecto.uso_fondos ? ` — ${proyecto.uso_fondos}` : ""
-            }`}
-          />
-        )}
+        {/* El capital buscado NO se repite acá -- tiene su propia ficha
+            grande y destacada más abajo, en "Oportunidad de inversión",
+            con el uso de fondos y el resto de los términos del trato
+            juntos (antes el mismo número aparecía dos veces). */}
       </div>
 
       {/* MOSAICO SUPERIOR: ubicación satelital + fotos, a todo el ancho
@@ -555,12 +556,9 @@ export function ProyectoDetalle() {
           {/* FORMALIZACIÓN — un solo checklist con la foto de respaldo de
               cada ítem, sin tarjetas repetidas para lo mismo. */}
           <Card>
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold">Formalización</h2>
-              <span className={`text-sm font-semibold ${semLegal.claseTexto}`}>
-                {trackLegalTexto}
-              </span>
-            </div>
+            {/* El estado de Track Legal ya se ve en la franja de arriba --
+                acá el checklist habla por sí solo, ítem por ítem. */}
+            <h2 className="text-lg font-semibold">Formalización</h2>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
               Autodeclarado por el titular. Los documentos con el sello{" "}
               <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
