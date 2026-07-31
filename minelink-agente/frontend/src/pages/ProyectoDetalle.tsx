@@ -553,146 +553,13 @@ export function ProyectoDetalle() {
             )}
           </Card>
 
-          {/* FORMALIZACIÓN — un solo checklist con la foto de respaldo de
-              cada ítem, sin tarjetas repetidas para lo mismo. */}
-          <Card>
-            {/* El estado de Track Legal ya se ve en la franja de arriba --
-                acá el checklist habla por sí solo, ítem por ítem. */}
-            <h2 className="text-lg font-semibold">Formalización</h2>
-            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-              Autodeclarado por el titular. Los documentos con el sello{" "}
-              <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
-                Con respaldo
-              </strong>{" "}
-              ya fueron revisados y confirmados por el equipo de {MARCA}. Los que no lo tienen
-              igual se pueden ver, pero todavía no fueron revisados — revísalos con cuidado antes
-              de confiar en ellos.
-            </p>
-            <div className="mt-4 flex flex-col gap-6">
-              {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
-                const items = itemsFormalizacion.filter((item) => item.dim === dim);
-                if (items.length === 0 && !conReinfo) return null;
-                // Lo respaldado con foto se luce en tarjetas grandes; lo
-                // que aún no tiene foto se compacta en chips discretos.
-                const conFoto = items.filter((item) => item.fotos.length > 0);
-                const sinFoto = items.filter((item) => item.fotos.length === 0);
-                return (
-                  <div key={dim}>
-                    <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
-                      {NOMBRES_DIMENSION[dim]}
-                    </h3>
-                    {conFoto.length > 0 && (
-                      // auto-fit (no auto-fill) en vez de un número fijo de
-                      // columnas: como las columnas vacías se colapsan, las
-                      // tarjetas existentes se estiran para llenar la fila
-                      // completa sin dejar huecos, sea cual sea la cantidad
-                      // de fotos (pedido explícito, julio 2026: "que
-                      // abarquen en una fila" cuando por ejemplo hay 4).
-                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
-                        {conFoto.map((item) => (
-                          <TarjetaDocumento
-                            key={item.etiqueta}
-                            etiqueta={item.etiqueta}
-                            fotos={item.fotos}
-                            completo={item.completo}
-                            onVer={() =>
-                              setVisor({ fotos: item.fotos, indice: 0, etiqueta: item.etiqueta })
-                            }
-                          />
-                        ))}
-                      </div>
-                    )}
-                    {(sinFoto.length > 0 || conReinfo) && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {conReinfo && (
-                          <span
-                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium ${
-                              !proyecto.bloqueado_actual
-                                ? "border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
-                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
-                            }`}
-                          >
-                            {!proyecto.bloqueado_actual ? (
-                              <Check size={13} strokeWidth={2} aria-hidden />
-                            ) : (
-                              <Minus size={13} strokeWidth={2} aria-hidden />
-                            )}
-                            REINFO vigente
-                          </span>
-                        )}
-                        {sinFoto.map((item) => (
-                          <span
-                            key={item.etiqueta}
-                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs ${
-                              item.completo
-                                ? "border-emerald-500/25 font-medium text-emerald-600 dark:text-emerald-400"
-                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
-                            }`}
-                          >
-                            {item.completo ? (
-                              <Check size={13} strokeWidth={2} aria-hidden />
-                            ) : (
-                              <Minus size={13} strokeWidth={2} aria-hidden />
-                            )}
-                            {item.etiqueta}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-
-          {/* DOCUMENTOS DE INVERSIÓN — separado de Formalización (pedido
-              explícito, julio 2026): evidencia del Módulo INV que sí es
-              pública (certificado_ley — no es información financiera
-              sensible como liquidaciones/OPEX, es justo la prueba que un
-              inversionista quiere ver). Antes vivía mezclado dentro de
-              "Oportunidad de inversión"; ahora tiene su propia tarjeta,
-              igual de clara que el checklist de Formalización. */}
-          {((proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 ||
-            documentosInversionExtra.length > 0) && (
-            <Card>
-              <h2 className="text-lg font-semibold">Documentos de inversión</h2>
-              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
-                Evidencia que respalda tu perfil de inversión — separada de los trámites de
-                formalización.
-              </p>
-              <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
-                {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
-                  <TarjetaDocumento
-                    etiqueta="Certificado de ley del mineral"
-                    fotos={proyecto.documentos_inversion!.certificado_ley}
-                    completo={proyecto.documentos_inversion!.certificado_ley.some((f) => f.aprobado)}
-                    onVer={() =>
-                      setVisor({
-                        fotos: proyecto.documentos_inversion!.certificado_ley,
-                        indice: 0,
-                        etiqueta: "Certificado de ley del mineral",
-                      })
-                    }
-                  />
-                )}
-                {documentosInversionExtra.map((e) => (
-                  <TarjetaDocumento
-                    key={e}
-                    etiqueta={INFO_BRECHA[e]?.texto ?? e}
-                    fotos={proyecto.documentos_estudios[e]}
-                    completo={proyecto.documentos_estudios[e].some((f) => f.aprobado)}
-                    onVer={() =>
-                      setVisor({
-                        fotos: proyecto.documentos_estudios[e],
-                        indice: 0,
-                        etiqueta: INFO_BRECHA[e]?.texto ?? e,
-                      })
-                    }
-                  />
-                ))}
-              </div>
-            </Card>
-          )}
+          {/* julio 2026, pedido explícito ("reordena la cartera de
+              proyectos"): la oportunidad de inversión, el cotejo con
+              registros públicos y los datos de la operación van primero
+              (lo que más le importa a un inversionista al entrar);
+              Formalización y Documentos de inversión (los archivos en
+              sí) se movieron al final, tal cual estaban entre ellos —
+              ver más abajo, después de "Datos de la operación". */}
 
           {/* OPORTUNIDAD DE INVERSIÓN — las respuestas públicas del Módulo
               INV: lo que el inversionista necesita para decidir. Reemplaza
@@ -1113,6 +980,147 @@ export function ProyectoDetalle() {
                       <p className="text-sm font-semibold leading-snug">{f.valor}</p>
                     </div>
                   </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* FORMALIZACIÓN — un solo checklist con la foto de respaldo de
+              cada ítem, sin tarjetas repetidas para lo mismo. */}
+          <Card>
+            {/* El estado de Track Legal ya se ve en la franja de arriba --
+                acá el checklist habla por sí solo, ítem por ítem. */}
+            <h2 className="text-lg font-semibold">Formalización</h2>
+            <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+              Autodeclarado por el titular. Los documentos con el sello{" "}
+              <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
+                Con respaldo
+              </strong>{" "}
+              ya fueron revisados y confirmados por el equipo de {MARCA}. Los que no lo tienen
+              igual se pueden ver, pero todavía no fueron revisados — revísalos con cuidado antes
+              de confiar en ellos.
+            </p>
+            <div className="mt-4 flex flex-col gap-6">
+              {BLOQUES_FORMALIZACION.map(({ dim, conReinfo }) => {
+                const items = itemsFormalizacion.filter((item) => item.dim === dim);
+                if (items.length === 0 && !conReinfo) return null;
+                // Lo respaldado con foto se luce en tarjetas grandes; lo
+                // que aún no tiene foto se compacta en chips discretos.
+                const conFoto = items.filter((item) => item.fotos.length > 0);
+                const sinFoto = items.filter((item) => item.fotos.length === 0);
+                return (
+                  <div key={dim}>
+                    <h3 className="text-sm font-semibold uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
+                      {NOMBRES_DIMENSION[dim]}
+                    </h3>
+                    {conFoto.length > 0 && (
+                      // auto-fit (no auto-fill) en vez de un número fijo de
+                      // columnas: como las columnas vacías se colapsan, las
+                      // tarjetas existentes se estiran para llenar la fila
+                      // completa sin dejar huecos, sea cual sea la cantidad
+                      // de fotos (pedido explícito, julio 2026: "que
+                      // abarquen en una fila" cuando por ejemplo hay 4).
+                      <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
+                        {conFoto.map((item) => (
+                          <TarjetaDocumento
+                            key={item.etiqueta}
+                            etiqueta={item.etiqueta}
+                            fotos={item.fotos}
+                            completo={item.completo}
+                            onVer={() =>
+                              setVisor({ fotos: item.fotos, indice: 0, etiqueta: item.etiqueta })
+                            }
+                          />
+                        ))}
+                      </div>
+                    )}
+                    {(sinFoto.length > 0 || conReinfo) && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {conReinfo && (
+                          <span
+                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs font-medium ${
+                              !proyecto.bloqueado_actual
+                                ? "border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
+                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                            }`}
+                          >
+                            {!proyecto.bloqueado_actual ? (
+                              <Check size={13} strokeWidth={2} aria-hidden />
+                            ) : (
+                              <Minus size={13} strokeWidth={2} aria-hidden />
+                            )}
+                            REINFO vigente
+                          </span>
+                        )}
+                        {sinFoto.map((item) => (
+                          <span
+                            key={item.etiqueta}
+                            className={`inline-flex items-center gap-1.5 border px-2.5 py-1.5 text-xs ${
+                              item.completo
+                                ? "border-emerald-500/25 font-medium text-emerald-600 dark:text-emerald-400"
+                                : "border-dashed border-black/15 text-texto-suave dark:border-white/15 dark:text-texto-suave-dark"
+                            }`}
+                          >
+                            {item.completo ? (
+                              <Check size={13} strokeWidth={2} aria-hidden />
+                            ) : (
+                              <Minus size={13} strokeWidth={2} aria-hidden />
+                            )}
+                            {item.etiqueta}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* DOCUMENTOS DE INVERSIÓN — separado de Formalización (pedido
+              explícito, julio 2026): evidencia del Módulo INV que sí es
+              pública (certificado_ley — no es información financiera
+              sensible como liquidaciones/OPEX, es justo la prueba que un
+              inversionista quiere ver). Antes vivía mezclado dentro de
+              "Oportunidad de inversión"; ahora tiene su propia tarjeta,
+              igual de clara que el checklist de Formalización. */}
+          {((proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 ||
+            documentosInversionExtra.length > 0) && (
+            <Card>
+              <h2 className="text-lg font-semibold">Documentos de inversión</h2>
+              <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
+                Evidencia que respalda tu perfil de inversión — separada de los trámites de
+                formalización.
+              </p>
+              <div className="mt-4 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(8.5rem,1fr))]">
+                {(proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 && (
+                  <TarjetaDocumento
+                    etiqueta="Certificado de ley del mineral"
+                    fotos={proyecto.documentos_inversion!.certificado_ley}
+                    completo={proyecto.documentos_inversion!.certificado_ley.some((f) => f.aprobado)}
+                    onVer={() =>
+                      setVisor({
+                        fotos: proyecto.documentos_inversion!.certificado_ley,
+                        indice: 0,
+                        etiqueta: "Certificado de ley del mineral",
+                      })
+                    }
+                  />
+                )}
+                {documentosInversionExtra.map((e) => (
+                  <TarjetaDocumento
+                    key={e}
+                    etiqueta={INFO_BRECHA[e]?.texto ?? e}
+                    fotos={proyecto.documentos_estudios[e]}
+                    completo={proyecto.documentos_estudios[e].some((f) => f.aprobado)}
+                    onVer={() =>
+                      setVisor({
+                        fotos: proyecto.documentos_estudios[e],
+                        indice: 0,
+                        etiqueta: INFO_BRECHA[e]?.texto ?? e,
+                      })
+                    }
+                  />
                 ))}
               </div>
             </Card>

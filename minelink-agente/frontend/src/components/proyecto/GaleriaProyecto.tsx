@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 import { BASE_URL } from "../../services/api";
 import { MapaGeocatmin } from "./MapaGeocatmin";
 import type { FotoPublica, GeocatminInfo } from "../../types/proyecto";
@@ -67,35 +67,7 @@ export function GaleriaProyecto({
   }
 
   const concesion = geocatmin?.concesion;
-  const geologia = geocatmin?.geologia;
   const fallas = geocatmin?.fallas;
-  // Resumen GEOCATMIN dentro del propio bloque de ubicación: julio 2026,
-  // recortado a una sola señal de confianza (dentro/fuera de concesión)
-  // -- antes repetía nombre de concesión, hectáreas, geología en las dos
-  // escalas y conteo de fallas, exactamente los mismos datos que
-  // "Cotejo con registros públicos" muestra completos más abajo en la
-  // misma ficha (pedido explícito: "elimina las cosas que se repiten").
-  // Acá solo importa la primera impresión rápida junto a las fotos; el
-  // detalle completo (titular, código, disclaimer, geología, fallas)
-  // vive en un solo lugar, no en dos.
-  const panelGeocatmin =
-    geocatmin && (concesion || geologia) ? (
-      <div className="flex h-full flex-col justify-center gap-1 rounded-lg border border-black/10 bg-fondo p-3 dark:border-white/10 dark:bg-fondo-dark">
-        {concesion ? (
-          <p className="flex items-start gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-            <BadgeCheck size={14} strokeWidth={2.5} className="mt-0.5 shrink-0" aria-hidden />
-            <span>Dentro de una concesión registrada en el catastro minero</span>
-          </p>
-        ) : (
-          <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-            Pin fuera de una concesión registrada (referencial)
-          </p>
-        )}
-        <p className="text-[10px] uppercase tracking-wide text-texto-suave dark:text-texto-suave-dark">
-          Detalle completo en "Cotejo con registros públicos" ↓
-        </p>
-      </div>
-    ) : null;
 
   // Bloque de UBICACIÓN: el mapa a todo lo ancho, con altura propia fija
   // (no depende de cuántas fotos haya).
@@ -114,14 +86,13 @@ export function GaleriaProyecto({
   ) : null;
 
   // Tira de miniaturas pequeñas (fotos de presentación) — tamaño FIJO por
-  // miniatura (no se estira para llenar el espacio libre) y pegada al
-  // extremo derecho de la fila con `justify-end`: con pocas fotos (ej. 3)
-  // quedan agrupadas contra el borde derecho, dejando el espacio vacío
-  // junto al panel de la izquierda, en vez de empezar pegadas a él
-  // (pedido explícito, julio 2026).
+  // miniatura (no se estira para llenar el espacio libre). Alineadas a la
+  // izquierda (antes iban a la derecha, `justify-end`, para no pegarse al
+  // panel GEOCATMIN que vivía a su izquierda -- ese panel se quitó, ver
+  // arriba, así que ya no hay nada de qué alejarse).
   const tiraFotos =
     fotosOrdenadas.length > 0 ? (
-      <div className="flex flex-1 flex-wrap justify-end gap-3">
+      <div className="flex flex-wrap gap-3">
         {fotosOrdenadas.slice(0, MAX_MINIATURAS_VISIBLES).map((foto, i) => {
           const esUltimaVisible = i === MAX_MINIATURAS_VISIBLES - 1;
           const restantes = esUltimaVisible
@@ -172,17 +143,12 @@ export function GaleriaProyecto({
             <div className="mt-3">{bloqueUbicacion}</div>
           </>
         )}
-        {/* Panel GEOCATMIN al costado de las fotos de presentación (pedido
-            explícito, julio 2026) — no una debajo de la otra. En móvil se
-            apilan (el panel primero) porque no entran lado a lado. */}
-        {(panelGeocatmin || tiraFotos) && (
-          <div
-            className={`flex flex-col gap-3 md:flex-row md:items-stretch ${hayUbicacion ? "mt-3" : ""}`}
-          >
-            {panelGeocatmin && <div className="md:w-2/5">{panelGeocatmin}</div>}
-            {tiraFotos}
-          </div>
-        )}
+        {/* julio 2026, pedido explícito: se quitó el panel GEOCATMIN que
+            iba al costado de estas fotos (repetía, aunque resumido, lo
+            mismo que ya dice completo "Cotejo con registros públicos"
+            más abajo en la misma ficha) — las fotos de presentación
+            quedan solas, a todo el ancho disponible. */}
+        {tiraFotos && <div className={hayUbicacion ? "mt-3" : ""}>{tiraFotos}</div>}
       </div>
 
       {indiceAbierto !== null && (
