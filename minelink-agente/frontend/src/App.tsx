@@ -1,5 +1,6 @@
 import { Suspense, lazy } from "react";
 import { MARCA } from "./config/marca";
+import { ChevronDown } from "lucide-react";
 import { Link, Route, Routes, useLocation } from "react-router-dom";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedRouteMinero } from "./components/ProtectedRouteMinero";
@@ -98,10 +99,7 @@ const Terminos = lazy(() =>
 // cualquier página que no fuera Inicio (ej. un enlace compartido a una
 // ficha de proyecto) no tenía forma de moverse por el sitio sin bajar
 // hasta el Footer. Los 3 links espejan los del Footer (mismo destino,
-// visibles arriba también); "Ingresar" apunta al login del minero
-// (`/ingresar`) — es el perfil principal del sitio (la tarjeta
-// "destacada" en Inicio) — el inversionista tiene su propio acceso
-// desde Proyectos/Inicio. En celular se esconden los links secundarios
+// visibles arriba también). En celular se esconden los links secundarios
 // (quedan disponibles en el Footer) pero "Ingresar" se mantiene siempre
 // visible: es la acción que más le sirve a alguien que ya tiene cuenta
 // y llegó a una página interna.
@@ -133,13 +131,51 @@ function PublicHeader() {
           </Link>
         </nav>
         <div className="flex shrink-0 items-center gap-3">
-          <Link to="/ingresar" className="text-sm font-semibold text-acento hover:underline">
-            Ingresar
-          </Link>
+          <MenuIngresar />
           <ThemeToggle />
         </div>
       </div>
     </header>
+  );
+}
+
+/** "Ingresar" en el header (julio 2026, corregido tras reporte con
+ * captura de Esthiven: "no lo veo lógico" — antes era un link fijo al
+ * login del minero, así que un inversionista que ya tenía cuenta caía en
+ * el formulario equivocado). Con dos tipos de cuenta reales (minero e
+ * inversionista — los consultores no tienen login propio, solo postulan
+ * desde /postular y Esthiven los gestiona desde /admin), un solo link no
+ * alcanza. `<details>` nativo, mismo patrón ya usado en el filtro de
+ * Empresas.tsx — se abre/cierra solo, sin manejar estado ni clics afuera
+ * a mano. */
+function MenuIngresar() {
+  return (
+    <details className="relative">
+      <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-semibold text-acento [&::-webkit-details-marker]:hidden">
+        Ingresar
+        <ChevronDown size={14} strokeWidth={2.5} aria-hidden />
+      </summary>
+      <div className="absolute right-0 top-full z-10 mt-2 flex w-48 flex-col border border-black/10 bg-tarjeta py-1 shadow-lg dark:border-white/10 dark:bg-tarjeta-dark">
+        {/* Cierra el <details> al elegir -- si no, como la navegación es
+            del lado del cliente (SPA, el header nunca se remonta), el
+            menú se quedaría "abierto" en la siguiente página hasta que
+            alguien lo vuelva a tocar. */}
+        <Link
+          to="/ingresar"
+          onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
+          className="px-3 py-2 text-sm font-medium transition-colors hover:bg-acento/5 hover:text-acento"
+        >
+          Soy minero
+        </Link>
+        <Link
+          to="/ingresar-inversionista"
+          onClick={(e) => e.currentTarget.closest("details")?.removeAttribute("open")}
+          className="px-3 py-2 text-sm font-medium transition-colors hover:bg-acento/5 hover:text-acento"
+        >
+          Soy inversionista
+        </Link>
+      </div>
+    </details>
   );
 }
 
