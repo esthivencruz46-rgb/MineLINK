@@ -491,6 +491,16 @@ class InversionAdminOut(BaseModel):
     categorias_requeridas: list[CategoriaRequeridaOut] = []
 
 
+class InterpretacionUbicacionOut(BaseModel):
+    """Respuesta de GET /admin/operaciones/{operacion_id}/interpretacion-ubicacion
+    — ver interpretacion_ubicacion.py. Nunca se muestra al público; solo
+    para uso del admin."""
+
+    disponible: bool
+    texto: Optional[str] = None
+    generado_en: Optional[str] = None
+
+
 class NotificacionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

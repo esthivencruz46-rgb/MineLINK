@@ -10,6 +10,7 @@ import asesor_proyectos
 import copernicus
 import database
 import geocatmin
+import interpretacion_ubicacion
 import models
 import reinfo
 import schemas
@@ -570,7 +571,7 @@ def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> 
                 "anomalias_satelitales", f"{operacion_id}_{nombre}.png", contenido, "image/png"
             )
         datos = operacion.datos_formalizacion_json or {}
-        operacion.datos_formalizacion_json = {
+        nuevos_datos = {
             **datos,
             "_anomalias_satelitales": {
                 "bbox": resultado["bbox"],
@@ -579,6 +580,25 @@ def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> 
                 "capas": list(resultado["capas"].keys()),
             },
         }
+        # Interpretación en lenguaje natural de las 6 capas, solo para uso
+        # del admin (ver interpretacion_ubicacion.py) — se genera acá
+        # porque es el único momento en que los bytes PNG están
+        # disponibles en memoria (después, solo viven en storage). Mejor
+        # esfuerzo: si Gemini falla o está desactivado, simplemente no se
+        # guarda nada nuevo, sin afectar las capas ya guardadas arriba.
+        interpretacion = interpretacion_ubicacion.generar_interpretacion(
+            resultado["capas"], operacion.mineral or "", operacion.region or ""
+        )
+        if interpretacion:
+            # Comparte "v" con _anomalias_satelitales a propósito: si las
+            # capas se regeneran (o cambia su forma, ver VERSION_CACHE),
+            # la interpretación vieja queda obsoleta al mismo tiempo.
+            nuevos_datos["_interpretacion_ubicacion"] = {
+                "texto": interpretacion,
+                "generado_en": resultado["generado_en"],
+                "v": resultado["v"],
+            }
+        operacion.datos_formalizacion_json = nuevos_datos
         db.commit()
     finally:
         db.close()

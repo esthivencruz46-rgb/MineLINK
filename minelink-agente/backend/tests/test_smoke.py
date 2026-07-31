@@ -1538,6 +1538,50 @@ def test_inversion_envio_completo_perfil_c():
     assert resp.status_code == 200
     assert resp.json()["respuestas"]["INV_C1"] == "planta_formal"
 
+    # Interpretación de las capas de Copernicus (julio 2026, solo admin) --
+    # todavía no se generó nada para esta operación, así que "disponible"
+    # debe dar False sin reventar (nunca llama a Gemini en línea dentro de
+    # una petición real, ver routers/admin.py).
+    resp = client.get(
+        f"/admin/operaciones/{operacion_id}/interpretacion-ubicacion", headers=admin_headers
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {"disponible": False, "texto": None, "generado_en": None}
+
+    # Simula lo que _refrescar_anomalias_en_segundo_plano habría guardado
+    # tras una generación exitosa.
+    db = TestingSessionLocal()
+    operacion_db = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    operacion_db.datos_formalizacion_json = {
+        **(operacion_db.datos_formalizacion_json or {}),
+        "_interpretacion_ubicacion": {
+            "texto": "Se observa una posible coincidencia en el sector norte.",
+            "generado_en": "2026-07-31",
+            "v": 3,
+        },
+    }
+    db.commit()
+    db.close()
+
+    resp = client.get(
+        f"/admin/operaciones/{operacion_id}/interpretacion-ubicacion", headers=admin_headers
+    )
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "disponible": True,
+        "texto": "Se observa una posible coincidencia en el sector norte.",
+        "generado_en": "2026-07-31",
+    }
+
+
+def test_interpretacion_ubicacion_operacion_inexistente_da_404():
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.get(
+        "/admin/operaciones/no-existe-esta-operacion/interpretacion-ubicacion",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 404
+
 
 def test_inversion_perfil_c_pide_mapeo_geologico_y_fotos_presentacion():
     # Julio 2026 (pedido de Esthiven): C ya opera y vende, pero eso no

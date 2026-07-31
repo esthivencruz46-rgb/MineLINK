@@ -621,6 +621,33 @@ def ver_inversion(
 
 
 @router.get(
+    "/operaciones/{operacion_id}/interpretacion-ubicacion",
+    response_model=schemas.InterpretacionUbicacionOut,
+)
+def ver_interpretacion_ubicacion(
+    operacion_id: str,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Lectura pura del caché ya generado en segundo plano (ver
+    routers/proyectos.py, _refrescar_anomalias_en_segundo_plano) — nunca
+    llama a Gemini en línea dentro de una petición real, mismo criterio
+    que el resto de los servicios externos de la app. `disponible=False`
+    cubre tanto "todavía no se generó" como "está desactivado" —
+    ver interpretacion_ubicacion.py."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+
+    cache = (operacion.datos_formalizacion_json or {}).get("_interpretacion_ubicacion")
+    if not isinstance(cache, dict) or not cache.get("texto"):
+        return schemas.InterpretacionUbicacionOut(disponible=False)
+    return schemas.InterpretacionUbicacionOut(
+        disponible=True, texto=cache["texto"], generado_en=cache.get("generado_en")
+    )
+
+
+@router.get(
     "/operaciones/{operacion_id}/intereses",
     response_model=list[schemas.InteresInversionOut],
 )

@@ -67,6 +67,12 @@ interface InversionAdmin {
   categorias_requeridas: CategoriaRequerida[];
 }
 
+interface InterpretacionUbicacion {
+  disponible: boolean;
+  texto?: string | null;
+  generado_en?: string | null;
+}
+
 /** Traduce una respuesta cruda del Módulo INV (string o lista de valores)
  * a su etiqueta legible, usando el mismo catálogo que ve el minero. */
 function etiquetaRespuestaInv(id: string, valor: string | string[]): string {
@@ -194,6 +200,13 @@ export function AdminLeads() {
   const [leadInversion, setLeadInversion] = useState<LeadConDiagnostico | null>(null);
   const [inversion, setInversion] = useState<InversionAdmin | null>(null);
   const [cargandoInversion, setCargandoInversion] = useState(false);
+  // Interpretación de las capas de Copernicus por IA (julio 2026, solo
+  // admin — ver interpretacion_ubicacion.py). Se generó (o no) en segundo
+  // plano cuando alguien visitó la ficha pública; acá solo se lee lo ya
+  // cacheado, nunca se dispara una llamada a Gemini desde el panel.
+  const [leadUbicacionIA, setLeadUbicacionIA] = useState<LeadConDiagnostico | null>(null);
+  const [interpretacionUbicacion, setInterpretacionUbicacion] = useState<InterpretacionUbicacion | null>(null);
+  const [cargandoInterpretacion, setCargandoInterpretacion] = useState(false);
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
@@ -467,6 +480,19 @@ export function AdminLeads() {
       .then(setInversion)
       .catch(() => setError("No pudimos cargar el perfil de inversión."))
       .finally(() => setCargandoInversion(false));
+  }
+
+  function verInterpretacionUbicacion(lead: LeadConDiagnostico) {
+    setLeadUbicacionIA(lead);
+    setCargandoInterpretacion(true);
+    authFetch(`/admin/operaciones/${lead.operacion_id}/interpretacion-ubicacion`)
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then(setInterpretacionUbicacion)
+      .catch(() => setError("No pudimos cargar la interpretación de ubicación."))
+      .finally(() => setCargandoInterpretacion(false));
   }
 
   async function verArchivo(doc: DocumentoOperacion) {
@@ -773,6 +799,12 @@ export function AdminLeads() {
                         Inversionistas
                       </button>
                       <button
+                        onClick={() => verInterpretacionUbicacion(lead)}
+                        className="min-h-[32px] rounded border border-secundario/30 px-2 text-xs font-semibold text-secundario"
+                      >
+                        Ubicación (IA)
+                      </button>
+                      <button
                         onClick={() => verInteresesEmpresas(lead)}
                         className="min-h-[32px] rounded border border-acento/30 px-2 text-xs font-semibold text-acento"
                       >
@@ -1035,6 +1067,54 @@ export function AdminLeads() {
                       informativo, no hace falta aprobar nada aquí.
                     </p>
                   </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {leadUbicacionIA && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4">
+          <div className="my-8 w-full max-w-md bg-tarjeta p-6 dark:bg-tarjeta-dark">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Interpretación de ubicación (IA)</h2>
+              <button
+                onClick={() => setLeadUbicacionIA(null)}
+                className="text-sm font-semibold text-acento underline"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* Solo para tu uso: nunca se muestra al inversionista ni entra
+                al PDF. Lectura de las 6 capas de anomalías Copernicus
+                (óxidos de hierro, arcillas, hierro ferroso, arcilla/
+                sulfatos/mica, combinado, coincidencias) -- siempre en tono
+                de hipótesis a verificar en campo, nunca un hallazgo
+                confirmado. */}
+            <p className="mb-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+              Uso interno — lectura de las capas de anomalías espectrales de
+              Copernicus, siempre como hipótesis a verificar en campo.
+            </p>
+
+            {cargandoInterpretacion && <p className="text-sm">Cargando...</p>}
+
+            {!cargandoInterpretacion && interpretacionUbicacion && !interpretacionUbicacion.disponible && (
+              <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
+                Todavía no hay interpretación generada para este proyecto — se genera
+                sola en segundo plano cuando alguien visita su ficha pública (necesita
+                Copernicus activado y un polígono de concesión detectado).
+              </p>
+            )}
+
+            {!cargandoInterpretacion && interpretacionUbicacion?.disponible && (
+              <>
+                <p className="text-sm">{interpretacionUbicacion.texto}</p>
+                {interpretacionUbicacion.generado_en && (
+                  <p className="mt-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Generado el {interpretacionUbicacion.generado_en}
+                  </p>
                 )}
               </>
             )}

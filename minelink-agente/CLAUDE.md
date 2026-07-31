@@ -81,6 +81,32 @@ Plataforma web donde un minero artesanal peruano:
    90 días. Dentro del mismo pane de Leaflet que geología, cualquier capa
    nueva necesita su propio `zIndex` por encima de geología (10/11) o
    geología la tapa en silencio cuando ambas están activas.
+   **Interpretación de esas capas por IA** (`backend/interpretacion_ubicacion.py`,
+   julio 2026, pedido explícito de Esthiven — "para mi propio uso", no
+   para inversionistas): solo interpreta Copernicus, nunca GEOCATMIN
+   (catastro/geología/fallas ya llegan como datos estructurados de
+   INGEMMET — el backend arma el texto exacto sin que nadie tenga que
+   "mirar" una imagen; las 6 capas de Copernicus, en cambio, son manchas
+   de color sin ningún dato detrás). Usa Gemini (misma API key que
+   `asesor.py`, `GEMINI_API_KEY` — el único proveedor conectado con
+   visión en su nivel gratis) con las 6 PNG de esa concesión como entrada
+   + mineral/región como contexto; reglas duras del prompt: nunca afirma
+   presencia de mineral ni ley (solo "señal a investigar"), nunca hace
+   una clasificación fina de alteración hidrotermal (mismo límite ya
+   documentado arriba para Copernicus), destaca explícitamente si
+   "coincidencias" tiene algo pintado (la señal más fuerte de las 6).
+   DESACTIVADO por defecto, `MINELINK_INTERPRETACION_UBICACION=1` (además
+   de `MINELINK_COPERNICUS=1`, del que depende). Se genera en el mismo
+   background task que las capas (`_refrescar_anomalias_en_segundo_plano`
+   en `routers/proyectos.py` — es el único momento en que los bytes PNG
+   están en memoria) y se cachea junto a ellas en
+   `datos_formalizacion_json["_interpretacion_ubicacion"]`, compartiendo
+   `v` con `_anomalias_satelitales` para invalidarse junto si las capas
+   cambian de forma. Solo visible en el admin
+   (`GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
+   "Ubicación (IA)" en AdminLeads.tsx) — nunca en la ficha pública ni en
+   el PDF; si algún día eso cambia, el disclaimer tendría que ser mucho
+   más visible que hoy.
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado
@@ -248,8 +274,10 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
   feature queda simplemente apagada, no rompe nada): MINELINK_COPERNICUS=1,
   CDSE_CLIENT_ID, CDSE_CLIENT_SECRET (Dashboard de dataspace.copernicus.eu → User Settings →
   OAuth Clients — cuenta gratis, nivel "General user" con 10,000 Processing Units/mes,
-  ~20-25 PU por concesión completa, alcanza para cientos de concesiones al mes). Vercel:
-  VITE_API_URL_WEB y VITE_API_URL_NATIVE.
+  ~20-25 PU por concesión completa, alcanza para cientos de concesiones al mes). Para que la
+  IA interprete esas capas (julio 2026, opcional, solo admin — ver interpretacion_ubicacion.py):
+  MINELINK_INTERPRETACION_UBICACION=1 (además de MINELINK_COPERNICUS=1 y GEMINI_API_KEY, que
+  ya debería estar puesta para el asesor). Vercel: VITE_API_URL_WEB y VITE_API_URL_NATIVE.
 - **UptimeRobot** visita /health cada 5 min: mantiene despierto el plan gratuito de Render y
   alerta por correo si algo cae.
 - El APK de Android apunta al backend público. Tras cambios de frontend, el ciclo completo es:
@@ -387,6 +415,9 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── copernicus.py           ← anomalías espectrales minerales (Sentinel-2 vía Copernicus
 │   │                              Data Space Ecosystem) sobre el polígono real de la concesión —
 │   │                              DESACTIVADO por defecto (MINELINK_COPERNICUS=1 + credenciales)
+│   ├── interpretacion_ubicacion.py ← lee las capas de Copernicus con Gemini (visión) y
+│   │                              escribe una interpretación en texto — SOLO admin, nunca
+│   │                              público (MINELINK_INTERPRETACION_UBICACION=1)
 │   ├── uploads_config.py       ← categorías de archivos + equivalencias + fotos de perfil
 │   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
 │   ├── asesor.py                ← asesor público: retrieval (context/) + generación
