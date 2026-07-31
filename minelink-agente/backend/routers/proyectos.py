@@ -604,6 +604,67 @@ def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> 
         db.close()
 
 
+def _interpretacion_desde_cache(operacion: models.Operacion) -> Optional[dict]:
+    cache = (operacion.datos_formalizacion_json or {}).get("_interpretacion_ubicacion")
+    return cache if isinstance(cache, dict) else None
+
+
+def _interpretacion_necesita_refresco(
+    operacion: models.Operacion, cache_anomalias: Optional[dict]
+) -> bool:
+    """Independiente de si las capas de Copernicus en sí necesitan
+    refrescarse -- julio 2026, hallazgo real: proyectos que YA tenían sus
+    6 capas generadas antes de agregar interpretacion_ubicacion.py nunca
+    la recibían, porque _anomalias_necesita_refresco() daba False (las
+    capas seguían frescas) y por lo tanto _refrescar_anomalias_en_segundo_plano
+    (donde vive la generación de la interpretación) nunca se agendaba.
+    Si hay capas pero no hay interpretación (o quedó de una versión
+    vieja de las capas), hace falta generarla -- pero LEYENDO los PNG que
+    ya están en storage, sin volver a gastar créditos de Sentinel Hub
+    pidiéndolas de nuevo (ver _refrescar_interpretacion_en_segundo_plano)."""
+    if not cache_anomalias:
+        return False
+    interpretacion = _interpretacion_desde_cache(operacion)
+    if not interpretacion:
+        return True
+    return interpretacion.get("v") != cache_anomalias.get("v")
+
+
+def _refrescar_interpretacion_en_segundo_plano(operacion_id: str) -> None:
+    db = database.SessionLocal()
+    try:
+        operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+        if operacion is None:
+            return
+        cache_anomalias = _anomalias_desde_cache(operacion)
+        if not cache_anomalias:
+            return
+        capas: dict[str, bytes] = {}
+        for nombre in cache_anomalias["capas"]:
+            contenido = storage.leer("anomalias_satelitales", f"{operacion_id}_{nombre}.png")
+            if contenido:
+                capas[nombre] = contenido
+        if not capas:
+            return
+        interpretacion = interpretacion_ubicacion.generar_interpretacion(
+            capas, operacion.mineral or "", operacion.region or ""
+        )
+        if not interpretacion:
+            return
+        datos = operacion.datos_formalizacion_json or {}
+        operacion.datos_formalizacion_json = {
+            **datos,
+            "_interpretacion_ubicacion": {
+                "texto": interpretacion,
+                "generado_en": date.today().isoformat(),
+                "v": cache_anomalias.get("v"),
+            },
+        }
+        db.commit()
+    finally:
+        db.close()
+
+
 @router.get("/{operacion_id}", response_model=schemas.ProyectoDetalleOut)
 def detalle_proyecto(
     operacion_id: str, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
@@ -742,10 +803,22 @@ def detalle_proyecto(
             _refrescar_reinfo_en_segundo_plano, operacion.id, codigo_reinfo
         )
     poligono_concesion = ((geocatmin_cache or {}).get("concesion") or {}).get("poligono")
+    anomalias_cache = _anomalias_desde_cache(operacion)
     if _anomalias_necesita_refresco(operacion, poligono_concesion):
+        # Este camino YA genera la interpretación de una (ver
+        # _refrescar_anomalias_en_segundo_plano) usando los PNG recién
+        # calculados en memoria -- no hace falta agendar el refresco de
+        # abajo también.
         background_tasks.add_task(
             _refrescar_anomalias_en_segundo_plano, operacion.id, poligono_concesion
         )
+    elif _interpretacion_necesita_refresco(operacion, anomalias_cache):
+        # Las capas ya están frescas (generadas antes de que existiera
+        # interpretacion_ubicacion.py, o en una visita anterior) pero
+        # todavía no hay interpretación -- se genera aparte, leyendo los
+        # PNG ya guardados en storage, sin gastar créditos de Sentinel
+        # Hub de nuevo.
+        background_tasks.add_task(_refrescar_interpretacion_en_segundo_plano, operacion.id)
 
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),
@@ -772,13 +845,13 @@ def detalle_proyecto(
         ),
         anomalias_satelitales=(
             {
-                "bbox": cache_anomalias["bbox"],
+                "bbox": anomalias_cache["bbox"],
                 "capas": {
                     nombre: f"/proyectos/{operacion_id}/anomalias/{nombre}.png"
-                    for nombre in cache_anomalias["capas"]
+                    for nombre in anomalias_cache["capas"]
                 },
             }
-            if (cache_anomalias := _anomalias_desde_cache(operacion))
+            if anomalias_cache
             else None
         ),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),

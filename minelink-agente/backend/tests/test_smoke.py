@@ -1754,6 +1754,55 @@ def test_mapa_cotejo_no_revienta_si_el_pin_no_cae_en_concesion():
     assert resp.status_code == 404  # sin red en tests — pero JAMÁS 500
 
 
+def test_ficha_genera_interpretacion_para_capas_ya_cacheadas_sin_regenerarlas(monkeypatch):
+    # julio 2026, hallazgo real en producción: un proyecto que ya tenía
+    # sus 6 capas de Copernicus generadas ANTES de que existiera
+    # interpretacion_ubicacion.py nunca recibía la interpretación, porque
+    # las capas seguían "frescas" (no necesitaban refrescarse) y por lo
+    # tanto _refrescar_anomalias_en_segundo_plano -- donde vivía la única
+    # llamada a Gemini -- nunca se agendaba. Visitar la ficha ahora debe
+    # agendar el camino NUEVO e independiente (lee los PNG ya guardados,
+    # no vuelve a gastar créditos de Sentinel Hub) en vez de repetir la
+    # generación completa de las capas.
+    import copernicus
+    import routers.proyectos as proyectos_router
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="interpretacionya"))
+    _hacer_apto_inversionistas(diag["id"], "interpretacionya")
+
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_anomalias_satelitales": {
+            "bbox": [-77.0, -12.0, -76.9, -11.9],
+            "generado_en": date.today().isoformat(),
+            "v": copernicus.VERSION_CACHE,
+            "capas": ["oxidos_de_hierro", "coincidencias"],
+        },
+        # sin _interpretacion_ubicacion todavía -- es justo el caso real
+    }
+    db.commit()
+    db.close()
+
+    llamadas = {"anomalias": 0, "interpretacion": 0}
+    monkeypatch.setattr(
+        proyectos_router,
+        "_refrescar_anomalias_en_segundo_plano",
+        lambda *a, **kw: llamadas.__setitem__("anomalias", llamadas["anomalias"] + 1),
+    )
+    monkeypatch.setattr(
+        proyectos_router,
+        "_refrescar_interpretacion_en_segundo_plano",
+        lambda *a, **kw: llamadas.__setitem__("interpretacion", llamadas["interpretacion"] + 1),
+    )
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 200
+    assert llamadas == {"anomalias": 0, "interpretacion": 1}
+
+
 def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     # Regresión (julio 2026, reportado como "se demora un montón" al abrir
     # un proyecto): antes GEOCATMIN/REINFO se consultaban EN VIVO dentro de
