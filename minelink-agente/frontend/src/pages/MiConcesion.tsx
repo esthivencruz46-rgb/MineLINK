@@ -29,7 +29,7 @@ import type { MineroPerfil } from "../types/minero";
  * 2 todavía no opera, no tiene nada que producir que declarar). */
 export function MiConcesion() {
   useTitulo("Mi concesión");
-  const { authFetch, logout } = useMineroAuth();
+  const { authFetch, logout, token } = useMineroAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [perfil, setPerfil] = useState<MineroPerfil | null>(null);
@@ -126,7 +126,7 @@ export function MiConcesion() {
         </p>
       )}
 
-      <ToggleBiometria />
+      <ToggleBiometria rol="minero" token={token} />
 
       {/* Franja superior: Tus datos + (si ya está publicado) el aviso de
           visibilidad para inversionistas, lado a lado. */}

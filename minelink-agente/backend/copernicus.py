@@ -57,7 +57,7 @@ from io import BytesIO
 from typing import Optional
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from sentinelhub import BBox, CRS, DataCollection, MimeType, SentinelHubRequest, SHConfig
 
 _DESACTIVADO = os.environ.get("MINELINK_COPERNICUS") != "1"
@@ -132,12 +132,14 @@ NOMBRES_CAPAS = [*_INDICES.keys(), "combinado", "coincidencias"]
 
 # Sube cuando cambia qué guarda `generar_capas` (ej. se agregó
 # "coincidencias", y luego "combinado" dejó de traer su propia foto de
-# fondo — julio 2026) — es lo único que fuerza un refresco inmediato en
-# `_anomalias_necesita_refresco` (routers/proyectos.py); sin esto, el
-# caché ya generado con la forma vieja se sigue sirviendo tal cual hasta
-# los DIAS_REFRESCO (90 días), mismo patrón que ya usan geocatmin/reinfo
-# para sus propios cachés versionados.
-VERSION_CACHE = 3
+# fondo — julio 2026; v4 agosto 2026: las 6 capas ahora dibujan el borde
+# de la concesión encima, ver _con_borde_poligono) — es lo único que
+# fuerza un refresco inmediato en `_anomalias_necesita_refresco`
+# (routers/proyectos.py); sin esto, el caché ya generado con la forma
+# vieja se sigue sirviendo tal cual hasta los DIAS_REFRESCO (90 días),
+# mismo patrón que ya usan geocatmin/reinfo para sus propios cachés
+# versionados.
+VERSION_CACHE = 4
 
 # Violeta: no lo usa ninguno de los 4 índices individuales (rojo/azul/
 # naranja/amarillo), para que la coincidencia se distinga a simple vista
@@ -160,13 +162,52 @@ def _capa_coincidencias(conteo: np.ndarray) -> Image.Image:
 def bbox_de_poligono(poligono: list) -> Optional[tuple]:
     """xmin,ymin,xmax,ymax en WGS84 a partir de los anillos ArcGIS
     [lng,lat] de geocatmin (mismo polígono que ya dibuja el mapa) — None
-    si el polígono viene vacío/mal formado."""
+    si el polígono viene vacío/mal formado. Al ser el bounding box exacto
+    del polígono, la imagen SIEMPRE encierra la concesión completa -- pero
+    como una concesión casi nunca es un rectángulo perfecto, sin dibujar
+    el contorno encima (ver _con_borde_poligono) no hay forma de saber
+    qué parte de la imagen cae DENTRO del polígono real y qué parte es
+    solo el margen del bounding box (agosto 2026, reportado en vivo:
+    "no se puede distinguir en qué área del polígono catastral")."""
     if not poligono or not poligono[0]:
         return None
     anillo = poligono[0]
     lngs = [p[0] for p in anillo]
     lats = [p[1] for p in anillo]
     return min(lngs), min(lats), max(lngs), max(lats)
+
+
+# Mismo color que geocatmin._COLOR_BORDE_CONCESION -- una sola convención
+# visual para "esto es el borde de la concesión" en toda la app, sea cual
+# sea la capa (Copernicus o GEOCATMIN) que lo dibuje.
+_COLOR_BORDE_CONCESION = (0, 255, 255, 255)
+
+
+def _con_borde_poligono(imagen: Image.Image, bbox_coords: tuple, poligono: list) -> Image.Image:
+    """Dibuja el contorno (sin relleno) de la concesión sobre una capa ya
+    recortada al bbox de esa misma concesión -- agosto 2026, pedido
+    explícito de Esthiven: las 6 capas de Copernicus se veían "solas",
+    sin ninguna referencia de qué parte de la imagen es la concesión real
+    y qué parte es solo el margen del bounding box. Mismo mecanismo que
+    geocatmin._con_borde_concesion, adaptado al tamaño fijo 800x800 de
+    Copernicus (`_TAMANO_PX`) en vez del rectángulo panorámico del mapa
+    de cotejo."""
+    if not poligono:
+        return imagen
+    xmin, ymin, xmax, ymax = bbox_coords
+    ancho, alto = imagen.size
+    dibujo = ImageDraw.Draw(imagen)
+    for anillo in poligono:
+        puntos = [
+            (
+                (lng - xmin) / (xmax - xmin) * ancho,
+                (ymax - lat) / (ymax - ymin) * alto,
+            )
+            for lng, lat in anillo
+        ]
+        if len(puntos) >= 2:
+            dibujo.line(puntos + [puntos[0]], fill=_COLOR_BORDE_CONCESION, width=3)
+    return imagen
 
 
 def _config() -> Optional[SHConfig]:
@@ -258,7 +299,10 @@ def generar_capas(poligono: list) -> Optional[dict]:
 
             rgba = np.zeros((*mascara.shape, 4), dtype=np.uint8)
             rgba[mascara] = [*info["color"], 255]
-            capas[nombre] = _png_bytes(Image.fromarray(rgba, mode="RGBA"))
+            capa_imagen = _con_borde_poligono(
+                Image.fromarray(rgba, mode="RGBA"), bbox_coords, poligono
+            )
+            capas[nombre] = _png_bytes(capa_imagen)
 
             if lienzo_combinado is None:
                 lienzo_combinado = Image.new("RGBA", (mascara.shape[1], mascara.shape[0]), (0, 0, 0, 0))
@@ -273,8 +317,12 @@ def generar_capas(poligono: list) -> Optional[dict]:
                 mascara_uint8 if conteo_coincidencias is None else conteo_coincidencias + mascara_uint8
             )
 
-        capas["combinado"] = _png_bytes(lienzo_combinado)
-        capas["coincidencias"] = _png_bytes(_capa_coincidencias(conteo_coincidencias))
+        capas["combinado"] = _png_bytes(
+            _con_borde_poligono(lienzo_combinado, bbox_coords, poligono)
+        )
+        capas["coincidencias"] = _png_bytes(
+            _con_borde_poligono(_capa_coincidencias(conteo_coincidencias), bbox_coords, poligono)
+        )
         return {
             "bbox": list(bbox_coords),
             "generado_en": date.today().isoformat(),

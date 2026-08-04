@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { BASE_URL } from "../config/apiUrl";
+import { biometriaActivada, guardarTokenBiometrico } from "../utils/biometria";
 
 interface MineroAuthContextValue {
   token: string | null;
@@ -50,6 +51,11 @@ export function MineroAuthProvider({ children }: { children: ReactNode }) {
     }
     const data = await resp.json();
     setToken(data.access_token as string);
+    // Si la huella ya estaba activada, refresca también el token que
+    // puede "traer de vuelta" -- si no, quedaría atado para siempre al
+    // token del momento en que se activó, sin renovarse con logins
+    // posteriores por contraseña.
+    if (biometriaActivada()) guardarTokenBiometrico("minero", data.access_token as string);
   }
 
   function logout() {

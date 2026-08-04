@@ -92,3 +92,40 @@ def test_generar_capas_combinado_transparente_donde_ningun_indice_detecto_nada(m
     assert alpha_union.any()  # sanity check: la mezcla aleatoria sí generó algo
     assert bool((alpha_combinado[~alpha_union] == 0).all())
     assert bool((alpha_combinado[alpha_union] > 0).all())
+
+
+def test_con_borde_poligono_dibuja_el_contorno_sin_rellenar():
+    # agosto 2026, reportado en vivo: "las capas se presentan solo ellas
+    # y no se puede distinguir en qué área del polígono catastral" -- las
+    # 6 capas ahora dibujan el contorno de la concesión encima, para que
+    # se vea qué cae DENTRO del polígono real y qué es solo el margen del
+    # bounding box. Un rombo con vértices en la mitad de cada lado del
+    # bbox (no un rectángulo pegado a los 4 bordes) para que el contorno
+    # NO coincida por casualidad con el borde de la imagen misma.
+    imagen = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    bbox_coords = (-77.51, -8.02, -77.48, -7.99)  # cuadrado de 10x10 px
+    # Vértice superior en (px=5, py=0), derecho en (10,5), inferior en
+    # (5,10), izquierdo en (0,5).
+    poligono = [
+        [
+            [-77.495, -7.99],  # arriba
+            [-77.48, -8.005],  # derecha
+            [-77.495, -8.02],  # abajo
+            [-77.51, -8.005],  # izquierda
+            [-77.495, -7.99],
+        ]
+    ]
+    resultado = copernicus._con_borde_poligono(imagen, bbox_coords, poligono)
+    pixeles = np.array(resultado)
+    color_borde = tuple(copernicus._COLOR_BORDE_CONCESION)
+
+    assert tuple(pixeles[0, 5]) == color_borde  # vértice de arriba
+    # El centro de la imagen es el INTERIOR del rombo, no su borde -- debe
+    # quedar transparente (confirma que se dibuja un contorno, no un relleno).
+    assert tuple(pixeles[5, 5]) == (0, 0, 0, 0)
+
+
+def test_con_borde_poligono_sin_poligono_no_hace_nada():
+    imagen = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
+    resultado = copernicus._con_borde_poligono(imagen, (-77.51, -8.02, -77.48, -7.99), None)
+    assert np.array(resultado).sum() == 0

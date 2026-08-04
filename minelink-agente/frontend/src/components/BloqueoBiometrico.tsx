@@ -1,26 +1,13 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { BiometricAuth } from "@aparajita/capacitor-biometric-auth";
 import type { PluginListenerHandle } from "@capacitor/core";
 import { Fingerprint } from "lucide-react";
 import { MARCA } from "../config/marca";
+import { biometriaActivada } from "../utils/biometria";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
-
-const CLAVE_ACTIVADA = "minelink_biometria_activada";
-
-/** OPCIONAL, apagado por defecto (agosto 2026, corrección tras probar en
- * un celular real: "debiendo lo de la huella ser opcional no una
- * obligación"). El usuario la prende desde su cuenta — ver
- * ToggleBiometria.tsx. */
-export function biometriaActivada(): boolean {
-  return localStorage.getItem(CLAVE_ACTIVADA) === "1";
-}
-
-export function setBiometriaActivada(activa: boolean): void {
-  if (activa) localStorage.setItem(CLAVE_ACTIVADA, "1");
-  else localStorage.removeItem(CLAVE_ACTIVADA);
-}
 
 /** Bloqueo con huella/Face ID al retomar la app nativa de Android (agosto
  * 2026, pedido explícito de Esthiven: la sesión web se mantiene abierta
@@ -39,6 +26,14 @@ export function setBiometriaActivada(activa: boolean): void {
  *   se acaba de crear en este mismo arranque (recién puso su contraseña),
  *   NO se le pide huella también -- sería pedir dos verificaciones
  *   seguidas por lo mismo.
+ * - Al verificar la huella con éxito, lleva DIRECTO a la cuenta (minero o
+ *   inversionista, según cuál sesión haya) -- no solo esconde el bloqueo
+ *   y deja lo que sea que haya cargado atrás (típicamente la home
+ *   pública, que es donde arranca la app siempre). Reusa `/ingresar` y
+ *   `/ingresar-inversionista`, que YA redirigen solos a la cuenta
+ *   correcta cuando hay token (LoginMinero.tsx/LoginInversionista.tsx) --
+ *   pedido explícito de Esthiven: "quiero que esa huella sea otra forma
+ *   de ingresar a tu usuario... que rápidamente puedas acceder".
  * - "Cerrar sesión" es la salida de emergencia si la huella falla.
  *
  * Bug real encontrado al probar en un celular real (agosto 2026): el
@@ -48,6 +43,7 @@ export function setBiometriaActivada(activa: boolean): void {
  * desbloquear, atrapando al usuario en un loop ("pongo mi huella y no
  * sale nada"). */
 export function BloqueoBiometrico() {
+  const navigate = useNavigate();
   const minero = useMineroAuth();
   const inversionista = useInversionistaAuth();
   const haySesion = Boolean(minero.token || inversionista.token);
@@ -97,6 +93,9 @@ export function BloqueoBiometrico() {
         allowDeviceCredential: true,
       });
       setBloqueado(false);
+      // Lleva directo a la cuenta -- no deja a la persona en la página
+      // pública que haya cargado de fondo al abrir la app.
+      navigate(minero.token ? "/ingresar" : "/ingresar-inversionista");
     } catch {
       setError("No se pudo confirmar tu identidad. Intenta de nuevo.");
     } finally {
@@ -124,9 +123,9 @@ export function BloqueoBiometrico() {
         <Fingerprint size={30} strokeWidth={1.75} aria-hidden />
       </span>
       <div>
-        <p className="font-semibold">Confirma tu identidad</p>
+        <p className="font-semibold">Ingresá con tu huella</p>
         <p className="mt-1 max-w-xs text-sm text-texto-suave dark:text-texto-suave-dark">
-          Tu sesión de {MARCA} sigue abierta — verificala con tu huella o Face ID para continuar.
+          Usá tu huella o Face ID para entrar a tu cuenta de {MARCA}.
         </p>
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
@@ -135,7 +134,7 @@ export function BloqueoBiometrico() {
         disabled={verificando}
         className="min-h-[44px] bg-acento px-6 font-semibold text-white transition hover:bg-acento/90 disabled:pointer-events-none disabled:opacity-50"
       >
-        {verificando ? "Verificando..." : "Verificar identidad"}
+        {verificando ? "Verificando..." : "Ingresar con huella"}
       </button>
       <button
         onClick={cerrarSesion}

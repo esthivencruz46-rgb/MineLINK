@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useTitulo } from "../hooks/useTitulo";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { CampoPassword } from "../components/CampoPassword";
+import { BotonIngresarConHuella } from "../components/BotonIngresarConHuella";
 import { useMineroAuth } from "../context/MineroAuthContext";
 
 export function LoginMinero() {
   useTitulo("Ingresar");
-  const { token, login } = useMineroAuth();
+  const { token, login, establecerToken } = useMineroAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -37,6 +38,13 @@ export function LoginMinero() {
       <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
         Usa el usuario y contraseña que elegiste al registrarte.
       </p>
+      <BotonIngresarConHuella
+        rol="minero"
+        onIngresar={(t) => {
+          establecerToken(t);
+          navigate("/mi-cuenta");
+        }}
+      />
       <form onSubmit={enviar} className="flex flex-col gap-3">
         <input
           className="min-h-[44px] border border-black/10 bg-transparent px-3 transition-colors focus:border-acento focus:outline-none dark:border-white/10"

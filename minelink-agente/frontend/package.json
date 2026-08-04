@@ -13,6 +13,8 @@
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^8.0.2",
     "@capacitor/app": "^6.0.3",
+    "@capacitor/filesystem": "^6.0.4",
+    "@capacitor/share": "^6.0.4",
     "@fontsource/inter": "^5.2.8",
     "esri-leaflet": "^3.0.19",
     "jspdf": "^4.2.1",

@@ -112,11 +112,20 @@ Plataforma web donde un minero artesanal peruano:
       señalar si distintos índices aparecen en zonas DISTINTAS de la
       concesión (ej. "óxidos al norte, arcillas al sur"), sin forzar una
       interpretación geológica que estos datos no permiten.
-      Ambas imágenes de GEOCATMIN llevan el borde de la concesión dibujado
-      encima (`geocatmin._con_borde_concesion`, color cian — no aparece en
-      falso-color natural) porque se recortan por bbox rectangular, no por
-      el polígono real (a diferencia de Copernicus, que sí genera ya
-      recortado al polígono).
+      Las 8 imágenes (2 de GEOCATMIN + 6 de Copernicus) llevan el borde de
+      la concesión dibujado encima, color cian (no aparece en falso-color
+      natural ni en los colores de los índices) — `geocatmin._con_borde_concesion`
+      y `copernicus._con_borde_poligono` respectivamente. Necesario porque
+      TODAS estas imágenes son el bounding box rectangular del polígono
+      (nunca el polígono real recortado en la forma exacta de la
+      concesión, que casi nunca es un rectángulo) — sin el contorno
+      dibujado encima no hay forma de saber qué parte de la imagen es la
+      concesión real y qué parte es solo el margen del bbox (agosto 2026,
+      reportado en vivo para las capas de Copernicus específicamente: "no
+      se puede distinguir en qué área del polígono catastral"; sube
+      `copernicus.VERSION_CACHE` a 4 para que las capas ya generadas se
+      regeneren solas con el borde nuevo, mismo mecanismo que cualquier
+      otro cambio de forma de esas capas).
    Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
    (solo "señal a investigar"), nunca hace una clasificación fina de
    alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen

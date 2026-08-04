@@ -1,3 +1,6 @@
+import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { Share } from "@capacitor/share";
 import { BASE_URL } from "../services/api";
 import { MARCA } from "../config/marca";
 import { INFO_BRECHA } from "../data/brechas";
@@ -729,5 +732,30 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   }
 
   const nombreArchivo = `${MARCA}-${proyecto.nombre_proyecto.replace(/[^a-z0-9]+/gi, "-")}.pdf`;
+
+  // En la app nativa, doc.save() no sirve de nada (agosto 2026, bug real
+  // reportado: "no se genera") -- ese método dispara el truco de
+  // descarga del NAVEGADOR (un <a download> con blob URL simulando un
+  // clic), que depende del gestor de descargas de Chrome/Firefox/etc.
+  // El WebView embebido de Capacitor no tiene eso: el clic no hace nada
+  // visible, sin error. El camino real en una app nativa es escribir el
+  // archivo con Filesystem y abrir la hoja nativa de "Compartir/Guardar"
+  // con Share -- mismo patrón que cualquier app Capacitor que genera un
+  // archivo (documentado así por el propio Capacitor).
+  if (Capacitor.isNativePlatform()) {
+    const base64 = doc.output("datauristring").split(",")[1];
+    const { uri } = await Filesystem.writeFile({
+      path: nombreArchivo,
+      data: base64,
+      directory: Directory.Cache,
+    });
+    await Share.share({
+      title: nombreArchivo,
+      dialogTitle: "Guardar o compartir tu PDF",
+      url: uri,
+    });
+    return;
+  }
+
   doc.save(nombreArchivo);
 }

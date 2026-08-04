@@ -35,7 +35,7 @@ const PASOS_SEGUIMIENTO = [
 
 export function MiCuentaInversionista() {
   useTitulo("Mi cuenta de inversionista");
-  const { authFetch, logout } = useInversionistaAuth();
+  const { authFetch, logout, token } = useInversionistaAuth();
   const navigate = useNavigate();
   const [perfil, setPerfil] = useState<PerfilInversionista | null>(null);
   const [cargando, setCargando] = useState(true);
@@ -91,7 +91,7 @@ export function MiCuentaInversionista() {
         </button>
       </div>
 
-      <ToggleBiometria />
+      <ToggleBiometria rol="inversionista" token={token} />
 
       {/* SEGUIMIENTO DEL INTERÉS */}
       <div className="border border-black/10 p-6 dark:border-white/10">

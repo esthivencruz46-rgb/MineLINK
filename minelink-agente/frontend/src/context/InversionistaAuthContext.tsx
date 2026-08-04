@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 import { BASE_URL } from "../config/apiUrl";
+import { biometriaActivada, guardarTokenBiometrico } from "../utils/biometria";
 
 interface InversionistaAuthContextValue {
   token: string | null;
@@ -48,6 +49,7 @@ export function InversionistaAuthProvider({ children }: { children: ReactNode })
     }
     const data = await resp.json();
     setToken(data.access_token as string);
+    if (biometriaActivada()) guardarTokenBiometrico("inversionista", data.access_token as string);
   }
 
   function logout() {
