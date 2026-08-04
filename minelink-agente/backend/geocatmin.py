@@ -429,6 +429,144 @@ def _exportar_capa(url: str, bbox: tuple, layers: Optional[str] = None) -> Optio
     return Image.open(BytesIO(r.content)).convert("RGBA")
 
 
+def resumen_para_ia(cache: Optional[dict]) -> Optional[dict]:
+    """Del dict que devuelve `consultar()` (o su versión ya cacheada en la
+    operación), arma el resumen de texto -- litología a la mejor escala
+    disponible + fallas cercanas -- que interpretacion_ubicacion.py usa
+    como contexto YA VERIFICADO (agosto 2026, pedido explícito de
+    Esthiven: la interpretación de IA debe cruzar la litología/fallas
+    oficiales, no solo las capas de Copernicus). No hace falta que Gemini
+    "lea" un mapa para esto -- ya es dato estructurado de GEOCATMIN, así
+    que viaja como texto, nunca como imagen. None si no hay nada útil que
+    resumir (sin geocatmin consultado todavía, o consulta vacía)."""
+    if not isinstance(cache, dict):
+        return None
+    concesion = cache.get("concesion") or {}
+    geologia_50k = cache.get("geologia_50k") or {}
+    geologia_100k = cache.get("geologia") or {}
+    litologia = None
+    escala_litologia = None
+    # La 50K es más detallada y SOLO existe donde INGEMMET tiene carta a
+    # esa escala (ver geocatmin.consultar) -- se prefiere cuando hay dato,
+    # la 100K (cobertura garantizada de todo el país) es el respaldo.
+    if geologia_50k.get("litologia") or geologia_50k.get("descripcion"):
+        litologia = geologia_50k.get("litologia") or geologia_50k.get("descripcion")
+        escala_litologia = "1:50,000"
+    elif geologia_100k.get("descripcion"):
+        litologia = geologia_100k.get("descripcion")
+        escala_litologia = "1:100,000"
+    fallas = cache.get("fallas") or {}
+    if not (concesion or litologia or fallas.get("escala")):
+        return None
+    return {
+        "concesion_nombre": concesion.get("nombre"),
+        "concesion_hectareas": concesion.get("hectareas"),
+        "litologia": litologia,
+        "escala_litologia": escala_litologia,
+        "fallas_escala": fallas.get("escala"),
+        "fallas_items": [f["nombre"] for f in fallas.get("items") or [] if f.get("nombre")],
+    }
+
+
+_PRODUCTO_SATELITAL = f"{_BASE}/PRODUCTO_SATELITAL"
+# Color poco común en imágenes satelitales/falso-color (que suelen ser
+# rojos, verdes, amarillos) -- para que el borde de la concesión se
+# distinga siempre del contenido de la capa, sin importar cuál sea.
+_COLOR_BORDE_CONCESION = (0, 255, 255, 255)
+
+
+def _exportar_imagen_server(url: str, bbox: tuple) -> Optional["Image.Image"]:
+    """Como `_exportar_capa` pero para un ImageServer de ArcGIS (endpoint
+    `/exportImage`, sin `layers` -- un ImageServer no tiene capas, es un
+    único producto) -- usado para los productos satelitales ya procesados
+    de GEOCATMIN (PRODUCTO_SATELITAL/..., ej. ASTER 9-3-1)."""
+    from PIL import Image
+    from io import BytesIO
+
+    params = {
+        "bbox": ",".join(str(v) for v in bbox),
+        "bboxSR": 4326,
+        "imageSR": 4326,
+        "size": f"{_ANCHO_MAPA},{_ALTO_MAPA}",
+        "format": "png32",
+        "f": "image",
+    }
+    r = requests.get(f"{url}/exportImage", params=params, timeout=_TIMEOUT)
+    r.raise_for_status()
+    return Image.open(BytesIO(r.content)).convert("RGBA")
+
+
+def _con_borde_concesion(
+    imagen: "Image.Image", bbox: tuple, poligono: Optional[list]
+) -> "Image.Image":
+    """Dibuja el contorno (sin relleno) de la concesión sobre una imagen ya
+    recortada al bbox -- para que quien mire la imagen (Gemini Vision,
+    interpretacion_ubicacion.py) pueda distinguir qué cae DENTRO de la
+    concesión de lo que es solo el margen del recorte."""
+    if not poligono:
+        return imagen
+    from PIL import ImageDraw
+
+    xmin, ymin, xmax, ymax = bbox
+    dibujo = ImageDraw.Draw(imagen)
+    for anillo in poligono:
+        puntos = [
+            (
+                (lng - xmin) / (xmax - xmin) * _ANCHO_MAPA,
+                (ymax - lat) / (ymax - ymin) * _ALTO_MAPA,
+            )
+            for lng, lat in anillo
+        ]
+        if len(puntos) >= 2:
+            dibujo.line(puntos + [puntos[0]], fill=_COLOR_BORDE_CONCESION, width=4)
+    return imagen
+
+
+def imagenes_analisis_ia(
+    coords: Optional[str], poligono: Optional[list]
+) -> Optional[dict[str, bytes]]:
+    """ASTER 9-3-1 (para distinguir roca expuesta de vegetación) y las
+    Anomalías Espectrales oficiales de GEOCATMIN, recortadas sobre la
+    concesión y con su borde dibujado encima -- agosto 2026, pedido
+    explícito de Esthiven para que interpretacion_ubicacion.py (Gemini
+    Vision) las cruce contra las capas de Copernicus. Mejor esfuerzo,
+    igual que el resto del módulo: cada capa que falle simplemente no
+    aparece en el dict devuelto, nunca tumba a las demás. None si está
+    desactivado, sin coords, o ninguna de las dos capas pudo obtenerse."""
+    if _DESACTIVADO or not coords:
+        return None
+    from io import BytesIO
+
+    try:
+        bbox = _bbox_de(coords, poligono)
+    except (ValueError, AttributeError):
+        return None
+
+    resultado: dict[str, bytes] = {}
+
+    try:
+        aster = _exportar_imagen_server(f"{_PRODUCTO_SATELITAL}/MD_ASTER_931/ImageServer", bbox)
+        if aster is not None:
+            aster = _con_borde_concesion(aster, bbox, poligono)
+            salida = BytesIO()
+            aster.save(salida, format="PNG")
+            resultado["aster_931"] = salida.getvalue()
+    except (requests.RequestException, OSError, ValueError):
+        pass
+
+    try:
+        anomalia = _exportar_capa(f"{_BASE}/SERV_ANOMALIA_ESPECTRAL/MapServer", bbox, "show:0")
+        if anomalia is not None:
+            anomalia = _con_borde_concesion(anomalia, bbox, poligono)
+            salida = BytesIO()
+            anomalia.save(salida, format="PNG")
+            resultado["anomalia_espectral"] = salida.getvalue()
+    except (requests.RequestException, OSError, ValueError):
+        pass
+
+    return resultado or None
+
+
 def imagen_mapa_cotejo(coords: Optional[str], poligono: Optional[list]) -> Optional[bytes]:
     """Compone satélite (Esri) + catastro minero + geología 100K + el pin
     de la operación en una sola imagen JPEG — usada como portada del PDF

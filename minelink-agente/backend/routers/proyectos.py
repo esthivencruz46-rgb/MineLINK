@@ -557,7 +557,9 @@ def _anomalias_necesita_refresco(operacion: models.Operacion, poligono: Optional
     return date.today() - generado > timedelta(days=copernicus.DIAS_REFRESCO)
 
 
-def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> None:
+def _refrescar_anomalias_en_segundo_plano(
+    operacion_id: str, poligono: list, coords: Optional[str] = None
+) -> None:
     resultado = copernicus.generar_capas(poligono)
     if resultado is None:
         return
@@ -580,23 +582,33 @@ def _refrescar_anomalias_en_segundo_plano(operacion_id: str, poligono: list) -> 
                 "capas": list(resultado["capas"].keys()),
             },
         }
-        # Interpretación en lenguaje natural de las 6 capas, solo para uso
-        # del admin (ver interpretacion_ubicacion.py) — se genera acá
-        # porque es el único momento en que los bytes PNG están
-        # disponibles en memoria (después, solo viven en storage). Mejor
-        # esfuerzo: si Gemini falla o está desactivado, simplemente no se
-        # guarda nada nuevo, sin afectar las capas ya guardadas arriba.
+        # Interpretación en lenguaje natural, solo para uso del admin (ver
+        # interpretacion_ubicacion.py) — se genera acá porque es el único
+        # momento en que los bytes PNG de Copernicus están disponibles en
+        # memoria (después, solo viven en storage). Cruza además litología/
+        # fallas (texto) + ASTER 9-3-1/Anomalías Espectrales (imágenes) de
+        # GEOCATMIN, agosto 2026 — mejor esfuerzo, si algo de esto falla o
+        # Gemini está desactivado, simplemente no se guarda nada nuevo, sin
+        # afectar las capas ya guardadas arriba.
         interpretacion = interpretacion_ubicacion.generar_interpretacion(
-            resultado["capas"], operacion.mineral or "", operacion.region or ""
+            resultado["capas"],
+            operacion.mineral or "",
+            operacion.region or "",
+            contexto_geocatmin=geocatmin.resumen_para_ia(datos.get("_geocatmin")),
+            imagenes_geocatmin=geocatmin.imagenes_analisis_ia(coords, poligono),
         )
         if interpretacion:
-            # Comparte "v" con _anomalias_satelitales a propósito: si las
-            # capas se regeneran (o cambia su forma, ver VERSION_CACHE),
-            # la interpretación vieja queda obsoleta al mismo tiempo.
+            # "v" comparte valor con _anomalias_satelitales a propósito: si
+            # las capas de Copernicus se regeneran (o cambia su forma, ver
+            # VERSION_CACHE), la interpretación vieja queda obsoleta al
+            # mismo tiempo. "v_prompt" es independiente (ver
+            # interpretacion_ubicacion.VERSION_INTERPRETACION): cambia
+            # cuando cambia el MÉTODO de análisis sin que cambien las capas.
             nuevos_datos["_interpretacion_ubicacion"] = {
                 "texto": interpretacion,
                 "generado_en": resultado["generado_en"],
                 "v": resultado["v"],
+                "v_prompt": interpretacion_ubicacion.VERSION_INTERPRETACION,
             }
         operacion.datos_formalizacion_json = nuevos_datos
         db.commit()
@@ -627,10 +639,17 @@ def _interpretacion_necesita_refresco(
     interpretacion = _interpretacion_desde_cache(operacion)
     if not interpretacion:
         return True
-    return interpretacion.get("v") != cache_anomalias.get("v")
+    if interpretacion.get("v") != cache_anomalias.get("v"):
+        return True
+    # Interpretación generada con un método/prompt anterior (ver
+    # interpretacion_ubicacion.VERSION_INTERPRETACION) — se regenera
+    # aunque las capas de Copernicus en sí sigan frescas.
+    return interpretacion.get("v_prompt") != interpretacion_ubicacion.VERSION_INTERPRETACION
 
 
-def _refrescar_interpretacion_en_segundo_plano(operacion_id: str) -> None:
+def _refrescar_interpretacion_en_segundo_plano(
+    operacion_id: str, coords: Optional[str] = None, poligono: Optional[list] = None
+) -> None:
     db = database.SessionLocal()
     try:
         operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
@@ -646,17 +665,22 @@ def _refrescar_interpretacion_en_segundo_plano(operacion_id: str) -> None:
                 capas[nombre] = contenido
         if not capas:
             return
+        datos = operacion.datos_formalizacion_json or {}
         interpretacion = interpretacion_ubicacion.generar_interpretacion(
-            capas, operacion.mineral or "", operacion.region or ""
+            capas,
+            operacion.mineral or "",
+            operacion.region or "",
+            contexto_geocatmin=geocatmin.resumen_para_ia(datos.get("_geocatmin")),
+            imagenes_geocatmin=geocatmin.imagenes_analisis_ia(coords, poligono),
         )
         if not interpretacion:
             return
-        datos = operacion.datos_formalizacion_json or {}
         operacion.datos_formalizacion_json = {
             **datos,
             "_interpretacion_ubicacion": {
                 "texto": interpretacion,
                 "generado_en": date.today().isoformat(),
+                "v_prompt": interpretacion_ubicacion.VERSION_INTERPRETACION,
                 "v": cache_anomalias.get("v"),
             },
         }
@@ -810,15 +834,23 @@ def detalle_proyecto(
         # calculados en memoria -- no hace falta agendar el refresco de
         # abajo también.
         background_tasks.add_task(
-            _refrescar_anomalias_en_segundo_plano, operacion.id, poligono_concesion
+            _refrescar_anomalias_en_segundo_plano,
+            operacion.id,
+            poligono_concesion,
+            lead.ubicacion_coords,
         )
     elif _interpretacion_necesita_refresco(operacion, anomalias_cache):
         # Las capas ya están frescas (generadas antes de que existiera
-        # interpretacion_ubicacion.py, o en una visita anterior) pero
-        # todavía no hay interpretación -- se genera aparte, leyendo los
-        # PNG ya guardados en storage, sin gastar créditos de Sentinel
-        # Hub de nuevo.
-        background_tasks.add_task(_refrescar_interpretacion_en_segundo_plano, operacion.id)
+        # interpretacion_ubicacion.py, con un método de análisis anterior,
+        # o en una visita anterior) pero la interpretación está desactualizada
+        # -- se genera aparte, leyendo los PNG de Copernicus ya guardados en
+        # storage, sin gastar créditos de Sentinel Hub de nuevo.
+        background_tasks.add_task(
+            _refrescar_interpretacion_en_segundo_plano,
+            operacion.id,
+            lead.ubicacion_coords,
+            poligono_concesion,
+        )
 
     return schemas.ProyectoDetalleOut(
         **base.model_dump(),

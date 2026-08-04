@@ -1804,6 +1804,58 @@ def test_ficha_genera_interpretacion_para_capas_ya_cacheadas_sin_regenerarlas(mo
     assert llamadas == {"anomalias": 0, "interpretacion": 1}
 
 
+def test_ficha_regenera_interpretacion_con_metodo_de_analisis_desactualizado(monkeypatch):
+    # agosto 2026: una interpretación ya generada con un prompt/metodología
+    # anterior (v_prompt distinto de interpretacion_ubicacion.VERSION_INTERPRETACION,
+    # o directamente sin ese campo -- caso de las interpretaciones de julio
+    # 2026) debe regenerarse igual que el caso "sin interpretación todavía",
+    # también por el camino barato que reutiliza los PNG de Copernicus ya
+    # guardados en vez de repetir la generación completa de las capas.
+    import copernicus
+    import routers.proyectos as proyectos_router
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="interpretacionvieja"))
+    _hacer_apto_inversionistas(diag["id"], "interpretacionvieja")
+
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_anomalias_satelitales": {
+            "bbox": [-77.0, -12.0, -76.9, -11.9],
+            "generado_en": date.today().isoformat(),
+            "v": copernicus.VERSION_CACHE,
+            "capas": ["oxidos_de_hierro", "coincidencias"],
+        },
+        "_interpretacion_ubicacion": {
+            "texto": "Interpretación vieja, solo con Copernicus.",
+            "generado_en": date.today().isoformat(),
+            "v": copernicus.VERSION_CACHE,
+            # Sin "v_prompt" -- así se veían las interpretaciones antes de
+            # que existiera el campo (julio 2026).
+        },
+    }
+    db.commit()
+    db.close()
+
+    llamadas = {"anomalias": 0, "interpretacion": 0}
+    monkeypatch.setattr(
+        proyectos_router,
+        "_refrescar_anomalias_en_segundo_plano",
+        lambda *a, **kw: llamadas.__setitem__("anomalias", llamadas["anomalias"] + 1),
+    )
+    monkeypatch.setattr(
+        proyectos_router,
+        "_refrescar_interpretacion_en_segundo_plano",
+        lambda *a, **kw: llamadas.__setitem__("interpretacion", llamadas["interpretacion"] + 1),
+    )
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 200
+    assert llamadas == {"anomalias": 0, "interpretacion": 1}
+
+
 def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     # Regresión (julio 2026, reportado como "se demora un montón" al abrir
     # un proyecto): antes GEOCATMIN/REINFO se consultaban EN VIVO dentro de

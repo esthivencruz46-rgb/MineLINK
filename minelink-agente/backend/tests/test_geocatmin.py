@@ -180,3 +180,54 @@ def test_consultar_incluye_fallas_en_el_resultado(monkeypatch):
     # reventar ni contaminarse con la respuesta de fallas.
     assert resultado["concesion"] is None
     assert resultado["geologia_50k"] is None
+
+
+# ---------- resumen_para_ia (agosto 2026) ----------
+
+
+def test_resumen_para_ia_none_sin_cache():
+    assert geocatmin.resumen_para_ia(None) is None
+    assert geocatmin.resumen_para_ia({}) is None
+
+
+def test_resumen_para_ia_prefiere_litologia_50k_sobre_100k():
+    cache = {
+        "concesion": {"nombre": "Minera Ejemplo", "hectareas": 120},
+        "geologia": {"descripcion": "Descripción genérica 100K"},
+        "geologia_50k": {"litologia": "Andesita porfirítica"},
+        "fallas": {"escala": "50k", "items": [{"nombre": "Falla X", "tipo": "Normal"}]},
+    }
+    resumen = geocatmin.resumen_para_ia(cache)
+    assert resumen["concesion_nombre"] == "Minera Ejemplo"
+    assert resumen["concesion_hectareas"] == 120
+    assert resumen["litologia"] == "Andesita porfirítica"
+    assert resumen["escala_litologia"] == "1:50,000"
+    assert resumen["fallas_escala"] == "50k"
+    assert resumen["fallas_items"] == ["Falla X"]
+
+
+def test_resumen_para_ia_cae_a_100k_sin_50k():
+    cache = {"concesion": None, "geologia": {"descripcion": "Unidad genérica"}, "geologia_50k": None}
+    resumen = geocatmin.resumen_para_ia(cache)
+    assert resumen["litologia"] == "Unidad genérica"
+    assert resumen["escala_litologia"] == "1:100,000"
+
+
+# ---------- imagenes_analisis_ia (agosto 2026) ----------
+
+
+def test_imagenes_analisis_ia_desactivado_por_defecto():
+    # _DESACTIVADO ya quedó fijo en True a nivel de módulo (ver comentario
+    # arriba de este archivo) -- ni siquiera intenta armar el bbox.
+    assert geocatmin.imagenes_analisis_ia("-12.5,-76.7", None) is None
+
+
+def test_imagenes_analisis_ia_none_sin_coords(monkeypatch):
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    assert geocatmin.imagenes_analisis_ia(None, None) is None
+
+
+def test_imagenes_analisis_ia_mejor_esfuerzo_si_fallan_ambas_capas(monkeypatch):
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    with patch("geocatmin.requests.get", side_effect=requests_mod.RequestException("timeout")):
+        assert geocatmin.imagenes_analisis_ia("-12.5,-76.7", None) is None

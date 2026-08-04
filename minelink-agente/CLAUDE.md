@@ -88,42 +88,74 @@ Plataforma web donde un minero artesanal peruano:
    geología la tapa en silencio cuando ambas están activas.
    **Interpretación de esas capas por IA** (`backend/interpretacion_ubicacion.py`,
    julio 2026, pedido explícito de Esthiven — "para mi propio uso", no
-   para inversionistas): solo interpreta Copernicus, nunca GEOCATMIN
-   (catastro/geología/fallas ya llegan como datos estructurados de
-   INGEMMET — el backend arma el texto exacto sin que nadie tenga que
-   "mirar" una imagen; las 6 capas de Copernicus, en cambio, son manchas
-   de color sin ningún dato detrás). Usa Gemini (misma API key que
-   `asesor.py`, `GEMINI_API_KEY` — el único proveedor conectado con
-   visión en su nivel gratis) con las 6 PNG de esa concesión como entrada
-   + mineral/región como contexto; reglas duras del prompt: nunca afirma
-   presencia de mineral ni ley (solo "señal a investigar"), nunca hace
-   una clasificación fina de alteración hidrotermal (mismo límite ya
-   documentado arriba para Copernicus), destaca explícitamente si
-   "coincidencias" tiene algo pintado (la señal más fuerte de las 6).
+   para inversionistas; metodología de análisis AMPLIADA agosto 2026, con
+   los pasos exactos que Esthiven pidió cruzar). Usa Gemini (misma API key
+   que `asesor.py`, `GEMINI_API_KEY` — el único proveedor conectado con
+   visión en su nivel gratis) con hasta 8 imágenes + texto como entrada,
+   en este orden fijo (ver `interpretacion_ubicacion._SYSTEM`):
+   1. **Litología y fallas de GEOCATMIN, como TEXTO** (`geocatmin.resumen_para_ia`)
+      — en qué unidad litológica cae la concesión (carta 1:50,000 si
+      INGEMMET la tiene ahí, si no 1:100,000 — se indica cuál) y qué
+      fallas geológicas hay cerca. Esto ya llega estructurado de INGEMMET,
+      no hace falta que la IA "lea" una imagen para esto.
+   2. **ASTER 9-3-1 de GEOCATMIN** (`geocatmin.imagenes_analisis_ia`) — se
+      usa SOLO para juzgar roca expuesta vs. vegetación: toda anomalía
+      (de GEOCATMIN o de Copernicus) que cae sobre roca expuesta es una
+      señal más confiable; sobre vegetación, más débil (el follaje
+      contamina la lectura del suelo) — regla dura del prompt, nunca se
+      salta este cruce.
+   3. **Anomalías Espectrales oficiales de GEOCATMIN** (mismo
+      `imagenes_analisis_ia`, polígonos ya clasificados por INGEMMET:
+      óxidos/arcillas/óxidos y arcillas) — se le pide decir explícitamente
+      si algo de esto cae dentro de la concesión.
+   4. **Las 6 capas de Copernicus** (como antes) — además se le pide
+      señalar si distintos índices aparecen en zonas DISTINTAS de la
+      concesión (ej. "óxidos al norte, arcillas al sur"), sin forzar una
+      interpretación geológica que estos datos no permiten.
+      Ambas imágenes de GEOCATMIN llevan el borde de la concesión dibujado
+      encima (`geocatmin._con_borde_concesion`, color cian — no aparece en
+      falso-color natural) porque se recortan por bbox rectangular, no por
+      el polígono real (a diferencia de Copernicus, que sí genera ya
+      recortado al polígono).
+   Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
+   (solo "señal a investigar"), nunca hace una clasificación fina de
+   alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen
+   las bandas para eso), destaca explícitamente si "Coincidencias" tiene
+   algo pintado (la señal más fuerte de las 6 de Copernicus). Respuesta:
+   1-2 párrafos, hasta 8 oraciones (se relajó desde "3-5 oraciones" de
+   julio 2026 — cruzar todas estas fuentes en un solo párrafo corto forzaba
+   superficialidad).
    DESACTIVADO por defecto, `MINELINK_INTERPRETACION_UBICACION=1` (además
    de `MINELINK_COPERNICUS=1`, del que depende). Se genera en el mismo
-   background task que las capas (`_refrescar_anomalias_en_segundo_plano`
-   en `routers/proyectos.py` — es el único momento en que los bytes PNG
-   están en memoria) y se cachea junto a ellas en
-   `datos_formalizacion_json["_interpretacion_ubicacion"]`, compartiendo
-   `v` con `_anomalias_satelitales` para invalidarse junto si las capas
-   cambian de forma. Solo visible en el admin
-   (`GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
+   background task que las capas de Copernicus
+   (`_refrescar_anomalias_en_segundo_plano` en `routers/proyectos.py` — es
+   el único momento en que los bytes PNG de Copernicus están en memoria;
+   las imágenes de GEOCATMIN se piden aparte ahí mismo, vía
+   `geocatmin.imagenes_analisis_ia`) y se cachea junto a ellas en
+   `datos_formalizacion_json["_interpretacion_ubicacion"]`. Dos campos de
+   versión separados, a propósito: `"v"` sigue compartido con
+   `_anomalias_satelitales` (invalida si las capas de Copernicus cambian
+   de forma); `"v_prompt"` es `interpretacion_ubicacion.VERSION_INTERPRETACION`
+   — sube cuando cambia el MÉTODO de análisis sin que cambien las capas
+   (como en esta ampliación de agosto 2026), para no forzar un regasto de
+   créditos de Sentinel Hub solo por mejorar el prompt. Solo visible en el
+   admin (`GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
    "Ubicación (IA)" en AdminLeads.tsx) — nunca en la ficha pública ni en
    el PDF; si algún día eso cambia, el disclaimer tendría que ser mucho
    más visible que hoy. **Camino de refresco independiente para capas ya
-   cacheadas** (julio 2026, bug real: activar la variable no le sirvió a
-   ningún proyecto que ya tuviera sus 6 capas generadas desde ANTES de
-   que este módulo existiera, porque `_anomalias_necesita_refresco()`
-   daba False — las capas seguían frescas, así que el único lugar que
-   llamaba a Gemini nunca se agendaba): `_interpretacion_necesita_refresco`/
-   `_refrescar_interpretacion_en_segundo_plano` en `routers/proyectos.py`
-   detectan "hay capas pero no hay interpretación (o quedó de una
-   versión vieja)" como caso aparte, y generan leyendo los PNG que YA
-   están en storage — sin volver a pedirle nada a Sentinel Hub. Los dos
-   caminos son mutuamente excluyentes por petición (si las capas SÍ
-   necesitan regenerarse, ese camino ya genera la interpretación de una;
-   si no, el camino independiente se encarga solo).
+   cacheadas o interpretación con método viejo** (julio 2026, bug real:
+   activar la variable no le sirvió a ningún proyecto que ya tuviera sus
+   6 capas generadas desde ANTES de que este módulo existiera; ampliado
+   agosto 2026 para el mismo problema con `v_prompt`):
+   `_interpretacion_necesita_refresco`/`_refrescar_interpretacion_en_segundo_plano`
+   en `routers/proyectos.py` detectan "hay capas pero no hay
+   interpretación, o quedó de una versión de capas vieja, o quedó de un
+   MÉTODO de análisis viejo" como caso aparte, y generan leyendo los PNG
+   de Copernicus que YA están en storage — sin volver a pedirle nada a
+   Sentinel Hub (las imágenes de GEOCATMIN sí se vuelven a pedir, son
+   gratis). Los dos caminos son mutuamente excluyentes por petición (si
+   las capas SÍ necesitan regenerarse, ese camino ya genera la
+   interpretación de una; si no, el camino independiente se encarga solo).
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado
@@ -467,9 +499,11 @@ Modo dual vía `backend/storage.py` (la BD solo guarda el nombre de archivo, no 
 │   ├── copernicus.py           ← anomalías espectrales minerales (Sentinel-2 vía Copernicus
 │   │                              Data Space Ecosystem) sobre el polígono real de la concesión —
 │   │                              DESACTIVADO por defecto (MINELINK_COPERNICUS=1 + credenciales)
-│   ├── interpretacion_ubicacion.py ← lee las capas de Copernicus con Gemini (visión) y
-│   │                              escribe una interpretación en texto — SOLO admin, nunca
-│   │                              público (MINELINK_INTERPRETACION_UBICACION=1)
+│   ├── interpretacion_ubicacion.py ← cruza litología/fallas de GEOCATMIN (texto) + ASTER
+│   │                              9-3-1/Anomalías Espectrales de GEOCATMIN + las 6 capas
+│   │                              de Copernicus (imágenes, Gemini Vision) en una
+│   │                              interpretación en texto — SOLO admin, nunca público
+│   │                              (MINELINK_INTERPRETACION_UBICACION=1)
 │   ├── uploads_config.py       ← categorías de archivos + equivalencias + fotos de perfil
 │   ├── notificaciones.py       ← crear_notificacion (campanita del minero)
 │   ├── asesor.py                ← asesor público: retrieval (context/) + generación
