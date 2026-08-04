@@ -2834,6 +2834,36 @@ def test_capa_geocatmin_analisis_404_si_geocatmin_desactivado():
     assert resp.status_code == 404
 
 
+def test_catastro_analisis_404_si_geocatmin_desactivado():
+    # agosto 2026: misma capa que mapa-cotejo.jpg pero con el bbox ajustado
+    # al polígono -- ver geocatmin.imagen_analisis_catastro. Mismo criterio
+    # que el resto: desactivado en el entorno de tests, 404 sin coordenadas.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="catastroanalisis1"))
+    _hacer_apto_inversionistas(diag["id"], "catastroanalisis1")
+    resp = client.get(f"/proyectos/{diag['id']}/geocatmin-analisis/catastro.jpg")
+    assert resp.status_code == 404
+
+
+def test_proyecto_detalle_expone_geocatmin_catastro_analisis_url():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="catastroanalisis2"))
+    _hacer_apto_inversionistas(diag["id"], "catastroanalisis2")
+
+    db = TestingSessionLocal()
+    lead = db.query(models.Lead).filter(models.Lead.operacion_id == diag["id"]).first()
+    lead.ubicacion_coords = "-12.5,-76.7"
+    db.commit()
+    db.close()
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 200
+    assert (
+        resp.json()["geocatmin_catastro_analisis_url"]
+        == f"/proyectos/{diag['id']}/geocatmin-analisis/catastro.jpg"
+    )
+
+
 def test_proyectos_publicos_lista_sin_datos_sensibles():
     diag = _crear_diagnostico().json()
     client.post(

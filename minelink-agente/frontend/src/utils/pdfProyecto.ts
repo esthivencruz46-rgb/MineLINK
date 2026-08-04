@@ -289,6 +289,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     fotos,
     miniaturasChecklist,
     miniaturasInversion,
+    capaCatastroAnalisis,
     capaAster,
     capaAnomaliaGeocatmin,
     capasCopernicus,
@@ -310,8 +311,14 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
       ...Object.fromEntries(documentosInversionExtra.map((e) => [e, proyecto.documentos_estudios[e]]))
     }),
     // Capas de análisis satelital "1 por 1" (agosto 2026, pedido explícito
-    // de Esthiven): catastro+geología+fallas ya viene combinado en
-    // mapaPortada; ASTER y la anomalía de GEOCATMIN se piden aparte.
+    // de Esthiven). La de catastro/geología/fallas usa su PROPIA imagen
+    // (geocatmin_catastro_analisis_url), con el bbox ajustado al polígono
+    // en vez de reusar la portada (bbox panorámico centrado en el pin) --
+    // corrección agosto 2026, reportado en vivo con captura: la concesión
+    // aparecía como un recuadro chico perdido en una esquina.
+    proyecto.geocatmin_catastro_analisis_url
+      ? cargarFoto(proyecto.geocatmin_catastro_analisis_url)
+      : Promise.resolve(null),
     proyecto.geocatmin_aster_url ? cargarFoto(proyecto.geocatmin_aster_url) : Promise.resolve(null),
     proyecto.geocatmin_anomalia_espectral_url
       ? cargarFoto(proyecto.geocatmin_anomalia_espectral_url)
@@ -326,12 +333,12 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // eso — todas quedan disponibles para la sección de galería.
   const galeria = mapaPortada ? fotosOk.slice(0, 4) : fotosOk.slice(1, 5);
 
-  // Galería de capas para la sección "Análisis satelital (IA)" — catastro/
-  // geología/fallas reusa la MISMA imagen que la portada (ya es justo esa
-  // combinación), el resto son capas propias. Solo entran las que sí
-  // cargaron (best-effort, igual que el resto del PDF).
+  // Galería de capas para la sección "Análisis satelital (IA)". Solo
+  // entran las que sí cargaron (best-effort, igual que el resto del PDF).
   const capasAnalisis: { etiqueta: string; foto: Foto }[] = [
-    ...(mapaPortada ? [{ etiqueta: "Catastro, geología y fallas (GEOCATMIN)", foto: mapaPortada }] : []),
+    ...(capaCatastroAnalisis
+      ? [{ etiqueta: "Catastro, geología y fallas (GEOCATMIN)", foto: capaCatastroAnalisis }]
+      : []),
     ...(capaAster ? [{ etiqueta: "ASTER 9-3-1 — roca vs. vegetación (GEOCATMIN)", foto: capaAster }] : []),
     ...(capaAnomaliaGeocatmin
       ? [{ etiqueta: "Anomalías Espectrales (GEOCATMIN)", foto: capaAnomaliaGeocatmin }]

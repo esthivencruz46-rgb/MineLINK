@@ -15,6 +15,7 @@ os.environ.setdefault("MINELINK_GEOCATMIN", "0")
 
 from unittest.mock import patch
 
+import pytest
 import requests as requests_mod
 
 import geocatmin
@@ -277,3 +278,52 @@ def test_imagen_mapa_cotejo_pide_fallas_solo_si_se_indica_escala(monkeypatch):
     assert con_fallas is not None
     assert not any("GEOLOGIA_50K_INTEGRADA/MapServer/export" in u for u in urls_sin_fallas)
     assert any("GEOLOGIA_50K_INTEGRADA/MapServer/export" in u for u in urls_pedidas)
+
+
+# ---------- _bbox_ajustado_poligono (agosto 2026) ----------
+
+
+def test_bbox_ajustado_poligono_centra_en_el_poligono_no_en_el_pin():
+    # El pin queda lejos del polígono a propósito -- el bbox viejo
+    # (_bbox_de) se centraba en el PIN, así que la concesión terminaba
+    # como un recuadro chico perdido en una esquina (bug real reportado
+    # en vivo con captura). El nuevo debe centrarse en el polígono.
+    poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
+    pin_lejano = "-9.50,-70.00"
+    xmin, ymin, xmax, ymax = geocatmin._bbox_ajustado_poligono(poligono, pin_lejano)
+    centro_poligono_lng = (-77.50 + -77.49) / 2
+    centro_poligono_lat = (-8.01 + -8.00) / 2
+    centro_bbox_lng = (xmin + xmax) / 2
+    centro_bbox_lat = (ymin + ymax) / 2
+    assert centro_bbox_lng == pytest.approx(centro_poligono_lng, abs=1e-9)
+    assert centro_bbox_lat == pytest.approx(centro_poligono_lat, abs=1e-9)
+    # El polígono completo debe caber dentro del bbox.
+    assert xmin <= -77.50 and xmax >= -77.49
+    assert ymin <= -8.01 and ymax >= -8.00
+
+
+def test_bbox_ajustado_poligono_sin_poligono_cae_al_pin():
+    xmin, ymin, xmax, ymax = geocatmin._bbox_ajustado_poligono(None, "-12.5,-76.7")
+    assert xmin < -76.7 < xmax
+    assert ymin < -12.5 < ymax
+
+
+def test_bbox_ajustado_poligono_sin_nada_devuelve_none():
+    assert geocatmin._bbox_ajustado_poligono(None, None) is None
+
+
+def test_imagen_analisis_catastro_usa_bbox_ajustado_al_poligono(monkeypatch):
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
+
+    bboxes_usados = []
+
+    def _espia(coords, poligono_arg, escala_fallas=None, bbox_fijo=None):
+        bboxes_usados.append(bbox_fijo)
+        return b"fake-jpeg-bytes"
+
+    monkeypatch.setattr(geocatmin, "imagen_mapa_cotejo", _espia)
+    resultado = geocatmin.imagen_analisis_catastro("-12.5,-76.7", poligono, None)
+
+    assert resultado == b"fake-jpeg-bytes"
+    assert bboxes_usados == [geocatmin._bbox_ajustado_poligono(poligono, "-12.5,-76.7")]
