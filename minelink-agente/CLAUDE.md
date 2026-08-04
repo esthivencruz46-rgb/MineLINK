@@ -44,15 +44,20 @@ Plataforma web donde un minero artesanal peruano:
    mini-foto de la **credencial** que prueba que existe (autorización
    DREM / título de concesión) y selector de orden. SIN datos de contacto.
 6. La **ficha pública** (`/proyectos/{id}`): mosaico superior con la
-   ubicación en vista SATELITAL (parte ancha) + fotos; Resumen Ejecutivo;
-   checklist de formalización SOLO con los estudios de su perfil
-   (tarjetas grandes de documento con sello "Verificado" + visor con
-   flechas; lo pendiente en chips); "Oportunidad de inversión"
-   (respuestas públicas del INV: capital, % a ceder, deudas, estructura
-   legal...); "Datos de la operación"; **"Cotejo con registros públicos"**
-   (GEOCATMIN/INGEMMET: concesión del catastro minero + geología del
-   punto, caché 30 días, siempre referencial); indicadores verificados en
-   el panel lateral; y descarga de ficha en PDF (jsPDF, 2 páginas). El
+   ubicación en vista SATELITAL (parte ancha) + fotos de presentación
+   (julio 2026: sin ningún panel de texto GEOCATMIN al costado de esas
+   fotos — se probó un resumen ahí y se quitó por completo, pedido
+   explícito: repetía lo mismo que ya dice completo más abajo); orden de
+   las tarjetas de contenido (julio 2026, reordenado a pedido explícito):
+   Resumen Ejecutivo → "Oportunidad de inversión" (respuestas públicas
+   del INV: capital, % a ceder, deudas, estructura legal...) →
+   **"Cotejo con registros públicos"** (GEOCATMIN/INGEMMET: concesión
+   del catastro minero + geología del punto, caché 30 días, siempre
+   referencial) → "Datos de la operación" → checklist de Formalización
+   SOLO con los estudios de su perfil (tarjetas grandes de documento con
+   sello "Verificado" + visor con flechas; lo pendiente en chips) →
+   Documentos de inversión. Indicadores verificados en el panel lateral;
+   descarga de ficha en PDF (jsPDF, 2 páginas). El
    mapa interactivo de la ficha (`MapaGeocatmin.tsx`) también puede
    mostrar, como capas opcionales georreferenciadas (julio 2026,
    `backend/copernicus.py`, DESACTIVADO por defecto —
@@ -106,7 +111,19 @@ Plataforma web donde un minero artesanal peruano:
    (`GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
    "Ubicación (IA)" en AdminLeads.tsx) — nunca en la ficha pública ni en
    el PDF; si algún día eso cambia, el disclaimer tendría que ser mucho
-   más visible que hoy.
+   más visible que hoy. **Camino de refresco independiente para capas ya
+   cacheadas** (julio 2026, bug real: activar la variable no le sirvió a
+   ningún proyecto que ya tuviera sus 6 capas generadas desde ANTES de
+   que este módulo existiera, porque `_anomalias_necesita_refresco()`
+   daba False — las capas seguían frescas, así que el único lugar que
+   llamaba a Gemini nunca se agendaba): `_interpretacion_necesita_refresco`/
+   `_refrescar_interpretacion_en_segundo_plano` en `routers/proyectos.py`
+   detectan "hay capas pero no hay interpretación (o quedó de una
+   versión vieja)" como caso aparte, y generan leyendo los PNG que YA
+   están en storage — sin volver a pedirle nada a Sentinel Hub. Los dos
+   caminos son mutuamente excluyentes por petición (si las capas SÍ
+   necesitan regenerarse, ese camino ya genera la interpretación de una;
+   si no, el camino independiente se encarga solo).
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado
@@ -221,6 +238,41 @@ Plataforma web donde un minero artesanal peruano:
     conexión directa) — usar `request.client.host` a secas hace que el
     límite se reparta entre TODO el tráfico combinado en vez de aplicarse
     por persona.
+13. **Auditoría de seguridad (julio 2026, pedido explícito de Esthiven)**
+    — dos hallazgos reales, no solo teóricos: (a) el login de
+    minero/inversionista tenía una fuga de tiempo (`lead is None or ...
+    or not verify_password(...)` cortocircuitaba antes de llamar a
+    bcrypt cuando el usuario no existía, respondiendo casi al instante
+    mientras un usuario real tardaba ~200ms — dejaba adivinar qué
+    usuarios existen por tiempo de respuesta). `auth.verify_password_o_dummy()`
+    siempre llama a bcrypt contra un hash fijo cuando la cuenta no
+    existe, medido en vivo: ~205ms vs ~205ms después del fix. (b) dos
+    tablas de Supabase (`documentos_asesor`, `llamadas_asesor`) se
+    crearon DESPUÉS de la migración que activó RLS en las demás tablas
+    nuevas y quedaron sin ese candado — expuestas por la API pública de
+    PostgREST con la anon key. **Cualquier tabla nueva necesita su
+    propio `ALTER TABLE ... ENABLE ROW LEVEL SECURITY`** (mismo patrón
+    que `seeds/activar_rls_supabase.py`/`habilitar_rls_tablas_nuevas.py`/
+    `habilitar_rls_asesor.py`, sin políticas — bloquea PostgREST por
+    completo, el backend no se ve afectado porque se conecta como
+    owner) — no alcanza con que una migración anterior ya haya cubierto
+    "las tablas nuevas de ese momento".
+14. **Condición de carrera real en el índice BM25 del asesor** (julio
+    2026, causa de un 503 real en producción, encontrada consultando
+    `LlamadaAsesor.detalle` directo): FastAPI corre los endpoints sync
+    en un threadpool, así que dos preguntas simultáneas (o una pregunta
+    + el `BackgroundTask` de `actualizar_documentos_admin` reconstruyendo
+    el índice) podían entrar a la vez a
+    `_fragmentos_y_tokens_filesystem()`. Sin lock, un hilo podía alcanzar
+    a asignar `_FRAGMENTOS_FS_CACHE` pero no `_TOKENS_FS_CACHE` todavía
+    (dos líneas separadas, no es atómico) justo cuando otro hilo pasaba
+    el `if ... is None` y leía el segundo en `None` — eso llegaba hasta
+    `tokens_fs + tokens_admin` en `_indice_fragmentos()` y reventaba con
+    `unsupported operand type(s) for +: 'NoneType' and 'list'`. Ambas
+    funciones están protegidas con `threading.Lock` (patrón doble
+    chequeo: se revisa de nuevo DENTRO del lock por si otro hilo ya
+    terminó mientras se esperaba turno, para no perder la optimización
+    de construir el índice una sola vez por proceso).
 
 Esthiven es el único administrador: carga empresas (una por una, o en
 lote por CSV — el importador acepta tanto el formato propio como el
@@ -293,7 +345,7 @@ Este es el archivo del ORQUESTADOR. Cuando recibas una instrucción:
 ### Backend (desde `backend/`)
 ```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000   # servidor dev
-pytest -q                                                 # toda la suite (~250 tests)
+pytest -q                                                 # toda la suite (~330 tests)
 pytest tests/test_scoring.py -q                           # un archivo
 pytest tests/test_smoke.py::test_post_diagnostico -q      # un test puntual
 pip install -r requirements.txt                           # dependencias (usar --break-system-packages en este entorno)
@@ -464,6 +516,30 @@ sombra y `rounded-*`; chips planos con borde en vez de burbujas de color;
 la acción principal. El verde/ámbar/rojo semántico se mantiene SOLO donde
 comunica estado real (semáforos, verificaciones, alertas). Cualquier UI
 nueva debe seguir esta línea.
+
+Componente compartido `HeroFranja.tsx` (franja de encabezado con
+degradado verde institucional + patrón de líneas topográficas en SVG +
+entrada animada `motion-safe:animate-[hero-entrada_...]`, definida en
+`index.css`) — reemplaza el `<h1>+<p>` plano que encabezaba Proyectos,
+Postular, ComoFunciona y la primera pregunta del diagnóstico. Inicio
+tiene su propio hero más grande y centrado (no usa este componente).
+
+**Auditoría de consistencia (julio 2026, pedido explícito: "analiza qué
+áreas te falta mejorar de la página web total")** — hallazgo real, no
+solo cosmético: `PublicHeader` (`App.tsx`) no tenía NINGÚN link de
+navegación en toda la web pública, solo el logo y el botón de tema
+— corregido con los mismos 3 links que ya tenía el `Footer` más un
+menú "Ingresar" (`<details>` nativo, mismo patrón que el filtro de
+Empresas.tsx) que despliega "Soy minero" / "Soy inversionista" — un
+solo link fijo mandaba a los inversionistas al login equivocado
+(reportado en vivo con captura). Aparte, `MiCuenta.tsx`/`MiConcesion.tsx`
+y los formularios de login/registro/recuperar-contraseña nunca se
+habían migrado a esta línea (cajas `rounded-lg` de fondo sólido sin
+borde, píldoras `rounded-full` en negrita, inputs sin foco visible) —
+ya migrados; los dos wizards (`Cuestionario.tsx`/`CuestionarioInversion.tsx`)
+siguen deliberadamente con su propio estilo `rounded-lg` interno (no se
+tocó: cambiarlo implica demasiados elementos interactivos para verificar
+sin un navegador real).
 
 ## Reglas de autonomía
 

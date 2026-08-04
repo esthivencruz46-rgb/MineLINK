@@ -302,7 +302,7 @@ attempt to resolve.
 ```bash
 # Backend (from minelink-agente/backend/)
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
-pytest -q                                            # full suite (~250 tests)
+pytest -q                                            # full suite (~330 tests)
 pytest tests/test_smoke.py::test_post_diagnostico -q # single test
 
 # Frontend (from minelink-agente/frontend/)
