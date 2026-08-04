@@ -19,6 +19,7 @@ from scoring import (
     respuestas_diagnostico_efectivas,
 )
 from catalogo_inversion import alertas_inversion, categorias_requeridas_inversion
+import routers.proyectos as proyectos_router
 from notificaciones import (
     crear_notificacion,
     notificar_empresa_disponible,
@@ -672,6 +673,63 @@ def ver_interpretacion_ubicacion(
     cache = (operacion.datos_formalizacion_json or {}).get("_interpretacion_ubicacion")
     if not isinstance(cache, dict) or not cache.get("texto"):
         return schemas.InterpretacionUbicacionOut(disponible=False)
+    return schemas.InterpretacionUbicacionOut(
+        disponible=True, texto=cache["texto"], generado_en=cache.get("generado_en")
+    )
+
+
+@router.post(
+    "/operaciones/{operacion_id}/interpretacion-ubicacion/generar",
+    response_model=schemas.InterpretacionUbicacionOut,
+)
+def generar_interpretacion_ubicacion_ahora(
+    operacion_id: str,
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Genera (o regenera) la interpretación AHORA, sin esperar a que
+    alguien visite la ficha pública primero (agosto 2026, pedido explícito
+    de Esthiven: antes tenía que entrar él mismo a /proyectos/{id} para
+    agendar el background task, y encima visitar DE NUEVO para ver el
+    resultado -- la primera visita solo lo agenda, nunca lo espera). A
+    diferencia del resto de la app, ACÁ SÍ se llama a Gemini en línea
+    dentro de la petición: es una acción explícita de Esthiven, con un
+    botón que puede mostrar "generando..." mientras espera los ~15-30s que
+    tardan hasta 8 imágenes, algo que no tendría sentido hacerle esperar a
+    una visita pública real."""
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+    if operacion is None:
+        raise HTTPException(status_code=404, detail="Operación no encontrada")
+    lead = db.query(models.Lead).filter(models.Lead.operacion_id == operacion_id).first()
+    coords = lead.ubicacion_coords if lead else None
+    datos = operacion.datos_formalizacion_json or {}
+    poligono = ((datos.get("_geocatmin") or {}).get("concesion") or {}).get("poligono")
+    cache_anomalias = proyectos_router._anomalias_desde_cache(operacion)
+    if not poligono and not cache_anomalias:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Todavía no hay polígono de concesión (GEOCATMIN) ni capas de Copernicus "
+                "para este proyecto -- visita su ficha pública primero para que se resuelvan."
+            ),
+        )
+
+    # Mismo criterio que detalle_proyecto(): si las capas de Copernicus ya
+    # están frescas, solo se regenera la interpretación (barato, reusa los
+    # PNG en storage); si no, se regeneran las capas también (ahí ya se
+    # genera la interpretación de una).
+    if proyectos_router._anomalias_necesita_refresco(operacion, poligono):
+        proyectos_router._refrescar_anomalias_en_segundo_plano(operacion_id, poligono, coords)
+    else:
+        proyectos_router._refrescar_interpretacion_en_segundo_plano(operacion_id, coords, poligono)
+
+    db.refresh(operacion)
+    cache = (operacion.datos_formalizacion_json or {}).get("_interpretacion_ubicacion")
+    if not isinstance(cache, dict) or not cache.get("texto"):
+        raise HTTPException(
+            status_code=502,
+            detail="No se pudo generar la interpretación (Gemini no respondió o está desactivado).",
+        )
     return schemas.InterpretacionUbicacionOut(
         disponible=True, texto=cache["texto"], generado_en=cache.get("generado_en")
     )

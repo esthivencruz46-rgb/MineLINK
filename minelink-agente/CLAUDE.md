@@ -156,6 +156,22 @@ Plataforma web donde un minero artesanal peruano:
    gratis). Los dos caminos son mutuamente excluyentes por petición (si
    las capas SÍ necesitan regenerarse, ese camino ya genera la
    interpretación de una; si no, el camino independiente se encarga solo).
+   **Botón "Generar ahora"** (agosto 2026, pedido explícito de Esthiven:
+   antes tenía que él mismo visitar la ficha pública del proyecto para
+   agendar el background task, y visitarla DE NUEVO para ver el resultado
+   — la primera visita solo lo agenda, nunca lo espera):
+   `POST /admin/operaciones/{id}/interpretacion-ubicacion/generar` en
+   `routers/admin.py` reusa exactamente la misma lógica de
+   `routers/proyectos.py` (importada como `proyectos_router`, mismo
+   patrón de import cruzado entre routers que ya usa `_es_titular_concesion`
+   desde `routers/mineros.py`) pero EN LÍNEA dentro de la petición, no
+   como `BackgroundTask` — única excepción a la regla de "nunca llamar a
+   Gemini/servicios externos dentro de una petición real": acá es una
+   acción explícita del admin con un botón que puede mostrar
+   "generando... (hasta 30s)" mientras espera, no una visita pública que
+   no debe demorarse. 400 si no hay ni polígono de GEOCATMIN ni capas de
+   Copernicus con qué trabajar; 502 si Gemini no respondió o está
+   desactivado. Botón en el mismo modal "Ubicación (IA)" de AdminLeads.tsx.
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado

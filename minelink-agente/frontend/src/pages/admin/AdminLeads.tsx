@@ -207,6 +207,8 @@ export function AdminLeads() {
   const [leadUbicacionIA, setLeadUbicacionIA] = useState<LeadConDiagnostico | null>(null);
   const [interpretacionUbicacion, setInterpretacionUbicacion] = useState<InterpretacionUbicacion | null>(null);
   const [cargandoInterpretacion, setCargandoInterpretacion] = useState(false);
+  const [generandoInterpretacion, setGenerandoInterpretacion] = useState(false);
+  const [errorInterpretacion, setErrorInterpretacion] = useState<string | null>(null);
   const [leadIntereses, setLeadIntereses] = useState<LeadConDiagnostico | null>(null);
   const [intereses, setIntereses] = useState<InteresInversion[]>([]);
   const [cargandoIntereses, setCargandoIntereses] = useState(false);
@@ -484,6 +486,7 @@ export function AdminLeads() {
 
   function verInterpretacionUbicacion(lead: LeadConDiagnostico) {
     setLeadUbicacionIA(lead);
+    setErrorInterpretacion(null);
     setCargandoInterpretacion(true);
     authFetch(`/admin/operaciones/${lead.operacion_id}/interpretacion-ubicacion`)
       .then((r) => {
@@ -493,6 +496,31 @@ export function AdminLeads() {
       .then(setInterpretacionUbicacion)
       .catch(() => setError("No pudimos cargar la interpretación de ubicación."))
       .finally(() => setCargandoInterpretacion(false));
+  }
+
+  // Genera (o regenera) en línea, sin esperar a que alguien visite la
+  // ficha pública primero (agosto 2026, pedido explícito de Esthiven) --
+  // a diferencia de la carga de arriba, esto SÍ llama a Gemini y puede
+  // tardar hasta ~30s con hasta 8 imágenes.
+  async function generarInterpretacionAhora() {
+    if (!leadUbicacionIA) return;
+    setErrorInterpretacion(null);
+    setGenerandoInterpretacion(true);
+    try {
+      const resp = await authFetch(
+        `/admin/operaciones/${leadUbicacionIA.operacion_id}/interpretacion-ubicacion/generar`,
+        { method: "POST" }
+      );
+      if (!resp.ok) {
+        const detalle = await resp.json().catch(() => null);
+        throw new Error(detalle?.detail ?? "No se pudo generar la interpretación.");
+      }
+      setInterpretacionUbicacion(await resp.json());
+    } catch (e) {
+      setErrorInterpretacion(e instanceof Error ? e.message : "No se pudo generar la interpretación.");
+    } finally {
+      setGenerandoInterpretacion(false);
+    }
   }
 
   async function verArchivo(doc: DocumentoOperacion) {
@@ -1104,7 +1132,8 @@ export function AdminLeads() {
               <p className="text-sm text-texto-suave dark:text-texto-suave-dark">
                 Todavía no hay interpretación generada para este proyecto — se genera
                 sola en segundo plano cuando alguien visita su ficha pública (necesita
-                Copernicus activado y un polígono de concesión detectado).
+                Copernicus activado y un polígono de concesión detectado), o generala
+                ahora mismo con el botón de abajo.
               </p>
             )}
 
@@ -1117,6 +1146,24 @@ export function AdminLeads() {
                   </p>
                 )}
               </>
+            )}
+
+            {errorInterpretacion && (
+              <p className="mt-3 text-sm text-red-600 dark:text-red-400">{errorInterpretacion}</p>
+            )}
+
+            {!cargandoInterpretacion && (
+              <button
+                onClick={generarInterpretacionAhora}
+                disabled={generandoInterpretacion}
+                className="mt-4 w-full rounded border border-acento/30 px-3 py-2 text-sm font-semibold text-acento disabled:opacity-50"
+              >
+                {generandoInterpretacion
+                  ? "Generando... (puede tardar hasta 30s)"
+                  : interpretacionUbicacion?.disponible
+                    ? "Volver a generar ahora"
+                    : "Generar ahora"}
+              </button>
             )}
           </div>
         </div>

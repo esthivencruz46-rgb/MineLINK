@@ -1584,6 +1584,122 @@ def test_interpretacion_ubicacion_operacion_inexistente_da_404():
     assert resp.status_code == 404
 
 
+def test_admin_genera_interpretacion_ubicacion_ahora_404_si_no_existe():
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.post(
+        "/admin/operaciones/no-existe-esta-operacion/interpretacion-ubicacion/generar",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 404
+
+
+def test_admin_genera_interpretacion_ubicacion_ahora_400_sin_poligono_ni_capas():
+    # agosto 2026: botón "Generar ahora" del admin -- sin GEOCATMIN
+    # resuelto (sin polígono) y sin capas de Copernicus ya generadas, no
+    # hay nada con qué trabajar, así que da un 400 explicable en vez de
+    # intentarlo y fallar más adelante con un 502 confuso.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="generarinterp1"))
+    _hacer_apto_inversionistas(diag["id"], "generarinterp1")
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.post(
+        f"/admin/operaciones/{diag['id']}/interpretacion-ubicacion/generar",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 400
+
+
+def test_admin_genera_interpretacion_ubicacion_ahora_reusa_capas_ya_cacheadas(monkeypatch):
+    # agosto 2026, pedido explícito de Esthiven: antes tenía que entrar él
+    # mismo a la ficha pública para que se agende el refresco en segundo
+    # plano, y visitarla DE NUEVO para ver el resultado. Este botón genera
+    # en línea, dentro de la misma petición -- con las capas de Copernicus
+    # ya frescas, debe reusarlas (camino barato) en vez de regenerarlas.
+    import copernicus
+    import interpretacion_ubicacion
+    import routers.proyectos as proyectos_router
+
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="generarinterp2"))
+    _hacer_apto_inversionistas(diag["id"], "generarinterp2")
+
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_anomalias_satelitales": {
+            "bbox": [-77.0, -12.0, -76.9, -11.9],
+            "generado_en": date.today().isoformat(),
+            "v": copernicus.VERSION_CACHE,
+            "capas": ["oxidos_de_hierro"],
+        },
+    }
+    db.commit()
+    db.close()
+
+    def _refresco_falso(operacion_id, coords=None, poligono=None):
+        db2 = TestingSessionLocal()
+        op = db2.query(models.Operacion).filter(models.Operacion.id == operacion_id).first()
+        op.datos_formalizacion_json = {
+            **(op.datos_formalizacion_json or {}),
+            "_interpretacion_ubicacion": {
+                "texto": "Interpretación generada al toque.",
+                "generado_en": date.today().isoformat(),
+                "v": copernicus.VERSION_CACHE,
+                "v_prompt": interpretacion_ubicacion.VERSION_INTERPRETACION,
+            },
+        }
+        db2.commit()
+        db2.close()
+
+    llamadas_anomalias = {"n": 0}
+    monkeypatch.setattr(
+        proyectos_router,
+        "_refrescar_anomalias_en_segundo_plano",
+        lambda *a, **kw: llamadas_anomalias.__setitem__("n", llamadas_anomalias["n"] + 1),
+    )
+    monkeypatch.setattr(proyectos_router, "_refrescar_interpretacion_en_segundo_plano", _refresco_falso)
+
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.post(
+        f"/admin/operaciones/{diag['id']}/interpretacion-ubicacion/generar",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["texto"] == "Interpretación generada al toque."
+    # Las capas ya estaban frescas -- no debe haberlas regenerado.
+    assert llamadas_anomalias["n"] == 0
+
+
+def test_admin_genera_interpretacion_ubicacion_ahora_502_si_gemini_no_responde():
+    # Sin MINELINK_INTERPRETACION_UBICACION=1 en el entorno de tests,
+    # interpretacion_ubicacion queda desactivado -- el intento real de
+    # generación no escribe nada, y el endpoint debe devolver un error
+    # explicable en vez de un 200 con texto vacío.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="generarinterp3"))
+    _hacer_apto_inversionistas(diag["id"], "generarinterp3")
+
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_geocatmin": {
+            "coords": "-12.5,-76.7",
+            "concesion": {"poligono": [[[-77.0, -12.0], [-77.0, -11.9], [-76.9, -11.9]]]},
+        },
+    }
+    db.commit()
+    db.close()
+
+    admin_headers = {"Authorization": f"Bearer {_admin_token()}"}
+    resp = client.post(
+        f"/admin/operaciones/{diag['id']}/interpretacion-ubicacion/generar",
+        headers=admin_headers,
+    )
+    assert resp.status_code == 502
+
+
 def test_inversion_perfil_c_pide_mapeo_geologico_y_fotos_presentacion():
     # Julio 2026 (pedido de Esthiven): C ya opera y vende, pero eso no
     # garantiza tener un estudio geológico formal — se le pide el mismo
