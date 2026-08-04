@@ -6,16 +6,21 @@ import {
   AlertTriangle,
   ArrowUpRight,
   BadgeCheck,
+  BarChart3,
   Boxes,
   Check,
   ChevronLeft,
   ChevronRight,
   Coins,
+  FileCheck2,
+  FileText,
+  FolderCheck,
   Gem,
   HandCoins,
   Handshake,
   HardHat,
   Images,
+  Landmark,
   MapPin,
   Minus,
   Mountain,
@@ -540,7 +545,7 @@ export function ProyectoDetalle() {
         <div className="flex flex-col gap-6">
           {/* RESUMEN EJECUTIVO */}
           <Card acento>
-            <h2 className="text-lg font-semibold">Resumen Ejecutivo</h2>
+            <TituloSeccion icono={FileText}>Resumen Ejecutivo</TituloSeccion>
             <p className="mt-2">{partesResumen.join(" ")}</p>
             {proyecto.descripcion_operacion && (
               <p className="mt-3 border-l-2 border-acento/40 pl-3 text-sm italic text-texto-suave dark:text-texto-suave-dark">
@@ -575,7 +580,7 @@ export function ProyectoDetalle() {
               al perfil informativo del modelo viejo (julio 2026). */}
           {(filasOportunidad.length > 0 || capitalTrato) && (
             <Card>
-              <h2 className="text-lg font-semibold">Oportunidad de inversión</h2>
+              <TituloSeccion icono={HandCoins}>Oportunidad de inversión</TituloSeccion>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                 Declarado por el titular en su perfil de inversión.
               </p>
@@ -636,23 +641,19 @@ export function ProyectoDetalle() {
                     const esDeuda = f.id === "INV_0_11";
                     const sinDeudas = esDeuda && inv.INV_0_11 === "sin_deudas";
                     const Icono = esDeuda && !sinDeudas ? AlertTriangle : f.icono;
+                    const badge = sinDeudas
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : esDeuda
+                        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : "bg-acento/10 text-acento";
                     return (
                       <div
                         key={f.id}
-                        className="flex items-start gap-3 border border-black/10 p-3.5 dark:border-white/10"
+                        className="flex items-start gap-3 border border-black/10 p-3.5 transition duration-150 hover:border-acento/30 hover:bg-acento/[0.03] dark:border-white/10"
                       >
-                        <Icono
-                          size={18}
-                          strokeWidth={1.75}
-                          className={`mt-0.5 shrink-0 ${
-                            sinDeudas
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : esDeuda
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-acento"
-                          }`}
-                          aria-hidden
-                        />
+                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${badge}`}>
+                          <Icono size={16} strokeWidth={2} aria-hidden />
+                        </span>
                         <div className="min-w-0">
                           <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
                             {f.etiqueta}
@@ -690,7 +691,7 @@ export function ProyectoDetalle() {
                 (proyecto.geocatmin.restricciones?.length ?? 0) > 0))) && (
             <Card>
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold">Cotejo con registros públicos</h2>
+                <TituloSeccion icono={Landmark}>Cotejo con registros públicos</TituloSeccion>
                 <span className="border border-black/10 px-2.5 py-0.5 text-[11px] font-medium text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
                   INGEMMET · MINEM · SERNANP
                 </span>
@@ -971,7 +972,7 @@ export function ProyectoDetalle() {
               escribe junto a sus archivos de respaldo. */}
           {filasOperacion.length > 0 && (
             <Card>
-              <h2 className="text-lg font-semibold">Datos de la operación</h2>
+              <TituloSeccion icono={BarChart3}>Datos de la operación</TituloSeccion>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                 Cifras declaradas por el titular junto a sus archivos de respaldo.
               </p>
@@ -979,9 +980,11 @@ export function ProyectoDetalle() {
                 {filasOperacion.map((f) => (
                   <div
                     key={f.etiqueta}
-                    className="flex items-start gap-3 border border-black/10 p-3.5 dark:border-white/10"
+                    className="flex items-start gap-3 border border-black/10 p-3.5 transition duration-150 hover:border-acento/30 hover:bg-acento/[0.03] dark:border-white/10"
                   >
-                    <f.icono size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-acento" aria-hidden />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-acento/10 text-acento">
+                      <f.icono size={16} strokeWidth={2} aria-hidden />
+                    </span>
                     <div className="min-w-0">
                       <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
                         {f.etiqueta}
@@ -999,7 +1002,7 @@ export function ProyectoDetalle() {
           <Card>
             {/* El estado de Track Legal ya se ve en la franja de arriba --
                 acá el checklist habla por sí solo, ítem por ítem. */}
-            <h2 className="text-lg font-semibold">Formalización</h2>
+            <TituloSeccion icono={FileCheck2}>Formalización</TituloSeccion>
             <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
               Autodeclarado por el titular. Los documentos con el sello{" "}
               <strong className="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -1096,7 +1099,7 @@ export function ProyectoDetalle() {
           {((proyecto.documentos_inversion?.certificado_ley?.length ?? 0) > 0 ||
             documentosInversionExtra.length > 0) && (
             <Card>
-              <h2 className="text-lg font-semibold">Documentos de inversión</h2>
+              <TituloSeccion icono={FolderCheck}>Documentos de inversión</TituloSeccion>
               <p className="mt-1 text-xs text-texto-suave dark:text-texto-suave-dark">
                 Evidencia que respalda tu perfil de inversión — separada de los trámites de
                 formalización.
@@ -1231,17 +1234,47 @@ function Stat({
   );
 }
 
-/** Score 0-100 — mismos umbrales de color que la tarjeta de la cartera y la
- * cuenta del minero (≥70 verde, ≥40 ámbar). null si no hay score. */
+/** Score 0-100 como barra de progreso con color (agosto 2026: reemplaza el
+ * "72/100" en texto plano — mismos umbrales que la tarjeta de la cartera y
+ * la cuenta del minero, ≥70 verde, ≥40 ámbar; una barra se "lee" de un
+ * vistazo, un número dentro de una lista de texto no). null si no hay score. */
 function StatScore({ etiqueta, valor }: { etiqueta: string; valor?: number | null }) {
   if (typeof valor !== "number") return null;
-  const clase =
+  const barra = valor >= 70 ? "bg-emerald-500" : valor >= 40 ? "bg-amber-500" : "bg-red-500";
+  const texto =
     valor >= 70
       ? "text-emerald-600 dark:text-emerald-400"
       : valor >= 40
         ? "text-amber-600 dark:text-amber-400"
         : "text-red-500";
-  return <Stat etiqueta={etiqueta} valor={`${valor}/100`} claseValor={clase} />;
+  return (
+    <div>
+      <p className="text-xs font-medium text-texto-suave dark:text-texto-suave-dark">{etiqueta}</p>
+      <div className="mt-1 flex items-center gap-2">
+        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
+          <div className={`h-full rounded-full ${barra}`} style={{ width: `${valor}%` }} />
+        </div>
+        <span className={`text-sm font-semibold ${texto}`}>{valor}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Ícono en badge circular + título — mismo patrón de acento que ya usan
+ * GaleriaProyecto/InterpretacionUbicacionPublica, ahora aplicado a las 6
+ * tarjetas principales de la ficha (agosto 2026, pedido explícito: "más
+ * profesional... que me dé ganas de ver cada dato") — un simple <h2> de
+ * texto plano no invita a leer, un ícono de color sí marca cada sección
+ * como algo con peso propio antes de leer una sola palabra. */
+function TituloSeccion({ icono: Icono, children }: { icono: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-acento/10 text-acento">
+        <Icono size={16} strokeWidth={2} aria-hidden />
+      </span>
+      <h2 className="text-lg font-semibold">{children}</h2>
+    </div>
+  );
 }
 
 function Card({ children, acento }: { children: React.ReactNode; acento?: boolean }) {
