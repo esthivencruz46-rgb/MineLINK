@@ -422,6 +422,17 @@ class DocumentoOperacionOut(BaseModel):
     motivo_rechazo: Optional[str] = None
 
 
+class DocumentoPendienteOut(DocumentoOperacionOut):
+    """Igual que DocumentoOperacionOut pero con el contexto del minero —
+    para la cola única de revisión (agosto 2026: antes había que entrar
+    lead por lead a buscar qué le faltaba revisar)."""
+
+    operacion_id: str
+    lead_id: int
+    lead_nombre: str
+    nombre_operacion: Optional[str] = None
+
+
 class RevisarDocumentoRequest(BaseModel):
     """Body de PUT /admin/documentos/{id}/revision."""
 

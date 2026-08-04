@@ -511,6 +511,36 @@ def listar_documentos_operacion(
     )
 
 
+@router.get(
+    "/documentos/pendientes",
+    response_model=list[schemas.DocumentoPendienteOut],
+)
+def listar_documentos_pendientes(
+    db: Session = Depends(get_db),
+    _admin: str = Depends(get_current_admin),
+):
+    """Cola única con TODOS los documentos "Sin revisar" de TODOS los
+    mineros juntos, más viejo primero (agosto 2026, pedido explícito:
+    antes había que entrar lead por lead a buscar qué faltaba revisar)."""
+    filas = (
+        db.query(models.DocumentoOperacion, models.Lead)
+        .join(models.Lead, models.Lead.operacion_id == models.DocumentoOperacion.operacion_id)
+        .filter(models.DocumentoOperacion.estado_revision == "pendiente")
+        .order_by(models.DocumentoOperacion.created_at.asc())
+        .all()
+    )
+    return [
+        schemas.DocumentoPendienteOut(
+            **schemas.DocumentoOperacionOut.model_validate(documento).model_dump(),
+            operacion_id=documento.operacion_id,
+            lead_id=lead.id,
+            lead_nombre=lead.nombre,
+            nombre_operacion=lead.nombre_operacion,
+        )
+        for documento, lead in filas
+    ]
+
+
 @router.get("/documentos/{documento_id}/archivo")
 def descargar_documento_operacion(
     documento_id: int,

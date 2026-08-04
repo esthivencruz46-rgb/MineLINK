@@ -74,3 +74,12 @@ export interface DocumentoOperacion {
   estado_revision: EstadoRevisionDocumento;
   motivo_rechazo?: string | null;
 }
+
+/** Igual que DocumentoOperacion pero con el contexto del minero — para
+ * la cola única de "Documentos pendientes" (agosto 2026). */
+export interface DocumentoPendiente extends DocumentoOperacion {
+  operacion_id: string;
+  lead_id: number;
+  lead_nombre: string;
+  nombre_operacion?: string | null;
+}

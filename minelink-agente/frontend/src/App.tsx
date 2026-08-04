@@ -77,6 +77,11 @@ const AdminEmpresas = lazy(() =>
 const AdminLeads = lazy(() =>
   import("./pages/admin/AdminLeads").then((m) => ({ default: m.AdminLeads }))
 );
+const AdminDocumentosPendientes = lazy(() =>
+  import("./pages/admin/AdminDocumentosPendientes").then((m) => ({
+    default: m.AdminDocumentosPendientes,
+  }))
+);
 const AdminAsesor = lazy(() =>
   import("./pages/admin/AdminAsesor").then((m) => ({ default: m.AdminAsesor }))
 );
@@ -286,6 +291,14 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <AdminLeads />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/documentos-pendientes"
+              element={
+                <ProtectedRoute>
+                  <AdminDocumentosPendientes />
                 </ProtectedRoute>
               }
             />

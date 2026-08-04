@@ -1040,10 +1040,11 @@ def test_mineros_me_requiere_jwt():
     assert resp.status_code == 403
 
 
-def _token_minero(username="minerodocs", password="clave123"):
+def _token_minero(username="minerodocs", password="clave123", **overrides):
     diag = _crear_diagnostico().json()
     client.post(
-        "/leads", json=_lead_payload(diag["id"], username=username, password=password)
+        "/leads",
+        json=_lead_payload(diag["id"], username=username, password=password, **overrides),
     )
     resp = client.post("/mineros/login", json={"username": username, "password": password})
     return resp.json()["access_token"]
@@ -2552,6 +2553,46 @@ def test_admin_ve_documentos_de_operacion():
     # El PDF subido se convierte a foto (primera hoja) al guardarse — nunca
     # se guarda el PDF crudo.
     assert resp.headers["content-type"] == "image/jpeg"
+
+
+def test_admin_lista_documentos_pendientes_de_todos_los_mineros():
+    admin_token = _admin_token()
+    headers_admin = {"Authorization": f"Bearer {admin_token}"}
+
+    token_a = _token_minero(username="pendientesa", whatsapp="+51900000001")
+    client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token_a}"},
+        data={"categoria": "fotos_mina"},
+        files={"archivo": ("mina.jpg", b"\xff\xd8\xffimagen", "image/jpeg")},
+    )
+    token_b = _token_minero(username="pendientesb", whatsapp="+51900000002")
+    client.post(
+        "/mineros/documentos",
+        headers={"Authorization": f"Bearer {token_b}"},
+        data={"categoria": "ruc"},
+        files={"archivo": ("ruc.pdf", PDF_VALIDO_DE_PRUEBA, "application/pdf")},
+    )
+
+    resp = client.get("/admin/documentos/pendientes", headers=headers_admin)
+    assert resp.status_code == 200
+    pendientes = resp.json()
+    assert len(pendientes) == 2
+    # Más viejo primero (el de "pendientesa" se subió antes).
+    assert pendientes[0]["lead_nombre"]
+    assert pendientes[0]["operacion_id"]
+    assert {p["categoria"] for p in pendientes} == {"fotos_mina", "ruc"}
+
+    # Aprobar uno lo saca de la cola de pendientes.
+    doc_id = pendientes[0]["id"]
+    client.put(
+        f"/admin/documentos/{doc_id}/revision",
+        headers=headers_admin,
+        json={"estado_revision": "aprobado"},
+    )
+    resp = client.get("/admin/documentos/pendientes", headers=headers_admin)
+    assert len(resp.json()) == 1
+    assert resp.json()[0]["id"] != doc_id
 
 
 def test_proyectos_publicos_lista_sin_datos_sensibles():
