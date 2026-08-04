@@ -472,6 +472,19 @@ para que la app hable con un backend HTTP local en desarrollo (quitar cuando hay
 - `AndroidManifest.xml`: `android:usesCleartextTraffic="true"` (Android 9+ bloquea HTTP plano por
   defecto y esto falla en silencio, sin log visible).
 
+**Sesión persistida + bloqueo biométrico** (agosto 2026, pedido explícito de Esthiven: "como en
+eToro" en web, con huella en la app): el JWT de minero/inversionista ya duraba 30 días en el
+backend (`auth.MINERO_TOKEN_EXPIRE_MINUTES`) — el frontend lo guardaba SOLO en memoria y lo
+perdía en cada recarga; ahora `MineroAuthContext`/`InversionistaAuthContext` lo persisten en
+`localStorage` (mismo patrón que `useTheme.ts`). El admin (`AuthContext.tsx`) se queda en memoria
+a propósito. Encima de eso, `components/BloqueoBiometrico.tsx` (paquete
+`@aparajita/capacitor-biometric-auth@^8.0.2` — la versión más nueva compatible con Capacitor 6.x
+fijado en este proyecto; `10.x` ya pide Capacitor 8) pide huella/Face ID al abrir o retomar la
+app **nativa** (`Capacitor.isNativePlatform()`), solo si hay una sesión abierta y el teléfono
+tiene biometría configurada (si no, no bloquea nada — mismo comportamiento que la web). Requiere
+`android.permission.USE_BIOMETRIC` en `AndroidManifest.xml` y sincronizar
+(`npm run android:sync`) para que el módulo nativo se registre en `capacitor.settings.gradle`.
+
 ## Base de datos: SQLite local + Supabase
 
 El backend soporta ambos motores sin cambiar código (`database.py`):

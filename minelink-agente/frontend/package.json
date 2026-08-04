@@ -11,6 +11,8 @@
     "android:open": "npx cap open android"
   },
   "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^8.0.2",
+    "@capacitor/app": "^6.0.3",
     "@fontsource/inter": "^5.2.8",
     "esri-leaflet": "^3.0.19",
     "jspdf": "^4.2.1",

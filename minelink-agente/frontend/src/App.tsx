@@ -8,6 +8,7 @@ import { ProtectedRouteInversionista } from "./components/ProtectedRouteInversio
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Footer } from "./components/Footer";
 import { AsesorWidget } from "./components/AsesorWidget";
+import { BloqueoBiometrico } from "./components/BloqueoBiometrico";
 import { AuthProvider } from "./context/AuthContext";
 import { MineroAuthProvider } from "./context/MineroAuthContext";
 import { InversionistaAuthProvider } from "./context/InversionistaAuthContext";
@@ -318,6 +319,7 @@ export function App() {
         </main>
         {!esAdmin && <Footer />}
         {!esAdmin && <AsesorWidget />}
+        <BloqueoBiometrico />
         </div>
       </InversionistaAuthProvider>
       </MineroAuthProvider>
