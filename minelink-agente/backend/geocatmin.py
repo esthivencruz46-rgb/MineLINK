@@ -541,7 +541,8 @@ def imagenes_analisis_ia(
     from io import BytesIO
 
     try:
-        bbox = _bbox_de(coords, poligono)
+        # Ajustado al polígono (no al pin) -- ver _bbox_ajustado_poligono.
+        bbox = _bbox_ajustado_poligono(poligono, coords)
     except (ValueError, AttributeError):
         return None
 
@@ -577,27 +578,64 @@ def imagenes_analisis_ia(
     return resultado or None
 
 
+def _bbox_ajustado_poligono(
+    poligono: Optional[list], coords: Optional[str] = None, margen: float = 1.15
+) -> Optional[tuple[float, float, float, float]]:
+    """Bbox centrado en el PROPIO POLÍGONO (no en el pin, a diferencia de
+    `_bbox_de`) y ajustado tirante a su tamaño real, en vez del margen
+    grande pensado para que el pin nunca quede fuera de cuadro — agosto
+    2026, corrección tras un reporte en vivo con captura real: las
+    imágenes de análisis (ASTER, Anomalías Espectrales, y la de
+    catastro/geología/fallas de la galería del PDF) mostraban la
+    concesión como un recuadro chico perdido en una esquina, porque
+    heredaban el bbox de `_bbox_de` -- centrado en el pin, que puede caer
+    lejos del centro real de la concesión dentro de un polígono grande.
+    Mantiene el mismo aspecto panorámico `_ASPECTO_PDF` que ya usa
+    `_exportar_capa` (mismo tamaño de píxeles fijo `_ANCHO_MAPA`x
+    `_ALTO_MAPA`) para no distorsionar el mapa -- solo cambia DÓNDE está
+    centrado y CUÁNTO margen tiene. Sin polígono, cae a la misma caja fija
+    chica alrededor del pin que ya usaba `_bbox_de`."""
+    if poligono and poligono[0]:
+        anillo = poligono[0]
+        lngs = [p[0] for p in anillo]
+        lats = [p[1] for p in anillo]
+        cx, cy = (min(lngs) + max(lngs)) / 2, (min(lats) + max(lats)) / 2
+        medio_lat = max((max(lats) - min(lats)) / 2, (max(lngs) - min(lngs)) / 2 / _ASPECTO_PDF)
+    elif coords:
+        lat, lng = (float(p.strip()) for p in coords.split(","))
+        cx, cy, medio_lat = lng, lat, 0.006
+    else:
+        return None
+    medio_lat *= margen
+    medio_lng = medio_lat * _ASPECTO_PDF
+    return cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat
+
+
 def imagen_mapa_cotejo(
-    coords: Optional[str], poligono: Optional[list], escala_fallas: Optional[str] = None
+    coords: Optional[str],
+    poligono: Optional[list],
+    escala_fallas: Optional[str] = None,
+    bbox_fijo: Optional[tuple] = None,
 ) -> Optional[bytes]:
     """Compone satélite (Esri) + geología 100K + fallas cercanas (si hay) +
     catastro minero + el pin de la operación en una sola imagen JPEG —
     usada como portada del PDF (pedido explícito de Esthiven: "la imagen
     inicial debe ser la de ubicación con catastro y mapa geológico", julio
-    2026) y también como la capa "Catastro, geología y fallas" de la
-    sección de análisis satelital del PDF (agosto 2026). `escala_fallas`:
-    "50k"|"100k"|None — mismo criterio que el mapa interactivo
-    (MapaGeocatmin.tsx): None si no hay ninguna falla cerca que dibujar.
-    Best-effort: si cualquier capa falla, devuelve None y el caller usa la
-    foto normal del minero como portada en su lugar — nunca rompe la
-    descarga del PDF."""
+    2026). `escala_fallas`: "50k"|"100k"|None — mismo criterio que el mapa
+    interactivo (MapaGeocatmin.tsx): None si no hay ninguna falla cerca
+    que dibujar. `bbox_fijo`: si se pasa, se usa tal cual en vez de
+    calcularlo con `_bbox_de` -- lo usa `imagen_analisis_catastro` para
+    reusar toda esta composición con el bbox ajustado al polígono en vez
+    del panorámico de portada (ver `_bbox_ajustado_poligono`). Best-effort:
+    si cualquier capa falla, devuelve None y el caller usa la foto normal
+    del minero como portada en su lugar — nunca rompe la descarga del PDF."""
     if _DESACTIVADO or not coords:
         return None
     from PIL import Image, ImageDraw
     from io import BytesIO
 
     try:
-        bbox = _bbox_de(coords, poligono)
+        bbox = bbox_fijo or _bbox_de(coords, poligono)
         base = _exportar_capa(_ESRI_IMAGERY, bbox)
         if base is None:
             return None
@@ -651,3 +689,20 @@ def imagen_mapa_cotejo(
         return salida.getvalue()
     except (requests.RequestException, OSError, ValueError):
         return None
+
+
+def imagen_analisis_catastro(
+    coords: Optional[str], poligono: Optional[list], escala_fallas: Optional[str] = None
+) -> Optional[bytes]:
+    """La capa "Catastro, geología y fallas" de la galería de análisis
+    satelital del PDF (agosto 2026) -- reusa toda la composición de
+    `imagen_mapa_cotejo` (mismas 4 capas + pin) pero con el bbox ajustado
+    al polígono (`_bbox_ajustado_poligono`) en vez del panorámico
+    centrado-en-el-pin que sí necesita la portada. Antes esta capa de la
+    galería reusaba directamente la imagen de portada -- reportado en
+    vivo con captura real que la concesión aparecía como un recuadro
+    chico perdido en una esquina."""
+    if _DESACTIVADO or not coords:
+        return None
+    bbox = _bbox_ajustado_poligono(poligono, coords)
+    return imagen_mapa_cotejo(coords, poligono, escala_fallas, bbox_fijo=bbox)

@@ -868,6 +868,11 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # None si no hay pin declarado.
     geocatmin_aster_url: Optional[str] = None
     geocatmin_anomalia_espectral_url: Optional[str] = None
+    # Catastro + geología + fallas con el bbox ajustado al polígono (no el
+    # panorámico centrado-en-el-pin de mapa_cotejo_url) — para que la
+    # concesión llene la imagen en la galería del PDF en vez de aparecer
+    # como un recuadro chico (agosto 2026). None si no hay pin declarado.
+    geocatmin_catastro_analisis_url: Optional[str] = None
     # Interpretación en lenguaje natural de la ubicación (litología, fallas,
     # ASTER, anomalías de GEOCATMIN y Copernicus cruzadas — ver
     # interpretacion_ubicacion.py). Pública desde agosto 2026 (antes solo

@@ -897,6 +897,11 @@ def detalle_proyecto(
             if lead.ubicacion_coords
             else None
         ),
+        geocatmin_catastro_analisis_url=(
+            f"/proyectos/{operacion_id}/geocatmin-analisis/catastro.jpg"
+            if lead.ubicacion_coords
+            else None
+        ),
         interpretacion_ubicacion=(interpretacion_cache or {}).get("texto"),
         interpretacion_ubicacion_generado_en=(interpretacion_cache or {}).get("generado_en"),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
@@ -1053,6 +1058,25 @@ def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     fallas = cache_geocatmin.get("fallas") or {}
     escala_fallas = fallas.get("escala") if fallas.get("items") else None
     imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono, escala_fallas)
+    if imagen is None:
+        raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
+    return Response(content=imagen, media_type="image/jpeg")
+
+
+@router.get("/{operacion_id}/geocatmin-analisis/catastro.jpg")
+def catastro_analisis_proyecto(operacion_id: str, db: Session = Depends(get_db)):
+    """Catastro + geología + fallas, igual que mapa-cotejo.jpg pero con el
+    bbox ajustado al polígono en vez del panorámico centrado-en-el-pin de
+    la portada -- para la galería "capas 1 por 1" del PDF (agosto 2026,
+    corrección tras reporte en vivo con captura: la concesión aparecía
+    como un recuadro chico perdido en una esquina). Ver
+    geocatmin.imagen_analisis_catastro."""
+    lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
+    poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")
+    fallas = cache_geocatmin.get("fallas") or {}
+    escala_fallas = fallas.get("escala") if fallas.get("items") else None
+    imagen = geocatmin.imagen_analisis_catastro(lead.ubicacion_coords, poligono, escala_fallas)
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
     return Response(content=imagen, media_type="image/jpeg")

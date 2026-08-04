@@ -174,6 +174,10 @@ export interface ProyectoDetalle extends ProyectoPublico {
   // 2026) — solo para el PDF (galería de capas 1 por 1); null sin pin.
   geocatmin_aster_url?: string | null;
   geocatmin_anomalia_espectral_url?: string | null;
+  // Catastro + geología + fallas con el bbox ajustado al polígono (no el
+  // panorámico de mapa_cotejo_url) -- para que la concesión llene la
+  // imagen en la galería del PDF en vez de un recuadro chico (agosto 2026).
+  geocatmin_catastro_analisis_url?: string | null;
   // Interpretación de IA de la ubicación (litología, fallas, ASTER,
   // anomalías de GEOCATMIN y Copernicus cruzadas) — pública desde agosto
   // 2026, SIEMPRE se muestra junto al disclaimer de que es una hipótesis
