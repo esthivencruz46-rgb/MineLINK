@@ -525,11 +525,14 @@ def _con_borde_concesion(
 def imagenes_analisis_ia(
     coords: Optional[str], poligono: Optional[list]
 ) -> Optional[dict[str, bytes]]:
-    """ASTER 9-3-1 (para distinguir roca expuesta de vegetación) y las
-    Anomalías Espectrales oficiales de GEOCATMIN, recortadas sobre la
-    concesión y con su borde dibujado encima -- agosto 2026, pedido
-    explícito de Esthiven para que interpretacion_ubicacion.py (Gemini
-    Vision) las cruce contra las capas de Copernicus. Mejor esfuerzo,
+    """ASTER 9-3-1 (para distinguir roca expuesta de vegetación, ya viene
+    como foto completa del cuadro) y las Anomalías Espectrales oficiales
+    de GEOCATMIN (polígonos dispersos, se componen sobre satélite para que
+    tengan contexto geográfico real), ambas recortadas sobre la concesión
+    y con su borde dibujado encima -- agosto 2026, pedido explícito de
+    Esthiven para que interpretacion_ubicacion.py (Gemini Vision) las
+    cruce contra las capas de Copernicus, y para que el PDF de inversión
+    las muestre una por una (ver routers/proyectos.py). Mejor esfuerzo,
     igual que el resto del módulo: cada capa que falle simplemente no
     aparece en el dict devuelto, nunca tumba a las demás. None si está
     desactivado, sin coords, o ninguna de las dos capas pudo obtenerse."""
@@ -555,11 +558,18 @@ def imagenes_analisis_ia(
         pass
 
     try:
+        # A diferencia de ASTER (una foto que ya cubre todo el cuadro), esta
+        # capa es solo polígonos dispersos, transparente en el resto -- se
+        # compone sobre satélite (mismo criterio que imagen_mapa_cotejo)
+        # para que tenga contexto geográfico real, tanto para quien la mire
+        # en el PDF como para Gemini Vision en la interpretación de IA.
+        base = _exportar_capa(_ESRI_IMAGERY, bbox)
         anomalia = _exportar_capa(f"{_BASE}/SERV_ANOMALIA_ESPECTRAL/MapServer", bbox, "show:0")
-        if anomalia is not None:
-            anomalia = _con_borde_concesion(anomalia, bbox, poligono)
+        if base is not None and anomalia is not None:
+            base.alpha_composite(anomalia)
+            base = _con_borde_concesion(base, bbox, poligono)
             salida = BytesIO()
-            anomalia.save(salida, format="PNG")
+            base.save(salida, format="PNG")
             resultado["anomalia_espectral"] = salida.getvalue()
     except (requests.RequestException, OSError, ValueError):
         pass
@@ -567,13 +577,20 @@ def imagenes_analisis_ia(
     return resultado or None
 
 
-def imagen_mapa_cotejo(coords: Optional[str], poligono: Optional[list]) -> Optional[bytes]:
-    """Compone satélite (Esri) + catastro minero + geología 100K + el pin
-    de la operación en una sola imagen JPEG — usada como portada del PDF
-    (pedido explícito de Esthiven: "la imagen inicial debe ser la de
-    ubicación con catastro y mapa geológico", julio 2026). Best-effort: si
-    cualquier capa falla, devuelve None y el caller usa la foto normal del
-    minero como portada en su lugar — nunca rompe la descarga del PDF."""
+def imagen_mapa_cotejo(
+    coords: Optional[str], poligono: Optional[list], escala_fallas: Optional[str] = None
+) -> Optional[bytes]:
+    """Compone satélite (Esri) + geología 100K + fallas cercanas (si hay) +
+    catastro minero + el pin de la operación en una sola imagen JPEG —
+    usada como portada del PDF (pedido explícito de Esthiven: "la imagen
+    inicial debe ser la de ubicación con catastro y mapa geológico", julio
+    2026) y también como la capa "Catastro, geología y fallas" de la
+    sección de análisis satelital del PDF (agosto 2026). `escala_fallas`:
+    "50k"|"100k"|None — mismo criterio que el mapa interactivo
+    (MapaGeocatmin.tsx): None si no hay ninguna falla cerca que dibujar.
+    Best-effort: si cualquier capa falla, devuelve None y el caller usa la
+    foto normal del minero como portada en su lugar — nunca rompe la
+    descarga del PDF."""
     if _DESACTIVADO or not coords:
         return None
     from PIL import Image, ImageDraw
@@ -597,6 +614,14 @@ def imagen_mapa_cotejo(coords: Optional[str], poligono: Optional[list]) -> Optio
                 base.alpha_composite(geologia)
         except requests.RequestException:
             pass
+        if escala_fallas:
+            try:
+                servicio, capa, _campos = _CAPA_FALLAS_POR_ESCALA[escala_fallas]
+                fallas = _exportar_capa(f"{_BASE}/{servicio}/MapServer", bbox, f"show:{capa}")
+                if fallas is not None:
+                    base.alpha_composite(fallas)
+            except requests.RequestException:
+                pass
         try:
             catastro = _exportar_capa(
                 f"{_BASE}/SERV_CATASTRO_MINERO_WGS84/MapServer", bbox, "show:0"

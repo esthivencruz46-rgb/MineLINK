@@ -862,6 +862,21 @@ class ProyectoDetalleOut(ProyectoPublicoOut):
     # polígono de concesión o todavía no se generó (primera visita — se
     # agenda en segundo plano, ver _refrescar_anomalias_en_segundo_plano).
     anomalias_satelitales: Optional[dict] = None
+    # ASTER 9-3-1 y Anomalías Espectrales de GEOCATMIN, individuales (agosto
+    # 2026) — mismas imágenes que interpretacion_ubicacion.py, servidas al
+    # vuelo (no cacheadas) para que el PDF de inversión las muestre 1 por 1.
+    # None si no hay pin declarado.
+    geocatmin_aster_url: Optional[str] = None
+    geocatmin_anomalia_espectral_url: Optional[str] = None
+    # Interpretación en lenguaje natural de la ubicación (litología, fallas,
+    # ASTER, anomalías de GEOCATMIN y Copernicus cruzadas — ver
+    # interpretacion_ubicacion.py). Pública desde agosto 2026 (antes solo
+    # admin): SIEMPRE se muestra junto con un disclaimer bien visible de que
+    # es una hipótesis de IA sin verificar en campo, nunca un hallazgo
+    # confirmado — el frontend es responsable de mostrar ese disclaimer,
+    # nunca el texto solo. None = todavía no se generó para este proyecto.
+    interpretacion_ubicacion: Optional[str] = None
+    interpretacion_ubicacion_generado_en: Optional[str] = None
     # Verificación del código REINFO contra el padrón oficial del MINEM:
     # {codigo, consultado_en, estado VIGENTE/SUSPENDIDO/no_encontrado,
     # declarante, derecho, distrito} — ver reinfo.consultar_reinfo. None =

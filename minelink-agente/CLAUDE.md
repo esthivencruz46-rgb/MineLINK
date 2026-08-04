@@ -138,11 +138,9 @@ Plataforma web donde un minero artesanal peruano:
    de forma); `"v_prompt"` es `interpretacion_ubicacion.VERSION_INTERPRETACION`
    — sube cuando cambia el MÉTODO de análisis sin que cambien las capas
    (como en esta ampliación de agosto 2026), para no forzar un regasto de
-   créditos de Sentinel Hub solo por mejorar el prompt. Solo visible en el
-   admin (`GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
-   "Ubicación (IA)" en AdminLeads.tsx) — nunca en la ficha pública ni en
-   el PDF; si algún día eso cambia, el disclaimer tendría que ser mucho
-   más visible que hoy. **Camino de refresco independiente para capas ya
+   créditos de Sentinel Hub solo por mejorar el prompt. Lectura/regeneración
+   admin: `GET /admin/operaciones/{id}/interpretacion-ubicacion`, botón
+   "Ubicación (IA)" en AdminLeads.tsx. **Camino de refresco independiente para capas ya
    cacheadas o interpretación con método viejo** (julio 2026, bug real:
    activar la variable no le sirvió a ningún proyecto que ya tuviera sus
    6 capas generadas desde ANTES de que este módulo existiera; ampliado
@@ -172,6 +170,50 @@ Plataforma web donde un minero artesanal peruano:
    no debe demorarse. 400 si no hay ni polígono de GEOCATMIN ni capas de
    Copernicus con qué trabajar; 502 si Gemini no respondió o está
    desactivado. Botón en el mismo modal "Ubicación (IA)" de AdminLeads.tsx.
+   **Pasó a ser también PÚBLICA (agosto 2026, reversión explícita y
+   deliberada de la regla "solo admin" de julio 2026)**: Esthiven pidió
+   verla también en la ficha y en el PDF; se le preguntó explícitamente
+   antes de tocar código porque invertía una decisión tomada por riesgo
+   real ("puede sonar a que MineLink promete mineral") — confirmó que la
+   quiere visible para inversionistas SIEMPRE con un disclaimer grande,
+   nunca en letra chica. `ProyectoDetalleOut` (público, sin login) suma
+   `interpretacion_ubicacion`/`interpretacion_ubicacion_generado_en` (del
+   mismo caché) + `geocatmin_aster_url`/`geocatmin_anomalia_espectral_url`
+   (para el PDF, ver abajo). En la ficha web,
+   `InterpretacionUbicacionPublica.tsx` (nuevo componente, montado justo
+   debajo de `GaleriaProyecto` — "cerca del recuadro de ubicación", pedido
+   textual) muestra el texto con una caja de advertencia PROPIA (borde y
+   fondo ámbar, ícono, texto en negrita) siempre ARRIBA del párrafo, nunca
+   como nota al pie — el componente es la única fuente de verdad del
+   disclaimer, cualquier otro lugar que muestre este texto en el futuro
+   debe reusarlo o repetir exactamente esa caja, no solo el texto.
+   **PDF de inversión** (`utils/pdfProyecto.ts`, mismo PDF que baja
+   cualquier inversionista Y el propio minero desde su cuenta — no hay un
+   PDF "solo admin"): nueva sección "Análisis satelital (IA)" después de
+   "Cotejo con registros públicos", con el mismo disclaimer (caja ámbar)
+   + el texto + una galería "1 por 1" de las capas (pedido textual:
+   "catastro geología y fallas en una imagen, lo demás en diferentes"):
+   - Catastro + geología + fallas: reusa la MISMA imagen que ya es la
+     portada del PDF (`geocatmin.imagen_mapa_cotejo`, extendida agosto
+     2026 con un parámetro `escala_fallas` para dibujar también las
+     fallas cercanas — antes solo tenía satélite+geología+catastro).
+   - ASTER 9-3-1 y Anomalías Espectrales de GEOCATMIN: nuevo endpoint
+     `GET /proyectos/{id}/geocatmin-analisis/{capa}.png`, generado AL
+     VUELO en cada pedido (igual que `mapa-cotejo.jpg` — llamadas
+     gratis a ArcGIS, solo se piden al descargar un PDF, no en cada
+     visita a la ficha). La Anomalía Espectral (antes transparente salvo
+     polígonos, pensada para superponerse en el mapa interactivo) ahora
+     se compone sobre una base de satélite DENTRO de
+     `geocatmin.imagenes_analisis_ia` — mejora tanto lo que ve Gemini
+     como lo que se imprime en el PDF, sin duplicar lógica entre los dos
+     consumidores de esa función.
+   - Los hasta 6 índices de Copernicus: ya tenían URLs individuales
+     (`anomalias_satelitales.capas`), solo hubo que iterarlas en el PDF.
+     Se muestran sobre fondo BLANCO, no negro — bug real encontrado al
+     implementar esto: un canvas HTML aplana transparencia a NEGRO al
+     convertir a JPEG si no se rellena antes; `fotoEnCaja()` en
+     `pdfProyecto.ts` ahora rellena blanco primero (inofensivo para las
+     fotos opacas normales que ya usaba esa misma función).
 7. **Privacidad por diseño**: liquidaciones de venta, estados
    financieros, registro OPEX y fotos de TRABAJADORES son privados para
    siempre — públicamente solo se muestra el hecho verificado

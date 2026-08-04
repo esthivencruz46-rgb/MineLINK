@@ -1115,15 +1115,18 @@ export function AdminLeads() {
               </button>
             </div>
 
-            {/* Solo para tu uso: nunca se muestra al inversionista ni entra
-                al PDF. Lectura de las 6 capas de anomalías Copernicus
-                (óxidos de hierro, arcillas, hierro ferroso, arcilla/
-                sulfatos/mica, combinado, coincidencias) -- siempre en tono
+            {/* Agosto 2026: dejó de ser solo-admin -- ahora también se
+                muestra en la ficha pública (cerca del mapa) y en el PDF
+                de inversión, siempre con un disclaimer visible (ver
+                InterpretacionUbicacionPublica.tsx). Cruza litología/fallas
+                de GEOCATMIN + ASTER 9-3-1 + Anomalías Espectrales de
+                GEOCATMIN + las 6 capas de Copernicus -- siempre en tono
                 de hipótesis a verificar en campo, nunca un hallazgo
                 confirmado. */}
             <p className="mb-3 text-xs text-texto-suave dark:text-texto-suave-dark">
-              Uso interno — lectura de las capas de anomalías espectrales de
-              Copernicus, siempre como hipótesis a verificar en campo.
+              También visible para inversionistas en la ficha pública y el PDF (con
+              disclaimer) — siempre como hipótesis a verificar en campo, nunca un
+              hallazgo confirmado.
             </p>
 
             {cargandoInterpretacion && <p className="text-sm">Cargando...</p>}

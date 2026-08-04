@@ -828,6 +828,7 @@ def detalle_proyecto(
         )
     poligono_concesion = ((geocatmin_cache or {}).get("concesion") or {}).get("poligono")
     anomalias_cache = _anomalias_desde_cache(operacion)
+    interpretacion_cache = _interpretacion_desde_cache(operacion)
     if _anomalias_necesita_refresco(operacion, poligono_concesion):
         # Este camino YA genera la interpretación de una (ver
         # _refrescar_anomalias_en_segundo_plano) usando los PNG recién
@@ -886,6 +887,18 @@ def detalle_proyecto(
             if anomalias_cache
             else None
         ),
+        geocatmin_aster_url=(
+            f"/proyectos/{operacion_id}/geocatmin-analisis/aster_931.png"
+            if lead.ubicacion_coords
+            else None
+        ),
+        geocatmin_anomalia_espectral_url=(
+            f"/proyectos/{operacion_id}/geocatmin-analisis/anomalia_espectral.png"
+            if lead.ubicacion_coords
+            else None
+        ),
+        interpretacion_ubicacion=(interpretacion_cache or {}).get("texto"),
+        interpretacion_ubicacion_generado_en=(interpretacion_cache or {}).get("generado_en"),
         reinfo=_reinfo_desde_cache(operacion, (lead.codigo_reinfo or operacion.codigo_reinfo)),
         reinfo_verificado_manual=operacion.reinfo_verificado_manual,
         reinfo_verificado_en=operacion.reinfo_verificado_en,
@@ -1035,10 +1048,36 @@ def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     # None.get() reventaba con 500 justo en el caso más común.
     cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
     poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")
-    imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono)
+    # Mismo criterio que GaleriaProyecto.tsx para decidir si hay una falla
+    # que de verdad vale la pena dibujar (no solo "se consultó la escala").
+    fallas = cache_geocatmin.get("fallas") or {}
+    escala_fallas = fallas.get("escala") if fallas.get("items") else None
+    imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono, escala_fallas)
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
     return Response(content=imagen, media_type="image/jpeg")
+
+
+@router.get("/{operacion_id}/geocatmin-analisis/{capa}.png")
+def capa_geocatmin_analisis_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
+    """ASTER 9-3-1 o Anomalías Espectrales de GEOCATMIN, recortadas sobre
+    la concesión (agosto 2026) — las mismas imágenes que usa
+    interpretacion_ubicacion.py para la IA, ahora también servidas para
+    que el PDF de inversión las muestre una por una. Se generan AL VUELO
+    en cada pedido (igual que mapa-cotejo.jpg): son llamadas gratis a
+    ArcGIS, y esto solo se pide al descargar un PDF, nunca en cada carga
+    de la ficha — no vale la pena la infraestructura de caché que sí
+    necesitan las capas de Copernicus (esas SÍ cuestan créditos reales)."""
+    lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    if capa not in ("aster_931", "anomalia_espectral"):
+        raise HTTPException(status_code=404, detail="Capa no reconocida")
+    cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
+    poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")
+    imagenes = geocatmin.imagenes_analisis_ia(lead.ubicacion_coords, poligono)
+    contenido = (imagenes or {}).get(capa)
+    if contenido is None:
+        raise HTTPException(status_code=404, detail="No se pudo generar esa capa")
+    return Response(content=contenido, media_type="image/png")
 
 
 @router.get("/{operacion_id}/anomalias/{capa}.png")

@@ -2763,6 +2763,77 @@ def test_admin_lista_documentos_pendientes_de_todos_los_mineros():
     assert resp.json()[0]["id"] != doc_id
 
 
+def test_proyecto_detalle_expone_interpretacion_ubicacion_publica():
+    # agosto 2026: la interpretación de IA pasó de ser solo-admin a también
+    # pública (con disclaimer, que arma el frontend) — GET /proyectos/{id}
+    # debe traer el texto tal cual está cacheado, sin exigir login.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="interpretacionpublica"))
+    _hacer_apto_inversionistas(diag["id"], "interpretacionpublica")
+
+    db = TestingSessionLocal()
+    operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
+    operacion.datos_formalizacion_json = {
+        **(operacion.datos_formalizacion_json or {}),
+        "_geocatmin": {
+            "coords": "-12.5,-76.7",
+            "concesion": {"poligono": [[[-77.0, -12.0], [-77.0, -11.9], [-76.9, -11.9]]]},
+        },
+        "_interpretacion_ubicacion": {
+            "texto": "Se observa una posible coincidencia en el sector norte.",
+            "generado_en": "2026-08-05",
+            "v": 3,
+            "v_prompt": 2,
+        },
+    }
+    lead = db.query(models.Lead).filter(models.Lead.operacion_id == diag["id"]).first()
+    lead.ubicacion_coords = "-12.5,-76.7"
+    db.commit()
+    db.close()
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["interpretacion_ubicacion"] == "Se observa una posible coincidencia en el sector norte."
+    assert data["interpretacion_ubicacion_generado_en"] == "2026-08-05"
+    assert data["geocatmin_aster_url"] == f"/proyectos/{diag['id']}/geocatmin-analisis/aster_931.png"
+    assert (
+        data["geocatmin_anomalia_espectral_url"]
+        == f"/proyectos/{diag['id']}/geocatmin-analisis/anomalia_espectral.png"
+    )
+
+
+def test_proyecto_detalle_sin_interpretacion_ni_coords_da_campos_none():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="sininterpretacion"))
+    _hacer_apto_inversionistas(diag["id"], "sininterpretacion")
+
+    resp = client.get(f"/proyectos/{diag['id']}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["interpretacion_ubicacion"] is None
+    assert data["geocatmin_aster_url"] is None
+    assert data["geocatmin_anomalia_espectral_url"] is None
+
+
+def test_capa_geocatmin_analisis_404_si_nombre_no_reconocido():
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="capageocatmin1"))
+    _hacer_apto_inversionistas(diag["id"], "capageocatmin1")
+    resp = client.get(f"/proyectos/{diag['id']}/geocatmin-analisis/no-existe.png")
+    assert resp.status_code == 404
+
+
+def test_capa_geocatmin_analisis_404_si_geocatmin_desactivado():
+    # En el entorno de tests MINELINK_GEOCATMIN=0 -- geocatmin.imagenes_analisis_ia
+    # siempre devuelve None, así que la capa nunca se genera de verdad.
+    diag = _crear_diagnostico().json()
+    client.post("/leads", json=_lead_payload(diag["id"], username="capageocatmin2"))
+    _hacer_apto_inversionistas(diag["id"], "capageocatmin2")
+    resp = client.get(f"/proyectos/{diag['id']}/geocatmin-analisis/aster_931.png")
+    assert resp.status_code == 404
+
+
 def test_proyectos_publicos_lista_sin_datos_sensibles():
     diag = _crear_diagnostico().json()
     client.post(

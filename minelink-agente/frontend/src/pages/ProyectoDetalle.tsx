@@ -28,6 +28,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { GaleriaProyecto } from "../components/proyecto/GaleriaProyecto";
+import { InterpretacionUbicacionPublica } from "../components/proyecto/InterpretacionUbicacionPublica";
 import { InteresInversionModal } from "../components/proyecto/InteresInversionModal";
 import { FichaProyectoSkeleton } from "../components/Skeleton";
 import { INFO_BRECHA } from "../data/brechas";
@@ -521,6 +522,14 @@ export function ProyectoDetalle() {
           geocatmin={proyecto.geocatmin}
           anomaliasSatelitales={proyecto.anomalias_satelitales}
         />
+        {proyecto.interpretacion_ubicacion && (
+          <div className="mt-3">
+            <InterpretacionUbicacionPublica
+              texto={proyecto.interpretacion_ubicacion}
+              generadoEn={proyecto.interpretacion_ubicacion_generado_en}
+            />
+          </div>
+        )}
       </div>
 
       {/* CONTENIDO PRINCIPAL — el panel lateral (indicadores + botones) vive

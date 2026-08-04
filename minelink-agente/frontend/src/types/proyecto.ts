@@ -170,6 +170,17 @@ export interface ProyectoDetalle extends ProyectoPublico {
     bbox: [number, number, number, number];
     capas: Record<string, string>;
   } | null;
+  // ASTER 9-3-1 y Anomalías Espectrales de GEOCATMIN, individuales (agosto
+  // 2026) — solo para el PDF (galería de capas 1 por 1); null sin pin.
+  geocatmin_aster_url?: string | null;
+  geocatmin_anomalia_espectral_url?: string | null;
+  // Interpretación de IA de la ubicación (litología, fallas, ASTER,
+  // anomalías de GEOCATMIN y Copernicus cruzadas) — pública desde agosto
+  // 2026, SIEMPRE se muestra junto al disclaimer de que es una hipótesis
+  // sin verificar en campo (ver InterpretacionUbicacionPublica.tsx). null
+  // = todavía no se generó para este proyecto.
+  interpretacion_ubicacion?: string | null;
+  interpretacion_ubicacion_generado_en?: string | null;
   // Cotejo del código REINFO contra el padrón del MINEM.
   reinfo?: ReinfoVerificado | null;
   // Verificación MANUAL del código REINFO por Esthiven — el cotejo

@@ -231,3 +231,49 @@ def test_imagenes_analisis_ia_mejor_esfuerzo_si_fallan_ambas_capas(monkeypatch):
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     with patch("geocatmin.requests.get", side_effect=requests_mod.RequestException("timeout")):
         assert geocatmin.imagenes_analisis_ia("-12.5,-76.7", None) is None
+
+
+# ---------- imagen_mapa_cotejo (agosto 2026: ahora también dibuja fallas) ----------
+
+
+def test_imagen_mapa_cotejo_desactivado_por_defecto():
+    assert geocatmin.imagen_mapa_cotejo("-12.5,-76.7", None, "50k") is None
+
+
+def test_imagen_mapa_cotejo_none_sin_coords(monkeypatch):
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    assert geocatmin.imagen_mapa_cotejo(None, None, None) is None
+
+
+def test_imagen_mapa_cotejo_pide_fallas_solo_si_se_indica_escala(monkeypatch):
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+
+    urls_pedidas = []
+
+    def _get_falso(url, params=None, timeout=None):
+        urls_pedidas.append(url)
+        # PNG 1x1 válido — suficiente para que Pillow lo abra sin reventar.
+        png_1x1 = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+            b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01"
+            b"\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+
+        class _Resp:
+            content = png_1x1
+
+            def raise_for_status(self):
+                pass
+
+        return _Resp()
+
+    with patch("geocatmin.requests.get", side_effect=_get_falso):
+        sin_fallas = geocatmin.imagen_mapa_cotejo("-12.5,-76.7", None, None)
+        urls_sin_fallas = list(urls_pedidas)
+        urls_pedidas.clear()
+        con_fallas = geocatmin.imagen_mapa_cotejo("-12.5,-76.7", None, "50k")
+
+    assert sin_fallas is not None
+    assert con_fallas is not None
+    assert not any("GEOLOGIA_50K_INTEGRADA/MapServer/export" in u for u in urls_sin_fallas)
+    assert any("GEOLOGIA_50K_INTEGRADA/MapServer/export" in u for u in urls_pedidas)

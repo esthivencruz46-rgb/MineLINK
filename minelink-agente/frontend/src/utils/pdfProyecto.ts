@@ -34,6 +34,17 @@ const ETIQUETA_DOC_INVERSION: Record<string, string> = {
   certificado_ley: "Certificado de ley del mineral",
 };
 
+// Espejo de interpretacion_ubicacion._TITULOS_CAPAS (backend) — para la
+// galería "capas 1 por 1" del PDF (agosto 2026).
+const ETIQUETA_CAPA_COPERNICUS: Record<string, string> = {
+  oxidos_de_hierro: "Óxidos de hierro (Copernicus)",
+  arcillas: "Arcillas (Copernicus)",
+  hierro_ferroso: "Hierro ferroso (Copernicus)",
+  arcilla_sulfatos_mica: "Arcilla / sulfatos / mica (Copernicus)",
+  combinado: "Combinado (Copernicus)",
+  coincidencias: "Coincidencias — 2+ índices de acuerdo (Copernicus)",
+};
+
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
@@ -103,6 +114,13 @@ function fotoEnCaja(
   canvas.height = Math.round(alto * px);
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+  // Fondo blanco ANTES de dibujar (agosto 2026): sin esto, un PNG
+  // transparente (como las capas de anomalías espectrales) sale con fondo
+  // NEGRO al convertir a JPEG -- el canvas compone lo transparente sobre
+  // negro por defecto al aplanar a un formato sin canal alfa. Para fotos
+  // opacas normales esto no cambia nada (drawImage las cubre por completo).
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(
     foto.img,
     (foto.w - wRec) / 2,
@@ -262,7 +280,16 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // checklist + miniaturas de documentos de inversión — todo antes de
   // dibujar, para no ir armando el PDF a pedazos mientras llegan las fotos.
   const urlsFotos = proyecto.fotos.slice(0, 5).map((f) => f.url);
-  const [mapaPortada, fotos, miniaturasChecklist, miniaturasInversion] = await Promise.all([
+  const capasCopernicusUrls = Object.entries(proyecto.anomalias_satelitales?.capas ?? {});
+  const [
+    mapaPortada,
+    fotos,
+    miniaturasChecklist,
+    miniaturasInversion,
+    capaAster,
+    capaAnomaliaGeocatmin,
+    capasCopernicus,
+  ] = await Promise.all([
     // Portada (pedido explícito, julio 2026): en vez de una foto cualquiera
     // del minero, la imagen inicial es el mapa de ubicación con catastro y
     // geología — se genera server-side (ver geocatmin.imagen_mapa_cotejo).
@@ -279,12 +306,37 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
       ...(proyecto.documentos_inversion ?? {}),
       ...Object.fromEntries(documentosInversionExtra.map((e) => [e, proyecto.documentos_estudios[e]]))
     }),
+    // Capas de análisis satelital "1 por 1" (agosto 2026, pedido explícito
+    // de Esthiven): catastro+geología+fallas ya viene combinado en
+    // mapaPortada; ASTER y la anomalía de GEOCATMIN se piden aparte.
+    proyecto.geocatmin_aster_url ? cargarFoto(proyecto.geocatmin_aster_url) : Promise.resolve(null),
+    proyecto.geocatmin_anomalia_espectral_url
+      ? cargarFoto(proyecto.geocatmin_anomalia_espectral_url)
+      : Promise.resolve(null),
+    Promise.all(
+      capasCopernicusUrls.map(async ([nombre, url]) => [nombre, await cargarFoto(url)] as const)
+    ),
   ]);
   const fotosOk = fotos.filter((f): f is Foto => f !== null);
   const portada = mapaPortada ?? fotosOk[0] ?? null;
   // Si el mapa se usó de portada, ninguna foto de la galería se "gasta" en
   // eso — todas quedan disponibles para la sección de galería.
   const galeria = mapaPortada ? fotosOk.slice(0, 4) : fotosOk.slice(1, 5);
+
+  // Galería de capas para la sección "Análisis satelital (IA)" — catastro/
+  // geología/fallas reusa la MISMA imagen que la portada (ya es justo esa
+  // combinación), el resto son capas propias. Solo entran las que sí
+  // cargaron (best-effort, igual que el resto del PDF).
+  const capasAnalisis: { etiqueta: string; foto: Foto }[] = [
+    ...(mapaPortada ? [{ etiqueta: "Catastro, geología y fallas (GEOCATMIN)", foto: mapaPortada }] : []),
+    ...(capaAster ? [{ etiqueta: "ASTER 9-3-1 — roca vs. vegetación (GEOCATMIN)", foto: capaAster }] : []),
+    ...(capaAnomaliaGeocatmin
+      ? [{ etiqueta: "Anomalías Espectrales (GEOCATMIN)", foto: capaAnomaliaGeocatmin }]
+      : []),
+    ...capasCopernicus
+      .filter((par): par is [string, Foto] => par[1] !== null)
+      .map(([nombre, foto]) => ({ etiqueta: ETIQUETA_CAPA_COPERNICUS[nombre] ?? nombre, foto })),
+  ];
 
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   let y = 22;
@@ -588,6 +640,67 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
       y += 5;
     }
     y += 2;
+  }
+
+  // Análisis satelital (IA) — agosto 2026, pedido explícito de Esthiven:
+  // el mismo texto que ya se ve en la ficha web, más las capas 1 por 1
+  // (catastro+geología+fallas combinadas en una sola imagen, el resto
+  // separadas). SIEMPRE con el disclaimer bien visible arriba del texto,
+  // igual que en la web — nunca solo el texto solo.
+  if (proyecto.interpretacion_ubicacion || capasAnalisis.length > 0) {
+    const alturaDisclaimer = 15;
+    y = asegurarEspacio(doc, y, alturaDisclaimer + 20);
+    y = tituloSeccion(doc, y, "Análisis satelital (IA)");
+
+    doc.setFillColor(255, 248, 230);
+    doc.setDrawColor(...AMARILLO);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(MARGEN, y, ANCHO_UTIL, alturaDisclaimer, 1.5, 1.5, "FD");
+    doc.setFontSize(8.3);
+    doc.setTextColor(...AMARILLO);
+    doc.setFont("helvetica", "bold");
+    const disclaimer = doc.splitTextToSize(
+      "Hipótesis generada por inteligencia artificial a partir de imágenes satelitales — " +
+        "NO es un hallazgo confirmado de mineral ni un estudio geológico. Debe verificarse " +
+        "siempre con muestreo en campo.",
+      ANCHO_UTIL - 6
+    );
+    doc.text(disclaimer, MARGEN + 3, y + 4.5);
+    y += alturaDisclaimer + 4;
+    doc.setFont("helvetica", "normal");
+
+    if (proyecto.interpretacion_ubicacion) {
+      doc.setFontSize(9.5);
+      doc.setTextColor(...TEXTO);
+      const textoInterpretacion = doc.splitTextToSize(proyecto.interpretacion_ubicacion, ANCHO_UTIL);
+      y = asegurarEspacio(doc, y, textoInterpretacion.length * 4.4 + 4);
+      doc.text(textoInterpretacion, MARGEN, y);
+      y += textoInterpretacion.length * 4.4 + 5;
+    }
+
+    if (capasAnalisis.length > 0) {
+      // Mismo criterio que "Galería de la operación" más abajo: se
+      // reserva el espacio de la grilla COMPLETA de una vez (con su
+      // propio salto de página si no entra) en vez de chequear fila por
+      // fila -- evita que "fila" quede desincronizado de "y" si hubiera
+      // un salto de página a mitad de la grilla.
+      const filasCapas = Math.ceil(capasAnalisis.length / 2);
+      const anchoCapa = (ANCHO_UTIL - 4) / 2;
+      const altoCapa = 36;
+      y = asegurarEspacio(doc, y, 10 + filasCapas * (altoCapa + 8));
+      capasAnalisis.forEach((capa, i) => {
+        const col = i % 2;
+        const fila = Math.floor(i / 2);
+        const xCapa = MARGEN + col * (anchoCapa + 4);
+        const yCapa = y + fila * (altoCapa + 8);
+        fotoEnCaja(doc, capa.foto, xCapa, yCapa, anchoCapa, altoCapa, 1.5);
+        doc.setFontSize(7.5);
+        doc.setTextColor(...SUAVE);
+        doc.setFont("helvetica", "normal");
+        doc.text(capa.etiqueta, xCapa, yCapa + altoCapa + 3.5, { maxWidth: anchoCapa });
+      });
+      y += filasCapas * (altoCapa + 8) + 2;
+    }
   }
 
   // Galería
