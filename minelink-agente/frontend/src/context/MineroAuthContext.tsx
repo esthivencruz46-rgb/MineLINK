@@ -11,12 +11,33 @@ interface MineroAuthContextValue {
   authFetch: (path: string, options?: RequestInit) => Promise<Response>;
 }
 
-// JWT SOLO en memoria (useState), NUNCA en localStorage: si recarga la
-// página, el minero vuelve a loguearse (mismo criterio que el admin).
+const CLAVE_TOKEN = "minelink_token_minero";
+
+// Sesión persistida en localStorage (agosto 2026, pedido explícito de
+// Esthiven: "como en eToro, si ya inició sesión se mantiene hasta que
+// quiera cerrarla"). El JWT del minero YA dura 30 días en el backend
+// (auth.MINERO_TOKEN_EXPIRE_MINUTES) -- antes se guardaba SOLO en memoria
+// y se perdía en cada recarga de página o cierre de la app, aunque el
+// token siguiera siendo válido del lado del servidor. Distinto del admin
+// (AuthContext.tsx), que sigue en memoria a propósito: una sola cuenta
+// interna, sin fricción real en volver a loguearse cada vez.
 const MineroAuthContext = createContext<MineroAuthContextValue | null>(null);
 
+function tokenInicial(): string | null {
+  return localStorage.getItem(CLAVE_TOKEN);
+}
+
 export function MineroAuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setTokenState] = useState<string | null>(tokenInicial);
+
+  function setToken(nuevo: string | null) {
+    setTokenState(nuevo);
+    if (nuevo) {
+      localStorage.setItem(CLAVE_TOKEN, nuevo);
+    } else {
+      localStorage.removeItem(CLAVE_TOKEN);
+    }
+  }
 
   async function login(username: string, password: string) {
     const resp = await fetch(`${BASE_URL}/mineros/login`, {
@@ -43,6 +64,8 @@ export function MineroAuthProvider({ children }: { children: ReactNode }) {
         Authorization: `Bearer ${token ?? ""}`,
       },
     });
+    // 401 = el token ya no es válido para el servidor (expiró o se
+    // revocó) -- se limpia también de localStorage, no solo de memoria.
     if (resp.status === 401) {
       setToken(null);
     }
