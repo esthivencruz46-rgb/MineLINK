@@ -543,6 +543,24 @@ sin un navegador real).
 
 ## Reglas de autonomía
 
+### Preguntas y confirmaciones (agosto 2026, pedido explícito de Esthiven)
+No te detengas a preguntar "¿sí o no?" / "¿confirmás?" para decisiones
+que ya tienen una opción sensata o recomendada — elegí esa opción y
+avanzá, en vez de esperar respuesta. Esthiven no quiere frenar seguido
+para dar permiso en cosas chicas; prefiere corregir después si algo no
+le sirvió. Reservá una pregunta explícita (AskUserQuestion) solo para lo
+que de verdad no podés resolver solo: elegir entre direcciones sin
+ninguna pista de cuál prefiere, o algo caro/difícil de deshacer si se
+adivina mal — para eso sigue en pie, sin excepción, la lista de "SIEMPRE
+confirma antes de" más abajo (borrar, migrar contra producción, cambiar
+config sustancial, conectar un servicio nuevo). Si igual hace falta
+preguntar algo con varias opciones y una está marcada "(recomendada)",
+priorizá seguir con esa en cuanto sea razonable — no hay forma técnica
+de detectar "pasó 1 minuto sin respuesta" dentro de una conversación (no
+es un proceso en vivo con temporizador), así que el equivalente práctico
+del pedido de Esthiven es: no pausar de entrada si ya hay un default
+razonable, en vez de preguntar y quedarse esperando.
+
 ### Puedes hacer SIN confirmar
 - Crear/editar archivos de código
 - Instalar dependencias (pip install --break-system-packages / npm install)
