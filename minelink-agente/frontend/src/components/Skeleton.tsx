@@ -11,16 +11,18 @@ export function Skeleton({ className = "" }: { className?: string }) {
   );
 }
 
-/** Imita una ProyectoCard de /proyectos: foto + 3 líneas de texto. */
+/** Imita una ProyectoCard de /proyectos: foto arriba a todo el ancho +
+ *  líneas de texto abajo (agosto 2026: la tarjeta pasó de fila-de-lista a
+ *  tarjeta independiente con foto de cabecera). */
 export function TarjetaProyectoSkeleton() {
   return (
-    <div className="flex gap-4 rounded-lg bg-tarjeta p-5 dark:bg-tarjeta-dark">
-      <Skeleton className="h-24 w-24 shrink-0" />
-      <div className="flex min-w-0 flex-1 flex-col gap-2.5 py-1">
+    <div className="flex flex-col overflow-hidden border border-black/10 bg-tarjeta dark:border-white/10 dark:bg-tarjeta-dark">
+      <Skeleton className="aspect-[16/10] w-full rounded-none" />
+      <div className="flex flex-col gap-2.5 p-4">
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="mt-1 h-5 w-32" />
         <Skeleton className="h-3 w-2/3" />
-        <Skeleton className="mt-1 h-5 w-24 rounded-full" />
       </div>
     </div>
   );

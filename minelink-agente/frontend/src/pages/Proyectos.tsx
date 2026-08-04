@@ -126,12 +126,9 @@ export function Proyectos() {
         {error && <p className="text-red-500">{error}</p>}
 
         {cargando && (
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {[0, 1].map((col) => (
-              <div key={col} className="flex flex-col gap-4">
-                <TarjetaProyectoSkeleton />
-                <TarjetaProyectoSkeleton />
-              </div>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <TarjetaProyectoSkeleton key={i} />
             ))}
           </div>
         )}
@@ -143,36 +140,34 @@ export function Proyectos() {
         )}
 
         {!cargando && proyectos.length > 0 && (
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+          <div className="flex flex-col gap-10">
             {[
               { titulo: "Operaciones en marcha", grupo: operando, icono: "pickaxe" },
               { titulo: "Concesiones en preparación", grupo: enPreparacion, icono: "mapa" },
-            ].map(({ titulo, grupo, icono }) => (
-              <div key={titulo} className="flex flex-col gap-4">
-                <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 font-semibold dark:border-white/10">
-                  {icono === "pickaxe" ? (
-                    <Pickaxe size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
-                  ) : (
-                    <MapPin size={17} strokeWidth={1.75} className="text-acento" aria-hidden />
-                  )}
-                  {titulo}
-                  <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
-                    ({grupo.length})
-                  </span>
-                </h2>
-                {grupo.length === 0 ? (
-                  <p className="border border-black/10 p-4 text-sm text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-                    Todavía no hay proyectos en este grupo.
-                  </p>
-                ) : (
-                  <div className="flex flex-col divide-y divide-black/10 border border-black/10 dark:divide-white/10 dark:border-white/10">
+            ].map(({ titulo, grupo, icono }) =>
+              grupo.length === 0 ? null : (
+                <section key={titulo} className="flex flex-col gap-4">
+                  <h2 className="flex items-center gap-2 border-b border-black/10 pb-2 font-semibold dark:border-white/10">
+                    <span className="flex h-7 w-7 items-center justify-center rounded-full bg-acento/10 text-acento">
+                      {icono === "pickaxe" ? (
+                        <Pickaxe size={15} strokeWidth={2} aria-hidden />
+                      ) : (
+                        <MapPin size={15} strokeWidth={2} aria-hidden />
+                      )}
+                    </span>
+                    {titulo}
+                    <span className="font-normal text-texto-suave dark:text-texto-suave-dark">
+                      ({grupo.length})
+                    </span>
+                  </h2>
+                  <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                     {grupo.map((p) => (
                       <ProyectoCard key={p.operacion_id} proyecto={p} />
                     ))}
                   </div>
-                )}
-              </div>
-            ))}
+                </section>
+              )
+            )}
           </div>
         )}
       </div>
@@ -200,8 +195,11 @@ function ScoreChip({ etiqueta, valor }: { etiqueta: string; valor?: number | nul
   );
 }
 
-/** Tarjeta de la cartera: Track Legal (semáforo + texto), scores 0-100 por
- * track, ventas verificadas con respaldo, monto buscado y perfil de riesgo. */
+/** Tarjeta de la cartera: foto a todo el ancho (con el perfil de riesgo
+ * flotando encima), Track Legal + madurez, scores, badges de verificación,
+ * monto buscado y CTA — pensada como tarjeta independiente en una grilla,
+ * no como fila de una lista (rediseño agosto 2026, pedido explícito de
+ * hacer la cartera más estética). */
 function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
   const semLegal = semaforoDesdeColor(p.semaforo_legal);
   const perfil = p.perfil ?? "";
@@ -213,34 +211,35 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
   return (
     <Link
       to={`/proyectos/${p.operacion_id}`}
-      className="flex gap-4 p-5 transition hover:bg-black/[0.02] dark:hover:bg-white/[0.03]"
+      className="group flex flex-col overflow-hidden border border-black/10 bg-tarjeta transition duration-200 hover:-translate-y-0.5 hover:border-acento/30 hover:shadow-sm dark:border-white/10 dark:bg-tarjeta-dark"
     >
-      {p.foto_portada_url ? (
-        <img
-          src={`${BASE_URL}${p.foto_portada_url}`}
-          alt={`Foto de ${p.nombre_proyecto}`}
-          loading="lazy"
-          className="h-24 w-24 shrink-0 object-cover"
-        />
-      ) : (
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center bg-black/5 dark:bg-white/5">
-          <Pickaxe size={28} strokeWidth={1.75} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
-        </div>
-      )}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="font-semibold">{p.nombre_proyecto}</h2>
-          {PERFIL_RIESGO[perfil] && (
-            <span className="shrink-0 border border-black/10 px-2 py-0.5 text-[11px] font-medium text-texto-suave dark:border-white/10 dark:text-texto-suave-dark">
-              {PERFIL_RIESGO[perfil]}
-            </span>
-          )}
-        </div>
+      <div className="relative aspect-[16/10] shrink-0 overflow-hidden bg-black/5 dark:bg-white/5">
+        {p.foto_portada_url ? (
+          <img
+            src={`${BASE_URL}${p.foto_portada_url}`}
+            alt={`Foto de ${p.nombre_proyecto}`}
+            loading="lazy"
+            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Pickaxe size={30} strokeWidth={1.5} className="text-texto-suave dark:text-texto-suave-dark" aria-hidden />
+          </div>
+        )}
+        {PERFIL_RIESGO[perfil] && (
+          <span className="absolute right-2 top-2 border border-white/40 bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white backdrop-blur-sm">
+            {PERFIL_RIESGO[perfil]}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-1 flex-col p-4">
+        <h2 className="font-semibold leading-snug">{p.nombre_proyecto}</h2>
         <p className="text-sm capitalize text-texto-suave dark:text-texto-suave-dark">
           {p.mineral} · {p.region}
         </p>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+        <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className={`inline-flex items-center gap-1 font-semibold ${semLegal.claseTexto}`}>
             <ShieldCheck size={13} strokeWidth={2.25} aria-hidden />
             {trackLegal}
@@ -294,16 +293,25 @@ function ProyectoCard({ proyecto: p }: { proyecto: ProyectoPublico }) {
           </div>
         )}
 
-        {p.capital_buscado && (
-          <p className="mt-2 line-clamp-1 text-sm">
-            Busca {formatearMonto(p.capital_buscado)}
-            {p.uso_fondos ? ` — ${p.uso_fondos}` : ""}
+        {/* Empuja el capital + CTA al fondo de la tarjeta aunque el resto
+            del contenido varíe en alto entre tarjetas de la misma fila. */}
+        <div className="mt-auto pt-3">
+          {p.capital_buscado && (
+            <p className="line-clamp-1 text-sm font-medium">
+              Busca {formatearMonto(p.capital_buscado)}
+              {p.uso_fondos ? ` — ${p.uso_fondos}` : ""}
+            </p>
+          )}
+          <p className="mt-2 flex items-center gap-1 border-t border-black/10 pt-2 text-sm font-semibold text-acento dark:border-white/10">
+            Ver detalle
+            <ArrowRight
+              size={15}
+              strokeWidth={2.25}
+              className="transition-transform group-hover:translate-x-0.5"
+              aria-hidden
+            />
           </p>
-        )}
-
-        <p className="mt-3 flex items-center gap-1 text-sm font-semibold text-acento">
-          Ver detalle <ArrowRight size={15} strokeWidth={2.25} aria-hidden />
-        </p>
+        </div>
       </div>
     </Link>
   );
