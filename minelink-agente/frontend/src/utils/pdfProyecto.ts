@@ -645,37 +645,35 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // Análisis satelital (IA) — agosto 2026, pedido explícito de Esthiven:
   // el mismo texto que ya se ve en la ficha web, más las capas 1 por 1
   // (catastro+geología+fallas combinadas en una sola imagen, el resto
-  // separadas). SIEMPRE con el disclaimer bien visible arriba del texto,
-  // igual que en la web — nunca solo el texto solo.
+  // separadas). El aviso de que es una hipótesis sin confirmar va chico,
+  // debajo del texto (ver comentario más abajo) — no una caja grande.
   if (proyecto.interpretacion_ubicacion || capasAnalisis.length > 0) {
-    const alturaDisclaimer = 15;
-    y = asegurarEspacio(doc, y, alturaDisclaimer + 20);
+    y = asegurarEspacio(doc, y, 20);
     y = tituloSeccion(doc, y, "Análisis satelital (IA)");
 
-    doc.setFillColor(255, 248, 230);
-    doc.setDrawColor(...AMARILLO);
-    doc.setLineWidth(0.4);
-    doc.roundedRect(MARGEN, y, ANCHO_UTIL, alturaDisclaimer, 1.5, 1.5, "FD");
-    doc.setFontSize(8.3);
-    doc.setTextColor(...AMARILLO);
-    doc.setFont("helvetica", "bold");
-    const disclaimer = doc.splitTextToSize(
-      "Hipótesis generada por inteligencia artificial a partir de imágenes satelitales — " +
-        "NO es un hallazgo confirmado de mineral ni un estudio geológico. Debe verificarse " +
-        "siempre con muestreo en campo.",
-      ANCHO_UTIL - 6
-    );
-    doc.text(disclaimer, MARGEN + 3, y + 4.5);
-    y += alturaDisclaimer + 4;
-    doc.setFont("helvetica", "normal");
-
+    // Aviso bajado a una línea chica DEBAJO del texto (agosto 2026, pedido
+    // explícito tras ver el análisis funcionando bien en proyectos reales:
+    // "no pongas mucho de eso de advertencia porque está analizando bien")
+    // -- antes era una caja grande con ícono de alerta arriba del texto.
     if (proyecto.interpretacion_ubicacion) {
       doc.setFontSize(9.5);
       doc.setTextColor(...TEXTO);
+      doc.setFont("helvetica", "normal");
       const textoInterpretacion = doc.splitTextToSize(proyecto.interpretacion_ubicacion, ANCHO_UTIL);
       y = asegurarEspacio(doc, y, textoInterpretacion.length * 4.4 + 4);
-      doc.text(textoInterpretacion, MARGEN, y);
-      y += textoInterpretacion.length * 4.4 + 5;
+      doc.text(textoInterpretacion, MARGEN, y, { align: "justify", maxWidth: ANCHO_UTIL });
+      y += textoInterpretacion.length * 4.4 + 3;
+
+      doc.setFontSize(7.5);
+      doc.setTextColor(...SUAVE);
+      const aviso = doc.splitTextToSize(
+        "Hipótesis generada por IA a partir de imágenes satelitales — señal a verificar en " +
+          "campo, no un hallazgo confirmado.",
+        ANCHO_UTIL
+      );
+      y = asegurarEspacio(doc, y, aviso.length * 3.6 + 2);
+      doc.text(aviso, MARGEN, y);
+      y += aviso.length * 3.6 + 5;
     }
 
     if (capasAnalisis.length > 0) {

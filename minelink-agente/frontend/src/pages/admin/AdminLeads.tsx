@@ -1142,7 +1142,7 @@ export function AdminLeads() {
 
             {!cargandoInterpretacion && interpretacionUbicacion?.disponible && (
               <>
-                <p className="text-sm">{interpretacionUbicacion.texto}</p>
+                <p className="text-justify text-sm">{interpretacionUbicacion.texto}</p>
                 {interpretacionUbicacion.generado_en && (
                   <p className="mt-3 text-xs text-texto-suave dark:text-texto-suave-dark">
                     Generado el {interpretacionUbicacion.generado_en}

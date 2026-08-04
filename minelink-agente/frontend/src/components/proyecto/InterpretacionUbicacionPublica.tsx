@@ -1,14 +1,15 @@
-import { AlertTriangle, Sparkles } from "lucide-react";
+import { Info, Sparkles } from "lucide-react";
 
 /** Lectura de IA de la ubicación (litología/fallas de GEOCATMIN + ASTER
  * 9-3-1 + Anomalías Espectrales de GEOCATMIN + las 6 capas de Copernicus
  * cruzadas — ver backend/interpretacion_ubicacion.py), pública desde
- * agosto 2026 (antes solo el admin la veía). El disclaimer es una caja
- * propia con su propio color y borde, SIEMPRE arriba del texto — pedido
- * explícito de Esthiven al reversar la regla "nunca público": si esto se
- * muestra a un inversionista, tiene que quedar clarísimo que es una
- * hipótesis de IA sin confirmar en campo, nunca un hallazgo probado (la
- * letra chica no alcanza para algo que puede sonar a "hay mineral acá"). */
+ * agosto 2026 (antes solo el admin la veía). El aviso quedó como una
+ * línea chica DEBAJO del texto (agosto 2026, pedido explícito tras ver
+ * el análisis funcionando bien en proyectos reales: "no pongas mucho de
+ * eso de advertencia porque está analizando bien") — bajado de una caja
+ * grande con ícono de alerta arriba del texto a esto; sigue dejando
+ * constancia de que es una hipótesis sin confirmar, solo sin tratarla
+ * como el mensaje principal. */
 export function InterpretacionUbicacionPublica({
   texto,
   generadoEn,
@@ -23,24 +24,16 @@ export function InterpretacionUbicacionPublica({
         <h2 className="text-lg font-semibold">Lectura satelital (IA)</h2>
       </div>
 
-      <div className="mt-3 flex items-start gap-2 border border-amber-500/40 bg-amber-500/10 p-3">
-        <AlertTriangle
-          size={16}
-          strokeWidth={2.25}
-          className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400"
-          aria-hidden
-        />
-        <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-          Hipótesis generada por inteligencia artificial a partir de imágenes satelitales — NO
-          es un hallazgo confirmado de mineral ni un estudio geológico. Cualquier señal acá
-          descrita debe verificarse siempre con muestreo en campo.
-        </p>
-      </div>
+      <p className="mt-3 text-justify text-sm leading-relaxed">{texto}</p>
 
-      <p className="mt-3 text-sm leading-relaxed">{texto}</p>
+      <p className="mt-3 flex items-start gap-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
+        <Info size={13} strokeWidth={2} className="mt-0.5 shrink-0" aria-hidden />
+        Hipótesis generada por IA a partir de imágenes satelitales — señal a verificar en
+        campo, no un hallazgo confirmado.
+      </p>
 
       {generadoEn && (
-        <p className="mt-3 text-xs text-texto-suave dark:text-texto-suave-dark">
+        <p className="mt-1.5 text-xs text-texto-suave dark:text-texto-suave-dark">
           Generado el {generadoEn}
         </p>
       )}
