@@ -3,6 +3,7 @@ import { useTitulo } from "../hooks/useTitulo";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 import { useInversionistaAuth } from "../context/InversionistaAuthContext";
+import { ToggleBiometria } from "../components/ToggleBiometria";
 import { MARCA } from "../config/marca";
 import { PanelCuentaSkeleton } from "../components/Skeleton";
 import { ETIQUETAS_TIPO_APORTE } from "../types/proyecto";
@@ -89,6 +90,8 @@ export function MiCuentaInversionista() {
           Cerrar sesión
         </button>
       </div>
+
+      <ToggleBiometria />
 
       {/* SEGUIMIENTO DEL INTERÉS */}
       <div className="border border-black/10 p-6 dark:border-white/10">

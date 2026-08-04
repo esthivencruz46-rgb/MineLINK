@@ -16,6 +16,7 @@ import { PerfilInversionForm } from "../components/PerfilInversionForm";
 import { SeccionInversionista } from "../components/SeccionInversionista";
 import { SemaforoCard } from "../components/SemaforoCard";
 import { UrgenciaYReloj } from "../components/UrgenciaYReloj";
+import { ToggleBiometria } from "../components/ToggleBiometria";
 import { useMineroAuth } from "../context/MineroAuthContext";
 import { semaforoDesdeColor } from "../utils/semaforo";
 import type { DocumentoOperacion } from "../types/documento";
@@ -119,6 +120,8 @@ export function MiCuenta() {
           {perfil.nombre_operacion} · {perfil.region}
         </p>
       )}
+
+      <ToggleBiometria />
 
       {/* Franja superior: Tus datos + (si ya está publicado) el aviso de
           visibilidad para inversionistas, lado a lado. */}
