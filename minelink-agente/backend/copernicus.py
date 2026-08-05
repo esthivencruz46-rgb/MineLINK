@@ -57,6 +57,7 @@ from io import BytesIO
 from typing import Optional
 
 import numpy as np
+import requests
 from PIL import Image, ImageDraw
 from sentinelhub import BBox, CRS, DataCollection, MimeType, SentinelHubRequest, SHConfig
 
@@ -356,4 +357,52 @@ def generar_capas(poligono: list) -> Optional[dict]:
     except Exception:
         # best-effort: cualquier fallo de red/credenciales/cuota agotada
         # no debe romper la ficha — se conserva lo último cacheado.
+        return None
+
+
+_ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
+_TIMEOUT_SATELITE = 12
+
+
+def imagen_con_satelite(capa_bytes: bytes, bbox: tuple) -> Optional[bytes]:
+    """Compone una capa YA GENERADA (transparente salvo la anomalía, con
+    su borde de concesión ya dibujado, ver `_con_borde_poligono`) sobre
+    una base satelital (Esri World Imagery, gratis, sin costo de cuota de
+    Sentinel Hub) -- SOLO para el PDF/galería de análisis (agosto 2026,
+    pedido explícito de Esthiven comparando en vivo cómo se ve la capa en
+    el mapa interactivo: "así quiero que estén las capas, todas"). El
+    mapa interactivo (`MapaGeocatmin.tsx`) sigue sirviendo la capa
+    transparente TAL CUAL desde `/anomalias/{capa}.png`, sin tocar -- ahí
+    SÍ hay un basemap satelital vivo debajo (los propios tiles de
+    Leaflet), así que pegarle una foto satelital de nuevo sería
+    literalmente reintroducir el bug de julio 2026 ya corregido ("solo
+    pido los colores, no la imagen de fondo"). Se genera AL VUELO en cada
+    pedido (mismo criterio que `geocatmin.imagenes_analisis_ia`: la
+    llamada a Esri es gratis, y esto solo se pide al descargar un PDF) --
+    reusa los bytes de la capa YA cacheados, nunca vuelve a gastar
+    créditos de Sentinel Hub. Best-effort: None si la base satelital
+    falla."""
+    try:
+        capa = Image.open(BytesIO(capa_bytes)).convert("RGBA")
+        ancho, alto = capa.size
+        r = requests.get(
+            f"{_ESRI_IMAGERY}/export",
+            params={
+                "bbox": ",".join(str(v) for v in bbox),
+                "bboxSR": 4326,
+                "imageSR": 4326,
+                "size": f"{ancho},{alto}",
+                "format": "png32",
+                "transparent": "true",
+                "f": "image",
+            },
+            timeout=_TIMEOUT_SATELITE,
+        )
+        r.raise_for_status()
+        base = Image.open(BytesIO(r.content)).convert("RGBA")
+        base.alpha_composite(capa)
+        salida = BytesIO()
+        base.convert("RGB").save(salida, format="JPEG", quality=87)
+        return salida.getvalue()
+    except (requests.RequestException, OSError, ValueError):
         return None

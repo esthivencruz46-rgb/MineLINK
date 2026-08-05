@@ -174,6 +174,33 @@ Plataforma web donde un minero artesanal peruano:
    5 (el bbox/encuadre de las 6 capas cambió) para que el caché ya
    generado con el encuadre viejo se regenere solo en vez de seguir
    sirviendo el mal encuadre hasta los 90 días de `DIAS_REFRESCO`.
+   **Capas de Copernicus compuestas sobre satélite, SOLO para el PDF
+   (agosto 2026, mismo hilo)**: aun con el bbox correcto, las 6 capas de
+   Copernicus (transparentes salvo la anomalía, sin fondo) se veían como
+   manchas de color flotando en blanco dentro de la galería del PDF —
+   sin el mapa interactivo de Leaflet debajo (que sí aporta el contexto
+   satelital en vivo), no había forma de ubicar la anomalía en el
+   terreno. Comparado en vivo contra cómo se ve la MISMA capa superpuesta
+   en el mapa interactivo (satélite + polígono + pin, todo legible) con
+   la instrucción explícita "así quiero que estén las capas, todas".
+   Nueva `copernicus.imagen_con_satelite(capa_bytes, bbox)`: toma la capa
+   YA cacheada (con su borde de concesión ya dibujado) y la compone sobre
+   una base satelital de Esri (misma fuente gratis que ya usa GEOCATMIN,
+   sin costo de cuota de Sentinel Hub) — nuevo endpoint
+   `GET /proyectos/{id}/anomalias-pdf/{capa}.png`, generado AL VUELO en
+   cada pedido (como `geocatmin-analisis`: la llamada a Esri es gratis,
+   solo se pide al descargar un PDF) reusando el PNG ya cacheado, sin
+   volver a gastar créditos de Sentinel Hub. `ProyectoDetalleOut.anomalias_satelitales`
+   ahora expone DOS diccionarios de URLs — `capas` (transparente, la de
+   siempre) y `capas_pdf` (compuesta) —; `pdfProyecto.ts` usa `capas_pdf`
+   para su galería. **El mapa interactivo (`MapaGeocatmin.tsx`) sigue
+   usando `capas` tal cual, sin tocar** — ahí SÍ hay un basemap satelital
+   vivo debajo (los tiles del propio Leaflet), así que componerle una
+   foto satelital de nuevo sería reintroducir literalmente el bug de
+   julio 2026 ya corregido ("solo pido los colores, no la imagen de
+   fondo... eso también lo agarras y no quiero eso") — la separación en
+   dos diccionarios de URLs existe exactamente para no volver a mezclar
+   esos dos casos de uso.
    Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
    (solo "señal a investigar"), nunca hace una clasificación fina de
    alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen

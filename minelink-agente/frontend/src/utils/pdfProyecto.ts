@@ -283,7 +283,10 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // checklist + miniaturas de documentos de inversión — todo antes de
   // dibujar, para no ir armando el PDF a pedazos mientras llegan las fotos.
   const urlsFotos = proyecto.fotos.slice(0, 5).map((f) => f.url);
-  const capasCopernicusUrls = Object.entries(proyecto.anomalias_satelitales?.capas ?? {});
+  // capas_pdf (compuestas sobre base satelital), no "capas" (transparente
+  // -- esa es solo para el mapa interactivo, que ya tiene su propio
+  // basemap vivo debajo). Ver backend/copernicus.py imagen_con_satelite.
+  const capasCopernicusUrls = Object.entries(proyecto.anomalias_satelitales?.capas_pdf ?? {});
   const [
     mapaPortada,
     fotos,

@@ -2098,6 +2098,13 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
         "oxidos_de_hierro": f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png",
         "combinado": f"/proyectos/{diag['id']}/anomalias/combinado.png",
     }
+    # capas_pdf apunta al endpoint compuesto sobre base satelital (agosto
+    # 2026) -- distinto de "capas" (transparente, solo para el mapa
+    # interactivo, que ya tiene su propio basemap vivo debajo).
+    assert detalle["anomalias_satelitales"]["capas_pdf"] == {
+        "oxidos_de_hierro": f"/proyectos/{diag['id']}/anomalias-pdf/oxidos_de_hierro.png",
+        "combinado": f"/proyectos/{diag['id']}/anomalias-pdf/combinado.png",
+    }
     assert llamadas == {"n": 1}  # con caché fresco, no se vuelve a generar
 
     # La imagen servida es la misma que guardó el background task.
@@ -2105,6 +2112,31 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
     assert resp.status_code == 200
     assert resp.content == b"PNG-FALSO-OXIDOS"
     assert resp.headers["content-type"] == "image/png"
+
+    # anomalias-pdf compone la MISMA capa cacheada sobre una base satelital
+    # (llamada gratis a Esri, mockeada acá) -- nunca vuelve a llamar a
+    # Sentinel Hub (llamadas["n"] se mantiene en 1).
+    llamadas_compone = []
+
+    def imagen_con_satelite_falsa(capa_bytes, bbox):
+        llamadas_compone.append((capa_bytes, bbox))
+        return b"JPEG-FALSO-COMPUESTO"
+
+    monkeypatch.setattr(copernicus_modulo, "imagen_con_satelite", imagen_con_satelite_falsa)
+    resp = client.get(f"/proyectos/{diag['id']}/anomalias-pdf/oxidos_de_hierro.png")
+    assert resp.status_code == 200
+    assert resp.content == b"JPEG-FALSO-COMPUESTO"
+    assert resp.headers["content-type"] == "image/jpeg"
+    assert llamadas_compone[0][0] == b"PNG-FALSO-OXIDOS"
+    assert list(llamadas_compone[0][1]) == pytest.approx(
+        [-77.5118, -8.0218, -77.4782, -7.9882], abs=1e-3
+    )
+    assert llamadas == {"n": 1}
+
+    # Capa que nunca se generó (no está en capas_json) -- 404, no intenta
+    # componer nada.
+    resp = client.get(f"/proyectos/{diag['id']}/anomalias-pdf/arcillas.png")
+    assert resp.status_code == 404
 
 
 def test_anomalias_satelitales_con_version_vieja_se_refresca_aunque_este_fresca(monkeypatch):

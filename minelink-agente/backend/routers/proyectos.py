@@ -883,6 +883,13 @@ def detalle_proyecto(
                     nombre: f"/proyectos/{operacion_id}/anomalias/{nombre}.png"
                     for nombre in anomalias_cache["capas"]
                 },
+                # Mismas capas, compuestas sobre base satelital -- solo para
+                # el PDF (ver anomalia_satelital_con_base_proyecto arriba;
+                # el mapa interactivo sigue usando "capas", sin tocar).
+                "capas_pdf": {
+                    nombre: f"/proyectos/{operacion_id}/anomalias-pdf/{nombre}.png"
+                    for nombre in anomalias_cache["capas"]
+                },
             }
             if anomalias_cache
             else None
@@ -1122,6 +1129,31 @@ def anomalia_satelital_proyecto(operacion_id: str, capa: str, db: Session = Depe
     if contenido is None:
         raise HTTPException(status_code=404, detail="Todavía no se generó esta capa")
     return Response(content=contenido, media_type="image/png")
+
+
+@router.get("/{operacion_id}/anomalias-pdf/{capa}.png")
+def anomalia_satelital_con_base_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
+    """Como `/anomalias/{capa}.png` pero compuesta sobre una base
+    satelital (agosto 2026) -- SOLO para el PDF/galería de análisis,
+    donde no hay un mapa interactivo de Leaflet debajo que aporte el
+    contexto geográfico (el mapa interactivo sigue usando la capa
+    transparente tal cual, sin tocar — ver `copernicus.imagen_con_satelite`).
+    Se genera AL VUELO en cada pedido reusando el PNG ya cacheado -- la
+    llamada a Esri es gratis, no vuelve a gastar créditos de Sentinel Hub."""
+    _lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    if capa not in copernicus.NOMBRES_CAPAS:
+        raise HTTPException(status_code=404, detail="Capa no reconocida")
+    contenido = storage.leer("anomalias_satelitales", f"{operacion_id}_{capa}.png")
+    if contenido is None:
+        raise HTTPException(status_code=404, detail="Todavía no se generó esta capa")
+    cache = _anomalias_desde_cache(operacion)
+    bbox = cache.get("bbox") if cache else None
+    if bbox is None:
+        raise HTTPException(status_code=404, detail="Todavía no se generó esta capa")
+    compuesta = copernicus.imagen_con_satelite(contenido, tuple(bbox))
+    if compuesta is None:
+        raise HTTPException(status_code=404, detail="No se pudo componer la base satelital")
+    return Response(content=compuesta, media_type="image/jpeg")
 
 
 @router.get("/{operacion_id}/documentos/{documento_id}")

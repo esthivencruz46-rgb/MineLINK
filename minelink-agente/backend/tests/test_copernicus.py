@@ -5,6 +5,7 @@ real. `bbox_y_tamano_de_poligono` y `_capa_coincidencias` son lógica pura,
 se prueban directo. Un test aparte mockea `_pedir`/`_config` para probar
 `generar_capas` de punta a punta sin red real (ver más abajo)."""
 from io import BytesIO
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -151,3 +152,44 @@ def test_con_borde_poligono_sin_poligono_no_hace_nada():
     imagen = Image.new("RGBA", (10, 10), (0, 0, 0, 0))
     resultado = copernicus._con_borde_poligono(imagen, (-77.51, -8.02, -77.48, -7.99), None)
     assert np.array(resultado).sum() == 0
+
+
+# ---------- imagen_con_satelite (agosto 2026) ----------
+
+
+def _png_bytes_de(color: tuple, tamano=(4, 4)) -> bytes:
+    buf = BytesIO()
+    Image.new("RGBA", tamano, color).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_imagen_con_satelite_compone_la_capa_sobre_la_base(monkeypatch):
+    # Solo para el PDF/galería de análisis -- el mapa interactivo NUNCA
+    # pasa por acá, sigue sirviendo la capa transparente tal cual (ver
+    # docstring de imagen_con_satelite: sería el mismo bug de julio 2026
+    # ya corregido, "solo pido los colores, no la imagen de fondo").
+    capa_bytes = _png_bytes_de((220, 20, 20, 255))
+
+    class _RespuestaFalsa:
+        content = _png_bytes_de((120, 120, 120, 255))
+
+        def raise_for_status(self):
+            pass
+
+    with patch("copernicus.requests.get", return_value=_RespuestaFalsa()) as mock_get:
+        resultado = copernicus.imagen_con_satelite(capa_bytes, (-77.51, -8.02, -77.48, -7.99))
+
+    assert resultado is not None
+    imagen = Image.open(BytesIO(resultado))
+    assert imagen.format == "JPEG"
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["bbox"] == "-77.51,-8.02,-77.48,-7.99"
+    assert kwargs["params"]["size"] == "4,4"  # mismo tamaño que la capa
+
+
+def test_imagen_con_satelite_none_si_falla_la_base_satelital():
+    capa_bytes = _png_bytes_de((220, 20, 20, 255))
+    with patch(
+        "copernicus.requests.get", side_effect=copernicus.requests.RequestException("timeout")
+    ):
+        assert copernicus.imagen_con_satelite(capa_bytes, (-77.51, -8.02, -77.48, -7.99)) is None

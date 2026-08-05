@@ -169,6 +169,11 @@ export interface ProyectoDetalle extends ProyectoPublico {
   anomalias_satelitales?: {
     bbox: [number, number, number, number];
     capas: Record<string, string>;
+    // Mismas capas compuestas sobre base satelital -- solo para el PDF
+    // (agosto 2026, ver backend/copernicus.py imagen_con_satelite): el
+    // mapa interactivo (MapaGeocatmin.tsx) sigue usando `capas` (la
+    // transparente), nunca esta.
+    capas_pdf: Record<string, string>;
   } | null;
   // ASTER 9-3-1 y Anomalías Espectrales de GEOCATMIN, individuales (agosto
   // 2026) — solo para el PDF (galería de capas 1 por 1); null sin pin.
