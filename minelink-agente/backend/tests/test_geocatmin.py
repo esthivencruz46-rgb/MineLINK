@@ -340,12 +340,57 @@ def test_imagen_analisis_catastro_usa_bbox_y_tamano_ajustados_al_poligono(monkey
 
     llamadas = []
 
-    def _espia(coords, poligono_arg, escala_fallas=None, bbox_fijo=None, tamano_fijo=None):
-        llamadas.append((bbox_fijo, tamano_fijo))
+    def _espia(
+        coords, poligono_arg, escala_fallas=None, bbox_fijo=None, tamano_fijo=None, con_borde=False
+    ):
+        llamadas.append((bbox_fijo, tamano_fijo, con_borde))
         return b"fake-jpeg-bytes"
 
     monkeypatch.setattr(geocatmin, "imagen_mapa_cotejo", _espia)
     resultado = geocatmin.imagen_analisis_catastro("-12.5,-76.7", poligono, None)
 
     assert resultado == b"fake-jpeg-bytes"
-    assert llamadas == [geocatmin._bbox_y_tamano_ajustado_poligono(poligono, "-12.5,-76.7")]
+    bbox, tamano = geocatmin._bbox_y_tamano_ajustado_poligono(poligono, "-12.5,-76.7")
+    # con_borde=True: en la galería del PDF esta imagen va junto a las otras
+    # 8 capas y TODAS deben mostrar el polígono de la concesión (pedido
+    # explícito, agosto 2026).
+    assert llamadas == [(bbox, tamano, True)]
+
+
+def test_imagen_analisis_catastro_dibuja_el_borde_de_la_concesion(monkeypatch):
+    # De punta a punta (con las llamadas a ArcGIS mockeadas): la imagen de
+    # catastro/geología/fallas debe terminar con el contorno cian de LA
+    # concesión del proyecto encima. Sin esto solo se veían los contornos
+    # azules que INGEMMET dibuja para TODAS las concesiones de la zona, sin
+    # distinguir cuál es la del proyecto.
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    from PIL import Image as _Image
+
+    def _capa_falsa(url, bbox, layers=None, tamano=None):
+        ancho, alto = tamano or (geocatmin._ANCHO_MAPA, geocatmin._ALTO_MAPA)
+        # Base opaca negra para la primera capa (satélite), transparente el
+        # resto -- así el único color vivo que puede aparecer es el borde.
+        color = (0, 0, 0, 255) if "World_Imagery" in url else (0, 0, 0, 0)
+        return _Image.new("RGBA", (ancho, alto), color)
+
+    monkeypatch.setattr(geocatmin, "_exportar_capa", _capa_falsa)
+
+    # Rombo con vértices en la mitad de cada lado, para que el contorno NO
+    # coincida por casualidad con el borde de la imagen.
+    poligono = [[[-77.50, -8.00], [-77.49, -8.01], [-77.50, -8.02], [-77.51, -8.01]]]
+    jpeg = geocatmin.imagen_analisis_catastro("-8.01,-77.50", poligono, None)
+    assert jpeg is not None
+
+    import numpy as np
+    from io import BytesIO
+
+    pixeles = np.array(_Image.open(BytesIO(jpeg)).convert("RGB")).astype(int)
+    # Todas las capas mockeadas son negras/transparentes, así que lo único
+    # que puede pintar cian es el contorno de la concesión. Se buscan
+    # píxeles con CARÁCTER cian (poco rojo, mucho verde y azul) en toda la
+    # imagen, sin asumir en qué posición cae el polígono -- con el margen
+    # de _MARGEN_ANALISIS el polígono ya no toca los bordes del cuadro,
+    # justamente para que se vea el terreno alrededor.
+    r, g, b = pixeles[:, :, 0], pixeles[:, :, 1], pixeles[:, :, 2]
+    cian = (g > 120) & (b > 120) & (r < g - 40)
+    assert cian.any(), "no se dibujó el contorno de la concesión"

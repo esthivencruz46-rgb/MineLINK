@@ -669,6 +669,7 @@ def imagen_mapa_cotejo(
     escala_fallas: Optional[str] = None,
     bbox_fijo: Optional[tuple] = None,
     tamano_fijo: Optional[tuple[int, int]] = None,
+    con_borde: bool = False,
 ) -> Optional[bytes]:
     """Compone satélite (Esri) + geología 100K + fallas cercanas (si hay) +
     catastro minero + el pin de la operación en una sola imagen JPEG —
@@ -726,6 +727,15 @@ def imagen_mapa_cotejo(
         except requests.RequestException:
             pass
 
+        # Borde cian de LA concesión de este proyecto (agosto 2026, pedido
+        # explícito: "tienen que salir en todas las capas el polígono de
+        # concesión"). La capa de catastro de INGEMMET dibuja TODAS las
+        # concesiones de la zona con el mismo contorno azul -- sin esto no
+        # había forma de saber cuál de todas es la del proyecto. Va antes
+        # del pin para que el pin quede siempre encima.
+        if con_borde:
+            base = _con_borde_concesion(base, bbox, poligono)
+
         # Pin de la operación — interpolación lineal simple (bboxSR e
         # imageSR son ambos 4326, sin proyección de por medio).
         lat, lng = (float(p.strip()) for p in coords.split(","))
@@ -766,4 +776,13 @@ def imagen_analisis_catastro(
     bbox, tamano = _bbox_y_tamano_ajustado_poligono(poligono, coords)
     if bbox is None:
         return None
-    return imagen_mapa_cotejo(coords, poligono, escala_fallas, bbox_fijo=bbox, tamano_fijo=tamano)
+    return imagen_mapa_cotejo(
+        coords,
+        poligono,
+        escala_fallas,
+        bbox_fijo=bbox,
+        tamano_fijo=tamano,
+        # A diferencia de la portada, esta va en la galería junto a las otras
+        # 8 capas -- todas llevan el mismo borde cian de la concesión.
+        con_borde=True,
+    )

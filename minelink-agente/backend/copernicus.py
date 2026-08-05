@@ -361,7 +361,13 @@ def generar_capas(poligono: list) -> Optional[dict]:
 
 
 _ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer"
-_TIMEOUT_SATELITE = 12
+# Generoso a propósito: esta llamada solo ocurre al descargar un PDF (no
+# en una carga de ficha), y con la vista ampliada (_EXPANSION_PDF) Esri
+# tarda ~15-25s en componer y mandar la foto. Con los 12s que tenía al
+# principio fallaba SIEMPRE en Render y el endpoint devolvía 404 "No se
+# pudo componer la base satelital" (bug real, agosto 2026, encontrado
+# midiendo la descarga: 2.77 MB en PNG contra 0.47 MB en JPEG).
+_TIMEOUT_SATELITE = 40
 
 
 # Cuánto más ancha que la concesión sale la vista en el PDF. Se aplica
@@ -416,8 +422,11 @@ def imagen_con_satelite(
                 "bboxSR": 4326,
                 "imageSR": 4326,
                 "size": f"{ancho_base},{alto_base}",
-                "format": "png32",
-                "transparent": "true",
+                # JPEG, no png32: la base satelital es OPACA (no necesita
+                # canal alfa) y en PNG pesa ~6x más -- 2.77 MB contra 0.47 MB
+                # medidos en vivo sobre una concesión real. Con PNG la
+                # descarga se pasaba del timeout y el endpoint devolvía 404.
+                "format": "jpg",
                 "f": "image",
             },
             timeout=_TIMEOUT_SATELITE,

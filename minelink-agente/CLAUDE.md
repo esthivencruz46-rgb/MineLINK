@@ -201,6 +201,49 @@ Plataforma web donde un minero artesanal peruano:
    fondo... eso también lo agarras y no quiero eso") — la separación en
    dos diccionarios de URLs existe exactamente para no volver a mezclar
    esos dos casos de uso.
+   **Las 9 imágenes de la galería llevan SIEMPRE el polígono de la
+   concesión (agosto 2026, requisito repetido de Esthiven: "tienen que
+   salir en todas las capas el polígono de concesión... TODAS")**: 1
+   catastro+geología+fallas, 2 ASTER 9-3-1, 3 Anomalías Espectrales, 4-9
+   las 6 de Copernicus. ASTER/Anomalías y las de Copernicus ya lo tenían;
+   faltaba la de catastro, que solo mostraba los contornos azules con que
+   INGEMMET pinta TODAS las concesiones de la zona, sin distinguir cuál es
+   la del proyecto — `imagen_mapa_cotejo` ganó un flag `con_borde` (por
+   defecto False: la PORTADA del PDF no lo lleva, es otro uso) que
+   `imagen_analisis_catastro` pasa en True.
+   **Encuadre con contexto alrededor (agosto 2026, mismo hilo)**: el
+   `margen` de la primera versión (1.12) dejaba el polígono pegado al
+   borde del cuadro — pedido explícito: "que capte el total del polígono
+   ... y unos menos más lejos para que se vea bien". Ahora
+   `geocatmin._MARGEN_ANALISIS = 1.8` (la concesión ocupa ~55% del ancho y
+   se ve el terreno que la rodea). En Copernicus la ampliación se aplica
+   SOLO al componer la imagen del PDF (`copernicus._EXPANSION_PDF`, la
+   capa ya calculada se PEGA centrada dentro de una foto satelital más
+   amplia, sin estirarse), NUNCA al bbox con que se calculan los índices:
+   el umbral de cada capa es el percentil 90 DENTRO del área analizada,
+   así que analizar un área mayor convertiría "más óxido que el resto de
+   la concesión" en "...que el resto de la región" — otro dato, no el
+   mismo dato mejor encuadrado.
+   **Timeout de la base satelital (agosto 2026, bug real en producción)**:
+   con la vista ampliada, la foto de Esri pasó a pesar 2.77 MB en `png32`
+   y tardaba ~13s, más que los 12s de timeout que tenía
+   `imagen_con_satelite` — el endpoint devolvía SIEMPRE
+   `404 "No se pudo componer la base satelital"` en Render (localmente
+   pasaba, de ahí que no se notara sin probar contra producción). Se pide
+   en `format=jpg` (0.47 MB, ~6x menos: la base es opaca, no necesita
+   canal alfa) y `_TIMEOUT_SATELITE = 40` — es una llamada que solo ocurre
+   al descargar un PDF, nunca en una carga de ficha, así que puede
+   permitirse ser lenta.
+   **Paginación de la galería en el PDF (agosto 2026, causa raíz de
+   "tampoco hay la interpretación de la IA... dentro del PDF")**: la
+   grilla de 9 capas ocupa ~230mm y en una A4 solo hay ~255mm útiles, así
+   que reservar la grilla COMPLETA de una vez (con `asegurarEspacio`)
+   forzaba SIEMPRE un salto de página — el título "Análisis satelital
+   (IA)" y el párrafo de la IA quedaban solos al pie de la página
+   anterior y la grilla arrancaba sola en la siguiente, que se leía como
+   que la interpretación no se estaba generando. `pdfProyecto.ts` ahora
+   avanza fila por fila y salta de página solo cuando la fila siguiente no
+   entra.
    Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
    (solo "señal a investigar"), nunca hace una clasificación fina de
    alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen
