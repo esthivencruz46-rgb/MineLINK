@@ -378,7 +378,7 @@ _TIMEOUT_SATELITE = 40
 # pasaría a ser "...que el resto de la región"). Acá solo se pide una
 # foto satelital más amplia y se pega la capa ya calculada en el lugar
 # exacto que le corresponde dentro de ella.
-_EXPANSION_PDF = 2.1
+_EXPANSION_PDF = 2.5
 # Tope del lado mayor del lienzo compuesto. Esri se vuelve DESPROPORCIONADAMENTE
 # lento pasando de ~1500px: medido en vivo sobre la misma concesión,
 # 1400x922 tarda 6.7s y 2000x1318 tarda 47.2s (7x más por solo 2x los

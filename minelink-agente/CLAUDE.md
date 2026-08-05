@@ -215,9 +215,12 @@ Plataforma web donde un minero artesanal peruano:
    `margen` de la primera versión (1.12) dejaba el polígono pegado al
    borde del cuadro — pedido explícito: "que capte el total del polígono
    ... y unos menos más lejos para que se vea bien". Ahora
-   `geocatmin._MARGEN_ANALISIS = 2.1` (la concesión ocupa ~48% del ancho y
-   se ve el terreno que la rodea; se probó en vivo a 1.8 y Esthiven pidió
-   alejar más). En Copernicus la ampliación se aplica
+   `geocatmin._MARGEN_ANALISIS = 2.5` (la concesión ocupa ~40% del ancho y
+   se ve el terreno que la rodea; se probó en vivo a 1.8 y 2.1, y Esthiven
+   cerró en 2.5). Alejar más NO cuesta tiempo extra gracias al tope
+   `copernicus._LADO_BASE_MAX` (ver abajo); sin ese tope, subir la
+   expansión disparaba el tamaño del lienzo y el timeout volvía a romper
+   el endpoint. En Copernicus la ampliación se aplica
    SOLO al componer la imagen del PDF (`copernicus._EXPANSION_PDF`, la
    capa ya calculada se PEGA centrada dentro de una foto satelital más
    amplia, sin estirarse), NUNCA al bbox con que se calculan los índices:
