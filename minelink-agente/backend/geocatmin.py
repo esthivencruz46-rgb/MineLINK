@@ -609,8 +609,19 @@ _LADO_ANALISIS = 1000
 _LADO_ANALISIS_MIN = 480
 
 
+# Cuánto más ancho que la concesión sale el cuadro de las imágenes de
+# análisis. 1.8 = la concesión ocupa ~55% del ancho y queda rodeada de
+# terreno visible (agosto 2026, pedido explícito: "que capte el total del
+# polígono... y unos menos más lejos para que se vea bien" — con el 1.12
+# de la primera versión el polígono llegaba casi al borde del cuadro y no
+# se veía dónde está parado dentro del paisaje).
+_MARGEN_ANALISIS = 1.8
+
+
 def _bbox_y_tamano_ajustado_poligono(
-    poligono: Optional[list], coords: Optional[str] = None, margen: float = 1.12
+    poligono: Optional[list],
+    coords: Optional[str] = None,
+    margen: float = _MARGEN_ANALISIS,
 ) -> tuple[Optional[tuple[float, float, float, float]], Optional[tuple[int, int]]]:
     """Bbox centrado en el PROPIO POLÍGONO (no en el pin, a diferencia de
     `_bbox_de`) Y el tamaño de lienzo (ancho,alto en píxeles) que le

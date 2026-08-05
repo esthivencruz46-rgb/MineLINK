@@ -364,7 +364,20 @@ _ESRI_IMAGERY = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imag
 _TIMEOUT_SATELITE = 12
 
 
-def imagen_con_satelite(capa_bytes: bytes, bbox: tuple) -> Optional[bytes]:
+# Cuánto más ancha que la concesión sale la vista en el PDF. Se aplica
+# SOLO acá (la composición para el PDF), NUNCA al bbox con el que se
+# calculan los índices: el umbral de cada capa es el percentil 90 DENTRO
+# del área analizada, así que analizar un área más grande cambiaría el
+# significado de la anomalía ("más óxido que el resto de la concesión"
+# pasaría a ser "...que el resto de la región"). Acá solo se pide una
+# foto satelital más amplia y se pega la capa ya calculada en el lugar
+# exacto que le corresponde dentro de ella.
+_EXPANSION_PDF = 1.8
+
+
+def imagen_con_satelite(
+    capa_bytes: bytes, bbox: tuple, expansion: float = _EXPANSION_PDF
+) -> Optional[bytes]:
     """Compone una capa YA GENERADA (transparente salvo la anomalía, con
     su borde de concesión ya dibujado, ver `_con_borde_poligono`) sobre
     una base satelital (Esri World Imagery, gratis, sin costo de cuota de
@@ -376,22 +389,33 @@ def imagen_con_satelite(capa_bytes: bytes, bbox: tuple) -> Optional[bytes]:
     SÍ hay un basemap satelital vivo debajo (los propios tiles de
     Leaflet), así que pegarle una foto satelital de nuevo sería
     literalmente reintroducir el bug de julio 2026 ya corregido ("solo
-    pido los colores, no la imagen de fondo"). Se genera AL VUELO en cada
-    pedido (mismo criterio que `geocatmin.imagenes_analisis_ia`: la
-    llamada a Esri es gratis, y esto solo se pide al descargar un PDF) --
-    reusa los bytes de la capa YA cacheados, nunca vuelve a gastar
-    créditos de Sentinel Hub. Best-effort: None si la base satelital
-    falla."""
+    pido los colores, no la imagen de fondo"). `expansion` agranda la
+    vista alrededor de la concesión para que se vea el terreno que la
+    rodea (pedido explícito: "unos menos más lejos para que se vea
+    bien") -- la capa NO se estira: se pega centrada, a su tamaño real,
+    dentro de la foto más amplia, que es exactamente donde cae en el
+    terreno. Se genera AL VUELO en cada pedido (mismo criterio que
+    `geocatmin.imagenes_analisis_ia`: la llamada a Esri es gratis, y esto
+    solo se pide al descargar un PDF) -- reusa los bytes de la capa YA
+    cacheados, nunca vuelve a gastar créditos de Sentinel Hub.
+    Best-effort: None si la base satelital falla."""
     try:
         capa = Image.open(BytesIO(capa_bytes)).convert("RGBA")
         ancho, alto = capa.size
+        xmin, ymin, xmax, ymax = bbox
+        cx, cy = (xmin + xmax) / 2, (ymin + ymax) / 2
+        medio_lng = (xmax - xmin) / 2 * expansion
+        medio_lat = (ymax - ymin) / 2 * expansion
+        bbox_ancho = (cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat)
+        ancho_base, alto_base = round(ancho * expansion), round(alto * expansion)
+
         r = requests.get(
             f"{_ESRI_IMAGERY}/export",
             params={
-                "bbox": ",".join(str(v) for v in bbox),
+                "bbox": ",".join(str(v) for v in bbox_ancho),
                 "bboxSR": 4326,
                 "imageSR": 4326,
-                "size": f"{ancho},{alto}",
+                "size": f"{ancho_base},{alto_base}",
                 "format": "png32",
                 "transparent": "true",
                 "f": "image",
@@ -400,7 +424,9 @@ def imagen_con_satelite(capa_bytes: bytes, bbox: tuple) -> Optional[bytes]:
         )
         r.raise_for_status()
         base = Image.open(BytesIO(r.content)).convert("RGBA")
-        base.alpha_composite(capa)
+        # La capa ocupa exactamente el rectángulo central: mismo centro,
+        # 1/expansion del tamaño -- no se reescala, se ubica.
+        base.alpha_composite(capa, ((ancho_base - ancho) // 2, (alto_base - alto) // 2))
         salida = BytesIO()
         base.convert("RGB").save(salida, format="JPEG", quality=87)
         return salida.getvalue()

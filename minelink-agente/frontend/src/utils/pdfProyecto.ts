@@ -690,27 +690,33 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     }
 
     if (capasAnalisis.length > 0) {
-      // Mismo criterio que "Galería de la operación" más abajo: se
-      // reserva el espacio de la grilla COMPLETA de una vez (con su
-      // propio salto de página si no entra) en vez de chequear fila por
-      // fila -- evita que "fila" quede desincronizado de "y" si hubiera
-      // un salto de página a mitad de la grilla.
-      const filasCapas = Math.ceil(capasAnalisis.length / 2);
+      // Fila por fila, NO reservando la grilla entera de una vez: con las
+      // 9 capas (5 filas ≈ 230mm) la grilla completa nunca entra en lo que
+      // queda de una página, así que reservarla toda empujaba SIEMPRE la
+      // grilla a una página nueva y dejaba el título "Análisis satelital
+      // (IA)" y el párrafo de la IA solos al pie de la anterior — se leía
+      // como que la interpretación no estaba (reportado en vivo, agosto
+      // 2026: "tampoco hay la interpretación de la IA... dentro del PDF").
+      // Se avanza `y` fila por fila y se salta de página solo cuando la
+      // fila siguiente no entra, así el texto y sus primeras imágenes
+      // quedan juntos.
       const anchoCapa = (ANCHO_UTIL - 4) / 2;
       const altoCapa = 36;
-      y = asegurarEspacio(doc, y, 10 + filasCapas * (altoCapa + 8));
-      capasAnalisis.forEach((capa, i) => {
-        const col = i % 2;
-        const fila = Math.floor(i / 2);
-        const xCapa = MARGEN + col * (anchoCapa + 4);
-        const yCapa = y + fila * (altoCapa + 8);
-        fotoEnCaja(doc, capa.foto, xCapa, yCapa, anchoCapa, altoCapa, 1.5);
-        doc.setFontSize(7.5);
-        doc.setTextColor(...SUAVE);
-        doc.setFont("helvetica", "normal");
-        doc.text(capa.etiqueta, xCapa, yCapa + altoCapa + 3.5, { maxWidth: anchoCapa });
-      });
-      y += filasCapas * (altoCapa + 8) + 2;
+      for (let fila = 0; fila * 2 < capasAnalisis.length; fila++) {
+        y = asegurarEspacio(doc, y, altoCapa + 8);
+        for (let col = 0; col < 2; col++) {
+          const capa = capasAnalisis[fila * 2 + col];
+          if (!capa) break;
+          const xCapa = MARGEN + col * (anchoCapa + 4);
+          fotoEnCaja(doc, capa.foto, xCapa, y, anchoCapa, altoCapa, 1.5);
+          doc.setFontSize(7.5);
+          doc.setTextColor(...SUAVE);
+          doc.setFont("helvetica", "normal");
+          doc.text(capa.etiqueta, xCapa, y + altoCapa + 3.5, { maxWidth: anchoCapa });
+        }
+        y += altoCapa + 8;
+      }
+      y += 2;
     }
   }
 

@@ -163,28 +163,64 @@ def _png_bytes_de(color: tuple, tamano=(4, 4)) -> bytes:
     return buf.getvalue()
 
 
-def test_imagen_con_satelite_compone_la_capa_sobre_la_base(monkeypatch):
+def test_imagen_con_satelite_pide_una_vista_mas_amplia_que_la_concesion():
     # Solo para el PDF/galería de análisis -- el mapa interactivo NUNCA
     # pasa por acá, sigue sirviendo la capa transparente tal cual (ver
     # docstring de imagen_con_satelite: sería el mismo bug de julio 2026
     # ya corregido, "solo pido los colores, no la imagen de fondo").
-    capa_bytes = _png_bytes_de((220, 20, 20, 255))
+    # La base satelital se pide MÁS AMPLIA que la concesión (agosto 2026,
+    # pedido explícito: "unos menos más lejos para que se vea bien") --
+    # el bbox de análisis NO cambia (el percentil de cada índice debe
+    # seguir siendo relativo a la concesión, no a la región).
+    capa_bytes = _png_bytes_de((220, 20, 20, 255), (10, 10))
 
     class _RespuestaFalsa:
-        content = _png_bytes_de((120, 120, 120, 255))
+        content = _png_bytes_de((120, 120, 120, 255), (18, 18))
 
         def raise_for_status(self):
             pass
 
     with patch("copernicus.requests.get", return_value=_RespuestaFalsa()) as mock_get:
-        resultado = copernicus.imagen_con_satelite(capa_bytes, (-77.51, -8.02, -77.48, -7.99))
+        resultado = copernicus.imagen_con_satelite(
+            capa_bytes, (-77.51, -8.02, -77.49, -8.00), expansion=1.8
+        )
 
     assert resultado is not None
-    imagen = Image.open(BytesIO(resultado))
-    assert imagen.format == "JPEG"
+    assert Image.open(BytesIO(resultado)).format == "JPEG"
     _, kwargs = mock_get.call_args
-    assert kwargs["params"]["bbox"] == "-77.51,-8.02,-77.48,-7.99"
-    assert kwargs["params"]["size"] == "4,4"  # mismo tamaño que la capa
+    # Mismo centro, 1.8x de ancho/alto en grados.
+    pedido = [float(v) for v in kwargs["params"]["bbox"].split(",")]
+    assert (pedido[0] + pedido[2]) / 2 == pytest.approx(-77.50, abs=1e-9)
+    assert (pedido[1] + pedido[3]) / 2 == pytest.approx(-8.01, abs=1e-9)
+    assert (pedido[2] - pedido[0]) == pytest.approx(0.02 * 1.8, abs=1e-9)
+    # El lienzo crece igual que el bbox, así la capa NO se estira: se pega
+    # centrada, a su tamaño real, donde de verdad cae en el terreno.
+    assert kwargs["params"]["size"] == "18,18"
+
+
+def test_imagen_con_satelite_no_estira_la_capa_la_ubica_centrada():
+    # La capa (10x10, roja opaca) debe quedar EXACTAMENTE en el centro de
+    # la base ampliada (18x18): el borde sigue siendo base satelital.
+    capa_bytes = _png_bytes_de((220, 20, 20, 255), (10, 10))
+
+    class _RespuestaFalsa:
+        content = _png_bytes_de((120, 120, 120, 255), (18, 18))
+
+        def raise_for_status(self):
+            pass
+
+    with patch("copernicus.requests.get", return_value=_RespuestaFalsa()):
+        resultado = copernicus.imagen_con_satelite(
+            capa_bytes, (-77.51, -8.02, -77.49, -8.00), expansion=1.8
+        )
+
+    # Tolerancia amplia: la salida es JPEG y en una imagen tan chica los
+    # artefactos de compresión mueven varios puntos cada canal. Lo que se
+    # verifica es CUÁL de las dos imágenes está en cada posición (rojo vs.
+    # gris), no el valor exacto.
+    pixeles = np.array(Image.open(BytesIO(resultado)).convert("RGB"))
+    assert pixeles[9, 9] == pytest.approx([220, 20, 20], abs=25)  # centro: la capa
+    assert pixeles[0, 0] == pytest.approx([120, 120, 120], abs=25)  # esquina: satélite
 
 
 def test_imagen_con_satelite_none_si_falla_la_base_satelital():
