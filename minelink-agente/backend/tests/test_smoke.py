@@ -2055,7 +2055,7 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
     def generar_capas_falso(poligono):
         llamadas["n"] += 1
         return {
-            "bbox": list(copernicus_modulo.bbox_de_poligono(poligono)),
+            "bbox": list(copernicus_modulo.bbox_y_tamano_de_poligono(poligono)[0]),
             "generado_en": date.today().isoformat(),
             "v": copernicus_modulo.VERSION_CACHE,
             "capas": {"oxidos_de_hierro": b"PNG-FALSO-OXIDOS", "combinado": b"PNG-FALSO-COMBINADO"},
@@ -2089,7 +2089,11 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
 
     # 2ª visita: ya está cacheado (URLs relativas, no los bytes).
     detalle = client.get(f"/proyectos/{diag['id']}").json()
-    assert detalle["anomalias_satelitales"]["bbox"] == [-77.51, -8.02, -77.48, -7.99]
+    # bbox_y_tamano_de_poligono agrega un margen (agosto 2026) -- ya no es
+    # el bounding box exacto del polígono, solo lo contiene.
+    assert detalle["anomalias_satelitales"]["bbox"] == pytest.approx(
+        [-77.5118, -8.0218, -77.4782, -7.9882], abs=1e-3
+    )
     assert detalle["anomalias_satelitales"]["capas"] == {
         "oxidos_de_hierro": f"/proyectos/{diag['id']}/anomalias/oxidos_de_hierro.png",
         "combinado": f"/proyectos/{diag['id']}/anomalias/combinado.png",
@@ -2119,7 +2123,7 @@ def test_anomalias_satelitales_con_version_vieja_se_refresca_aunque_este_fresca(
     def generar_capas_falso(poligono):
         llamadas["n"] += 1
         return {
-            "bbox": list(copernicus_modulo.bbox_de_poligono(poligono)),
+            "bbox": list(copernicus_modulo.bbox_y_tamano_de_poligono(poligono)[0]),
             "generado_en": date.today().isoformat(),
             "v": copernicus_modulo.VERSION_CACHE,
             "capas": {"coincidencias": b"PNG-FALSO-COINCIDENCIAS"},

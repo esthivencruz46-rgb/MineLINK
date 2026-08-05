@@ -152,6 +152,28 @@ Plataforma web donde un minero artesanal peruano:
    aceptan un `tamano` opcional (por defecto el panorámico de portada);
    `_con_borde_concesion` lee `imagen.size` en vez de asumir el tamaño fijo
    global, porque ahora no todas las imágenes miden lo mismo.
+   **Copernicus unificado al mismo criterio (agosto 2026, misma sesión)**:
+   tras ver el resultado en vivo, Esthiven aclaró la dirección real: no era
+   GEOCATMIN el que debía copiar a Copernicus, sino AL REVÉS —
+   "las fotos de Copernicus [deben ser] como la de ASTER 931 o Anomalías
+   Espectrales... todas las capas deben ser iguales a esas". Copernicus
+   usaba su propio `bbox_de_poligono` (bounding box EXACTO del polígono,
+   sin margen) sobre un lienzo CUADRADO fijo `_TAMANO_PX=(800,800)` —
+   distorsionaba/desencuadraba cualquier concesión que no fuera
+   aproximadamente cuadrada. Reemplazado por `bbox_y_tamano_de_poligono`
+   (duplicada en `copernicus.py`, no importada de `geocatmin.py` —
+   mismo criterio ya establecido para `_COLOR_BORDE_CONCESION`: los dos
+   módulos son best-effort independientes): mismo margen chico + lienzo
+   al aspecto real del bbox que ya usa GEOCATMIN, con su propio tope
+   `_LADO_PX_MAX=800`/`_LADO_PX_MIN=400` (se mantuvo en 800, no se subió a
+   los 1000 de GEOCATMIN, porque cada píxel de Copernicus consume cuota
+   real de Sentinel Hub — subir el tope habría subido el costo por
+   concesión). `_pedir()`/`SentinelHubRequest` ahora reciben ese tamaño en
+   vez del `_TAMANO_PX` fijo; `_con_borde_poligono` ya leía `imagen.size`
+   dinámicamente, no necesitó cambios. `copernicus.VERSION_CACHE` subido a
+   5 (el bbox/encuadre de las 6 capas cambió) para que el caché ya
+   generado con el encuadre viejo se regenere solo en vez de seguir
+   sirviendo el mal encuadre hasta los 90 días de `DIAS_REFRESCO`.
    Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
    (solo "señal a investigar"), nunca hace una clasificación fina de
    alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen

@@ -1,12 +1,13 @@
 """Tests de copernicus.py (julio 2026). Sin credenciales de CDSE reales en
 el entorno de tests, `generar_capas` siempre debe devolver None (best-
 effort, igual que geocatmin/reinfo) — nunca intenta una llamada de red
-real. `bbox_de_poligono` y `_capa_coincidencias` son lógica pura, se
-prueban directo. Un test aparte mockea `_pedir`/`_config` para probar
+real. `bbox_y_tamano_de_poligono` y `_capa_coincidencias` son lógica pura,
+se prueban directo. Un test aparte mockea `_pedir`/`_config` para probar
 `generar_capas` de punta a punta sin red real (ver más abajo)."""
 from io import BytesIO
 
 import numpy as np
+import pytest
 from PIL import Image
 
 import copernicus
@@ -23,16 +24,37 @@ def test_generar_capas_devuelve_none_si_esta_desactivado():
     assert copernicus.generar_capas(poligono) is None
 
 
-def test_bbox_de_poligono():
+def test_bbox_y_tamano_de_poligono_contiene_el_poligono_con_margen():
     # Anillo ArcGIS [lng, lat] -- mismo formato que geocatmin.concesion.poligono.
+    # Polígono cuadrado (1:1) -- el lienzo debe salir cuadrado también.
     poligono = [[[-77.51, -8.02], [-77.48, -8.02], [-77.48, -7.99], [-77.51, -7.99]]]
-    assert copernicus.bbox_de_poligono(poligono) == (-77.51, -8.02, -77.48, -7.99)
+    bbox, tamano = copernicus.bbox_y_tamano_de_poligono(poligono)
+    xmin, ymin, xmax, ymax = bbox
+    assert xmin < -77.51 and xmax > -77.48
+    assert ymin < -8.02 and ymax > -7.99
+    assert tamano == (copernicus._LADO_PX_MAX, copernicus._LADO_PX_MAX)
 
 
-def test_bbox_de_poligono_vacio_devuelve_none():
-    assert copernicus.bbox_de_poligono([]) is None
-    assert copernicus.bbox_de_poligono(None) is None
-    assert copernicus.bbox_de_poligono([[]]) is None
+def test_bbox_y_tamano_de_poligono_no_distorsiona_poligono_angosto():
+    # Polígono mucho más angosto que alto -- el lienzo debe seguir ESE
+    # aspecto en vez de forzar un cuadrado (agosto 2026, pedido explícito
+    # tras comparar en vivo contra GEOCATMIN: "las fotos de Copernicus
+    # deben ser como la de ASTER 931 o Anomalías Espectrales... todas las
+    # capas deben ser iguales a esas" -- mismo criterio que
+    # geocatmin._bbox_y_tamano_ajustado_poligono).
+    poligono = [[[-77.505, -8.018], [-77.495, -8.018], [-77.495, -8.002], [-77.505, -8.002]]]
+    bbox, tamano = copernicus.bbox_y_tamano_de_poligono(poligono)
+    xmin, ymin, xmax, ymax = bbox
+    ancho_grados, alto_grados = xmax - xmin, ymax - ymin
+    ancho_px, alto_px = tamano
+    assert (ancho_px / alto_px) == pytest.approx(ancho_grados / alto_grados, rel=0.02)
+    assert alto_px > ancho_px
+
+
+def test_bbox_y_tamano_de_poligono_vacio_devuelve_none():
+    assert copernicus.bbox_y_tamano_de_poligono([]) == (None, None)
+    assert copernicus.bbox_y_tamano_de_poligono(None) == (None, None)
+    assert copernicus.bbox_y_tamano_de_poligono([[]]) == (None, None)
 
 
 def test_nombres_capas_incluye_los_4_indices_el_combinado_y_coincidencias():
@@ -75,7 +97,7 @@ def test_generar_capas_combinado_transparente_donde_ningun_indice_detecto_nada(m
 
     rng = np.random.default_rng(42)
 
-    def _pedir_falso(config, bbox, evalscript, formato):
+    def _pedir_falso(config, bbox, evalscript, formato, tamano):
         return rng.random((6, 6)).astype(np.float32)
 
     monkeypatch.setattr(copernicus, "_pedir", _pedir_falso)

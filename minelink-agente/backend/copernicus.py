@@ -62,7 +62,6 @@ from sentinelhub import BBox, CRS, DataCollection, MimeType, SentinelHubRequest,
 
 _DESACTIVADO = os.environ.get("MINELINK_COPERNICUS") != "1"
 
-_TAMANO_PX = (800, 800)
 _MAX_NUBES = 0.20
 _PERCENTIL = 90
 # Sentinel-2 no cambia rápido para este propósito (a diferencia de REINFO
@@ -133,13 +132,15 @@ NOMBRES_CAPAS = [*_INDICES.keys(), "combinado", "coincidencias"]
 # Sube cuando cambia qué guarda `generar_capas` (ej. se agregó
 # "coincidencias", y luego "combinado" dejó de traer su propia foto de
 # fondo — julio 2026; v4 agosto 2026: las 6 capas ahora dibujan el borde
-# de la concesión encima, ver _con_borde_poligono) — es lo único que
+# de la concesión encima, ver _con_borde_poligono; v5 agosto 2026: el
+# bbox+lienzo ahora se ajustan al aspecto real del polígono en vez de un
+# cuadrado fijo 800x800, ver bbox_y_tamano_de_poligono) — es lo único que
 # fuerza un refresco inmediato en `_anomalias_necesita_refresco`
 # (routers/proyectos.py); sin esto, el caché ya generado con la forma
 # vieja se sigue sirviendo tal cual hasta los DIAS_REFRESCO (90 días),
 # mismo patrón que ya usan geocatmin/reinfo para sus propios cachés
 # versionados.
-VERSION_CACHE = 4
+VERSION_CACHE = 5
 
 # Violeta: no lo usa ninguno de los 4 índices individuales (rojo/azul/
 # naranja/amarillo), para que la coincidencia se distinga a simple vista
@@ -159,22 +160,45 @@ def _capa_coincidencias(conteo: np.ndarray) -> Image.Image:
     return Image.fromarray(rgba, mode="RGBA")
 
 
-def bbox_de_poligono(poligono: list) -> Optional[tuple]:
-    """xmin,ymin,xmax,ymax en WGS84 a partir de los anillos ArcGIS
-    [lng,lat] de geocatmin (mismo polígono que ya dibuja el mapa) — None
-    si el polígono viene vacío/mal formado. Al ser el bounding box exacto
-    del polígono, la imagen SIEMPRE encierra la concesión completa -- pero
-    como una concesión casi nunca es un rectángulo perfecto, sin dibujar
-    el contorno encima (ver _con_borde_poligono) no hay forma de saber
-    qué parte de la imagen cae DENTRO del polígono real y qué parte es
-    solo el margen del bounding box (agosto 2026, reportado en vivo:
-    "no se puede distinguir en qué área del polígono catastral")."""
+_LADO_PX_MAX = 800
+_LADO_PX_MIN = 400
+
+
+def bbox_y_tamano_de_poligono(
+    poligono: list, margen: float = 1.12
+) -> tuple[Optional[tuple], Optional[tuple[int, int]]]:
+    """Bbox en WGS84 Y el tamaño de lienzo (ancho,alto en píxeles) que le
+    corresponde a SU PROPIO aspecto -- mismo criterio que
+    `geocatmin._bbox_y_tamano_ajustado_poligono` (agosto 2026, pedido
+    explícito tras comparar en vivo capturas reales de las dos capas:
+    "las fotos de Copernicus [deben ser] como la de ASTER 931 o Anomalías
+    Espectrales... todas las capas deben ser iguales a esas"). Reemplaza
+    el bbox exacto del polígono sobre un lienzo CUADRADO fijo
+    (`_TAMANO_PX`) que usaba antes: al forzar toda concesión a encajar en
+    un cuadrado, una concesión angosta quedaba distorsionada o mal
+    encuadrada. Generar el lienzo AL aspecto real del bbox (con un
+    margen chico, en vez de el bbox exacto sin margen) hace que la
+    concesión llene el cuadro sin distorsión, igual que en GEOCATMIN.
+    Duplicada a propósito, no importada de geocatmin -- mismo criterio que
+    `_COLOR_BORDE_CONCESION`: geocatmin y copernicus son módulos
+    independientes, cada uno best-effort por su cuenta. None si el
+    polígono viene vacío/mal formado."""
     if not poligono or not poligono[0]:
-        return None
+        return None, None
     anillo = poligono[0]
     lngs = [p[0] for p in anillo]
     lats = [p[1] for p in anillo]
-    return min(lngs), min(lats), max(lngs), max(lats)
+    cx, cy = (min(lngs) + max(lngs)) / 2, (min(lats) + max(lats)) / 2
+    medio_lng = max((max(lngs) - min(lngs)) / 2, 0.0008) * margen
+    medio_lat = max((max(lats) - min(lats)) / 2, 0.0008) * margen
+    bbox = (cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat)
+
+    aspecto = medio_lng / medio_lat
+    if aspecto >= 1:
+        ancho, alto = _LADO_PX_MAX, round(_LADO_PX_MAX / aspecto)
+    else:
+        ancho, alto = round(_LADO_PX_MAX * aspecto), _LADO_PX_MAX
+    return bbox, (max(ancho, _LADO_PX_MIN), max(alto, _LADO_PX_MIN))
 
 
 # Mismo color que geocatmin._COLOR_BORDE_CONCESION -- una sola convención
@@ -189,9 +213,9 @@ def _con_borde_poligono(imagen: Image.Image, bbox_coords: tuple, poligono: list)
     explícito de Esthiven: las 6 capas de Copernicus se veían "solas",
     sin ninguna referencia de qué parte de la imagen es la concesión real
     y qué parte es solo el margen del bounding box. Mismo mecanismo que
-    geocatmin._con_borde_concesion, adaptado al tamaño fijo 800x800 de
-    Copernicus (`_TAMANO_PX`) en vez del rectángulo panorámico del mapa
-    de cotejo."""
+    geocatmin._con_borde_concesion; lee `imagen.size` (no un tamaño fijo)
+    porque el lienzo ahora varía según el aspecto del propio polígono
+    (ver `bbox_y_tamano_de_poligono`)."""
     if not poligono:
         return imagen
     xmin, ymin, xmax, ymax = bbox_coords
@@ -225,7 +249,7 @@ def _config() -> Optional[SHConfig]:
     return config
 
 
-def _pedir(config: SHConfig, bbox: BBox, evalscript: str, formato: MimeType):
+def _pedir(config: SHConfig, bbox: BBox, evalscript: str, formato: MimeType, tamano: tuple):
     request = SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
@@ -244,7 +268,7 @@ def _pedir(config: SHConfig, bbox: BBox, evalscript: str, formato: MimeType):
         ],
         responses=[SentinelHubRequest.output_response("default", formato)],
         bbox=bbox,
-        size=_TAMANO_PX,
+        size=tamano,
         config=config,
     )
     return request.get_data()[0]
@@ -277,7 +301,7 @@ def generar_capas(poligono: list) -> Optional[dict]:
     config = _config()
     if config is None:
         return None
-    bbox_coords = bbox_de_poligono(poligono)
+    bbox_coords, tamano = bbox_y_tamano_de_poligono(poligono)
     if bbox_coords is None:
         return None
 
@@ -293,7 +317,7 @@ def generar_capas(poligono: list) -> Optional[dict]:
         capas: dict[str, bytes] = {}
         conteo_coincidencias: Optional[np.ndarray] = None
         for nombre, info in _INDICES.items():
-            valores = _pedir(config, bbox, info["evalscript_crudo"], MimeType.TIFF)
+            valores = _pedir(config, bbox, info["evalscript_crudo"], MimeType.TIFF, tamano)
             umbral = float(np.percentile(valores, _PERCENTIL))
             mascara = valores >= umbral
 
