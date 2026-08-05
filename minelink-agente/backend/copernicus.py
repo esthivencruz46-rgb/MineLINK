@@ -378,7 +378,16 @@ _TIMEOUT_SATELITE = 40
 # pasaría a ser "...que el resto de la región"). Acá solo se pide una
 # foto satelital más amplia y se pega la capa ya calculada en el lugar
 # exacto que le corresponde dentro de ella.
-_EXPANSION_PDF = 1.8
+_EXPANSION_PDF = 2.1
+# Tope del lado mayor del lienzo compuesto. Esri se vuelve DESPROPORCIONADAMENTE
+# lento pasando de ~1500px: medido en vivo sobre la misma concesión,
+# 1400x922 tarda 6.7s y 2000x1318 tarda 47.2s (7x más por solo 2x los
+# píxeles). Sin este tope, subir _EXPANSION_PDF de 1.8 a 2.5 hacía que el
+# lienzo pidiera 2000px y se pasara del timeout, devolviendo otra vez el
+# 404 "No se pudo componer la base satelital". Con el tope, la vista se
+# amplía lo pedido y la capa se reescala para seguir cayendo en el mismo
+# lugar del terreno.
+_LADO_BASE_MAX = 1400
 
 
 def imagen_con_satelite(
@@ -413,7 +422,18 @@ def imagen_con_satelite(
         medio_lng = (xmax - xmin) / 2 * expansion
         medio_lat = (ymax - ymin) / 2 * expansion
         bbox_ancho = (cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat)
-        ancho_base, alto_base = round(ancho * expansion), round(alto * expansion)
+
+        # Si el lienzo ampliado se pasa del tope, se encoge TODO en la misma
+        # proporción (base y capa) -- así la capa sigue cayendo exactamente
+        # sobre el mismo terreno, solo que con menos píxeles. Ver
+        # _LADO_BASE_MAX: es lo que evita que ampliar la vista dispare el
+        # tiempo de respuesta de Esri y se caiga por timeout.
+        escala = min(1.0, _LADO_BASE_MAX / max(ancho * expansion, alto * expansion))
+        ancho_base = round(ancho * expansion * escala)
+        alto_base = round(alto * expansion * escala)
+        if escala < 1.0:
+            ancho, alto = max(1, round(ancho * escala)), max(1, round(alto * escala))
+            capa = capa.resize((ancho, alto), Image.LANCZOS)
 
         r = requests.get(
             f"{_ESRI_IMAGERY}/export",

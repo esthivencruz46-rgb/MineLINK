@@ -661,21 +661,32 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
   // separadas). El aviso de que es una hipótesis sin confirmar va chico,
   // debajo del texto (ver comentario más abajo) — no una caja grande.
   if (proyecto.interpretacion_ubicacion || capasAnalisis.length > 0) {
-    y = asegurarEspacio(doc, y, 20);
+    // Se mide el texto ANTES de escribir el título para poder reservar
+    // título + párrafo + primera fila de imágenes de una sola vez (agosto
+    // 2026). Si se reserva solo el título y después el texto no entra, el
+    // salto de página cae en medio y el título queda huérfano al pie de la
+    // página anterior, separado de su propio contenido — que es justo lo
+    // que hacía parecer que la interpretación no se generaba.
+    doc.setFontSize(9.5);
+    const lineasInterpretacion = proyecto.interpretacion_ubicacion
+      ? doc.splitTextToSize(proyecto.interpretacion_ubicacion, ANCHO_UTIL)
+      : [];
+    const altoTexto = lineasInterpretacion.length * 4.4 + (lineasInterpretacion.length ? 12 : 0);
+    y = asegurarEspacio(doc, y, 20 + altoTexto + (capasAnalisis.length > 0 ? 44 : 0));
     y = tituloSeccion(doc, y, "Análisis satelital (IA)");
 
     // Aviso bajado a una línea chica DEBAJO del texto (agosto 2026, pedido
     // explícito tras ver el análisis funcionando bien en proyectos reales:
     // "no pongas mucho de eso de advertencia porque está analizando bien")
     // -- antes era una caja grande con ícono de alerta arriba del texto.
-    if (proyecto.interpretacion_ubicacion) {
+    if (lineasInterpretacion.length > 0) {
       doc.setFontSize(9.5);
       doc.setTextColor(...TEXTO);
       doc.setFont("helvetica", "normal");
-      const textoInterpretacion = doc.splitTextToSize(proyecto.interpretacion_ubicacion, ANCHO_UTIL);
-      y = asegurarEspacio(doc, y, textoInterpretacion.length * 4.4 + 4);
-      doc.text(textoInterpretacion, MARGEN, y, { align: "justify", maxWidth: ANCHO_UTIL });
-      y += textoInterpretacion.length * 4.4 + 3;
+      // Sin asegurarEspacio acá: el espacio para el párrafo completo ya se
+      // reservó junto con el título, arriba.
+      doc.text(lineasInterpretacion, MARGEN, y, { align: "justify", maxWidth: ANCHO_UTIL });
+      y += lineasInterpretacion.length * 4.4 + 3;
 
       doc.setFontSize(7.5);
       doc.setTextColor(...SUAVE);

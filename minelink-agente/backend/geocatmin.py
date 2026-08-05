@@ -610,12 +610,15 @@ _LADO_ANALISIS_MIN = 480
 
 
 # Cuánto más ancho que la concesión sale el cuadro de las imágenes de
-# análisis. 1.8 = la concesión ocupa ~55% del ancho y queda rodeada de
+# análisis. 2.1 = la concesión ocupa ~48% del ancho y queda rodeada de
 # terreno visible (agosto 2026, pedido explícito: "que capte el total del
 # polígono... y unos menos más lejos para que se vea bien" — con el 1.12
 # de la primera versión el polígono llegaba casi al borde del cuadro y no
-# se veía dónde está parado dentro del paisaje).
-_MARGEN_ANALISIS = 1.8
+# se veía dónde está parado dentro del paisaje; se probó en vivo a 1.8,
+# Esthiven pidió alejar más y se calibró a 2.1). Tope práctico: pasando
+# de ~3 se pierde detalle DENTRO de la concesión, que es lo que de verdad
+# importa (el lienzo tiene los mismos píxeles repartidos en más terreno).
+_MARGEN_ANALISIS = 2.1
 
 
 def _bbox_y_tamano_ajustado_poligono(

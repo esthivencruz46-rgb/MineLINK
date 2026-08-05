@@ -198,6 +198,39 @@ def test_imagen_con_satelite_pide_una_vista_mas_amplia_que_la_concesion():
     assert kwargs["params"]["size"] == "18,18"
 
 
+def test_imagen_con_satelite_respeta_el_tope_de_tamano():
+    # Regresión real (agosto 2026): al subir la expansión, el lienzo pedido
+    # creció a 2000px y Esri pasó de 6.7s a 47.2s -- más que el timeout, así
+    # que el endpoint devolvía 404. El tope encoge base Y capa en la misma
+    # proporción, así que la capa sigue cayendo sobre el mismo terreno.
+    capa_bytes = _png_bytes_de((220, 20, 20, 255), (900, 600))
+    pedidos = []
+
+    class _RespuestaFalsa:
+        def __init__(self, w, h):
+            self.content = _png_bytes_de((120, 120, 120, 255), (w, h))
+
+        def raise_for_status(self):
+            pass
+
+    def _get_falso(url, params=None, timeout=None):
+        w, h = (int(v) for v in params["size"].split(","))
+        pedidos.append((w, h))
+        return _RespuestaFalsa(w, h)
+
+    with patch("copernicus.requests.get", side_effect=_get_falso):
+        resultado = copernicus.imagen_con_satelite(
+            capa_bytes, (-77.51, -8.02, -77.49, -8.00), expansion=2.5
+        )
+
+    assert resultado is not None
+    ancho_pedido, alto_pedido = pedidos[0]
+    # Sin tope habría pedido 900*2.5 = 2250px.
+    assert max(ancho_pedido, alto_pedido) <= copernicus._LADO_BASE_MAX
+    # Y la proporción del cuadro se mantiene (no se deforma el terreno).
+    assert ancho_pedido / alto_pedido == pytest.approx(900 / 600, rel=0.02)
+
+
 def test_imagen_con_satelite_no_estira_la_capa_la_ubica_centrada():
     # La capa (10x10, roja opaca) debe quedar EXACTAMENTE en el centro de
     # la base ampliada (18x18): el borde sigue siendo base satelital.
