@@ -405,19 +405,25 @@ def _bbox_de(coords: str, poligono: Optional[list]) -> tuple[float, float, float
     return lng - medio_lng, lat - medio_lat, lng + medio_lng, lat + medio_lat
 
 
-def _exportar_capa(url: str, bbox: tuple, layers: Optional[str] = None) -> Optional["Image.Image"]:
+def _exportar_capa(
+    url: str, bbox: tuple, layers: Optional[str] = None, tamano: Optional[tuple[int, int]] = None
+) -> Optional["Image.Image"]:
     """Pide una imagen estática a un MapServer de ArcGIS (export) para el
     bbox dado — mismo mecanismo que usan los tiles del mapa interactivo,
     pero server-side (sin problema de CORS: acá no aplica, es una llamada
-    HTTP normal, no un <img> de navegador)."""
+    HTTP normal, no un <img> de navegador). `tamano`: (ancho,alto) en
+    píxeles -- por defecto el lienzo panorámico fijo de la portada; la
+    galería de análisis pasa el suyo propio, ajustado al aspecto real del
+    polígono (ver `_bbox_y_tamano_ajustado_poligono`)."""
     from PIL import Image
     from io import BytesIO
 
+    ancho, alto = tamano or (_ANCHO_MAPA, _ALTO_MAPA)
     params = {
         "bbox": ",".join(str(v) for v in bbox),
         "bboxSR": 4326,
         "imageSR": 4326,
-        "size": f"{_ANCHO_MAPA},{_ALTO_MAPA}",
+        "size": f"{ancho},{alto}",
         "format": "png32",
         "transparent": "true",
         "f": "image",
@@ -475,7 +481,9 @@ _PRODUCTO_SATELITAL = f"{_BASE}/PRODUCTO_SATELITAL"
 _COLOR_BORDE_CONCESION = (0, 255, 255, 255)
 
 
-def _exportar_imagen_server(url: str, bbox: tuple) -> Optional["Image.Image"]:
+def _exportar_imagen_server(
+    url: str, bbox: tuple, tamano: Optional[tuple[int, int]] = None
+) -> Optional["Image.Image"]:
     """Como `_exportar_capa` pero para un ImageServer de ArcGIS (endpoint
     `/exportImage`, sin `layers` -- un ImageServer no tiene capas, es un
     único producto) -- usado para los productos satelitales ya procesados
@@ -483,11 +491,12 @@ def _exportar_imagen_server(url: str, bbox: tuple) -> Optional["Image.Image"]:
     from PIL import Image
     from io import BytesIO
 
+    ancho, alto = tamano or (_ANCHO_MAPA, _ALTO_MAPA)
     params = {
         "bbox": ",".join(str(v) for v in bbox),
         "bboxSR": 4326,
         "imageSR": 4326,
-        "size": f"{_ANCHO_MAPA},{_ALTO_MAPA}",
+        "size": f"{ancho},{alto}",
         "format": "png32",
         "f": "image",
     }
@@ -502,18 +511,21 @@ def _con_borde_concesion(
     """Dibuja el contorno (sin relleno) de la concesión sobre una imagen ya
     recortada al bbox -- para que quien mire la imagen (Gemini Vision,
     interpretacion_ubicacion.py) pueda distinguir qué cae DENTRO de la
-    concesión de lo que es solo el margen del recorte."""
+    concesión de lo que es solo el margen del recorte. Usa el tamaño REAL
+    de `imagen` (imagen.size), no un tamaño fijo -- la galería de análisis
+    ya no todas miden lo mismo (ver `_bbox_y_tamano_ajustado_poligono`)."""
     if not poligono:
         return imagen
     from PIL import ImageDraw
 
     xmin, ymin, xmax, ymax = bbox
+    ancho, alto = imagen.size
     dibujo = ImageDraw.Draw(imagen)
     for anillo in poligono:
         puntos = [
             (
-                (lng - xmin) / (xmax - xmin) * _ANCHO_MAPA,
-                (ymax - lat) / (ymax - ymin) * _ALTO_MAPA,
+                (lng - xmin) / (xmax - xmin) * ancho,
+                (ymax - lat) / (ymax - ymin) * alto,
             )
             for lng, lat in anillo
         ]
@@ -541,15 +553,21 @@ def imagenes_analisis_ia(
     from io import BytesIO
 
     try:
-        # Ajustado al polígono (no al pin) -- ver _bbox_ajustado_poligono.
-        bbox = _bbox_ajustado_poligono(poligono, coords)
+        # Ajustado al polígono (no al pin), CON el tamaño de lienzo que le
+        # corresponde a su propio aspecto -- ver
+        # _bbox_y_tamano_ajustado_poligono.
+        bbox, tamano = _bbox_y_tamano_ajustado_poligono(poligono, coords)
+        if bbox is None:
+            return None
     except (ValueError, AttributeError):
         return None
 
     resultado: dict[str, bytes] = {}
 
     try:
-        aster = _exportar_imagen_server(f"{_PRODUCTO_SATELITAL}/MD_ASTER_931/ImageServer", bbox)
+        aster = _exportar_imagen_server(
+            f"{_PRODUCTO_SATELITAL}/MD_ASTER_931/ImageServer", bbox, tamano
+        )
         if aster is not None:
             aster = _con_borde_concesion(aster, bbox, poligono)
             salida = BytesIO()
@@ -564,8 +582,10 @@ def imagenes_analisis_ia(
         # compone sobre satélite (mismo criterio que imagen_mapa_cotejo)
         # para que tenga contexto geográfico real, tanto para quien la mire
         # en el PDF como para Gemini Vision en la interpretación de IA.
-        base = _exportar_capa(_ESRI_IMAGERY, bbox)
-        anomalia = _exportar_capa(f"{_BASE}/SERV_ANOMALIA_ESPECTRAL/MapServer", bbox, "show:0")
+        base = _exportar_capa(_ESRI_IMAGERY, bbox, tamano=tamano)
+        anomalia = _exportar_capa(
+            f"{_BASE}/SERV_ANOMALIA_ESPECTRAL/MapServer", bbox, "show:0", tamano=tamano
+        )
         if base is not None and anomalia is not None:
             base.alpha_composite(anomalia)
             base = _con_borde_concesion(base, bbox, poligono)
@@ -578,37 +598,58 @@ def imagenes_analisis_ia(
     return resultado or None
 
 
-def _bbox_ajustado_poligono(
-    poligono: Optional[list], coords: Optional[str] = None, margen: float = 1.15
-) -> Optional[tuple[float, float, float, float]]:
+# Lado mayor del lienzo de la galería de análisis (ASTER, Anomalía
+# Espectral, catastro+geología+fallas) -- a diferencia de la portada del
+# PDF (_ANCHO_MAPA x _ALTO_MAPA, panorámico fijo, para calzar en el
+# recuadro de portada), acá el lienzo se genera al ASPECTO REAL del
+# polígono en vez de forzarlo al panorámico -- ver
+# _bbox_y_tamano_ajustado_poligono. `_LADO_ANALISIS_MIN` evita un lienzo
+# demasiado angosto si la concesión es muy alargada en una sola dirección.
+_LADO_ANALISIS = 1000
+_LADO_ANALISIS_MIN = 480
+
+
+def _bbox_y_tamano_ajustado_poligono(
+    poligono: Optional[list], coords: Optional[str] = None, margen: float = 1.12
+) -> tuple[Optional[tuple[float, float, float, float]], Optional[tuple[int, int]]]:
     """Bbox centrado en el PROPIO POLÍGONO (no en el pin, a diferencia de
-    `_bbox_de`) y ajustado tirante a su tamaño real, en vez del margen
-    grande pensado para que el pin nunca quede fuera de cuadro — agosto
-    2026, corrección tras un reporte en vivo con captura real: las
-    imágenes de análisis (ASTER, Anomalías Espectrales, y la de
-    catastro/geología/fallas de la galería del PDF) mostraban la
-    concesión como un recuadro chico perdido en una esquina, porque
-    heredaban el bbox de `_bbox_de` -- centrado en el pin, que puede caer
-    lejos del centro real de la concesión dentro de un polígono grande.
-    Mantiene el mismo aspecto panorámico `_ASPECTO_PDF` que ya usa
-    `_exportar_capa` (mismo tamaño de píxeles fijo `_ANCHO_MAPA`x
-    `_ALTO_MAPA`) para no distorsionar el mapa -- solo cambia DÓNDE está
-    centrado y CUÁNTO margen tiene. Sin polígono, cae a la misma caja fija
-    chica alrededor del pin que ya usaba `_bbox_de`."""
+    `_bbox_de`) Y el tamaño de lienzo (ancho,alto en píxeles) que le
+    corresponde a SU PROPIO aspecto -- agosto 2026, segunda corrección
+    tras un reporte en vivo: la primera versión (`_bbox_ajustado_poligono`,
+    ya centraba en el polígono pero mantenía el aspecto panorámico fijo
+    _ASPECTO_PDF de la portada) dejaba la concesión bien centrada pero con
+    mucho margen vacío a los costados cuando el polígono es más angosto
+    que ese panorama -- comparado en vivo contra las capas de Copernicus
+    (que sí llenan el cuadro, porque su bbox es el exacto del polígono
+    sobre un lienzo cuadrado): "no está centrando bien... quiero que sea
+    igual que el de Anomalías Espectrales... en esa escala". Generar el
+    lienzo AL aspecto del bbox (en vez de forzar el bbox al aspecto del
+    lienzo) hace que la concesión llene el cuadro completo sin distorsión,
+    sea cual sea su forma. Sin polígono, cae a una caja fija chica y
+    cuadrada alrededor del pin. Devuelve (None, None) si no hay ni
+    polígono ni coords."""
     if poligono and poligono[0]:
         anillo = poligono[0]
         lngs = [p[0] for p in anillo]
         lats = [p[1] for p in anillo]
         cx, cy = (min(lngs) + max(lngs)) / 2, (min(lats) + max(lats)) / 2
-        medio_lat = max((max(lats) - min(lats)) / 2, (max(lngs) - min(lngs)) / 2 / _ASPECTO_PDF)
+        medio_lng = max((max(lngs) - min(lngs)) / 2, 0.0008)
+        medio_lat = max((max(lats) - min(lats)) / 2, 0.0008)
     elif coords:
         lat, lng = (float(p.strip()) for p in coords.split(","))
-        cx, cy, medio_lat = lng, lat, 0.006
+        cx, cy, medio_lng, medio_lat = lng, lat, 0.006, 0.006
     else:
-        return None
+        return None, None
+    medio_lng *= margen
     medio_lat *= margen
-    medio_lng = medio_lat * _ASPECTO_PDF
-    return cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat
+    bbox = (cx - medio_lng, cy - medio_lat, cx + medio_lng, cy + medio_lat)
+
+    aspecto = medio_lng / medio_lat
+    if aspecto >= 1:
+        ancho, alto = _LADO_ANALISIS, round(_LADO_ANALISIS / aspecto)
+    else:
+        ancho, alto = round(_LADO_ANALISIS * aspecto), _LADO_ANALISIS
+    return bbox, (max(ancho, _LADO_ANALISIS_MIN), max(alto, _LADO_ANALISIS_MIN))
 
 
 def imagen_mapa_cotejo(
@@ -616,6 +657,7 @@ def imagen_mapa_cotejo(
     poligono: Optional[list],
     escala_fallas: Optional[str] = None,
     bbox_fijo: Optional[tuple] = None,
+    tamano_fijo: Optional[tuple[int, int]] = None,
 ) -> Optional[bytes]:
     """Compone satélite (Esri) + geología 100K + fallas cercanas (si hay) +
     catastro minero + el pin de la operación en una sola imagen JPEG —
@@ -623,12 +665,13 @@ def imagen_mapa_cotejo(
     inicial debe ser la de ubicación con catastro y mapa geológico", julio
     2026). `escala_fallas`: "50k"|"100k"|None — mismo criterio que el mapa
     interactivo (MapaGeocatmin.tsx): None si no hay ninguna falla cerca
-    que dibujar. `bbox_fijo`: si se pasa, se usa tal cual en vez de
-    calcularlo con `_bbox_de` -- lo usa `imagen_analisis_catastro` para
-    reusar toda esta composición con el bbox ajustado al polígono en vez
-    del panorámico de portada (ver `_bbox_ajustado_poligono`). Best-effort:
-    si cualquier capa falla, devuelve None y el caller usa la foto normal
-    del minero como portada en su lugar — nunca rompe la descarga del PDF."""
+    que dibujar. `bbox_fijo`/`tamano_fijo`: si se pasan, se usan tal cual
+    en vez de `_bbox_de`/el lienzo panorámico fijo -- lo usa
+    `imagen_analisis_catastro` para reusar toda esta composición con el
+    bbox y el lienzo ajustados al polígono en vez del panorámico de
+    portada (ver `_bbox_y_tamano_ajustado_poligono`). Best-effort: si
+    cualquier capa falla, devuelve None y el caller usa la foto normal del
+    minero como portada en su lugar — nunca rompe la descarga del PDF."""
     if _DESACTIVADO or not coords:
         return None
     from PIL import Image, ImageDraw
@@ -636,12 +679,13 @@ def imagen_mapa_cotejo(
 
     try:
         bbox = bbox_fijo or _bbox_de(coords, poligono)
-        base = _exportar_capa(_ESRI_IMAGERY, bbox)
+        tamano = tamano_fijo or (_ANCHO_MAPA, _ALTO_MAPA)
+        base = _exportar_capa(_ESRI_IMAGERY, bbox, tamano=tamano)
         if base is None:
             return None
         try:
             geologia = _exportar_capa(
-                f"{_BASE}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer", bbox, "show:6"
+                f"{_BASE}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer", bbox, "show:6", tamano=tamano
             )
             if geologia is not None:
                 r, g, b, a = geologia.split()
@@ -655,14 +699,16 @@ def imagen_mapa_cotejo(
         if escala_fallas:
             try:
                 servicio, capa, _campos = _CAPA_FALLAS_POR_ESCALA[escala_fallas]
-                fallas = _exportar_capa(f"{_BASE}/{servicio}/MapServer", bbox, f"show:{capa}")
+                fallas = _exportar_capa(
+                    f"{_BASE}/{servicio}/MapServer", bbox, f"show:{capa}", tamano=tamano
+                )
                 if fallas is not None:
                     base.alpha_composite(fallas)
             except requests.RequestException:
                 pass
         try:
             catastro = _exportar_capa(
-                f"{_BASE}/SERV_CATASTRO_MINERO_WGS84/MapServer", bbox, "show:0"
+                f"{_BASE}/SERV_CATASTRO_MINERO_WGS84/MapServer", bbox, "show:0", tamano=tamano
             )
             if catastro is not None:
                 base.alpha_composite(catastro)
@@ -673,8 +719,9 @@ def imagen_mapa_cotejo(
         # imageSR son ambos 4326, sin proyección de por medio).
         lat, lng = (float(p.strip()) for p in coords.split(","))
         xmin, ymin, xmax, ymax = bbox
-        px = int((lng - xmin) / (xmax - xmin) * _ANCHO_MAPA)
-        py = int((ymax - lat) / (ymax - ymin) * _ALTO_MAPA)
+        ancho, alto = tamano
+        px = int((lng - xmin) / (xmax - xmin) * ancho)
+        py = int((ymax - lat) / (ymax - ymin) * alto)
         dibujo = ImageDraw.Draw(base)
         radio = 9
         dibujo.ellipse(
@@ -696,13 +743,16 @@ def imagen_analisis_catastro(
 ) -> Optional[bytes]:
     """La capa "Catastro, geología y fallas" de la galería de análisis
     satelital del PDF (agosto 2026) -- reusa toda la composición de
-    `imagen_mapa_cotejo` (mismas 4 capas + pin) pero con el bbox ajustado
-    al polígono (`_bbox_ajustado_poligono`) en vez del panorámico
+    `imagen_mapa_cotejo` (mismas 4 capas + pin) pero con el bbox Y el
+    lienzo ajustados al aspecto real del polígono
+    (`_bbox_y_tamano_ajustado_poligono`) en vez del panorámico
     centrado-en-el-pin que sí necesita la portada. Antes esta capa de la
     galería reusaba directamente la imagen de portada -- reportado en
     vivo con captura real que la concesión aparecía como un recuadro
     chico perdido en una esquina."""
     if _DESACTIVADO or not coords:
         return None
-    bbox = _bbox_ajustado_poligono(poligono, coords)
-    return imagen_mapa_cotejo(coords, poligono, escala_fallas, bbox_fijo=bbox)
+    bbox, tamano = _bbox_y_tamano_ajustado_poligono(poligono, coords)
+    if bbox is None:
+        return None
+    return imagen_mapa_cotejo(coords, poligono, escala_fallas, bbox_fijo=bbox, tamano_fijo=tamano)

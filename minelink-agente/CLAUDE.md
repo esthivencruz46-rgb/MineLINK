@@ -126,6 +126,32 @@ Plataforma web donde un minero artesanal peruano:
       `copernicus.VERSION_CACHE` a 4 para que las capas ya generadas se
       regeneren solas con el borde nuevo, mismo mecanismo que cualquier
       otro cambio de forma de esas capas).
+   **Escala/encuadre de las imágenes de GEOCATMIN (ASTER, Anomalía
+   Espectral, Catastro+geología+fallas), segunda corrección agosto 2026**:
+   la primera corrección (centrar el bbox en el polígono, no en el pin —
+   ver más abajo) dejó la concesión bien centrada pero forzada al aspecto
+   PANORÁMICO fijo de la portada del PDF (`_ASPECTO_PDF ≈ 2.87:1`,
+   pensado para el recuadro ancho de portada) — cuando el polígono real es
+   más angosto que ese panorama, sobraba mucho margen vacío a los
+   costados. Comparado en vivo contra las capas de Copernicus (que sí
+   llenan el cuadro, porque su bbox es el bounding box EXACTO del
+   polígono sobre un lienzo cuadrado) y reportado explícitamente: "no está
+   centrando bien... quiero que el gráfico sea igual que el de Anomalías
+   Espectrales (GEOCATMIN) en esa escala". `geocatmin._bbox_ajustado_poligono`
+   (centraba en el polígono, aspecto fijo) fue reemplazada por
+   `_bbox_y_tamano_ajustado_poligono`, que devuelve TANTO el bbox como el
+   tamaño de lienzo en píxeles — generado AL aspecto real del propio
+   polígono (`_LADO_ANALISIS=1000px` de lado mayor, con un piso
+   `_LADO_ANALISIS_MIN=480px` para no dejar el lienzo demasiado angosto en
+   concesiones muy alargadas) en vez de forzar el bbox al aspecto del
+   lienzo — así la concesión llena el cuadro completo sin distorsión, sea
+   cual sea su forma. Solo aplica a la galería de análisis; la portada del
+   PDF sigue con `_bbox_de`/el lienzo panorámico fijo, sin tocar (no
+   necesita cambiar: ahí el pin SIEMPRE debe quedar dentro de cuadro,
+   distinto objetivo). `_exportar_capa`/`_exportar_imagen_server` ahora
+   aceptan un `tamano` opcional (por defecto el panorámico de portada);
+   `_con_borde_concesion` lee `imagen.size` en vez de asumir el tamaño fijo
+   global, porque ahora no todas las imágenes miden lo mismo.
    Reglas duras que se mantienen: nunca afirma presencia de mineral ni ley
    (solo "señal a investigar"), nunca hace una clasificación fina de
    alteración hidrotermal (ni Sentinel-2 ni ASTER 9-3-1 así usado tienen
