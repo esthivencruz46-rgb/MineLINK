@@ -7,7 +7,9 @@ import { ProtectedRouteMinero } from "./components/ProtectedRouteMinero";
 import { ProtectedRouteInversionista } from "./components/ProtectedRouteInversionista";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Footer } from "./components/Footer";
-import { AsesorWidget } from "./components/AsesorWidget";
+// Widget del asesor oculto por pedido de Esthiven (agosto 2026): descomentar
+// el import y el render de abajo para volver a mostrarlo.
+// import { AsesorWidget } from "./components/AsesorWidget";
 import { BloqueoBiometrico } from "./components/BloqueoBiometrico";
 import { AuthProvider } from "./context/AuthContext";
 import { MineroAuthProvider } from "./context/MineroAuthContext";
@@ -318,7 +320,9 @@ export function App() {
           </Suspense>
         </main>
         {!esAdmin && <Footer />}
-        {!esAdmin && <AsesorWidget />}
+        {/* Asesor oculto (agosto 2026, pedido de Esthiven): descomentar para
+            volver a mostrar el widget flotante. */}
+        {/* {!esAdmin && <AsesorWidget />} */}
         <BloqueoBiometrico />
         </div>
       </InversionistaAuthProvider>

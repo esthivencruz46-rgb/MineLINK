@@ -4,13 +4,15 @@
 
 1. Read `minelink-agente/CLAUDE.md` — it is the orchestrator. It routes tasks to agent files (`minelink-agente/agents/*.md`) and skill files (`minelink-agente/skills/*/SKILL.md`).
 2. Read `minelink-agente/errores_aprendidos.md` **before touching any code** — it has environment gotchas that repeat if ignored.
-3. Business rules live in `minelink-agente/context/` — never contradict `criterios_score.md` or `perfil_usuario.md`.
+3. Business rules live in `minelink-agente/context/` — never contradict `diagnostico_formalizacion.md` (current spec), `criterios_score.md` or `perfil_usuario.md`.
 
 ## Critical warnings
 
-- **Diagnostic redesigned (julio 2026):** the diagnostic now follows the A/B/C/D profile model (`context/diagnostico_formalizacion.md` is the business source of truth; catalog in `backend/catalogo_diagnostico.py`, mirrored in `frontend/src/data/preguntas.ts` — any drift between them makes `POST /diagnostico` 422). Output is TWO independent semáforos + Índice de Madurez 0-5; the old 0-100 scores were retired from the UI (code preserved in `backend/scoring_legacy.py` and paused `data/preguntasPerfil.ts`, do not delete). The `Operacion.estado_formalizacion` column stores the PERFIL (A/A_avanzado/B/C/D) and has NOT been migrated to Supabase yet — run the ADD COLUMN migration before deploying.
-- **`backend/.env` points at production Supabase.** Any seed or migration script run locally executes against production. Tests are safe (in-memory SQLite override), but manual seed scripts are not.
+- **Diagnostic follows the A/B/C/D profile model** (`context/diagnostico_formalizacion.md` is the business source of truth; catalog in `backend/catalogo_diagnostico.py`, mirrored in `frontend/src/data/preguntas.ts` — any drift between them makes `POST /diagnostico` 422). Output is TWO independent semáforos + Índice de Madurez 0-5 + two 0-100 track scores (`score_formalizacion` stage-anchored, `score_inversion`) shown in the cartera. `Operacion.estado_formalizacion` stores the PERFIL (A/A_avanzado/B/C/D); `seeds/migrar_estado_formalizacion.py` already ran against prod. The OLD MineScore model is dead but preserved — `backend/scoring_legacy.py` and paused `data/preguntasPerfil.ts`/`perfilInformativo.ts`/`PerfilInformativoAgrupado.tsx` (do not delete).
+- **`backend/.env` points at production Supabase.** Any seed or migration script run locally executes against production. Tests are safe (in-memory SQLite override via `app.dependency_overrides[get_db]`, external calls disabled via `MINELINK_RESOLVER_MAPS=0`/`MINELINK_GEOCATMIN=0`), but manual seed scripts are not.
 - **Never run broad `rm` on `backend/uploads/`** — has caused real data loss twice. See `errores_aprendidos.md`.
+- **Any new Supabase table needs its own RLS:** run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` (pattern in `seeds/habilitar_rls_*.py`), or it's exposed through the public PostgREST anon key. The backend connects as owner, so RLS doesn't affect it.
+- **Never call `asesor.actualizar_documentos_admin()` inline in a live request** — it eagerly rebuilds the BM25 index (~50s on a cold corpus; caused a real 90s hang). Only schedule it via `BackgroundTasks`, gated by the cheap `documentos_admin_cambiaron()`.
 
 ## Commands
 
@@ -22,6 +24,7 @@ pytest -q                                                  # full suite
 pytest tests/test_scoring.py -q                            # scoring only
 pytest tests/test_smoke.py::test_post_diagnostico -q       # single test
 ```
+Module-specific test files exist: `test_asesor.py`, `test_geocatmin.py`, `test_copernicus.py`, `test_interpretacion_ubicacion.py`. All tests use an in-memory SQLite engine and disable outbound calls — they never touch the real DB regardless of `DATABASE_URL`.
 
 All frontend commands from `minelink-agente/frontend/`:
 
@@ -43,7 +46,8 @@ No frontend linter or test runner is configured. `npm run build` is the only ver
 ## Architecture in one minute
 
 - **Two models per miner:** `Operacion` (anonymous diagnostic, created by `POST /diagnostico`) and `Lead` (real identity, created by `POST /leads`, points at the Operacion). Public project pages join both but never expose Lead contact data.
-- **Scoring is pure logic** in `backend/scoring.py` — no DB reads. Question IDs map to points, which map to per-dimension scores (0-100) and brecha (gap) codes. The same codes tag companies, enabling gap-to-provider matching.
+- **Scoring is pure logic** in `backend/scoring.py` — no DB reads (`hoy` injectable). Answers map to perfil, semáforos, madurez, track scores, and brecha (gap) codes. The same codes tag companies (`Empresa.estudios_json`), enabling gap-to-provider matching.
+- **Brand name is a single source of truth:** `frontend/src/config/marca.ts`. Every visible text imports it — never hardcode the brand. Technical identifiers (Android appId `com.minelink.app`, localStorage keys, DB/bucket names, `MINELINK_*` env vars, published `MineLink.apk`) never change with the brand.
 - **Backend and frontend question ID sets must stay in sync** or `POST /diagnostico` returns 422. The frontend mirrors the catalog in `frontend/src/data/preguntas.ts`.
 - **Dual-mode infra:** SQLite locally, Postgres (Supabase) when `DATABASE_URL` is set. File storage is local disk or Supabase Storage. PDFs are always converted to JPEG on upload.
 
@@ -51,6 +55,7 @@ No frontend linter or test runner is configured. `npm run build` is the only ver
 
 - Push to `main` auto-deploys both frontend (Vercel) and backend (Render).
 - **Push is done by Esthiven via GitHub Desktop** — the agent terminal lacks his credentials. After committing, ask him to push.
+- A daily DB backup runs via `.github/workflows/backup-db.yml` (secret `DATABASE_URL_BACKUP`).
 - Never commit `backend/.env` or any secrets.
 
 ## Autonomy
