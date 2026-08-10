@@ -30,6 +30,7 @@ export function HeroFranja({
       >
         <defs>
           <pattern id="contornos-franja" width="240" height="150" patternUnits="userSpaceOnUse">
+            <g className="motion-safe:animate-[contorno-flujo_32s_linear_infinite]">
             <path
               d="M-20 30 Q 40 -20, 100 30 T 220 30 T 340 30"
               fill="none"
@@ -48,6 +49,7 @@ export function HeroFranja({
               stroke="white"
               strokeWidth="1"
             />
+            </g>
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#contornos-franja)" />

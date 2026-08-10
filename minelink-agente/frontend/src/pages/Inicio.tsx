@@ -2,6 +2,7 @@ import { Capacitor } from "@capacitor/core";
 import { useTitulo } from "../hooks/useTitulo";
 import { MARCA } from "../config/marca";
 import { Link, useNavigate } from "react-router-dom";
+import { Reveal } from "../components/Reveal";
 import { Briefcase, Check, Download, Pickaxe, Wrench, type LucideIcon } from "lucide-react";
 
 interface TarjetaPerfil {
@@ -89,6 +90,7 @@ export function Inicio() {
         >
           <defs>
             <pattern id="contornos-hero" width="240" height="150" patternUnits="userSpaceOnUse">
+              <g className="motion-safe:animate-[contorno-flujo_32s_linear_infinite]">
               <path
                 d="M-20 30 Q 40 -20, 100 30 T 220 30 T 340 30"
                 fill="none"
@@ -107,6 +109,7 @@ export function Inicio() {
                 stroke="white"
                 strokeWidth="1"
               />
+              </g>
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#contornos-hero)" />
@@ -133,9 +136,9 @@ export function Inicio() {
             className="pointer-events-none absolute -inset-x-8 -inset-y-10 -z-10 bg-[radial-gradient(ellipse_at_top,_theme(colors.acento/0.07),_transparent_65%)]"
             aria-hidden="true"
           />
-          {PERFILES.map((p) => (
+          {PERFILES.map((p, i) => (
+            <Reveal key={p.titulo} retraso={i * 100}>
             <div
-              key={p.titulo}
               className={`group flex flex-col items-start gap-3 border p-6 transition duration-200 hover:-translate-y-1 ${
                 p.destacada
                   ? "border-acento/30 bg-acento/[0.04] hover:border-acento/50 hover:shadow-[0_8px_24px_-12px_theme(colors.acento/0.5)]"
@@ -157,7 +160,7 @@ export function Inicio() {
                 onClick={() => navigate(p.ruta)}
                 className={`mt-2 min-h-[44px] w-full px-5 text-sm font-semibold transition ${
                   p.destacada
-                    ? "bg-acento text-white hover:bg-acento/90"
+                    ? "brillo bg-acento text-white hover:bg-acento/90 active:scale-[0.99]"
                     : "border border-black/15 text-texto hover:border-acento/40 hover:text-acento dark:border-white/15 dark:text-texto-dark"
                 }`}
               >
@@ -172,6 +175,7 @@ export function Inicio() {
                 </Link>
               )}
             </div>
+            </Reveal>
           ))}
         </div>
 

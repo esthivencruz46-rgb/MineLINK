@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Building2, MapPin, SearchX, SlidersHorizontal, Wrench } from "lucide-react";
 import { RegistroMineroModal } from "../components/RegistroMineroModal";
 import { EmpresaCard } from "../components/EmpresaCard";
+import { Reveal } from "../components/Reveal";
 import { TarjetaEmpresaSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { INFO_BRECHA } from "../data/brechas";
@@ -205,14 +206,15 @@ export function Empresas() {
                 ({bloque.length})
               </span>
             </h2>
-            {bloque.map((empresa) => (
-              <EmpresaCard
-                key={empresa.id}
-                empresa={empresa}
-                brechasMinero={brechasMinero}
-                operacionId={operacionId}
-                demo={esDemo}
-              />
+            {bloque.map((empresa, i) => (
+              <Reveal key={empresa.id} retraso={Math.min(i * 70, 350)}>
+                <EmpresaCard
+                  empresa={empresa}
+                  brechasMinero={brechasMinero}
+                  operacionId={operacionId}
+                  demo={esDemo}
+                />
+              </Reveal>
             ))}
           </div>
         );

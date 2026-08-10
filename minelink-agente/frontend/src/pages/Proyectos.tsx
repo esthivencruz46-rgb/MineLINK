@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, BadgeCheck, MapPin, Pickaxe, ShieldCheck } from "lucide-react";
 import { Autocomplete } from "../components/Autocomplete";
 import { HeroFranja } from "../components/HeroFranja";
+import { Reveal } from "../components/Reveal";
 import { TarjetaProyectoSkeleton } from "../components/Skeleton";
 import { DEPARTAMENTOS } from "../data/departamentos";
 import { BASE_URL, obtenerProyectos, registrarEvento } from "../services/api";
@@ -181,8 +182,10 @@ export function Proyectos() {
                     </span>
                   </h2>
                   <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                    {grupo.map((p) => (
-                      <ProyectoCard key={p.operacion_id} proyecto={p} />
+                    {grupo.map((p, i) => (
+                      <Reveal key={p.operacion_id} retraso={Math.min(i * 70, 350)}>
+                        <ProyectoCard proyecto={p} />
+                      </Reveal>
                     ))}
                   </div>
                 </section>
