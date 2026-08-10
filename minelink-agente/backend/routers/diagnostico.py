@@ -5,13 +5,16 @@ import models
 import schemas
 from database import get_db
 from scoring import calcular_diagnostico
+from security import limitar_creaciones_publicas
 
 router = APIRouter(tags=["diagnostico"])
 
 
 @router.post("/diagnostico", response_model=schemas.DiagnosticoResponse)
 def crear_diagnostico(
-    payload: schemas.DiagnosticoRequest, db: Session = Depends(get_db)
+    payload: schemas.DiagnosticoRequest,
+    db: Session = Depends(get_db),
+    _limite: None = Depends(limitar_creaciones_publicas),
 ):
     try:
         resultado = calcular_diagnostico(payload.respuestas)

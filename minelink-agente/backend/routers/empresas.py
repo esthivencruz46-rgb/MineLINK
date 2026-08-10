@@ -186,6 +186,7 @@ def registrar_interes_empresa(
     empresa_id: int,
     payload: schemas.InteresEmpresaCreate,
     db: Session = Depends(get_db),
+    _limite: None = Depends(limitar_creaciones_publicas),
 ):
     """El minero deja su contacto para que ESTA empresa/consultor lo
     llame — reemplaza el link directo a WhatsApp. NUNCA le damos el

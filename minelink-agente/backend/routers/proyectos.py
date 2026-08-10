@@ -25,6 +25,12 @@ from uploads_config import CATEGORIAS_DOCUMENTO, CATEGORIAS_ESTUDIO, CATEGORIAS_
 
 router = APIRouter(prefix="/proyectos", tags=["proyectos"])
 
+# Caché HTTP de un día para las imágenes públicas (hallazgo de auditoría,
+# agosto 2026): las fotos/fichas se re-descargaban de Supabase Storage en
+# cada visita. Los filenames son UUIDs inmutables y el mapa de GEOCATMIN
+# sale del caché de 30 días, así que un día de caché es seguro.
+_CACHE_PUBLICO = {"Cache-Control": "public, max-age=86400"}
+
 CATEGORIAS_LEGALES = [c for c in CATEGORIAS_DOCUMENTO if c != "fotos_mina"]
 # Documentos del Módulo INV (uploads_config.CATEGORIAS_INVERSION) que SÍ se
 # muestran al inversionista como evidencia — a diferencia de liquidaciones/
@@ -1040,7 +1046,7 @@ def foto_proyecto(operacion_id: str, documento_id: int, db: Session = Depends(ge
     if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
-    return Response(content=contenido, media_type=documento.content_type)
+    return Response(content=contenido, media_type=documento.content_type, headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/mapa-cotejo.jpg")
@@ -1067,7 +1073,7 @@ def mapa_cotejo_proyecto(operacion_id: str, db: Session = Depends(get_db)):
     imagen = geocatmin.imagen_mapa_cotejo(lead.ubicacion_coords, poligono, escala_fallas)
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
-    return Response(content=imagen, media_type="image/jpeg")
+    return Response(content=imagen, media_type="image/jpeg", headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/geocatmin-analisis/catastro.jpg")
@@ -1086,7 +1092,7 @@ def catastro_analisis_proyecto(operacion_id: str, db: Session = Depends(get_db))
     imagen = geocatmin.imagen_analisis_catastro(lead.ubicacion_coords, poligono, escala_fallas)
     if imagen is None:
         raise HTTPException(status_code=404, detail="No se pudo generar el mapa")
-    return Response(content=imagen, media_type="image/jpeg")
+    return Response(content=imagen, media_type="image/jpeg", headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/geocatmin-analisis/{capa}.png")
@@ -1108,7 +1114,7 @@ def capa_geocatmin_analisis_proyecto(operacion_id: str, capa: str, db: Session =
     contenido = (imagenes or {}).get(capa)
     if contenido is None:
         raise HTTPException(status_code=404, detail="No se pudo generar esa capa")
-    return Response(content=contenido, media_type="image/png")
+    return Response(content=contenido, media_type="image/png", headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/anomalias/{capa}.png")
@@ -1128,7 +1134,7 @@ def anomalia_satelital_proyecto(operacion_id: str, capa: str, db: Session = Depe
     contenido = storage.leer("anomalias_satelitales", f"{operacion_id}_{capa}.png")
     if contenido is None:
         raise HTTPException(status_code=404, detail="Todavía no se generó esta capa")
-    return Response(content=contenido, media_type="image/png")
+    return Response(content=contenido, media_type="image/png", headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/anomalias-pdf/{capa}.png")
@@ -1153,7 +1159,7 @@ def anomalia_satelital_con_base_proyecto(operacion_id: str, capa: str, db: Sessi
     compuesta = copernicus.imagen_con_satelite(contenido, tuple(bbox))
     if compuesta is None:
         raise HTTPException(status_code=404, detail="No se pudo componer la base satelital")
-    return Response(content=compuesta, media_type="image/jpeg")
+    return Response(content=compuesta, media_type="image/jpeg", headers=_CACHE_PUBLICO)
 
 
 @router.get("/{operacion_id}/documentos/{documento_id}")
@@ -1182,4 +1188,4 @@ def foto_documento_legal(operacion_id: str, documento_id: int, db: Session = Dep
     if contenido is None:
         raise HTTPException(status_code=404, detail="El archivo no se encuentra")
 
-    return Response(content=contenido, media_type=documento.content_type)
+    return Response(content=contenido, media_type=documento.content_type, headers=_CACHE_PUBLICO)

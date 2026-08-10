@@ -7,9 +7,21 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "esthiven")
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "changeme")
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
+# Sin valores por defecto a propósito (hallazgo de auditoría, agosto 2026):
+# antes, si faltaban estas variables en Render, la app arrancaba con
+# "changeme"/un secret público, y cualquiera podía FORJAR tokens JWT admin
+# (HS256) y tomar el panel. Ahora el arranque falla visiblemente en vez de
+# correr inseguro.
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD")
+SECRET_KEY = os.environ.get("SECRET_KEY")
+
+if not ADMIN_USERNAME or not ADMIN_PASSWORD or not SECRET_KEY:
+    raise RuntimeError(
+        "Faltan variables de entorno de seguridad: ADMIN_USERNAME, "
+        "ADMIN_PASSWORD y SECRET_KEY son obligatorias (no hay valores por "
+        "defecto). Configúralas en Render y en backend/.env para desarrollo."
+    )
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 12
 MINERO_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30

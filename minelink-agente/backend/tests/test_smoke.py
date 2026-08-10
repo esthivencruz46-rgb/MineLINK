@@ -5,6 +5,9 @@ import os
 # debe ir ANTES de importar main/auth.
 os.environ["ADMIN_USERNAME"] = "esthiven"
 os.environ["ADMIN_PASSWORD"] = "changeme"
+# auth.py no arranca sin SECRET_KEY (fail-fast, hallazgo de auditoría agosto
+# 2026) — los tests la fijan explícitamente como cualquier otra credencial.
+os.environ["SECRET_KEY"] = "test-secret-key-solo-para-tests"
 # Los tests SIEMPRE usan el disco local para archivos, nunca el Supabase
 # Storage real (mismo principio que la BD en memoria).
 os.environ["SUPABASE_URL"] = ""

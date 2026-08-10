@@ -5,12 +5,17 @@ import models
 import schemas
 from auth import hash_password
 from database import get_db
+from security import limitar_creaciones_publicas
 
 router = APIRouter(tags=["leads"])
 
 
 @router.post("/leads", response_model=schemas.LeadOut, status_code=201)
-def crear_lead(payload: schemas.LeadCreate, db: Session = Depends(get_db)):
+def crear_lead(
+    payload: schemas.LeadCreate,
+    db: Session = Depends(get_db),
+    _limite: None = Depends(limitar_creaciones_publicas),
+):
     operacion = (
         db.query(models.Operacion)
         .filter(models.Operacion.id == payload.operacion_id)

@@ -1017,15 +1017,13 @@ class PerfilInversionUpdate(BaseModel):
         if v is None or not v.strip():
             return None
         enlace = v.strip()
-        dominios_maps = (
-            "google.com/maps",
-            "maps.google.",
-            "maps.app.goo.gl",
-            "goo.gl/maps",
-        )
-        if not enlace.startswith(("http://", "https://")) or not any(
-            d in enlace for d in dominios_maps
-        ):
+        # Validación por HOST real (no substring) — hallazgo de auditoría,
+        # agosto 2026: el substring aceptaba enlaces SSRF (userinfo
+        # `google.com/maps@169.254.169.254/` o dominios falsos), y luego
+        # resolver_coordenadas() hacía requests.get() contra ese host.
+        from geoubicacion import es_enlace_google_maps_valido
+
+        if not es_enlace_google_maps_valido(enlace):
             raise ValueError(
                 "La ubicación debe ser un enlace de Google Maps "
                 "(compártelo desde la app de Maps con el botón Compartir)"
