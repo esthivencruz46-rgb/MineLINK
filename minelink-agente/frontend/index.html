@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MineLink — Formaliza tu minería y conecta con inversionistas</title>
     <!-- Ícono de la pestaña del navegador + ícono al anclar en un iPhone
-         (generados de la marca: Q dorada — "qori" = oro en quechua). -->
+         (generados de la marca: M dorada sobre verde institucional). -->
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon-64.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <!-- Verificación de propiedad ante Google Search Console (julio 2026,
@@ -35,6 +35,30 @@
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
+    <!-- Datos estructurados (agosto 2026): le dan a Google el nombre y la
+         descripción exactos de la marca en los resultados, en vez de que
+         invente un título de la página. Mantener name/url en sync con los
+         og: de arriba. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "MineLink",
+            "url": "https://mine-link-seven.vercel.app/",
+            "description": "Diagnóstico gratuito de formalización para mineros artesanales del Perú y cartera de proyectos mineros verificados para inversionistas.",
+            "inLanguage": "es-PE"
+          },
+          {
+            "@type": "Organization",
+            "name": "MineLink",
+            "url": "https://mine-link-seven.vercel.app/",
+            "logo": "https://mine-link-seven.vercel.app/icono-512.png"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
