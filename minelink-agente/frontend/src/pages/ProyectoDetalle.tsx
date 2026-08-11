@@ -526,6 +526,7 @@ export function ProyectoDetalle() {
           ubicacionCoords={proyecto.ubicacion_coords}
           geocatmin={proyecto.geocatmin}
           anomaliasSatelitales={proyecto.anomalias_satelitales}
+          proyectoId={id}
         />
         {proyecto.interpretacion_ubicacion && (
           <div className="mt-3">

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { TERRENO_TILES } from "./terreno3D";
+import { BASE_URL } from "../../services/api";
 
 // Vista 3D de la ficha (MapLibre GL): el polígono de la concesión sobre
 // un terreno con relieve real, en vez del plano 2D de Leaflet. Cargado
@@ -29,19 +31,54 @@ import "maplibre-gl/dist/maplibre-gl.css";
 // satélite disponible. El terreno es cosmético: si falla al activarse,
 // el mapa 2D satelital queda igual de útil.
 
-const TERRENO_TILES =
-  "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png";
 const SATELITE_TILES =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+// Mismo margen que backend/geocatmin.py (_MARGEN_ANALISIS): el overlay de
+// geología/fallas/catastro de la vista 3D debe encuadrar EXACTAMENTE el
+// mismo terreno que la galería "catastro/geología/fallas" del PDF, o la
+// capa no calzaría con el polígono que el propio mapa 3D dibuja encima.
+const MARGEN_OVERLAY = 2.5;
+
+// Replica de geocatmin._bbox_y_tamano_ajustado_poligono (solo el bbox):
+// [oeste, sur, este, norte] en la sintaxis que espera MapLibre, centrado
+// en el polígono con el margen de arriba. Sin polígono, cae a la misma
+// caja fija chica y cuadrada alrededor del pin que usa el backend.
+function bboxOverlay(
+  poligono: number[][][] | null | undefined,
+  coords: string
+): [number, number, number, number] | null {
+  if (poligono && poligono.length > 0 && poligono[0].length > 0) {
+    const anillo = poligono[0];
+    const lngs = anillo.map((p) => p[0]);
+    const lats = anillo.map((p) => p[1]);
+    const cx = (Math.min(...lngs) + Math.max(...lngs)) / 2;
+    const cy = (Math.min(...lats) + Math.max(...lats)) / 2;
+    const medioLng = Math.max((Math.max(...lngs) - Math.min(...lngs)) / 2, 0.0008) * MARGEN_OVERLAY;
+    const medioLat = Math.max((Math.max(...lats) - Math.min(...lats)) / 2, 0.0008) * MARGEN_OVERLAY;
+    return [cx - medioLng, cy - medioLat, cx + medioLng, cy + medioLat];
+  }
+  const [lat, lng] = coords.split(",").map((p) => Number(p.trim()));
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  const medio = 0.006 * MARGEN_OVERLAY;
+  return [lng - medio, lat - medio, lng + medio, lat + medio];
+}
 
 export function Mapa3D({
   coords,
   poligonoConcesion,
+  proyectoId,
 }: {
   coords: string;
   /** Anillos [lng, lat] de la concesión (de GEOCATMIN, vía backend) —
    * se proyectan sobre el terreno en 3D. */
   poligonoConcesion?: number[][][] | null;
+  /** Id del proyecto: con él la vista 3D superpone las mismas capas que el
+   * mapa 2D muestra encendidas por defecto (geología + fallas + catastro)
+   * sobre el terreno, vía `GET /proyectos/{id}/overlay-3d.png` (PNG
+   * transparente, mismo bbox que la galería "catastro/geología/fallas"
+   * del PDF). Sin id (p. ej. en el visor de otra página) se omite. */
+  proyectoId?: string;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -113,6 +150,34 @@ export function Mapa3D({
     let desmontado = false;
 
     mapa.on("load", () => {
+      // Overlay de las capas 2D por defecto (geología 100K + fallas + catastro
+      // minero) sobre el terreno: PNG transparente servido por el backend con
+      // el MISMO bbox que la galería del PDF. Se agrega ANTES del polígono y
+      // del pin para que el borde verde de la concesión y el pin queden
+      // siempre encima de las capas. Es cosmético: si el overlay falla
+      // (404/red), el mapa sigue con satélite + polígono sin problema.
+      if (proyectoId) {
+        const bbox = bboxOverlay(poligonoConcesion, coords);
+        if (bbox) {
+          try {
+            mapa.addSource("overlay-catastro", {
+              type: "raster",
+              tiles: [`${BASE_URL}/proyectos/${proyectoId}/overlay-3d.png`],
+              tileSize: 1000,
+              bounds: bbox,
+              maxzoom: 24,
+            });
+            mapa.addLayer({
+              id: "overlay-catastro",
+              type: "raster",
+              source: "overlay-catastro",
+            });
+          } catch {
+            // cosmético, no tumba el mapa
+          }
+        }
+      }
+
       // Polígono de la concesión: borde verde de marca + relleno
       // semitransparente muy tenue (el satélite de abajo sigue
       // leyéndose). Mismo verde (#10b981) que el borde 2D de Leaflet.
@@ -229,7 +294,7 @@ export function Mapa3D({
       desmontado = true;
       mapa.remove();
     };
-  }, [coords, poligonoConcesion]);
+  }, [coords, poligonoConcesion, proyectoId]);
 
   return (
     <div

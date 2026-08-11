@@ -1095,6 +1095,26 @@ def catastro_analisis_proyecto(operacion_id: str, db: Session = Depends(get_db))
     return Response(content=imagen, media_type="image/jpeg", headers=_CACHE_PUBLICO)
 
 
+@router.get("/{operacion_id}/overlay-3d.png")
+def overlay_3d_proyecto(operacion_id: str, db: Session = Depends(get_db)):
+    """Geología + fallas + catastro minero en PNG TRANSPARENTE, mismo bbox
+    ajustado al polígono que `geocatmin-analisis/catastro.jpg` — para que
+    Mapa3D.tsx (vista 3D de la ficha) muestre las mismas capas que el mapa
+    2D tiene encendidas por defecto, superpuestas sobre el terreno. Sin
+    base satelital ni pin: el mapa 3D ya pinta su propio satélite, su
+    polígono de la concesión y su pin. Best-effort: 404 si no se pudo
+    (la vista 3D sigue funcionando solo con satélite + polígono)."""
+    lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
+    cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
+    poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")
+    fallas = cache_geocatmin.get("fallas") or {}
+    escala_fallas = fallas.get("escala") if fallas.get("items") else None
+    imagen = geocatmin.imagen_overlay_3d(lead.ubicacion_coords, poligono, escala_fallas)
+    if imagen is None:
+        raise HTTPException(status_code=404, detail="No se pudo generar el overlay")
+    return Response(content=imagen, media_type="image/png", headers=_CACHE_PUBLICO)
+
+
 @router.get("/{operacion_id}/geocatmin-analisis/{capa}.png")
 def capa_geocatmin_analisis_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
     """ASTER 9-3-1 o Anomalías Espectrales de GEOCATMIN, recortadas sobre

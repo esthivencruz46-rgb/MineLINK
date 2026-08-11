@@ -19,6 +19,7 @@ export function GaleriaProyecto({
   ubicacionCoords,
   geocatmin,
   anomaliasSatelitales,
+  proyectoId,
 }: {
   fotos: FotoPublica[];
   ubicacionCoords?: string | null;
@@ -29,6 +30,9 @@ export function GaleriaProyecto({
     bbox: [number, number, number, number];
     capas: Record<string, string>;
   } | null;
+  /** Id del proyecto (rutas `/proyectos/{id}`) — para que la vista 3D
+   * pida el overlay de geología/fallas/catastro del propio proyecto. */
+  proyectoId?: string;
 }) {
   const [indiceAbierto, setIndiceAbierto] = useState<number | null>(null);
 
@@ -81,6 +85,7 @@ export function GaleriaProyecto({
         // manda nada al mapa, para no insinuar un riesgo que no existe.
         escalaFallas={fallas && fallas.items.length > 0 ? fallas.escala : null}
         anomaliasSatelitales={anomaliasSatelitales}
+        proyectoId={proyectoId}
       />
     </div>
   ) : null;

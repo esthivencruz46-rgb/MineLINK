@@ -3,6 +3,7 @@ import L from "leaflet";
 import { dynamicMapLayer, imageMapLayer } from "esri-leaflet";
 import "leaflet/dist/leaflet.css";
 import { BASE_URL } from "../../services/api";
+import { precargarRelieve } from "./terreno3D";
 
 // Vista 3D de la concesión (MapLibre GL, ver Mapa3D.tsx): se carga con
 // React.lazy — sus ~270 KB gzipped solo bajan cuando el visitante pulsa
@@ -60,6 +61,7 @@ export function MapaGeocatmin({
   poligonoConcesion,
   escalaFallas,
   anomaliasSatelitales,
+  proyectoId,
 }: {
   coords: string;
   /** Anillos [lng, lat] de la concesión donde cae el pin (de GEOCATMIN,
@@ -78,6 +80,9 @@ export function MapaGeocatmin({
     bbox: [number, number, number, number];
     capas: Record<string, string>;
   } | null;
+  /** Id del proyecto — la vista 3D superpone el overlay de
+   * geología/fallas/catastro vía `GET /proyectos/{id}/overlay-3d.png`. */
+  proyectoId?: string;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<L.Map | null>(null);
@@ -96,6 +101,17 @@ export function MapaGeocatmin({
     }, 1500);
     return () => clearTimeout(t);
   }, []);
+
+  // Relieve del proyecto en segundo plano (agosto 2026, pedido de
+  // Esthiven): se calienta la caché HTTP del navegador con los tiles de
+  // elevación de la zona (terreno3D.ts). Así, al pulsar "Vista 3D",
+  // MapLibre encuentra el DEM ya cacheado y el relieve no espera la red.
+  useEffect(() => {
+    const [lat, lng] = coords.split(",").map((p) => Number(p.trim()));
+    if (Number.isNaN(lat) || Number.isNaN(lng)) return;
+    const t = setTimeout(() => precargarRelieve(lat, lng), 2000);
+    return () => clearTimeout(t);
+  }, [coords]);
 
   useEffect(() => {
     const [lat, lng] = coords.split(",").map((p) => Number(p.trim()));
@@ -629,7 +645,11 @@ export function MapaGeocatmin({
             </div>
           }
         >
-          <Mapa3DLazy coords={coords} poligonoConcesion={poligonoConcesion} />
+          <Mapa3DLazy
+            coords={coords}
+            poligonoConcesion={poligonoConcesion}
+            proyectoId={proyectoId}
+          />
         </Suspense>
       )}
 

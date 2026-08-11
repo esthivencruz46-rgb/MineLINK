@@ -762,6 +762,71 @@ def imagen_mapa_cotejo(
         return None
 
 
+def imagen_overlay_3d(
+    coords: Optional[str],
+    poligono: Optional[list],
+    escala_fallas: Optional[str] = None,
+) -> Optional[bytes]:
+    """Geología 100K + fallas cercanas (si hay) + catastro minero, SIN base
+    satelital ni pin — PNG TRANSPARENTE pensado para superponerse sobre la
+    vista 3D de MapLibre de la ficha (Mapa3D.tsx), que ya pinta su propio
+    satélite, el polígono de la concesión y el pin. Mismas capas que el
+    mapa 2D muestra encendidas por defecto, y el MISMO bbox ajustado al
+    polígono que `imagen_analisis_catastro` (centrado en la concesión, con
+    el margen _MARGEN_ANALISIS) — así lo que se ve en 3D coincide con la
+    galería "catastro/geología/fallas" del PDF. Se genera al vuelo en cada
+    pedido (llamadas gratis a ArcGIS) y el navegador lo cachea 24h (mismo
+    patrón que mapa-cotejo.jpg). Best-effort: None si falla algo y la
+    vista 3D sigue funcionando solo con satélite + polígono."""
+    if _DESACTIVADO or not coords:
+        return None
+    from PIL import Image
+    from io import BytesIO
+
+    try:
+        bbox, tamano = _bbox_y_tamano_ajustado_poligono(poligono, coords)
+        if bbox is None:
+            return None
+        base = Image.new("RGBA", tamano, (0, 0, 0, 0))
+        try:
+            geologia = _exportar_capa(
+                f"{_BASE}/SERV_GEOLOGIA_100K_INTEGRADA/MapServer", bbox, "show:6", tamano=tamano
+            )
+            if geologia is not None:
+                r, g, b, a = geologia.split()
+                # Mismo 40% de opacidad que imagen_mapa_cotejo (en el mapa
+                # web 2D en reposo es 25%, acá no hay hover para subirla).
+                a = a.point(lambda p: int(p * 0.4))
+                geologia.putalpha(a)
+                base.alpha_composite(geologia)
+        except requests.RequestException:
+            pass
+        if escala_fallas:
+            try:
+                servicio, capa, _campos = _CAPA_FALLAS_POR_ESCALA[escala_fallas]
+                fallas = _exportar_capa(
+                    f"{_BASE}/{servicio}/MapServer", bbox, f"show:{capa}", tamano=tamano
+                )
+                if fallas is not None:
+                    base.alpha_composite(fallas)
+            except requests.RequestException:
+                pass
+        try:
+            catastro = _exportar_capa(
+                f"{_BASE}/SERV_CATASTRO_MINERO_WGS84/MapServer", bbox, "show:0", tamano=tamano
+            )
+            if catastro is not None:
+                base.alpha_composite(catastro)
+        except requests.RequestException:
+            pass
+
+        salida = BytesIO()
+        base.save(salida, format="PNG")
+        return salida.getvalue()
+    except (requests.RequestException, OSError, ValueError):
+        return None
+
+
 def imagen_analisis_catastro(
     coords: Optional[str], poligono: Optional[list], escala_fallas: Optional[str] = None
 ) -> Optional[bytes]:
