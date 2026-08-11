@@ -119,7 +119,7 @@ function PublicHeader() {
           {/* Emblema de la app (agosto 2026, pedido de Esthiven: "me gusta el
               ícono de la app, quiero que esté en todas partes") — mismo
               ícono que usa Android, generado desde el launcher de la app. */}
-          <img src="/marca-icono.png" alt="" className="h-6 w-6 rounded" />
+          <img src="/marca-icono.png" alt="" className="h-8 w-8 rounded-lg shadow-sm ring-1 ring-black/10 dark:ring-white/25" />
           {MARCA}
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">

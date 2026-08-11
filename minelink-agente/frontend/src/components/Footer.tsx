@@ -11,7 +11,7 @@ export function Footer() {
       <div className="mx-auto flex max-w-4xl flex-col gap-4 px-4 py-8 text-sm">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <span className="flex items-center gap-2 font-semibold text-acento">
-            <img src="/marca-icono.png" alt="" className="h-5 w-5 rounded" />
+            <img src="/marca-icono.png" alt="" className="h-6 w-6 rounded-md ring-1 ring-black/10 dark:ring-white/25" />
             {MARCA}
           </span>
           <Link to="/como-funciona" className="text-texto-suave hover:text-acento dark:text-texto-suave-dark">
