@@ -370,6 +370,18 @@ export function Mapa3D({
         pitch: 0,
         style: {
           version: 8,
+          // Cielo (agosto 2026): con la cámara inclinada a 60° el mapa
+          // queda en perspectiva y la atmósfera pinta el espacio sobre el
+          // horizonte — sin ella, el vacío por encima del terreno se ve
+          // negro/transparente y rompe la ilusión de "montañas reales".
+          // En MapLibre v6 `sky` es propiedad raíz del estilo (no una
+          // capa) y usa la API de atmósfera; el blend 0.9 lo hace notable
+          // pero leve, para que el mapa sea siempre lo que manda.
+          sky: {
+            "sky-color": "#8ec9ff",
+            "horizon-color": "#ffffff",
+            "atmosphere-blend": 0.9,
+          },
           sources: {
             satelite: {
               type: "raster",
@@ -416,10 +428,13 @@ export function Mapa3D({
               type: "hillshade",
               source: "demSombreado",
               paint: {
-                "hillshade-exaggeration": 0.6,
+                // Subido a 0.8 (agosto 2026, "más relieve"): junto a la
+                // exageración 4.0 del terreno, las laderas se ven con
+                // sombra y luz marcadas. 0.6 resultaba demasiado sutil.
+                "hillshade-exaggeration": 0.8,
                 "hillshade-illumination-direction": 315,
-                "hillshade-shadow-color": "rgba(15, 23, 42, 0.55)",
-                "hillshade-highlight-color": "rgba(255, 255, 255, 0.3)",
+                "hillshade-shadow-color": "rgba(15, 23, 42, 0.65)",
+                "hillshade-highlight-color": "rgba(255, 255, 255, 0.35)",
               },
             },
           ],
@@ -440,11 +455,13 @@ export function Mapa3D({
     const activarRelieve = () => {
       if (desmontado) return;
       try {
-        // Exageración 2.5 (agosto 2026, pedido de Esthiven: el terreno "se
-        // ve algo plano"): el relieve real de una concesión chica en zoom
-        // alto son pocos metros en pantalla, y 1.5 no lo hacía notar. 2.5
-        // resalta laderas y quebradas sin verse caricaturizado.
-        mapa.setTerrain({ source: "dem", exaggeration: 2.5 });
+        // Exageración 4.0 (agosto 2026, pedido de Esthiven: "hazlo con más
+        // relieve"): el desnivel real de una concesión en zoom alto son
+        // pocos metros en pantalla. 4x lo vuelve inconfundible — se baja
+        // fácil si se ve exagerado. Las capas raster (catastro, geología,
+        // INGEMMET, Copernicus) se DRAPEAAN automáticamente sobre esta
+        // malla: con el relieve prominente se nota que siguen el terreno.
+        mapa.setTerrain({ source: "dem", exaggeration: 4 });
       } catch {
         /* el mapa plano queda utilizable */
       }
@@ -460,6 +477,13 @@ export function Mapa3D({
         // Pitch 60 (antes 55): la cámara más baja muestra más relieve en
         // perspectiva.
         mapa.easeTo({ pitch: 60, duration: 1200 });
+      } catch {
+        /* cosmético */
+      }
+      try {
+        // Refuerza el re-render inmediato para que las capas ya cargadas
+        // se redrapeen sobre la malla en el mismo frame.
+        mapa.triggerRepaint();
       } catch {
         /* cosmético */
       }
