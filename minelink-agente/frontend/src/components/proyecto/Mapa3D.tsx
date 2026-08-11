@@ -454,13 +454,25 @@ export function Mapa3D({
     // (ej. una capa-3d que el backend no puede generar, 404) mantiene el
     // mapa ocupado para siempre, `idle` nunca llega y el relieve recién
     // aparecía por el respaldo de 8s — el usuario veía un mapa plano "sin
-    // cambios". Ahora NO depende de ningún source: `load` casi siempre
-    // llega <1s y el respaldo de 2.5s cubre el resto.
+    // cambios". El gate de abajo solo espera al source `dem`, jamás a las
+    // capas: así un source roto no puede colgar el relieve.
     const activarRelieve = () => {
       if (desmontado) return;
-      if (!mapa.isStyleLoaded()) {
-        // El estilo aún no está listo: reintenta en 400ms en vez de tirar
-        // setTerrain a un mapa sin estilo.
+      let tieneDem = false;
+      try {
+        tieneDem = !!mapa.getSource("dem");
+      } catch {
+        tieneDem = false;
+      }
+      if (!tieneDem) {
+        // El source dem aún no está en el estilo (red lenta): reintentar en
+        // 400ms. OJO: NO gatear con `isStyleLoaded()` — en MapLibre ese
+        // método espera a que TODAS las fuentes terminen de cargar, así que
+        // una capa rota (ej. capa-3d 404) lo deja en false PARA SIEMPRE y
+        // el relieve quedaba en "Cargando relieve 3D…" sin activarse nunca
+        // (bug real agosto 2026, reportado en vivo: "dice que carga el
+        // relieve pero no veo diferencias"). El source dem existe apenas el
+        // estilo se aplica, sin esperar a ninguna capa.
         timerRelieve = setTimeout(activarRelieve, 400);
         return;
       }
