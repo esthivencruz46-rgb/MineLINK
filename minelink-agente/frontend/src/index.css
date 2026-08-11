@@ -272,6 +272,16 @@ html.dark .mapa-3d-boton[aria-pressed="true"] {
   color: #0b1220;
 }
 
+/* El botón "Vista 3D"/"Mapa 2D" (arriba a la izquierda, .mapa-3d-boton)
+   quedaba ENCIMA del zoom +/- de Leaflet (control topleft por defecto) en
+   la vista 2D del mapa de ubicación — se baja el +/- para que quede debajo
+   del botón, sin taparse ni amontonarse (agosto 2026, a pedido de
+   Esthiven). Solo afecta al mapa 2D (.leaflet-* no existe en la vista 3D
+   de MapLibre, que ya tiene su navegación abajo a la derecha). */
+.mapa-geocatmin .leaflet-top .leaflet-control-zoom {
+  margin-top: 46px;
+}
+
 /* Botón principal: barrido de brillo al pasar el mouse (micro-interacción
    estilo Originkit). El botón necesita overflow-hidden (lo da la propia
    clase .brillo) para que el brillo no se salga del borde redondeado. */
