@@ -44,6 +44,18 @@ import { BASE_URL } from "../../services/api";
 // Capas y geometría: satélite (base) → capas del panel → borde verde de la
 // concesión → pin. El catálogo/UI replica el panel 2D reusando sus mismas
 // clases CSS (`.capas-*`, `.mapa-geocatmin`).
+//
+// Estado de capas COMPARTIDO con el 2D (agosto 2026, pedido explícito de
+// Esthiven: "lo que está en 2D que aparezca en 3D y viceversa"): este
+// componente es CONTROLADO — recibe `capasActivas` como prop y reporta los
+// cambios con `onCambiarCapa(id, activa)`; no tiene estado interno de capas
+// (el viejo `capasOn` se eliminó). Al montar carga las capas que estén
+// activas en el estado compartido (no solo las "por defecto"), así lo
+// prendido en 2D aparece en 3D, y lo que se prenda/apague acá se refleja
+// en el 2D al volver. La habilitación del panel NO depende de `load`/
+// `isStyleLoaded` (ver "Estrategia de carga"): un arranque forzado por
+// temporizador de respaldo la garantiza — corrección del bug real donde
+// los checkboxes quedaban muertos y el clic "no hacía nada".
 
 const SATELITE_TILES =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
@@ -173,6 +185,8 @@ export function Mapa3D({
   proyectoId,
   escalaFallas,
   anomaliasSatelitales,
+  capasActivas,
+  onCambiarCapa,
 }: {
   coords: string;
   /** Anillos [lng, lat] de la concesión (de GEOCATMIN, vía backend) —
@@ -188,10 +202,21 @@ export function Mapa3D({
   /** Anomalías espectrales de Copernicus sobre el polígono real — mismas
    * URLs/bbox que el mapa 2D (ver MapaGeocatmin). */
   anomaliasSatelitales?: AnomaliasSatelitales | null;
+  /** Estado COMPARTIDO de capas activas con el mapa 2D (ver
+   * MapaGeocatmin): la 3D es controlada — si una capa está encendida acá
+   * es porque también lo está (o lo estuvo) en 2D, y viceversa. */
+  capasActivas: Record<string, boolean>;
+  /** Reporta un cambio de capa hacia el estado compartido (el padre lo
+   * refleja en el 2D). Se llama solo cuando la capa YA se cargó bien. */
+  onCambiarCapa: (id: string, activa: boolean) => void;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<maplibregl.Map | null>(null);
   const capasRef = useRef<CapaDef[]>([]);
+  // Espejo de `capasActivas` para leerlo dentro del effect del mapa sin
+  // meterlo en sus deps (cambiar capas no debe recrear el mapa).
+  const capasActivasRef = useRef(capasActivas);
+  capasActivasRef.current = capasActivas;
 
   const [error, setError] = useState<string | null>(null);
   const [relieveActivo, setRelieveActivo] = useState(false);
@@ -200,7 +225,6 @@ export function Mapa3D({
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({
     "Catastro y geología": true,
   });
-  const [capasOn, setCapasOn] = useState<Record<string, boolean>>({});
   const [capasCargando, setCapasCargando] = useState<Record<string, boolean>>({});
   const [capasError, setCapasError] = useState<Record<string, string>>({});
   const [capasListas, setCapasListas] = useState(false);
@@ -298,16 +322,16 @@ export function Mapa3D({
   }
 
   function alternarCapa(id: string) {
-    if (capasOn[id]) {
+    if (capasActivas[id]) {
       quitarCapa(id);
-      setCapasOn((p) => ({ ...p, [id]: false }));
+      onCambiarCapa(id, false);
       return;
     }
     setCapasCargando((p) => ({ ...p, [id]: true }));
     setCapasError((p) => ({ ...p, [id]: "" }));
     cargarCapa(id).then((ok) => {
       setCapasCargando((p) => ({ ...p, [id]: false }));
-      if (ok) setCapasOn((p) => ({ ...p, [id]: true }));
+      if (ok) onCambiarCapa(id, true);
       else setCapasError((p) => ({ ...p, [id]: "No se pudo cargar esta capa" }));
     });
   }
@@ -409,8 +433,25 @@ export function Mapa3D({
       if (fuente === "dem" && !desmontado) setRelieveError(true);
     });
 
-    mapa.on("load", () => {
-      if (desmontado) return;
+    // Arranque del mapa 3D (polígono + pin + capas activas). NO depende de
+    // que `load`/`idle` disparen — un source roto puede impedir `load` y
+    // `idle` (ver comentario de cabecera, issue MapLibre #5430), y el bug
+    // real reportado en vivo era exactamente ese: el panel de capas aparecía
+    // pero "al hacer clic nada", porque `capasListas` se ponía en true solo
+    // adentro de `load` y nunca llegaba. Ahora hay tres vías redundantes:
+    // 1) el evento `load`, 2) un poll de `isStyleLoaded()` cada 300ms, 3) un
+    // temporizador de respaldo a los 4s que fuerza el arranque igual
+    // (MapLibre encola sources/layers agregados antes de tener estilo
+    // listo, y acá todo está en try/catch de todos modos). La primera que
+    // llegue gana; `iniciado` evita doble trabajo.
+    let timerEstilo: ReturnType<typeof setTimeout> | undefined;
+    let timerRespaldo: ReturnType<typeof setTimeout> | undefined;
+    let iniciado = false;
+    const iniciar = () => {
+      if (desmontado || iniciado) return;
+      iniciado = true;
+      if (timerEstilo) clearTimeout(timerEstilo);
+      if (timerRespaldo) clearTimeout(timerRespaldo);
 
       // Polígono de la concesión: borde verde de marca + relleno
       // semitransparente muy tenue (el satélite de abajo sigue leyéndose).
@@ -502,19 +543,28 @@ export function Mapa3D({
         // cosmético, no tumba el mapa
       }
 
-      // Capas por defecto del catálogo (catastro, geología, fallas): se
-      // cargan en paralelo y van apareciendo sobre el terreno cuando
-      // llegan. Si una falla, simplemente no se enciende (y su checkbox
-      // queda con el aviso correspondiente) — nunca cuelga el mapa.
-      for (const capa of capasRef.current.filter((c) => c.porDefecto)) {
+      // Capas activas del catálogo (estado COMPARTIDO con el 2D, no solo
+      // las "por defecto"): si en 2D estaba encendida aster_931 o una de
+      // Copernicus, acá también se carga. Se cargan en paralelo y van
+      // apareciendo sobre el terreno cuando llegan. Si una falla, no se
+      // enciende (y su checkbox queda con el aviso correspondiente) — nunca
+      // cuelga el mapa.
+      for (const capa of capasRef.current.filter((c) => capasActivasRef.current[c.id])) {
         cargarCapa(capa.id).then((ok) => {
           if (desmontado) return;
-          if (ok) setCapasOn((p) => ({ ...p, [capa.id]: true }));
-          else setCapasError((p) => ({ ...p, [capa.id]: "No se pudo cargar esta capa" }));
+          if (!ok) setCapasError((p) => ({ ...p, [capa.id]: "No se pudo cargar esta capa" }));
         });
       }
       setCapasListas(true);
-    });
+    };
+    const esperarEstilo = () => {
+      if (desmontado || iniciado) return;
+      if (mapa.isStyleLoaded()) iniciar();
+      else timerEstilo = setTimeout(esperarEstilo, 300);
+    };
+    mapa.on("load", iniciar);
+    timerEstilo = setTimeout(esperarEstilo, 900);
+    timerRespaldo = setTimeout(iniciar, 4000);
 
     mapa.addControl(
       new maplibregl.NavigationControl({
@@ -529,10 +579,11 @@ export function Mapa3D({
     return () => {
       desmontado = true;
       clearTimeout(timerRelieve);
+      if (timerEstilo) clearTimeout(timerEstilo);
+      if (timerRespaldo) clearTimeout(timerRespaldo);
       mapa.remove();
       mapaRef.current = null;
       setCapasListas(false);
-      setCapasOn({});
       setCapasError({});
       setCapasCargando({});
     };
@@ -614,7 +665,7 @@ export function Mapa3D({
                           <label className="capas-fila" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", marginLeft: "12px" }}>
                             <input
                               type="checkbox"
-                              checked={!!capasOn[capa.id]}
+                              checked={!!capasActivas[capa.id]}
                               disabled={!capasListas || !!capasCargando[capa.id]}
                               onChange={() => alternarCapa(capa.id)}
                             />

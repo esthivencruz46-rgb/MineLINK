@@ -90,6 +90,31 @@ export function MapaGeocatmin({
   // alterna entre ambas; la 3D se monta lazy solo al activarse.
   const [en3D, setEn3D] = useState(false);
 
+  // Capas activas COMPARTIDAS entre la vista 2D y la 3D (agosto 2026,
+  // pedido explícito de Esthiven: "lo que está en 2D que aparezca en 3D y
+  // viceversa"). Un solo estado con las mismas ids que el catálogo 3D
+  // (catastro/geologia/fallas/aster_931/qicimi/anomalia_espectral/
+  // libre_denuncio + los nombres de anomalías de Copernicus). La vista 2D
+  // lo aplica a las capas de Leaflet (effect de sincronización de abajo);
+  // la 3D (Mapa3D.tsx) lo recibe como prop controlada. Arranca con las
+  // mismas capas encendidas por defecto que el mapa 2D clásico.
+  const [capasActivas, setCapasActivas] = useState<Record<string, boolean>>({
+    catastro: true,
+    geologia: true,
+    fallas: true,
+  });
+  const capasActivasRef = useRef(capasActivas);
+  capasActivasRef.current = capasActivas;
+  // Capas de Leaflet por id (las del panel 2D) y sus checkboxes — se
+  // llenan al crear el mapa (ver effect de abajo) y el effect de
+  // sincronización las lee para aplicar el estado compartido.
+  const capasLeafletRef = useRef<Record<string, L.Layer>>({});
+  const capasCheckboxRef = useRef<Record<string, HTMLInputElement>>({});
+
+  function cambiarCapa(id: string, activa: boolean) {
+    setCapasActivas((p) => ({ ...p, [id]: activa }));
+  }
+
   // Precarga del chunk de MapLibre (~250 KB gzip) unos segundos después
   // de montar la ficha, en segundo plano y sin bloquear nada: el chunk
   // solo se descarga+parsea, no se crea ningún mapa. Cuando el visitante
@@ -349,7 +374,11 @@ export function MapaGeocatmin({
       // debajo de geología (10/11) — y quedaba tapada por ella.
       let zIndexAnomalia = 30;
       for (const [nombre, url] of Object.entries(anomaliasSatelitales.capas)) {
-        overlaysAnomalias[TITULOS_ANOMALIAS[nombre] ?? nombre] = L.imageOverlay(
+        // KEY IMPORTANTE (sync 2D↔3D, agosto 2026): la clave es el id
+        // TÉCNICO (ej. "oxidos_de_hierro"), el mismo que usa el catálogo
+        // 3D (Mapa3D.catalogoCapas), NO el título legible — el estado
+        // compartido capasActivas usa ids únicos entre ambas vistas.
+        overlaysAnomalias[nombre] = L.imageOverlay(
           `${BASE_URL}${url}`,
           bounds,
           { pane: "geologiaPane", zIndex: zIndexAnomalia++ }
@@ -390,24 +419,30 @@ export function MapaGeocatmin({
           if (flecha) flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
         });
 
-        const grupos: { titulo: string; expandido: boolean; capas: [string, L.Layer][] }[] = [
+        // Cada capa se identifica por `id` (el mismo id técnico que usa
+        // el catálogo 3D) + su etiqueta legible. El checkbox ya NO toca
+        // el mapa directamente: lee/escribe el estado compartido
+        // `capasActivas` (ver effect de sincronización abajo) — la
+        // membresía de Leaflet la aplica ese effect, que es el que
+        // mantiene el control en sync cuando el cambio viene de la 3D.
+        const grupos: { titulo: string; expandido: boolean; capas: [string, string][] }[] = [
           {
             titulo: "Catastro y geología",
             expandido: true,
             capas: [
-              ["Catastro minero", catastro],
-              ["Geología (50K si existe / 100K)", geologia],
-              ...(fallas ? ([["Fallas geológicas cercanas", fallas]] as [string, L.Layer][]) : []),
+              ["catastro", "Catastro minero"],
+              ["geologia", "Geología (50K si existe / 100K)"],
+              ...(fallas ? ([["fallas", "Fallas geológicas cercanas"]] as [string, string][]) : []),
             ],
           },
           {
             titulo: "Sensores satelitales · INGEMMET",
             expandido: false,
             capas: [
-              ["ASTER 9-3-1 (falso color, roca/vegetación)", aster931],
-              ["Índices minerales QICIMI", qicimi],
-              ["Anomalías espectrales", anomalias],
-              ["Libre denuncio / aviso de retiro (~20km)", libreDenuncio],
+              ["aster_931", "ASTER 9-3-1 (falso color, roca/vegetación)"],
+              ["qicimi", "Índices minerales QICIMI"],
+              ["anomalia_espectral", "Anomalías espectrales"],
+              ["libre_denuncio", "Libre denuncio / aviso de retiro (~20km)"],
             ],
           },
         ];
@@ -415,7 +450,10 @@ export function MapaGeocatmin({
           grupos.push({
             titulo: "Sentinel-2 · Copernicus",
             expandido: false,
-            capas: Object.entries(overlaysAnomalias),
+            capas: Object.keys(overlaysAnomalias).map((id) => [
+              id,
+              TITULOS_ANOMALIAS[id] ?? id,
+            ]),
           });
         }
 
@@ -458,7 +496,7 @@ export function MapaGeocatmin({
             flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
           });
 
-          grupo.capas.forEach(([label, layer]) => {
+          grupo.capas.forEach(([id, label]) => {
             const fila = L.DomUtil.create("label", "capas-fila", listaCapas);
             fila.style.display = "flex";
             fila.style.alignItems = "center";
@@ -467,10 +505,10 @@ export function MapaGeocatmin({
             fila.style.marginLeft = "12px"; // indentado bajo el grupo
             const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
             checkbox.type = "checkbox";
-            checkbox.checked = mapa.hasLayer(layer);
+            checkbox.checked = capasActivasRef.current[id] === true;
+            capasCheckboxRef.current[id] = checkbox;
             checkbox.addEventListener("change", () => {
-              if (checkbox.checked) mapa.addLayer(layer);
-              else mapa.removeLayer(layer);
+              cambiarCapa(id, checkbox.checked);
             });
             const texto = L.DomUtil.create("span", "", fila);
             texto.textContent = label;
@@ -482,6 +520,22 @@ export function MapaGeocatmin({
         return div;
       },
     });
+
+    // Registro id → capa de Leaflet (sync 2D↔3D): el effect de abajo usa
+    // estas capas para aplicar el estado compartido `capasActivas`, y se
+    // limpian al desmontar el mapa (al ir a 3D) para que el map nuevo al
+    // volver registre sus propias instancias.
+    capasLeafletRef.current = {
+      catastro,
+      geologia,
+      ...(fallas ? { fallas } : {}),
+      aster_931: aster931,
+      qicimi,
+      anomalia_espectral: anomalias,
+      libre_denuncio: libreDenuncio,
+      ...overlaysAnomalias,
+    };
+
     new PanelCapas().addTo(mapa);
 
     // Leyenda de colores (julio 2026, pedido explícito de Esthiven: "que
@@ -620,6 +674,8 @@ export function MapaGeocatmin({
       div.removeEventListener("mouseenter", alEntrar);
       div.removeEventListener("mouseleave", alSalir);
       mapaRef.current = null;
+      capasLeafletRef.current = {};
+      capasCheckboxRef.current = {};
       mapa.remove();
     };
     // `en3D` en las deps a propósito: al alternar 2D↔3D el contenedor de
@@ -629,6 +685,29 @@ export function MapaGeocatmin({
     // (contenedor desmontado) y el effect hace early return; al volver a
     // 2D, recrea el mapa.
   }, [coords, poligonoConcesion, escalaFallas, anomaliasSatelitales, en3D]);
+
+  // Sincroniza el estado compartido de capas con el mapa 2D (y sus
+  // checkboxes) — agosto 2026, pedido explícito de Esthiven: "lo que
+  // está en 2D que aparezca en 3D y viceversa". Cada vez que cambia
+  // `capasActivas` (desde el panel 2D o desde la vista 3D) se
+  // agregan/quitan las capas de Leaflet correspondientes y se refleja
+  // el estado en los checkboxes. `en3D` en las deps: al volver a 2D el
+  // mapa se recrea (effect de arriba) y este corre de nuevo para aplicar
+  // el estado que dejó la 3D.
+  useEffect(() => {
+    const mapa = mapaRef.current;
+    if (!mapa) return;
+    for (const [id, capa] of Object.entries(capasLeafletRef.current)) {
+      if (!capa) continue;
+      const activa = capasActivas[id] === true;
+      const presente = mapa.hasLayer(capa);
+      if (activa && !presente) mapa.addLayer(capa);
+      else if (!activa && presente) mapa.removeLayer(capa);
+    }
+    for (const [id, checkbox] of Object.entries(capasCheckboxRef.current)) {
+      if (checkbox) checkbox.checked = capasActivas[id] === true;
+    }
+  }, [capasActivas, en3D]);
 
   return (
     <div className="relative h-full w-full">
@@ -651,6 +730,8 @@ export function MapaGeocatmin({
             proyectoId={proyectoId}
             escalaFallas={escalaFallas}
             anomaliasSatelitales={anomaliasSatelitales}
+            capasActivas={capasActivas}
+            onCambiarCapa={cambiarCapa}
           />
         </Suspense>
       )}
