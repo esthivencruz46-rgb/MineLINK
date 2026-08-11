@@ -231,21 +231,6 @@ html.dark .mapa-geocatmin .leyenda-nota {
   color: #93a2b3;
 }
 
-/* ── Fondos vivos inspirados en Originkit (agosto 2026) ────────────────
-   Las líneas topográficas de los héroes (Inicio + HeroFranja) se deslizan
-   MUY lentamente hacia la derecha. La animación viaja exactamente un tile
-   (240px), así que el reinicio del loop es invisible. Se aplica con la
-   variante motion-safe: de Tailwind, igual que hero-entrada — con
-   reduced-motion las líneas quedan quietas, como siempre. */
-@keyframes contorno-flujo {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(240px);
-  }
-}
-
 /* Botón principal: barrido de brillo al pasar el mouse (micro-interacción
    estilo Originkit). El botón necesita overflow-hidden (lo da la propia
    clase .brillo) para que el brillo no se salga del borde redondeado. */

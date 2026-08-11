@@ -48,19 +48,21 @@ const CONFIANZA = [
   "Tu contacto nunca se muestra públicamente",
 ];
 
-// julio 2026, cuarto pase sobre esta página (pedido explícito: "algo que
-// me diera ganas de entrar" — la portada se sentía plana). El hero pasa
-// de un bloque de texto centrado sobre gris a un panel a todo el ancho
-// con degradado verde institucional + un patrón de líneas topográficas
-// dibujado en SVG (evoca los mapas de catastro/geología que MineLink ya
-// muestra en la ficha vía GEOCATMIN — una textura con sentido para el
-// producto, no una foto de stock genérica) y una entrada animada sutil
-// (motion-safe: de Tailwind, se desactiva sola si el visitante tiene
-// reduced-motion). El resto de la estructura (grilla de 3 tarjetas,
-// bloque de APK, insignias de confianza) se mantiene: solo se les suma
-// una interacción más viva al pasar el mouse, sin salir de la línea
-// institucional (bordes finos, sin sombras, colores semánticos donde
-// corresponde).
+// agosto 2026, quinto pase: el usuario pidió "elimina los patrones y
+// déjame el color verde" — se quitó el patrón de líneas topográficas
+// SVG del hero (dejó de usarse tanto aquí como en HeroFranja) y el
+// fondo queda como el degradado verde institucional limpio, con las
+// siluetas de montañas + luz aurora + barrido que siguen en pie.
+//
+// julio 2026, cuarto pase (pedido explícito: "algo que me diera ganas
+// de entrar" — la portada se sentía plana). El hero pasó de un bloque
+// de texto centrado sobre gris a un panel a todo el ancho con
+// degradado verde institucional + entrada animada sutil (motion-safe:
+// de Tailwind, se desactiva sola si el visitante tiene reduced-motion).
+// El resto de la estructura (grilla de 3 tarjetas, bloque de APK,
+// insignias de confianza) se mantiene: solo se les suma una interacción
+// más viva al pasar el mouse, sin salir de la línea institucional
+// (bordes finos, sin sombras, colores semánticos donde corresponde).
 //
 // Tercer pase previo (pedido explícito: "se parece mucho a ¿Cómo
 // funciona?, debe ser más simplista, menos letra... más vistoso") —
@@ -83,38 +85,6 @@ export function Inicio() {
   return (
     <div className="flex flex-col items-center">
       <section className="relative w-full overflow-hidden bg-gradient-to-br from-acento via-acento to-acento-profundo text-white">
-        <svg
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.2]"
-          aria-hidden="true"
-          preserveAspectRatio="xMidYMid slice"
-        >
-          <defs>
-            <pattern id="contornos-hero" width="240" height="150" patternUnits="userSpaceOnUse">
-              <g className="motion-safe:animate-[contorno-flujo_32s_linear_infinite]">
-              <path
-                d="M-20 30 Q 40 -20, 100 30 T 220 30 T 340 30"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.3"
-              />
-              <path
-                d="M-20 75 Q 40 25, 100 75 T 220 75 T 340 75"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.3"
-              />
-              <path
-                d="M-20 120 Q 40 70, 100 120 T 220 120 T 340 120"
-                fill="none"
-                stroke="white"
-                strokeWidth="1.3"
-              />
-              </g>
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#contornos-hero)" />
-        </svg>
-
         {/* Luz "aurora" que respira y migra detrás del título (agosto 2026):
             dos resplandores (blanco + bronce de marca) en movimiento lento
             — le da profundidad al verde plano sin romper la línea. */}
