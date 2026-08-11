@@ -13,6 +13,7 @@
 - **Never run broad `rm` on `backend/uploads/`** — has caused real data loss twice. See `errores_aprendidos.md`.
 - **Any new Supabase table needs its own RLS:** run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` (pattern in `seeds/habilitar_rls_*.py`), or it's exposed through the public PostgREST anon key. The backend connects as owner, so RLS doesn't affect it.
 - **Never call `asesor.actualizar_documentos_admin()` inline in a live request** — it eagerly rebuilds the BM25 index (~50s on a cold corpus; caused a real 90s hang). Only schedule it via `BackgroundTasks`, gated by the cheap `documentos_admin_cambiaron()`.
+- **Any new per-IP limiter must use `security._ip_real(request)`** (`CF-Connecting-IP` first, then `X-Forwarded-For`), never `request.client.host` — behind Render + Cloudflare that's the same internal proxy IP for every visitor (shared rate limit across all traffic, real July 2026 bug).
 
 ## Commands
 
@@ -25,6 +26,8 @@ pytest tests/test_scoring.py -q                            # scoring only
 pytest tests/test_smoke.py::test_post_diagnostico -q       # single test
 ```
 Module-specific test files exist: `test_asesor.py`, `test_geocatmin.py`, `test_copernicus.py`, `test_interpretacion_ubicacion.py`. All tests use an in-memory SQLite engine and disable outbound calls — they never touch the real DB regardless of `DATABASE_URL`.
+
+Seeds/migrations run as `python -m seeds.<nombre>` from `backend/`. They use the same engine as `database.py`, so **`backend/.env` points them at production** — never run one without explicit confirmation. `main.py` runs `Base.metadata.create_all` at startup (creates missing tables on both engines), but it never alters existing tables — new columns still need a seed migration.
 
 All frontend commands from `minelink-agente/frontend/`:
 
@@ -56,6 +59,7 @@ No frontend linter or test runner is configured. `npm run build` is the only ver
 - Push to `main` auto-deploys both frontend (Vercel) and backend (Render).
 - **Push is done by Esthiven via GitHub Desktop** — the agent terminal lacks his credentials. After committing, ask him to push.
 - A daily DB backup runs via `.github/workflows/backup-db.yml` (secret `DATABASE_URL_BACKUP`).
+- Render requires `PYTHON_VERSION=3.12.8` env var set — without it the build fails with a newer Python.
 - Never commit `backend/.env` or any secrets.
 
 ## Autonomy

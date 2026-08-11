@@ -231,6 +231,47 @@ html.dark .mapa-geocatmin .leyenda-nota {
   color: #93a2b3;
 }
 
+/* Botón "Vista 3D" / "Mapa 2D" del mapa de la ficha (MapaGeocatmin) —
+   mismo lenguaje visual que el panel de capas y la leyenda (borde fino,
+   fondo claro, esquinas suaves) pero como un botón React absoluto
+   encima del mapa, no un control de Leaflet/MapLibre. */
+.mapa-3d-boton {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 500;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border: 1px solid rgba(17, 24, 39, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(17, 24, 39, 0.1);
+  background: #ffffff;
+  color: #111827;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.mapa-3d-boton:hover {
+  opacity: 0.85;
+}
+.mapa-3d-boton[aria-pressed="true"] {
+  background: #0c6b58;
+  border-color: #0c6b58;
+  color: #ffffff;
+}
+html.dark .mapa-3d-boton {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: #141f2e;
+  color: #eef2f6;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+html.dark .mapa-3d-boton[aria-pressed="true"] {
+  background: #10b981;
+  border-color: #10b981;
+  color: #0b1220;
+}
+
 /* Botón principal: barrido de brillo al pasar el mouse (micro-interacción
    estilo Originkit). El botón necesita overflow-hidden (lo da la propia
    clase .brillo) para que el brillo no se salga del borde redondeado. */

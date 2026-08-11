@@ -1,8 +1,13 @@
-import { useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import { dynamicMapLayer, imageMapLayer } from "esri-leaflet";
 import "leaflet/dist/leaflet.css";
 import { BASE_URL } from "../../services/api";
+
+// Vista 3D de la concesión (MapLibre GL, ver Mapa3D.tsx): se carga con
+// React.lazy — sus ~270 KB gzipped solo bajan cuando el visitante pulsa
+// el botón "3D", la carga inicial de la ficha no paga ese peso.
+const Mapa3DLazy = lazy(() => import("./Mapa3D"));
 
 // Nombre tecnico -> etiqueta legible para el control de capas (mismo
 // orden/nombres que backend/copernicus.py NOMBRES_CAPAS).
@@ -71,6 +76,10 @@ export function MapaGeocatmin({
   } | null;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
+  const mapaRef = useRef<L.Map | null>(null);
+  // Vista 3D (MapLibre) vs. la vista 2D clásica de Leaflet — el botón
+  // alterna entre ambas; la 3D se monta lazy solo al activarse.
+  const [en3D, setEn3D] = useState(false);
 
   useEffect(() => {
     const [lat, lng] = coords.split(",").map((p) => Number(p.trim()));
@@ -84,6 +93,7 @@ export function MapaGeocatmin({
       // los botones +/- o con gesto de dos dedos en celular.
       scrollWheelZoom: false,
     });
+    mapaRef.current = mapa;
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
@@ -577,9 +587,47 @@ export function MapaGeocatmin({
     return () => {
       div.removeEventListener("mouseenter", alEntrar);
       div.removeEventListener("mouseleave", alSalir);
+      mapaRef.current = null;
       mapa.remove();
     };
-  }, [coords, poligonoConcesion, escalaFallas, anomaliasSatelitales]);
+    // `en3D` en las deps a propósito: al alternar 2D↔3D el contenedor de
+    // Leaflet se desmonta/remonta (ver return), y sin esto el effect NO
+    // volvería a correr al volver a 2D (las otras deps no cambian) —
+    // dejaría el mapa vacío hasta recargar. Al ir a 3D, `div` es null
+    // (contenedor desmontado) y el effect hace early return; al volver a
+    // 2D, recrea el mapa.
+  }, [coords, poligonoConcesion, escalaFallas, anomaliasSatelitales, en3D]);
 
-  return <div ref={contenedorRef} className="mapa-geocatmin z-0 h-full min-h-64 w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      {/* Vista 2D (Leaflet) — se desmonta del DOM mientras está activa la
+          3D para que MapLibre ocupe el contenedor sin compartirlo. Al
+          volver, el useEffect de arriba recrea el mapa Leaflet. */}
+      {!en3D ? (
+        <div ref={contenedorRef} className="mapa-geocatmin z-0 h-full min-h-64 w-full" />
+      ) : (
+        <Suspense
+          fallback={
+            <div className="flex h-full min-h-64 w-full items-center justify-center border border-black/10 bg-tarjeta text-sm text-texto-suave dark:border-white/10 dark:bg-tarjeta-dark dark:text-texto-suave-dark">
+              Cargando vista 3D…
+            </div>
+          }
+        >
+          <Mapa3DLazy coords={coords} poligonoConcesion={poligonoConcesion} />
+        </Suspense>
+      )}
+
+      {/* Botón para alternar 2D/3D — estilo consistente con el panel de
+          capas y la leyenda (borde fino, esquinas suaves). */}
+      <button
+        type="button"
+        onClick={() => setEn3D((v) => !v)}
+        className="mapa-3d-boton"
+        aria-pressed={en3D}
+        title={en3D ? "Volver a la vista 2D" : "Ver la concesión en 3D con relieve"}
+      >
+        {en3D ? "Mapa 2D" : "Vista 3D"}
+      </button>
+    </div>
+  );
 }
