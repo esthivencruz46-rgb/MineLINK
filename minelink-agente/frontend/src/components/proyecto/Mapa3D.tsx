@@ -25,9 +25,11 @@ import { BASE_URL } from "../../services/api";
 // raster XYZ, así que no se depende de ningún servicio nuevo pago.
 //
 // Estrategia de carga (agosto 2026): el mapa arranca PLANO (pitch 0 y SIN
-// terreno) para que el satélite se pinte de inmediato. El relieve + la
-// inclinación se activan en el PRIMER `idle` o por un temporizador de
-// respaldo de 8s — corrección de un bug real reportado en vivo: un source
+// terreno) para que el satélite se pinte de inmediato. El relieve se activa
+// en el primer `load` o por un temporizador de respaldo de 2.5s, y la
+// cámara se inclina a 60° con el propio `fitBounds` (pitch dentro de sus
+// opciones — en MapLibre v6 el fitBounds cancela el easeTo y lo dejaba
+// plano, ver abajo). Esto corrige un bug real reportado en vivo: un source
 // que falla (un overlay que devuelve 404, o tiles DEM inalcanzables) puede
 // impedir que `idle` se dispare (bug conocido de MapLibre GL, issue #5430),
 // y el código anterior — que esperaba `idle` adentro de `load` — dejaba el
@@ -365,8 +367,10 @@ export function Mapa3D({
         center: [lng, lat],
         zoom: 14,
         // Arranca PLANO: la cámara horizontal muestra el satélite apenas
-        // sus tiles llegan, sin esperar el DEM. La inclinación 3D llega
-        // después con easeTo (ver abajo).
+        // sus tiles llegan, sin esperar el DEM. La inclinación 3D llega con
+        // el `fitBounds` de `iniciar`, que lleva `pitch: 60` (ver allá —
+        // se usa fitBounds, no easeTo, porque en MapLibre v6 el fitBounds
+        // cancela la animación del easeTo).
         pitch: 0,
         style: {
           version: 8,
@@ -497,10 +501,22 @@ export function Mapa3D({
       } catch {
         /* cosmético */
       }
+      // NOTA: el pitch 60 se aplica en el `fitBounds` de `iniciar`
+      // ({ padding, maxZoom, pitch: 60 }), NO con easeTo. En MapLibre v6
+      // `fitBounds` → `jumpTo` llama a `stop()` y CANCELA cualquier
+      // easeTo en vuelo; como `activarRelieve` se registra antes que
+      // `iniciar` en `load`, la animación moría a los pocos frames y la
+      // cámara quedaba en pitch 0 (top-down, terreno invisible) —
+      // "dice que carga el relieve pero no se ve 3D" (bug real agosto
+      // 2026, verificado con MapLibre 6.3.0: easeTo+fitBounds = pitch
+      // 0.0; fitBounds con pitch 60 = pitch 60.0).
       try {
-        // Pitch 60 (antes 55): la cámara más baja muestra más relieve en
-        // perspectiva.
-        mapa.easeTo({ pitch: 60, duration: 1200 });
+        // Red de seguridad instantánea: si por cualquier motivo el
+        // fitBounds no llegó a correr (ej. proyecto sin polígono), el tilt
+        // se aplica igual acá. jumpTo no compite con el fitBounds (ambos
+        // terminan en pitch 60) y NO se usa easeTo, que es lo que el
+        // fitBounds cancela.
+        if (mapa.getPitch() < 45) mapa.jumpTo({ pitch: 60 });
       } catch {
         /* cosmético */
       }
@@ -600,8 +616,9 @@ export function Mapa3D({
             },
           });
 
-          // Encuadre a la concesión completa. La cámara está plana acá;
-          // al inclinarse después, el punto focal ya apunta al proyecto.
+          // Encuadre a la concesión completa, YA con pitch 60 para que la
+          // morfología se lea desde el primer frame (ver arriba). El punto
+          // focal queda apuntando al proyecto.
           const bounds = new maplibregl.LngLatBounds();
           for (const anillo of poligonoConcesion) {
             for (const punto of anillo) {
@@ -611,7 +628,12 @@ export function Mapa3D({
             }
           }
           if (!bounds.isEmpty()) {
-            mapa.fitBounds(bounds, { padding: 50, maxZoom: 16 });
+            // `pitch: 60` va DENTRO del fitBounds (no con easeTo): en
+            // MapLibre v6 el fitBounds cancela cualquier easeTo en vuelo y
+            // la cámara quedaba plana (pitch 0) aunque el terreno estuviera
+            // activo. Con el pitch aquí, el encuadre se calcula ya con la
+            // perspectiva y el relieve se lee al primer frame.
+            mapa.fitBounds(bounds, { padding: 50, maxZoom: 16, pitch: 60 });
           }
         } catch {
           // Polígono malformado: no debe tumbar el mapa, sigue el satélite.
