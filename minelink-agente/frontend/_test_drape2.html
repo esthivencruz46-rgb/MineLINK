@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>cargando</title>
+<style>
+  html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script src="/node_modules/maplibre-gl/dist/maplibre-gl.js"></script>
+<script>
+const SAT_TILES = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+const TERRAIN_TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
+const BBOX = [-75.799492883, -11.39137628, -75.771972874, -11.373241755];
+const CENTER = [-75.7857328785, -11.3823090175];
+
+function gridImage() {
+  const c = document.createElement("canvas");
+  c.width = 1000; c.height = 1000;
+  const g = c.getContext("2d");
+  g.fillStyle = "#0b6e4f";
+  g.fillRect(0, 0, 1000, 1000);
+  g.fillStyle = "#ffffff";
+  for (let i = 0; i <= 1000; i += 100) g.fillRect(i - 4, 0, 8, 1000);
+  for (let i = 0; i <= 1000; i += 100) g.fillRect(0, i - 4, 1000, 8);
+  return c.toDataURL("image/png");
+}
+
+const map = new maplibregl.Map({
+  container: "map",
+  center: CENTER,
+  zoom: 14,
+  pitch: 0,
+  style: {
+    version: 8,
+    sources: {
+      satelite: { type: "raster", tiles: [SAT_TILES], tileSize: 256, maxzoom: 19 },
+      dem: { type: "raster-dem", tiles: [TERRAIN_TILES], tileSize: 256, maxzoom: 15, encoding: "terrarium" },
+    },
+    layers: [{ id: "satelite", type: "raster", source: "satelite" }],
+  },
+});
+
+function demProbe() {
+  try {
+    const terrain = map.style.map.terrain;
+    if (!terrain) return "terrain-no-existe";
+    const tds = [];
+    for (const [key, tile] of Object.entries(map.style.sourceCaches.capa._tiles || {})) {
+      const td = terrain.getTerrainData(tile.tileID);
+      tds.push(`z=${tile.tileID.canonical.z} dem=${td.tile && td.tile.dem ? "SI" : "NO"}`);
+    }
+    return tds.join(" | ") || "(sin tiles capa)";
+  } catch (e) { return "probe-error:" + e.message; }
+}
+
+async function diffFromScreenshots() {
+  const loadImg = (src) => new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error("no cargo " + src));
+    im.src = src;
+  });
+  const read = (im) => {
+    const c = document.createElement("canvas");
+    c.width = im.naturalWidth; c.height = im.naturalHeight;
+    const g = c.getContext("2d");
+    g.drawImage(im, 0, 0);
+    return g.getImageData(0, 0, c.width, c.height).data;
+  };
+  const im1 = await loadImg("/_capar1.png");
+  const im2 = await loadImg("/_capar2.png");
+  const d1 = read(im1), d2 = read(im2);
+  const W = im1.naturalWidth, H = im1.naturalHeight;
+  const x0 = Math.floor(W * 0.15), x1 = Math.floor(W * 0.85);
+  const y0 = Math.floor(H * 0.15), y1 = Math.floor(H * 0.85);
+  let total = 0, changed = 0, sum = 0, bright1 = 0, bright2 = 0;
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = (y * W + x) * 4;
+      let d = 0;
+      for (let k = 0; k < 3; k++) d += Math.abs(d1[i + k] - d2[i + k]);
+      d /= 3;
+      total++; sum += d;
+      bright1 += (d1[i] + d1[i + 1] + d1[i + 2]) / 3;
+      bright2 += (d2[i] + d2[i + 1] + d2[i + 2]) / 3;
+      if (d > 20) changed++;
+    }
+  }
+  console.log("DRAPE-RESULT>>", JSON.stringify({
+    coverage: (changed / total).toFixed(3),
+    mean: (sum / total).toFixed(1),
+    bright1: (bright1 / total).toFixed(1),
+    bright2: (bright2 / total).toFixed(1),
+    probe: demProbe(),
+    zoom: map.getZoom().toFixed(2),
+    pitch: map.getPitch(),
+    center: JSON.stringify(map.getCenter()),
+  }));
+  document.title = "DIFF-DONE";
+}
+
+map.on("load", () => {
+  map.setTerrain({ source: "dem", exaggeration: 1.5 });
+  map.fitBounds(BBOX, { padding: 40, maxZoom: 16, pitch: 60 });
+  const iv = setInterval(() => {
+    if (document.body.dataset.step === "diff") {
+      clearInterval(iv);
+      diffFromScreenshots().catch((e) => console.log("DIFF-ERR>>", e.message));
+    }
+  }, 500);
+  setTimeout(() => {
+    map.addSource("capa", { type: "raster", tiles: [gridImage()], tileSize: 1000, bounds: BBOX, maxzoom: 24 });
+    map.addLayer({ id: "capa-grid", type: "raster", source: "capa", paint: { "raster-opacity": 1 } });
+    setTimeout(() => {
+      document.body.dataset.step = "capa-on";
+      setTimeout(() => {
+        map.setPaintProperty("capa-grid", "raster-opacity", 0);
+        setTimeout(() => {
+          document.body.dataset.step = "capa-off";
+        }, 300);
+      }, 9000);
+    }, 7000);
+  }, 6000);
+});
+</script>
+</body>
+</html>
