@@ -115,7 +115,11 @@ function PublicHeader() {
   return (
     <header className="border-b border-black/10 dark:border-white/10">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link to="/" className="shrink-0 text-lg font-semibold tracking-tight text-acento">
+        <Link to="/" className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-acento">
+          {/* Emblema de la app (agosto 2026, pedido de Esthiven: "me gusta el
+              ícono de la app, quiero que esté en todas partes") — mismo
+              ícono que usa Android, generado desde el launcher de la app. */}
+          <img src="/marca-icono.png" alt="" className="h-6 w-6 rounded" />
           {MARCA}
         </Link>
         <nav className="hidden items-center gap-6 text-sm font-medium sm:flex">
