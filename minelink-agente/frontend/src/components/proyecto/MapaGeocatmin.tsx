@@ -7,7 +7,11 @@ import { BASE_URL } from "../../services/api";
 // Vista 3D de la concesión (MapLibre GL, ver Mapa3D.tsx): se carga con
 // React.lazy — sus ~270 KB gzipped solo bajan cuando el visitante pulsa
 // el botón "3D", la carga inicial de la ficha no paga ese peso.
-const Mapa3DLazy = lazy(() => import("./Mapa3D"));
+// El import se reutiliza tanto para React.lazy como para precargar el
+// chunk en segundo plano (ver useEffect de abajo) — así el clic en "3D"
+// no espera la descarga+parseo de ~250 KB de MapLibre.
+const cargarMapa3D = () => import("./Mapa3D");
+const Mapa3DLazy = lazy(cargarMapa3D);
 
 // Nombre tecnico -> etiqueta legible para el control de capas (mismo
 // orden/nombres que backend/copernicus.py NOMBRES_CAPAS).
@@ -80,6 +84,18 @@ export function MapaGeocatmin({
   // Vista 3D (MapLibre) vs. la vista 2D clásica de Leaflet — el botón
   // alterna entre ambas; la 3D se monta lazy solo al activarse.
   const [en3D, setEn3D] = useState(false);
+
+  // Precarga del chunk de MapLibre (~250 KB gzip) unos segundos después
+  // de montar la ficha, en segundo plano y sin bloquear nada: el chunk
+  // solo se descarga+parsea, no se crea ningún mapa. Cuando el visitante
+  // pulsa "Vista 3D", React.lazy reutiliza la misma promesa ya cargada y
+  // el mapa arranca casi al instante (agosto 2026, reporte "demora mucho").
+  useEffect(() => {
+    const t = setTimeout(() => {
+      cargarMapa3D().catch(() => {});
+    }, 1500);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     const [lat, lng] = coords.split(",").map((p) => Number(p.trim()));
