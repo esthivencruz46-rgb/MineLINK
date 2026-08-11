@@ -177,3 +177,31 @@ esri-leaflet necesita SIEMPRE el par `f: "image"` + `useCors: false`.
 Probar capas de mapa en un navegador real/headless, no solo con curl —
 el fallo de crossorigin en `<img>` no existe fuera del navegador.
 **Estado:** RESUELTO
+
+---
+
+## 2026-08-11 — 404 intermitentes en capas 3D de producción (no era bug de código)
+**Síntoma:** contra la API de producción, `/proyectos/{id}/capa-3d/{capa}.png`
+y `/proyectos/{id}/geocatmin-analisis/anomalia_espectral.png` devolvían
+404 "No se pudo generar esa capa" (a veces en ~2s, a veces en ~10s),
+mientras que `mapa-cotejo.jpg` y `geocatmin-analisis/aster_931.png` del
+MISMO proyecto respondían 200. Al reproducir el mismo llamado desde local
+(`geocatmin.capa_overlay_3d` con los mismos inputs que la API pública
+expone) TODAS las capas se generaban perfectas.
+**Causa raíz:** arranque en frío de Render + lenitud/throttling de
+GEOCATMIN, no lógica. Con el backend caliente y sin ráfagas de pedidos,
+las mismas URLs devolvían 200 con PNG reales. Las ráfagas rápidas (curl
+repetido, o un headless pidiendo varias capas a la vez desde una misma
+IP) hacían que GEOCATMIN rechazara en ~2s (respuesta no-imagen →
+`Image.open` falla → None → 404), y la anomalía espectral llegaba a
+tardar ~10s, casi al borde del `_TIMEOUT=12` de las exportaciones.
+**Solución aplicada:** se subió `_TIMEOUT` a 20 en `backend/geocatmin.py`.
+El relieve del mapa 3D ya no espera `idle` ni capas rotas — se activa en
+`load` o a los 2.5s (`Mapa3D.tsx`), así una capa que falle puntualmente
+no retrasa el terreno.
+**Cómo evitarlo:** ante 404 de capas GEOCATMIN, repetir 2-3 veces con
+pausas y con Render caliente antes de concluir que hay un bug; para
+generar una capa a mano usar `geocatmin.capa_overlay_3d(coords, poligono,
+capa, escala_fallas)` local. Probar también con peticiones espaciadas,
+no en ráfaga.
+**Estado:** RESUELTO

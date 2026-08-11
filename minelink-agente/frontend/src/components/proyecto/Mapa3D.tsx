@@ -448,12 +448,23 @@ export function Mapa3D({
     mapaRef.current = mapa;
     let desmontado = false;
 
-    // Relieve + inclinación de cámara. Se activan en el primer `idle` (el
-    // satélite ya pintado) o por el temporizador de respaldo si `idle` no
-    // llega nunca (un source roto puede impedirlo, ver comentario de
-    // cabecera) — así el mapa NUNCA se queda en "Cargando relieve 3D…".
+    // Relieve + inclinación de cámara. Se activan en el primer `load` o
+    // por el temporizador de respaldo (2.5s), lo que llegue primero —
+    // agosto 2026: antes esperaba `idle`, pero un source de capa que falla
+    // (ej. una capa-3d que el backend no puede generar, 404) mantiene el
+    // mapa ocupado para siempre, `idle` nunca llega y el relieve recién
+    // aparecía por el respaldo de 8s — el usuario veía un mapa plano "sin
+    // cambios". Ahora NO depende de ningún source: `load` casi siempre
+    // llega <1s y el respaldo de 2.5s cubre el resto.
     const activarRelieve = () => {
       if (desmontado) return;
+      if (!mapa.isStyleLoaded()) {
+        // El estilo aún no está listo: reintenta en 400ms en vez de tirar
+        // setTerrain a un mapa sin estilo.
+        timerRelieve = setTimeout(activarRelieve, 400);
+        return;
+      }
+      let relieveOk = false;
       try {
         // Exageración 4.0 (agosto 2026, pedido de Esthiven: "hazlo con más
         // relieve"): el desnivel real de una concesión en zoom alto son
@@ -462,6 +473,7 @@ export function Mapa3D({
         // INGEMMET, Copernicus) se DRAPEAAN automáticamente sobre esta
         // malla: con el relieve prominente se nota que siguen el terreno.
         mapa.setTerrain({ source: "dem", exaggeration: 4 });
+        relieveOk = true;
       } catch {
         /* el mapa plano queda utilizable */
       }
@@ -487,11 +499,11 @@ export function Mapa3D({
       } catch {
         /* cosmético */
       }
-      if (!desmontado) setRelieveActivo(true);
+      if (!desmontado && relieveOk) setRelieveActivo(true);
     };
-    const timerRelieve = setTimeout(activarRelieve, 8000);
+    let timerRelieve = setTimeout(activarRelieve, 2500);
     let idled = false;
-    mapa.once("idle", () => {
+    mapa.once("load", () => {
       if (idled || desmontado) return;
       idled = true;
       clearTimeout(timerRelieve);

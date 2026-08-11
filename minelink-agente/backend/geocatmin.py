@@ -48,7 +48,11 @@ _BASE = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services"
 # capa 0102/0 = ANP de administración nacional; 0214/0 = zonas de
 # amortiguamiento. Campos: anp_nomb, anp_cate.
 _SERNANP = "https://geoservicios.sernanp.gob.pe/arcgis/rest/services/servicios_ogc"
-_TIMEOUT = 12
+# 20 (antes 12): las exportaciones de imagen al vuelo (capa-3d, galería de
+# análisis) llegaban a tardar ~10s desde el datacenter de Render, y con el
+# arranque en frío se pasaban del timeout viejo y devolvían 404 "No se pudo
+# generar esa capa" intermitente (agosto 2026, ver errores_aprendidos.md).
+_TIMEOUT = 20
 # La 50K es notablemente más lenta que el resto (verificado: hasta ~25s en
 # algunas zonas) — se le da más margen porque es best-effort y el
 # resultado queda cacheado 30 días, así que un primer load lento es
