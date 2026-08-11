@@ -84,7 +84,7 @@ export function Inicio() {
     <div className="flex flex-col items-center">
       <section className="relative w-full overflow-hidden bg-gradient-to-br from-acento via-acento to-acento-profundo text-white">
         <svg
-          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.14]"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.2]"
           aria-hidden="true"
           preserveAspectRatio="xMidYMid slice"
         >
@@ -95,19 +95,19 @@ export function Inicio() {
                 d="M-20 30 Q 40 -20, 100 30 T 220 30 T 340 30"
                 fill="none"
                 stroke="white"
-                strokeWidth="1"
+                strokeWidth="1.3"
               />
               <path
                 d="M-20 75 Q 40 25, 100 75 T 220 75 T 340 75"
                 fill="none"
                 stroke="white"
-                strokeWidth="1"
+                strokeWidth="1.3"
               />
               <path
                 d="M-20 120 Q 40 70, 100 120 T 220 120 T 340 120"
                 fill="none"
                 stroke="white"
-                strokeWidth="1"
+                strokeWidth="1.3"
               />
               </g>
             </pattern>
@@ -115,7 +115,39 @@ export function Inicio() {
           <rect width="100%" height="100%" fill="url(#contornos-hero)" />
         </svg>
 
-        <div className="relative mx-auto max-w-2xl px-4 pb-14 pt-16 text-center md:pb-20 md:pt-24">
+        {/* Luz "aurora" que respira y migra detrás del título (agosto 2026):
+            dos resplandores (blanco + bronce de marca) en movimiento lento
+            — le da profundidad al verde plano sin romper la línea. */}
+        <div className="punta-luz" aria-hidden="true" />
+
+        {/* Barrido de luz diagonal que cruza el hero cada ~10s */}
+        <div className="barrido-hero" aria-hidden="true" />
+
+        {/* Siluetas de montañas andinas al pie — la esencia del minero.
+            Tres capas: atrás clara (bruma), frente oscura que se funde con
+            el fondo del degradado (acento-profundo). */}
+        <svg
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 w-full md:h-48"
+          viewBox="0 0 1440 320"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M0 320 L0 150 Q70 85 140 145 Q210 90 280 155 Q350 95 420 165 Q490 105 560 170 Q630 115 700 175 Q770 125 840 180 Q910 135 980 185 Q1050 145 1120 190 Q1190 155 1260 195 Q1330 165 1440 185 L1440 320 Z"
+            fill="#0f5f4a"
+            opacity="0.5"
+          />
+          <path
+            d="M0 320 L0 210 Q90 150 180 205 Q270 145 360 210 Q450 155 540 215 Q630 165 720 220 Q810 175 900 225 Q990 185 1080 230 Q1170 195 1260 235 Q1350 205 1440 220 L1440 320 Z"
+            fill="#0b4636"
+          />
+          <path
+            d="M0 320 L0 255 Q120 205 240 250 Q360 200 480 255 Q600 210 720 260 Q840 215 960 265 Q1080 225 1200 270 Q1320 235 1440 275 L1440 320 Z"
+            fill="#083a30"
+          />
+        </svg>
+
+        <div className="relative z-10 mx-auto max-w-2xl px-4 pb-28 pt-16 text-center md:pb-48 md:pt-24">
           <p className="motion-safe:animate-[hero-entrada_0.7s_ease-out_both] text-xs font-semibold uppercase tracking-[0.16em] text-white/70">
             Formalización minera artesanal · Perú
           </p>

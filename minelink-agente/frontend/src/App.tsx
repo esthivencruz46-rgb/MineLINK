@@ -7,7 +7,6 @@ import { ProtectedRouteMinero } from "./components/ProtectedRouteMinero";
 import { ProtectedRouteInversionista } from "./components/ProtectedRouteInversionista";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Footer } from "./components/Footer";
-import { CursorGlow } from "./components/CursorGlow";
 // Widget del asesor oculto por pedido de Esthiven (agosto 2026): descomentar
 // el import y el render de abajo para volver a mostrarlo.
 // import { AsesorWidget } from "./components/AsesorWidget";
@@ -321,7 +320,6 @@ export function App() {
           </Suspense>
         </main>
         {!esAdmin && <Footer />}
-        {!esAdmin && <CursorGlow />}
         {/* Asesor oculto (agosto 2026, pedido de Esthiven): descomentar para
             volver a mostrar el widget flotante. */}
         {/* {!esAdmin && <AsesorWidget />} */}
