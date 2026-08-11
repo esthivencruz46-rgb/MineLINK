@@ -396,10 +396,10 @@ def test_imagen_analisis_catastro_dibuja_el_borde_de_la_concesion(monkeypatch):
     assert cian.any(), "no se dibujó el contorno de la concesión"
 
 
-def test_imagen_overlay_3d_transparente_sin_base_satelital(monkeypatch):
-    # El overlay de la vista 3D NO debe traer base satelital ni pin (el mapa
-    # 3D ya pinta los suyos) — solo las capas de geología/fallas/catastro con
-    # fondo transparente, para superponerse sobre el terreno.
+def test_capa_overlay_3d_transparente_sin_base_satelital(monkeypatch):
+    # Las capas de la vista 3D NO deben traer base satelital (el mapa 3D ya
+    # pinta la suya) — solo la capa pedida, en PNG transparente para
+    # superponerse sobre el terreno.
     from PIL import Image as _Image
 
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
@@ -407,9 +407,8 @@ def test_imagen_overlay_3d_transparente_sin_base_satelital(monkeypatch):
     llamadas = []
 
     def _capa_falsa(url, bbox, layers=None, tamano=None):
-        llamadas.append(url)
-        # Transparente salvo un píxel por capa: el overlay 3D no debe tener
-        # base opaca (satélite), solo las capas en sí mismas.
+        llamadas.append((url, layers))
+        # Transparente salvo un píxel: ninguna capa 3D debe traer fondo opaco.
         img = _Image.new(
             "RGBA", tamano or (geocatmin._ANCHO_MAPA, geocatmin._ALTO_MAPA), (0, 0, 0, 0)
         )
@@ -418,23 +417,21 @@ def test_imagen_overlay_3d_transparente_sin_base_satelital(monkeypatch):
 
     monkeypatch.setattr(geocatmin, "_exportar_capa", _capa_falsa)
 
-    png = geocatmin.imagen_overlay_3d("-8.01,-77.50", poligono, "50k")
+    png = geocatmin.capa_overlay_3d("-8.01,-77.50", poligono, "catastro")
     assert png is not None
 
     import numpy as np
     from io import BytesIO
 
     pixeles = np.array(_Image.open(BytesIO(png)).convert("RGBA")).astype(int)
-    # Sin base opaca: casi todo el PNG queda transparente; solo pueden estar
-    # "pintados" los píxeles que las propias capas dibujaron (1 por capa).
-    assert (pixeles[:, :, 3] > 200).sum() <= 3, "el overlay 3D quedó con fondo opaco"
-    assert not any("World_Imagery" in u for u in llamadas), (
-        "el overlay 3D no debe pedir la base satelital de Esri"
+    assert (pixeles[:, :, 3] > 200).sum() <= 1, "la capa 3D quedó con fondo opaco"
+    assert llamadas and "SERV_CATASTRO" in llamadas[0][0]
+    assert not any("World_Imagery" in u for u, _ in llamadas), (
+        "las capas 3D no deben pedir la base satelital de Esri"
     )
-    assert any("SERV_GEOLOGIA" in u for u in llamadas), "debió pedir la geología 100K"
 
 
-def test_imagen_overlay_3d_sin_poligono_usa_el_mismo_bbox_que_el_analisis(monkeypatch):
+def test_capa_overlay_3d_usa_el_mismo_bbox_que_el_analisis(monkeypatch):
     from PIL import Image as _Image
 
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
@@ -446,13 +443,40 @@ def test_imagen_overlay_3d_sin_poligono_usa_el_mismo_bbox_que_el_analisis(monkey
 
     monkeypatch.setattr(geocatmin, "_exportar_capa", _espia)
 
-    geocatmin.imagen_overlay_3d("-8.01,-77.50", None, None)
-    bbox, tamano = geocatmin._bbox_y_tamano_ajustado_poligono(None, "-8.01,-77.50")
-    assert llamadas, "debió pedir al menos la capa de geología"
-    for url, bbox_capa, _layers, tamano_capa in llamadas:
-        assert tuple(bbox_capa) == tuple(bbox)
-        assert tamano_capa == tamano
-        # Geología 100K por defecto, catastro minero, y ninguna base
-        # satelital (World_Imagery) en el overlay 3D.
-        assert "SERV_GEOLOGIA" in url or "SERV_CATASTRO" in url
-        assert "World_Imagery" not in url
+    poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
+    geocatmin.capa_overlay_3d("-8.01,-77.50", poligono, "geologia")
+    bbox, tamano = geocatmin._bbox_y_tamano_ajustado_poligono(poligono, "-8.01,-77.50")
+    assert len(llamadas) == 1
+    url, bbox_capa, layers, tamano_capa = llamadas[0]
+    assert "SERV_GEOLOGIA_100K" in url
+    assert layers == "show:6"
+    assert tuple(bbox_capa) == tuple(bbox)
+    assert tamano_capa == tamano
+
+
+def test_capa_overlay_3d_fallas_requiere_escala_y_usa_la_capa_correcta(monkeypatch):
+    from PIL import Image as _Image
+
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    llamadas = []
+
+    def _espia(url, bbox, layers=None, tamano=None):
+        llamadas.append((url, layers))
+        return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
+
+    monkeypatch.setattr(geocatmin, "_exportar_capa", _espia)
+
+    # Sin escala confirmada no hay fallas que dibujar (mismo criterio 2D).
+    assert geocatmin.capa_overlay_3d("-8.01,-77.50", None, "fallas", None) is None
+
+    geocatmin.capa_overlay_3d("-8.01,-77.50", None, "fallas", "50k")
+    assert llamadas and "SERV_GEOLOGIA_50K" in llamadas[0][0]
+    assert llamadas[0][1] == "show:2"
+
+    geocatmin.capa_overlay_3d("-8.01,-77.50", None, "fallas", "100k")
+    assert "SERV_GEOLOGIA_100K" in llamadas[1][0]
+    assert llamadas[1][1] == "show:3"
+
+
+def test_capa_overlay_3d_capa_desconocida_devuelve_none():
+    assert geocatmin.capa_overlay_3d("-8.01,-77.50", None, "no_existe") is None

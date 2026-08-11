@@ -80,8 +80,8 @@ export function MapaGeocatmin({
     bbox: [number, number, number, number];
     capas: Record<string, string>;
   } | null;
-  /** Id del proyecto — la vista 3D superpone el overlay de
-   * geología/fallas/catastro vía `GET /proyectos/{id}/overlay-3d.png`. */
+  /** Id del proyecto — la vista 3D superpone el catálogo de capas vía
+   * `GET /proyectos/{id}/capa-3d/{capa}.png`. */
   proyectoId?: string;
 }) {
   const contenedorRef = useRef<HTMLDivElement>(null);
@@ -649,6 +649,8 @@ export function MapaGeocatmin({
             coords={coords}
             poligonoConcesion={poligonoConcesion}
             proyectoId={proyectoId}
+            escalaFallas={escalaFallas}
+            anomaliasSatelitales={anomaliasSatelitales}
           />
         </Suspense>
       )}
