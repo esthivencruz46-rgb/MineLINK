@@ -542,6 +542,20 @@ export function Mapa3D({
             },
           });
           mapa.addLayer({
+            id: "concesion-casco",
+            type: "line",
+            source: "concesion",
+            paint: {
+              // Borde blanco de contraste debajo del verde: sobre el
+              // satélite, el hillshade o la nieve, el límite de la
+              // concesión se identifica SIEMPRE (agosto 2026, pedido de
+              // Esthiven: "no puedo identificar el polígono").
+              "line-color": "#ffffff",
+              "line-width": 6,
+              "line-opacity": 0.9,
+            },
+          });
+          mapa.addLayer({
             id: "concesion-borde",
             type: "line",
             source: "concesion",
@@ -555,8 +569,10 @@ export function Mapa3D({
             type: "fill",
             source: "concesion",
             paint: {
+              // Subido de 0.15 a 0.25: el área de la concesión se distingue
+              // del terreno que la rodea sin tapar el satélite.
               "fill-color": "#10b981",
-              "fill-opacity": 0.15,
+              "fill-opacity": 0.25,
             },
           });
 
@@ -595,7 +611,9 @@ export function Mapa3D({
           type: "circle",
           source: "pin",
           paint: {
-            "circle-radius": 10,
+            // Halo blanco más grande que el punto rojo: el pin se ve contra
+            // cualquier fondo (satélite oscuro, hillshade, nieve).
+            "circle-radius": 13,
             "circle-color": "#ffffff",
             "circle-stroke-width": 0,
           },
@@ -605,7 +623,7 @@ export function Mapa3D({
           type: "circle",
           source: "pin",
           paint: {
-            "circle-radius": 8,
+            "circle-radius": 10,
             "circle-color": "#e11d48",
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 2,
