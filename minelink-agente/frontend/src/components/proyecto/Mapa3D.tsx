@@ -13,12 +13,12 @@ import { BASE_URL } from "../../services/api";
 // Terreno: tiles "terrarium" del dataset abierto de Terrain Tiles de
 // AWS (elevation-tiles-prod, sin token/API key). MapLibre los consume
 // con `raster-dem` + `encoding: "terrarium"` (convierte los 3 canales
-// RGB a metros sobre el mar). Exageración 2.5x + una capa `hillshade`
-// (source propia, issue maplibre#2035) + pitch 60: la concesión chica en
-// zoom alto tiene poco desnivel en metros y con 1.5x se veía plano
-// (reporte explícito de Esthiven, agosto 2026) — la exageración y el
-// sombreado de laderas hacen que el relieve se lea al primer golpe de
-// vista sin volverse una caricatura.
+// RGB a metros sobre el mar). Exageración 1.5x + una capa `hillshade`
+// (source propia, issue maplibre#2035) + pitch 60: el terreno se ve en
+// perspectiva real sin volverse una caricatura — se probó a 4x y quedaba
+// "muy alzado" (reporte de Esthiven, agosto 2026); 1.5x es el valor
+// natural de MapLibre y el sombreado de laderas hace que el relieve se
+// lea igual al primer golpe de vista.
 //
 // Basemap: la MISMA base satelital de Esri World Imagery que ya usa el
 // mapa 2D de Leaflet (server.arcgisonline.com) — MapLibre acepta tiles
@@ -432,9 +432,8 @@ export function Mapa3D({
               type: "hillshade",
               source: "demSombreado",
               paint: {
-                // Subido a 0.8 (agosto 2026, "más relieve"): junto a la
-                // exageración 4.0 del terreno, las laderas se ven con
-                // sombra y luz marcadas. 0.6 resultaba demasiado sutil.
+                // Junto a la exageración 1.5 del terreno, las laderas se
+                // ven con sombra y luz marcadas sin dominar la foto.
                 "hillshade-exaggeration": 0.8,
                 "hillshade-illumination-direction": 315,
                 "hillshade-shadow-color": "rgba(15, 23, 42, 0.65)",
@@ -482,13 +481,12 @@ export function Mapa3D({
       }
       let relieveOk = false;
       try {
-        // Exageración 4.0 (agosto 2026, pedido de Esthiven: "hazlo con más
-        // relieve"): el desnivel real de una concesión en zoom alto son
-        // pocos metros en pantalla. 4x lo vuelve inconfundible — se baja
-        // fácil si se ve exagerado. Las capas raster (catastro, geología,
-        // INGEMMET, Copernicus) se DRAPEAAN automáticamente sobre esta
-        // malla: con el relieve prominente se nota que siguen el terreno.
-        mapa.setTerrain({ source: "dem", exaggeration: 4 });
+        // Exageración 1.5 (agosto 2026): a 4.0 el relieve se veía "muy
+        // alzado" (reporte de Esthiven: "se ve aumentado x2.5" con 4x en
+        // código). 1.5 deja la altura en ~1x real — montañas naturales,
+        // no caricatura. Las capas raster (catastro, geología, INGEMMET,
+        // Copernicus) se DRAPEAAN sobre esta malla y siguen el terreno.
+        mapa.setTerrain({ source: "dem", exaggeration: 1.5 });
         relieveOk = true;
       } catch {
         /* el mapa plano queda utilizable */
