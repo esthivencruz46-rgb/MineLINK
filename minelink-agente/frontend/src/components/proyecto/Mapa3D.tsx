@@ -13,8 +13,12 @@ import { BASE_URL } from "../../services/api";
 // Terreno: tiles "terrarium" del dataset abierto de Terrain Tiles de
 // AWS (elevation-tiles-prod, sin token/API key). MapLibre los consume
 // con `raster-dem` + `encoding: "terrarium"` (convierte los 3 canales
-// RGB a metros sobre el mar). Exageración 1.5x: el relieve se siente
-// sin volverse una caricatura.
+// RGB a metros sobre el mar). Exageración 2.5x + una capa `hillshade`
+// (source propia, issue maplibre#2035) + pitch 60: la concesión chica en
+// zoom alto tiene poco desnivel en metros y con 1.5x se veía plano
+// (reporte explícito de Esthiven, agosto 2026) — la exageración y el
+// sombreado de laderas hacen que el relieve se lea al primer golpe de
+// vista sin volverse una caricatura.
 //
 // Basemap: la MISMA base satelital de Esri World Imagery que ya usa el
 // mapa 2D de Leaflet (server.arcgisonline.com) — MapLibre acepta tiles
@@ -381,12 +385,42 @@ export function Mapa3D({
               maxzoom: 15,
               encoding: "terrarium",
             },
+            // Source PROPIA para el hillshade (agosto 2026): MapLibre
+            // renderiza mejor el sombreado con un source separado del de
+            // terreno (issue maplibre#2035 — compartir el source los
+            // degradaba). Mismos tiles, misma URL: la precarga en segundo
+            // plano (terreno3D.ts) calienta la caché HTTP para ambos.
+            demSombreado: {
+              type: "raster-dem",
+              tiles: [TERRENO_TILES],
+              tileSize: 256,
+              maxzoom: 15,
+              encoding: "terrarium",
+            },
           },
           layers: [
             {
               id: "satelite",
               type: "raster",
               source: "satelite",
+            },
+            // Hillshade (agosto 2026, pedido explícito de Esthiven: el
+            // terreno "se ve algo plano"): sombreado de relieve calculado
+            // del DEM que les da profundidad a las laderas y quebradas
+            // incluso antes de que el terreno 3D se active. Va encima del
+            // satélite y debajo de todo lo demás (polígono, pin, capas).
+            // Colores con canal alfa para que la foto satelital siga
+            // leyéndose de fondo.
+            {
+              id: "sombreado",
+              type: "hillshade",
+              source: "demSombreado",
+              paint: {
+                "hillshade-exaggeration": 0.6,
+                "hillshade-illumination-direction": 315,
+                "hillshade-shadow-color": "rgba(15, 23, 42, 0.55)",
+                "hillshade-highlight-color": "rgba(255, 255, 255, 0.3)",
+              },
             },
           ],
         },
@@ -406,12 +440,26 @@ export function Mapa3D({
     const activarRelieve = () => {
       if (desmontado) return;
       try {
-        mapa.setTerrain({ source: "dem", exaggeration: 1.5 });
+        // Exageración 2.5 (agosto 2026, pedido de Esthiven: el terreno "se
+        // ve algo plano"): el relieve real de una concesión chica en zoom
+        // alto son pocos metros en pantalla, y 1.5 no lo hacía notar. 2.5
+        // resalta laderas y quebradas sin verse caricaturizado.
+        mapa.setTerrain({ source: "dem", exaggeration: 2.5 });
       } catch {
         /* el mapa plano queda utilizable */
       }
       try {
-        mapa.easeTo({ pitch: 55, duration: 1200 });
+        // Sube el tope de inclinación (el default es 60) para que el
+        // control de navegación permita inclinar más y se aprecie mejor
+        // el relieve.
+        mapa.setMaxPitch(85);
+      } catch {
+        /* cosmético */
+      }
+      try {
+        // Pitch 60 (antes 55): la cámara más baja muestra más relieve en
+        // perspectiva.
+        mapa.easeTo({ pitch: 60, duration: 1200 });
       } catch {
         /* cosmético */
       }
@@ -430,7 +478,7 @@ export function Mapa3D({
     mapa.on("error", (e) => {
       const ev = e as unknown as { sourceId?: string; tile?: { sourceID?: string } };
       const fuente = ev.sourceId || ev.tile?.sourceID;
-      if (fuente === "dem" && !desmontado) setRelieveError(true);
+      if ((fuente === "dem" || fuente === "demSombreado") && !desmontado) setRelieveError(true);
     });
 
     // Arranque del mapa 3D (polígono + pin + capas activas). NO depende de
