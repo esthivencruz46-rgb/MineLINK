@@ -42,8 +42,9 @@ import { BASE_URL } from "../../services/api";
 // catálogo también en 3D"): replica el catálogo del mapa 2D, pero SOLO las
 // que importan en 3D (agosto 2026, pedido de Esthiven: "solo las capas de
 // Geología, fallas y las de copernicus puedan verse en el 3D Map") —
-// Geología y fallas (geología 100K, fallas si el backend confirmó alguna)
-// y Sentinel-2 · Copernicus (si ya se generó, mismas URLs que el 2D).
+// Geología y fallas (geología 100K/50K, fallas si el backend confirmó
+// alguna), sedimentos de quebrada (geoquímica INGEMMET, agosto 2026) y
+// Sentinel-2 · Copernicus (si ya se generó, mismas URLs que el 2D).
 // Catastro minero, ASTER, QICIMI, anomalías espectrales y libre denuncio
 // quedan solo en el mapa 2D. Cada capa es un PNG transparente servido por
 // `GET /proyectos/{id}/capa-3d/{capa}.png` sobre el MISMO bbox que la
@@ -230,10 +231,12 @@ function catalogoCapas(opts: {
     capas.push({ id, grupo, etiqueta, url, bbox, opacidad, porDefecto, subgrupo });
   };
   if (opts.bbox) {
-    // SOLO geología, fallas y Copernicus en el 3D (pedido de Esthiven,
-    // agosto 2026): catastro minero, ASTER, QICIMI, anomalías espectrales
-    // y libre denuncio quedan solo en el mapa 2D — en 3D lo importante son
-    // las capas geológicas y las anomalías de Copernicus.
+    // En el 3D van geología, fallas y sedimentos de quebrada — geoquímica
+    // es dato geológico de INGEMMET, así que se agrupa con Geología y
+    // fallas (agosto 2026, pedido de Esthiven: "ubícalo en el 3D"). El
+    // resto del catálogo del 2D (catastro minero, ASTER, QICIMI, anomalías
+    // espectrales y libre denuncio) queda solo en el mapa 2D — en 3D lo
+    // importante son las capas geológicas y las anomalías de Copernicus.
     push("geologia", "Geología y fallas", "Geología", conVersion(`${base}/capa-3d/geologia.png`), opts.bbox, 0.6, true);
     // Si INGEMMET tiene carta 50K en el punto, la geología alterna con la
     // 100K según la cámara (mismo comportamiento que el 2D apilado). La
@@ -248,6 +251,10 @@ function catalogoCapas(opts: {
     if (opts.escalaFallas) {
       push("fallas", "Geología y fallas", "Fallas geológicas cercanas", conVersion(`${base}/capa-3d/fallas.png`), opts.bbox, 0.9, true);
     }
+    // Sedimentos de quebrada (geoquímica INGEMMET, agosto 2026): puntos de
+    // muestreo con sus leyes, el MISMO export renderizado que sirve el 2D.
+    // Apagada por defecto (como en el mapa 2D), comparte el estado con él.
+    push("sedimentos_quebrada", "Geología y fallas", "Sedimentos de quebrada (geoquímica)", conVersion(`${base}/capa-3d/sedimentos_quebrada.png`), opts.bbox, 0.9, false);
   }
   if (opts.anomaliasSatelitales) {
     const [xmin, ymin, xmax, ymax] = opts.anomaliasSatelitales.bbox;

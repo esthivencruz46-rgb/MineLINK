@@ -1099,7 +1099,8 @@ def catastro_analisis_proyecto(operacion_id: str, db: Session = Depends(get_db))
 @router.get("/{operacion_id}/capa-3d/{capa}.png")
 def capa_3d_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
     """UNA capa de GEOCATMIN (catastro, geología, geología 1:50,000, fallas,
-    ASTER 9-3-1, QICIMI, anomalía espectral o libre denuncio) en PNG
+    ASTER 9-3-1, QICIMI, anomalía espectral, libre denuncio o sedimentos de
+    quebrada/geoquímica) en PNG
     TRANSPARENTE sobre el mismo bbox ajustado al polígono que la galería de
     análisis — para que el panel de capas de la vista 3D (Mapa3D.tsx)
     replique el catálogo del mapa 2D, con cada capa superpuesta por

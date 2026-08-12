@@ -653,3 +653,29 @@ def test_capa_overlay_3d_fallas_requiere_escala_y_usa_la_capa_correcta(monkeypat
 
 def test_capa_overlay_3d_capa_desconocida_devuelve_none():
     assert geocatmin.capa_overlay_3d("-8.01,-77.50", None, "no_existe") is None
+
+
+def test_capa_overlay_3d_sedimentos_quebrada_usa_el_servicio_de_geoquimica(monkeypatch):
+    from PIL import Image as _Image
+
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    llamadas = []
+
+    def _espia(url, bbox, layers=None, tamano=None):
+        llamadas.append((url, layers, bbox, tamano))
+        return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
+
+    monkeypatch.setattr(geocatmin, "_exportar_capa", _espia)
+
+    poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
+    png = geocatmin.capa_overlay_3d("-8.01,-77.50", poligono, "sedimentos_quebrada")
+    assert png is not None
+    assert len(llamadas) == 1
+    url, layers, bbox, tamano = llamadas[0]
+    assert "SERV_GEOQUIMICA_2022" in url
+    assert layers == "show:0"
+    bbox_esperado, tamano_esperado = geocatmin._bbox_y_tamano_ajustado_poligono(
+        poligono, "-8.01,-77.50"
+    )
+    assert tuple(bbox) == tuple(bbox_esperado)
+    assert tamano == tamano_esperado

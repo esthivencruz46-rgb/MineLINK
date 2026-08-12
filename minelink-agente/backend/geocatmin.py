@@ -1025,6 +1025,12 @@ _CAPAS_OVERLAY_3D = {
     "qicimi": ("PRODUCTO_SATELITAL/MD_QICIMI/ImageServer", None),
     "anomalia_espectral": ("SERV_ANOMALIA_ESPECTRAL/MapServer", "show:0"),
     "libre_denuncio": ("SERV_LIBREDENUNCIABILIDAD/MapServer", "show:0"),
+    # Sedimentos de quebrada (geoquímica INGEMMET) — espejo de la capa
+    # sedimentos_quebrada del mapa 2D (agosto 2026): se exporta con la
+    # simbología por defecto del propio servicio, igual que el 2D la pide
+    # como imagen (`f:"image"`). La ficha además ya lista las muestras
+    # dentro del polígono / cercanas (ver consultar()).
+    "sedimentos_quebrada": ("SERV_GEOQUIMICA_2022/MapServer", "show:0"),
 }
 
 
@@ -1041,7 +1047,8 @@ def capa_overlay_3d(
     cada capa por separado sobre el terreno (MapLibre aplica la opacidad de
     cada capa por su cuenta vía `raster-opacity`, así que acá se exporta
     opacidad plena). `capa` ∈ catastro | geologia | geologia_50k | fallas |
-    aster_931 | qicimi | anomalia_espectral | libre_denuncio; "fallas"
+    aster_931 | qicimi | anomalia_espectral | libre_denuncio |
+    sedimentos_quebrada; "fallas"
     necesita `escala_fallas` (mismo criterio que el mapa 2D: solo se ofrece
     si de verdad hay una falla confirmada); "geologia_50k" se genera con
     el timeout propio de la 50K (`_TIMEOUT_50K`, servicio lento) y el
