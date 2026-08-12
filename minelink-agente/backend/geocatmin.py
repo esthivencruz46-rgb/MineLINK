@@ -665,6 +665,7 @@ def _exportar_capa(
     layers: Optional[str] = None,
     tamano: Optional[tuple[int, int]] = None,
     timeout: int = _TIMEOUT,
+    dynamic_layers: Optional[list] = None,
 ) -> Optional["Image.Image"]:
     """Pide una imagen estática a un MapServer de ArcGIS (export) para el
     bbox dado — mismo mecanismo que usan los tiles del mapa interactivo,
@@ -674,7 +675,12 @@ def _exportar_capa(
     galería de análisis pasa el suyo propio, ajustado al aspecto real del
     polígono (ver `_bbox_y_tamano_ajustado_poligono`). `timeout`: por
     defecto `_TIMEOUT`; las capas 50K pasan `_TIMEOUT_50K` porque el
-    servicio es notablemente más lento."""
+    servicio es notablemente más lento. `dynamic_layers`: definición de
+    `dynamicLayers` de ArcGIS (lista con `drawingInfo`) para sobreescribir
+    la simbología de la capa — lo usa la capa de sedimentos para agrandar
+    sus puntitos (ver `_DYNAMIC_LAYERS_SEDIMENTOS`); se envía junto con
+    `layers` (verificado en vivo, agosto 2026, que INGEMMET los combina
+    bien y aplica el renderer)."""
     from PIL import Image
     from io import BytesIO
 
@@ -690,6 +696,8 @@ def _exportar_capa(
     }
     if layers:
         params["layers"] = layers
+    if dynamic_layers:
+        params["dynamicLayers"] = json.dumps(dynamic_layers)
     r = requests.get(f"{url}/export", params=params, timeout=timeout)
     r.raise_for_status()
     return Image.open(BytesIO(r.content)).convert("RGBA")
@@ -1040,13 +1048,48 @@ _CAPAS_OVERLAY_3D = {
     "qicimi": ("PRODUCTO_SATELITAL/MD_QICIMI/ImageServer", None),
     "anomalia_espectral": ("SERV_ANOMALIA_ESPECTRAL/MapServer", "show:0"),
     "libre_denuncio": ("SERV_LIBREDENUNCIABILIDAD/MapServer", "show:0"),
-    # Sedimentos de quebrada (geoquímica INGEMMET) — espejo de la capa
+# Sedimentos de quebrada (geoquímica INGEMMET) — espejo de la capa
     # sedimentos_quebrada del mapa 2D (agosto 2026): se exporta con la
     # simbología por defecto del propio servicio, igual que el 2D la pide
-    # como imagen (`f:"image"`). La ficha además ya lista las muestras
-    # dentro del polígono / cercanas (ver consultar()).
+    # como imagen (`f:"image"`), PERO con los puntitos agrandados vía
+    # `_DYNAMIC_LAYERS_SEDIMENTOS` (agosto 2026, pedido explícito: "no se
+    # ve bien" — por defecto salían de ~8px, ahora ~20px, 2.5x). La ficha
+    # además ya lista las muestras dentro del polígono / cercanas (ver
+    # consultar()).
     "sedimentos_quebrada": ("SERV_GEOQUIMICA_2022/MapServer", "show:0"),
 }
+
+
+# Definición `dynamicLayers` de ArcGIS para agrandar los puntitos de la capa
+# de sedimentos de quebrada (agosto 2026, pedido explícito de Esthiven: "que
+# sea el 2.5x del tamaño actual"). Medido en vivo contra el export del
+# servicio: el símbolo por defecto es un círculo magenta (#E600A4) de ~8px
+# de diámetro — se sube a 20px (2.5x) con un contorno blanco fino para que
+# se lea sobre el satélite. `source.mapLayer` referencia la capa 0 del
+# MapServer tal cual (verificado en vivo que INGEMMET acepta este forma y
+# aplica el renderer; la variante `dataLayer` con workspaceId da error).
+_DYNAMIC_LAYERS_SEDIMENTOS = [
+    {
+        "source": {"type": "mapLayer", "mapLayerId": 0},
+        "drawingInfo": {
+            "renderer": {
+                "type": "simple",
+                "symbol": {
+                    "type": "esriSMS",
+                    "style": "esriSMSCircle",
+                    "color": [230, 0, 164, 255],
+                    "size": 20,
+                    "outline": {
+                        "type": "esriSLS",
+                        "style": "esriSLSSolid",
+                        "color": [255, 255, 255, 255],
+                        "width": 1.5,
+                    },
+                },
+            }
+        },
+    }
+]
 
 
 def capa_overlay_3d(
@@ -1093,7 +1136,15 @@ def capa_overlay_3d(
         # La 50K es lenta (hasta ~25s verificado) — solo para ella se pasa
         # el timeout propio; el resto usa el default de `_exportar_capa`.
         kwargs = {"timeout": _TIMEOUT_50K} if capa == "geologia_50k" else {}
-        imagen = _exportar_capa(url, bbox, layers, tamano=tamano, **kwargs)
+        # Sedimentos de quebrada: puntitos agrandados vía renderer propio
+        # (2.5x, ver `_DYNAMIC_LAYERS_SEDIMENTOS`) — mismas opciones de
+        # export que el mapa 2D (esri-leaflet con dynamicLayers).
+        dynamic_layers = (
+            _DYNAMIC_LAYERS_SEDIMENTOS if capa == "sedimentos_quebrada" else None
+        )
+        imagen = _exportar_capa(
+            url, bbox, layers, tamano=tamano, dynamic_layers=dynamic_layers, **kwargs
+        )
         if imagen is None:
             return None
         salida = BytesIO()

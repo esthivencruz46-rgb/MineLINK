@@ -560,7 +560,7 @@ def test_imagen_analisis_catastro_dibuja_el_borde_de_la_concesion(monkeypatch):
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     from PIL import Image as _Image
 
-    def _capa_falsa(url, bbox, layers=None, tamano=None):
+    def _capa_falsa(url, bbox, layers=None, tamano=None, dynamic_layers=None):
         ancho, alto = tamano or (geocatmin._ANCHO_MAPA, geocatmin._ALTO_MAPA)
         # Base opaca negra para la primera capa (satélite), transparente el
         # resto -- así el único color vivo que puede aparecer es el borde.
@@ -600,7 +600,7 @@ def test_capa_overlay_3d_transparente_sin_base_satelital(monkeypatch):
     poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
     llamadas = []
 
-    def _capa_falsa(url, bbox, layers=None, tamano=None):
+    def _capa_falsa(url, bbox, layers=None, tamano=None, dynamic_layers=None):
         llamadas.append((url, layers))
         # Transparente salvo un píxel: ninguna capa 3D debe traer fondo opaco.
         img = _Image.new(
@@ -631,7 +631,7 @@ def test_capa_overlay_3d_usa_el_mismo_bbox_que_el_analisis(monkeypatch):
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     llamadas = []
 
-    def _espia(url, bbox, layers=None, tamano=None):
+    def _espia(url, bbox, layers=None, tamano=None, dynamic_layers=None):
         llamadas.append((url, bbox, layers, tamano))
         return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
 
@@ -654,7 +654,7 @@ def test_capa_overlay_3d_geologia_50k_usa_capa_y_timeout_propio(monkeypatch):
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     llamadas = []
 
-    def _espia(url, bbox, layers=None, tamano=None, timeout=None):
+    def _espia(url, bbox, layers=None, tamano=None, timeout=None, dynamic_layers=None):
         llamadas.append((url, layers, timeout))
         return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
 
@@ -676,7 +676,7 @@ def test_capa_overlay_3d_fallas_requiere_escala_y_usa_la_capa_correcta(monkeypat
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     llamadas = []
 
-    def _espia(url, bbox, layers=None, tamano=None):
+    def _espia(url, bbox, layers=None, tamano=None, dynamic_layers=None):
         llamadas.append((url, layers))
         return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
 
@@ -704,8 +704,8 @@ def test_capa_overlay_3d_sedimentos_quebrada_usa_el_servicio_de_geoquimica(monke
     monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
     llamadas = []
 
-    def _espia(url, bbox, layers=None, tamano=None):
-        llamadas.append((url, layers, bbox, tamano))
+    def _espia(url, bbox, layers=None, tamano=None, dynamic_layers=None):
+        llamadas.append((url, layers, bbox, tamano, dynamic_layers))
         return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
 
     monkeypatch.setattr(geocatmin, "_exportar_capa", _espia)
@@ -714,9 +714,13 @@ def test_capa_overlay_3d_sedimentos_quebrada_usa_el_servicio_de_geoquimica(monke
     png = geocatmin.capa_overlay_3d("-8.01,-77.50", poligono, "sedimentos_quebrada")
     assert png is not None
     assert len(llamadas) == 1
-    url, layers, bbox, tamano = llamadas[0]
+    url, layers, bbox, tamano, dynamic_layers = llamadas[0]
     assert "SERV_GEOQUIMICA_2022" in url
     assert layers == "show:0"
+    # Los puntitos van agrandados vía renderer propio (2.5x, pedido agosto
+    # 2026) — el dynamicLayers de ArcGIS debe viajar en el export.
+    assert dynamic_layers == geocatmin._DYNAMIC_LAYERS_SEDIMENTOS
+    assert dynamic_layers[0]["drawingInfo"]["renderer"]["symbol"]["size"] == 20
     bbox_esperado, tamano_esperado = geocatmin._bbox_y_tamano_ajustado_poligono(
         poligono, "-8.01,-77.50"
     )

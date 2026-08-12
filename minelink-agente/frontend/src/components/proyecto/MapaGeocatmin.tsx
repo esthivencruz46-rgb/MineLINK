@@ -32,6 +32,36 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
 
 const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 
+// Definición `dynamicLayers` de ArcGIS para agrandar los puntitos de la capa
+// de sedimentos de quebrada (agosto 2026, pedido explícito de Esthiven:
+// "2.5x del tamaño actual, no se ve bien") — espejo de
+// `geocatmin._DYNAMIC_LAYERS_SEDIMENTOS` del backend (el catálogo 3D usa el
+// mismo renderer). El símbolo por defecto de INGEMMET es un círculo magenta
+// (#E600A4) de ~8px, se sube a 20px (2.5x) con un contorno blanco fino para
+// que se lea sobre el satélite.
+const DYNAMIC_LAYERS_SEDIMENTOS = JSON.stringify([
+  {
+    source: { type: "mapLayer", mapLayerId: 0 },
+    drawingInfo: {
+      renderer: {
+        type: "simple",
+        symbol: {
+          type: "esriSMS",
+          style: "esriSMSCircle",
+          color: [230, 0, 164, 255],
+          size: 20,
+          outline: {
+            type: "esriSLS",
+            style: "esriSLSSolid",
+            color: [255, 255, 255, 255],
+            width: 1.5,
+          },
+        },
+      },
+    },
+  },
+]);
+
 /** Mapa de la ficha pública (julio 2026): base satelital (Esri World
  * Imagery) + un ÚNICO panel de capas propio (`PanelCapas`, más abajo),
  * en vez del control nativo de Leaflet + un control aparte apilado
@@ -464,6 +494,11 @@ export function MapaGeocatmin({
       zIndex: 24,
       minZoom: 12,
       attribution: "GEOCATMIN · INGEMMET",
+      // Puntitos agrandados (2.5x, ~20px) vía renderer propio — por defecto
+      // el servicio los dibuja de ~8px y no se veían bien (agosto 2026,
+      // pedido explícito). Esri-leaflet lo manda tal cual en el export;
+      // verificado en vivo que INGEMMET lo combina con `layers` y aplica.
+      dynamicLayers: DYNAMIC_LAYERS_SEDIMENTOS,
     });
     // Popup con las leyes del punto: se listan solo los elementos con valor
     // analizado (los que INGEMMET trae como "N.R." o vacíos no se muestran).
