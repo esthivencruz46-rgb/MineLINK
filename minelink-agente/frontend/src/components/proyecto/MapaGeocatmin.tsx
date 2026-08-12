@@ -121,6 +121,22 @@ export function MapaGeocatmin({
     setCapasActivas((p) => ({ ...p, [id]: activa }));
   }
 
+  // Escala de la geología (agosto 2026, mismo selector que el panel 3D):
+  // "auto" = la cámara decide (100K alejado, 50K dentro de la zona de la
+  // concesión); "100k"/"50k" fijan la escala de una. Aquí solo el ref
+  // basta: el panel 2D es DOM de Leaflet (no JSX), y el estado de los
+  // botones se repinta a mano (`pintarBotones` más abajo).
+  const escalaGeologiaRef = useRef<"auto" | "100k" | "50k">("auto");
+  // `actualizarGeologia50` vive dentro del effect que crea el mapa (necesita
+  // el mapa, la zona y las capas Leaflet) — se expone por ref para que el
+  // selector del panel pueda aplicarla de inmediato, sin mover la cámara.
+  const actualizarGeologia50Ref = useRef<() => void>(() => {});
+
+  function seleccionarEscalaGeologia(escala: "auto" | "100k" | "50k") {
+    escalaGeologiaRef.current = escala;
+    actualizarGeologia50Ref.current();
+  }
+
   // Precarga del chunk de MapLibre (~250 KB gzip) unos segundos después
   // de montar la ficha, en segundo plano y sin bloquear nada: el chunk
   // solo se descarga+parsea, no se crea ningún mapa. Cuando el visitante
@@ -519,6 +535,59 @@ export function MapaGeocatmin({
             const texto = L.DomUtil.create("span", "", fila);
             texto.textContent = label;
             texto.style.fontSize = "13px";
+
+            // Selector de escala de la geología (agosto 2026, mismo que el
+            // panel 3D): solo cuando INGEMMET tiene carta 50K además de la
+            // 100K. "Auto" = la cámara decide (100K alejado, 50K dentro de
+            // la zona de la concesión); "100K"/"50K" fijan la escala de una.
+            if (id === "geologia" && geologiaEscala === "50k") {
+              const caja = L.DomUtil.create("div", "capas-escala", listaCapas);
+              caja.style.display = "flex";
+              caja.style.alignItems = "center";
+              caja.style.gap = "4px";
+              caja.style.margin = "2px 0 6px 30px";
+              caja.style.fontSize = "11px";
+              caja.style.color = "#64748b";
+              L.DomUtil.create("span", "", caja).textContent = "Escala:";
+              const pintarBotones = () => {
+                const actual = escalaGeologiaRef.current;
+                for (const b of Array.from(
+                  caja.querySelectorAll<HTMLButtonElement>("button")
+                )) {
+                  const activo = b.dataset.escala === actual;
+                  b.style.border =
+                    "1px solid " + (activo ? "#10b981" : "rgba(0,0,0,0.15)");
+                  b.style.color = activo ? "#10b981" : "#334155";
+                  b.style.fontWeight = activo ? "600" : "400";
+                }
+              };
+              const botonEscala = (
+                escala: "auto" | "100k" | "50k",
+                etiqueta: string,
+                titulo: string
+              ) => {
+                const b = L.DomUtil.create("button", "", caja) as HTMLButtonElement;
+                b.type = "button";
+                b.dataset.escala = escala;
+                b.title = titulo;
+                b.textContent = etiqueta;
+                b.style.background = "transparent";
+                b.style.borderRadius = "4px";
+                b.style.padding = "1px 8px";
+                b.style.cursor = "pointer";
+                b.style.fontSize = "11px";
+                b.style.lineHeight = "1.4";
+                b.addEventListener("click", () => {
+                  seleccionarEscalaGeologia(escala);
+                  pintarBotones();
+                });
+                return b;
+              };
+              botonEscala("auto", "Auto", "Automático: cambia con el zoom");
+              botonEscala("100k", "100K", "Carta 1:100,000");
+              botonEscala("50k", "50K", "Carta 1:50,000");
+              pintarBotones();
+            }
           });
         });
 
@@ -640,6 +709,18 @@ export function MapaGeocatmin({
     // sin concesión, con zoom cercano) — así nunca se le pide a INGEMMET
     // un render 50K de media región, que es lo que lo vuelve lentísimo.
     const actualizarGeologia50 = () => {
+      // En modo manual (selector del panel) la escala queda fija: la 50K
+      // siempre encima en "50k", siempre fuera en "100k" — la cámara no
+      // la vuelve a cambiar hasta que se toca "Auto".
+      const manual = escalaGeologiaRef.current;
+      if (manual === "50k") {
+        if (!geologia.hasLayer(geologia50)) geologia.addLayer(geologia50);
+        return;
+      }
+      if (manual === "100k") {
+        if (geologia.hasLayer(geologia50)) geologia.removeLayer(geologia50);
+        return;
+      }
       const dentro = zona50
         ? zona50.contains(mapa.getBounds())
         : mapa.getZoom() >= 12;
@@ -649,6 +730,7 @@ export function MapaGeocatmin({
         geologia.removeLayer(geologia50);
       }
     };
+    actualizarGeologia50Ref.current = actualizarGeologia50;
     mapa.on("moveend", actualizarGeologia50);
     actualizarGeologia50();
 
