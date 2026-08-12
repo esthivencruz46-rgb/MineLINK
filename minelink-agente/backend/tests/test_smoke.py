@@ -1865,7 +1865,7 @@ def test_mapa_cotejo_no_revienta_si_el_pin_no_cae_en_concesion():
     operacion = db.query(models.Operacion).filter(models.Operacion.id == diag["id"]).first()
     operacion.datos_formalizacion_json = {
         **(operacion.datos_formalizacion_json or {}),
-        "_geocatmin": {"v": 7, "coords": "-12.5,-76.7", "concesion": None, "geologia": None},
+        "_geocatmin": {"v": 8, "coords": "-12.5,-76.7", "concesion": None, "geologia": None},
     }
     db.commit()
     db.close()
@@ -1998,7 +1998,7 @@ def test_ficha_publica_no_espera_a_geocatmin_ni_reinfo(monkeypatch):
     def geocatmin_falso(coords):
         llamadas["geocatmin"] += 1
         return {
-            "v": 7, "coords": coords, "consultado_en": hoy_iso,
+            "v": 8, "coords": coords, "consultado_en": hoy_iso,
             "concesion": None, "geologia": None, "geologia_50k": None,
             "fallas": None, "sedimentos": None, "restricciones": [], "anp": None,
         }
@@ -2077,7 +2077,7 @@ def test_anomalias_satelitales_se_generan_en_segundo_plano_y_se_sirven(monkeypat
     operacion.datos_formalizacion_json = {
         **(operacion.datos_formalizacion_json or {}),
         "_geocatmin": {
-            "v": 7, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
+            "v": 8, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
             "concesion": {"poligono": poligono_falso}, "geologia": None, "geologia_50k": None,
             "fallas": None, "sedimentos": None, "restricciones": [], "anp": None,
         },
@@ -2177,7 +2177,7 @@ def test_anomalias_satelitales_con_version_vieja_se_refresca_aunque_este_fresca(
     operacion.datos_formalizacion_json = {
         **(operacion.datos_formalizacion_json or {}),
         "_geocatmin": {
-            "v": 7, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
+            "v": 8, "coords": "-8.0,-77.5", "consultado_en": date.today().isoformat(),
             "concesion": {"poligono": poligono_falso}, "geologia": None, "geologia_50k": None,
             "fallas": None, "sedimentos": None, "restricciones": [], "anp": None,
         },

@@ -479,9 +479,11 @@ def _geocatmin_necesita_refresco(operacion: models.Operacion, coords: Optional[s
     if not coords:
         return False
     cache = (operacion.datos_formalizacion_json or {}).get("_geocatmin")
-    # v: cachés de un formato anterior (ej. sin sedimentos de quebrada) se
+    # v: cachés de un formato anterior (ej. sin sedimentos de quebrada, o
+    # con nombres de proyecto mal decodificados — v7 usaba latin-1 cuando el
+    # servicio manda UTF-8 real, mojibake "PerÃº" en vez de "Perú") se
     # reconsultan.
-    if not isinstance(cache, dict) or cache.get("coords") != coords or cache.get("v") != 7:
+    if not isinstance(cache, dict) or cache.get("coords") != coords or cache.get("v") != 8:
         return True
     try:
         consultado = date.fromisoformat(cache.get("consultado_en", ""))

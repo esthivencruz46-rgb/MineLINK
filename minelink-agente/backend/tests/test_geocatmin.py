@@ -23,13 +23,9 @@ import geocatmin
 
 
 class _RespuestaFalsa:
-    def __init__(self, data: dict):
+    def __init__(self, data: dict, encoding: str = "utf-8"):
         self._data = data
-        # _query_geometria_poligono / _query_cercania(latin1=True) parsean
-        # desde r.content decodificado latin-1 (no desde r.json()) — los
-        # datos de test son ASCII, así que el mismo JSON re-encodificado
-        # sirve para ambos caminos.
-        self.content = json.dumps(data).encode("latin-1")
+        self.content = json.dumps(data).encode(encoding)
 
     def raise_for_status(self):
         pass
@@ -50,6 +46,53 @@ def test_query_cercania_pasa_distancia_y_unidades():
     _, kwargs = mock_get.call_args
     assert kwargs["params"]["distance"] == geocatmin._DISTANCIA_FALLA_M
     assert kwargs["params"]["units"] == "esriSRUnit_Meter"
+
+
+def test_queries_de_sedimentos_respeta_acentos_utf8():
+    # Regresión real (agosto 2026, reportado en vivo): el servicio de
+    # geoquímica manda UTF-8 real y el decode latin-1 fijo corrompía los
+    # nombres ("ProspecciÃ³n GeoquÃ­mica" en vez de "Prospección
+    # Geoquímica"). `_json_de_respuesta` decodifica `r.content` como
+    # UTF-8 estricto (verificado en vivo contra los bytes crudos del
+    # servicio, que son \xc3\xb3 = "ó").
+    nombre = "GE-1: Prospección Geoquímica Regional entre los Paralelos 9° y 10° Latitud Sur –(Vertiente Atlántica)"
+    with patch("geocatmin.requests.get") as mock_get:
+        mock_get.return_value = _RespuestaFalsa(
+            {
+                "features": [
+                    {"attributes": {"CODIGO": "20i-207", "NOMBRE_PROYECTO": nombre}},
+                    {"geometry": {"x": -77.0, "y": -9.5}},
+                ]
+            }
+        )
+        por_poligono = geocatmin._query_geometria_poligono(
+            "SERV_GEOQUIMICA_2022", 0, [[[-77.0, -9.5], [-77.0, -9.4], [-76.9, -9.4]]], "CODIGO,NOMBRE_PROYECTO"
+        )
+        por_radio = geocatmin._query_cercania(
+            "SERV_GEOQUIMICA_2022", 0, -77.0, -9.5, "CODIGO,NOMBRE_PROYECTO",
+            distancia_m=5000, con_geometria=True,
+        )
+    assert por_poligono[0]["attributes"]["NOMBRE_PROYECTO"] == nombre
+    assert por_radio[0]["attributes"]["NOMBRE_PROYECTO"] == nombre
+    assert por_radio[1]["geometry"]["x"] == -77.0
+
+
+def test_queries_de_sedimentos_fallback_latin1():
+    # El mismo servicio llegó a responder latin-1 pese a declarar UTF-8
+    # (origen del "Per�" histórico en la capa de catastro). Un body latin-1
+    # NO es UTF-8 válido (los bytes 0xE9 de "ó" sueltos no son una
+    # secuencia UTF-8) — `_json_de_respuesta` cae al fallback y no deja
+    # U+FFFD en los nombres.
+    nombre = "GE-1: Prospecci\u00f3n Geoqu\u00edmica Regional"
+    with patch("geocatmin.requests.get") as mock_get:
+        mock_get.return_value = _RespuestaFalsa(
+            {"features": [{"attributes": {"CODIGO": "20i-207", "NOMBRE_PROYECTO": nombre}}]},
+            encoding="latin-1",
+        )
+        por_poligono = geocatmin._query_geometria_poligono(
+            "SERV_GEOQUIMICA_2022", 0, [[[-77.0, -9.5], [-77.0, -9.4], [-76.9, -9.4]]], "CODIGO,NOMBRE_PROYECTO"
+        )
+    assert por_poligono[0]["attributes"]["NOMBRE_PROYECTO"] == nombre
 
 
 def test_fallas_cercanas_prioriza_50k_si_hay_datos():
@@ -178,7 +221,7 @@ def test_consultar_incluye_fallas_en_el_resultado(monkeypatch):
         resultado = geocatmin.consultar("-12.5,-76.7")
 
     assert resultado is not None
-    assert resultado["v"] == 7
+    assert resultado["v"] == 8
     assert resultado["fallas"] == {
         "escala": "50k",
         "items": [{"nombre": "Falla X", "tipo": "Normal"}],

@@ -28,9 +28,12 @@ que el minero declaró, trae datos OFICIALES de registros públicos:
   polígono) con su distancia al pin. Es una capa de PUNTOS y los campos
   de elementos van como texto ("N.R." = no reportado, "<10" = límite de
   detección). El query usa la geometría poligonal de la concesión (no por
-  punto) y los nombres de proyecto del servicio vienen en latin-1 pese a
-  declarar UTF-8 — se decodifican a mano para no mostrar "Per�" en la
-  ficha (ver `_query_geometria_poligono`).
+  punto). La codificación de INGEMMET fue un problema real (agosto 2026):
+  hoy el servicio sirve UTF-8 real y un decode fijo latin-1 corrompía los
+  nombres ("ProspecciÃ³n GeoquÃ­mica"), pero la capa de catastro llegó a
+  servir latin-1 pese a declarar UTF-8 (el "Per�" histórico) — por eso
+  `_json_de_respuesta` intenta UTF-8 estricto y solo cae a latin-1 cuando
+  el body no es UTF-8 válido (ver ahí y `_query_geometria_poligono`).
 
 Es "best effort", igual que geoubicacion.py: si INGEMMET no responde se
 devuelve None y el caller conserva lo último cacheado — la ficha pública
@@ -94,9 +97,8 @@ _MAX_FALLAS = 5
 # capa 0) — capa de PUNTOS, los elementos van como texto ("N.R." = no
 # reportado, "<10" = límite de detección). El query se hace con la
 # geometría POLIGONAL de la concesión (no por punto como las demás): lo
-# primero que interesa es qué muestras caen DENTRO del polígono. Los
-# nombres de proyecto del servicio vienen en latin-1 pese a declarar
-# UTF-8 — ver `_query_geometria_poligono`.
+# primero que interesa es qué muestras caen DENTRO del polígono. La
+# codificación la resuelve `_json_de_respuesta` (ver ahí).
 _CAMPOS_LEY_SEDIMENTO = (
     "AU_PPB",
     "AU_PPM",
@@ -144,6 +146,24 @@ def _nombre_de(attrs: dict) -> Optional[str]:
     return None
 
 
+def _json_de_respuesta(r) -> dict:
+    """JSON de la respuesta de INGEMMET tolerando la codificación real del
+    servicio (agosto 2026, verificado en vivo). Hoy SERV_GEOQUIMICA_2022
+    sirve UTF-8 real — `r.json()` lo decodifica bien, mientras que un
+    decode fijo latin-1 corrompía los nombres de proyecto en la ficha
+    ("ProspecciÃ³n GeoquÃ­mica" en vez de "Prospección Geoquímica").
+    Pero INGEMMET ya mostró servido latin-1 pese a declarar UTF-8 (la capa
+    de catastro, origen del "Per�" histórico que derivó en el latin-1
+    fijo): si el body no es UTF-8 válido se decodifica latin-1. ASCII
+    decodifica igual en ambas, así que el fallback nunca altera respuestas
+    que no tienen acentos. Nunca se usa `r.json()` (requests decodifica
+    con errors="replace" según su heurística, no distingue estos casos)."""
+    try:
+        return json.loads(r.content.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return json.loads(r.content.decode("latin-1"))
+
+
 def _query_punto(
     servicio: str,
     capa: int,
@@ -169,7 +189,7 @@ def _query_punto(
         timeout=timeout,
     )
     r.raise_for_status()
-    features = r.json().get("features") or []
+    features = _json_de_respuesta(r).get("features") or []
     return features[0] if features else None
 
 
@@ -182,7 +202,6 @@ def _query_cercania(
     distancia_m: int = _DISTANCIA_FALLA_M,
     timeout: int = _TIMEOUT_FALLAS,
     con_geometria: bool = False,
-    latin1: bool = False,
 ) -> list[dict]:
     """Como `_query_punto` pero para capas de LÍNEA (fallas): busca todo lo
     que esté dentro de un radio, no una intersección exacta — una falla
@@ -191,9 +210,8 @@ def _query_cercania(
     respeta `distance`/`units` (no todos los ArcGIS Server antiguos lo
     hacen). `con_geometria`: devolver la posición de cada feature (lo
     necesitan las muestras de sedimentos para calcular su distancia al
-    pin). `latin1`: parsear el JSON desde `r.content` decodificado en
-    latin-1 (mismo problema de encoding que `_query_geometria_poligono`)
-    en vez de `r.json()`."""
+    pin). Se parsea con `_json_de_respuesta` (tolerante al encoding real
+    del servicio, ver ahí)."""
     r = requests.get(
         f"{_BASE}/{servicio}/MapServer/{capa}/query",
         params={
@@ -211,9 +229,7 @@ def _query_cercania(
         timeout=timeout,
     )
     r.raise_for_status()
-    if latin1:
-        return json.loads(r.content.decode("latin-1")).get("features") or []
-    return r.json().get("features") or []
+    return _json_de_respuesta(r).get("features") or []
 
 
 _CAPA_FALLAS_POR_ESCALA = {
@@ -290,10 +306,9 @@ def _query_geometria_poligono(
     concesión. `distancia_m`: buffer en metros alrededor del polígono
     (verificado en vivo, agosto 2026, que los servicios de INGEMMET sí
     respetan `distance`/`units` con geometría poligonal, igual que con
-    punto). Parsea el JSON desde `r.content` decodificado en latin-1: el
-    header del servidor declara UTF-8 pero el body va en latin-1, y
-    `requests` lo deja con U+FFFD (mojibake real en los nombres de
-    proyecto de geoquímica, ej. "Per�" en vez de "Perú")."""
+    punto). Se parsea con `_json_de_respuesta` (tolerante al encoding real
+    del servicio — verificado en vivo agosto 2026 que el body de
+    SERV_GEOQUIMICA_2022 es UTF-8 real)."""
     params: dict = {
         "geometry": json.dumps({"rings": poligono, "spatialReference": {"wkid": 4326}}),
         "geometryType": "esriGeometryPolygon",
@@ -310,8 +325,7 @@ def _query_geometria_poligono(
         f"{_BASE}/{servicio}/MapServer/{capa}/query", params=params, timeout=timeout
     )
     r.raise_for_status()
-    data = json.loads(r.content.decode("latin-1"))
-    return data.get("features") or []
+    return _json_de_respuesta(r).get("features") or []
 
 
 def _muestra_sedimento(feature: dict, con_posicion: bool = False) -> dict:
@@ -420,7 +434,6 @@ def _sedimentos_en_zona(lng: float, lat: float, poligono: Optional[list]) -> Opt
                         _SEDIMENTOS_OUT_FIELDS,
                         distancia_m=_DISTANCIA_SEDIMENTOS_M,
                         con_geometria=True,
-                        latin1=True,
                     ),
                     lng,
                     lat,
@@ -437,7 +450,6 @@ def _sedimentos_en_zona(lng: float, lat: float, poligono: Optional[list]) -> Opt
             _SEDIMENTOS_OUT_FIELDS,
             distancia_m=_DISTANCIA_SEDIMENTOS_M,
             con_geometria=True,
-            latin1=True,
         )
     except requests.RequestException:
         return None
@@ -465,8 +477,11 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
         # que los cachés viejos se reconsulten solos (v4: + geología 50K;
         # v5: anp explícito {zona:"fuera"} en vez de quedar en null;
         # v6: + fallas geológicas cercanas, 50K con reserva a 100K;
-        # v7: + sedimentos de quebrada dentro del polígono o cercanas).
-        "v": 7,
+        # v7: + sedimentos de quebrada dentro del polígono o cercanas;
+        # v8: decode de nombres real (UTF-8 de INGEMMET, ver
+        #     `_json_de_respuesta`) — los cachés v7 quedaron con mojibake
+        #     ("ProspecciÃ³n GeoquÃ­mica").
+        "v": 8,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
