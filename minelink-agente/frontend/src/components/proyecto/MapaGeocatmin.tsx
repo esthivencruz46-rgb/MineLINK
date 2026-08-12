@@ -447,6 +447,54 @@ export function MapaGeocatmin({
       return `<strong>${props.LEYENDA}</strong>${concesion}<br/><span style="font-size:11px;color:#64748b">GEOCATMIN · INGEMMET</span>`;
     });
 
+    // Sedimentos de quebrada — geoquímica de INGEMMET (agosto 2026, pedido
+    // explícito de Esthiven): muestras de sedimentos de corriente con su
+    // análisis químico (Au, Ag, Cu, Pb, Zn, As, ...). Es una capa de PUNTOS
+    // (Feature Layer), pero igual que las demás se pide como export de
+    // imagen del MapServer (`f:"image"`) porque el servidor no envía CORS;
+    // el clic recupera los valores vía query de feature del propio
+    // dynamicMapLayer (mismo patrón que anomalias/libreDenuncio).
+    const sedimentosQuebrada = dynamicMapLayer({
+      url: `${GEOCATMIN}/SERV_GEOQUIMICA_2022/MapServer`,
+      layers: [0],
+      opacity: 0.95,
+      f: "image",
+      useCors: false,
+      pane: "geologiaPane",
+      zIndex: 24,
+      minZoom: 12,
+      attribution: "GEOCATMIN · INGEMMET",
+    });
+    // Popup con las leyes del punto: se listan solo los elementos con valor
+    // analizado (los que INGEMMET trae como "N.R." o vacíos no se muestran).
+    sedimentosQuebrada.bindPopup((_error: unknown, featureCollection: any) => {
+      const p = featureCollection?.features?.[0]?.properties;
+      if (!p) return false;
+      const fila = (k: string, v: string) =>
+        `<div style="display:flex;justify-content:space-between;gap:12px;font-size:12px;line-height:1.6">
+           <span style="color:#64748b">${k}</span><strong>${v}</strong>
+         </div>`;
+      const valores = (
+        [
+          ["Au (ppb)", p.AU_PPB],
+          ["Au (ppm)", p.AU_PPM],
+          ["Ag (ppm)", p.AG_PPM],
+          ["Cu (ppm)", p.CU_PPM],
+          ["Pb (ppm)", p.PB_PPM],
+          ["Zn (ppm)", p.ZN_PPM],
+          ["As (ppm)", p.AS_PPM],
+          ["Sb (ppm)", p.SB_PPM],
+          ["Sn (ppm)", p.SN_PPM],
+          ["Mo (ppm)", p.MO_PPM],
+        ] as [string, string][]
+      ).filter((par) => par[1] != null && par[1] !== "" && par[1] !== "N.R.");
+      const titulo = p.NOMBRE_PROYECTO || p.CODIGO || "Sedimento de quebrada";
+      return `<strong style="font-size:12px">${titulo}</strong>
+              ${p.CODIGO ? `<div style="font-size:11px;color:#64748b">Muestra ${p.CODIGO}</div>` : ""}
+              <div style="margin:4px 0">${valores.map(([k, v]) => fila(k, v)).join("")}</div>
+              <span style="font-size:11px;color:#64748b">Geoquímica INGEMMET · sedimentos de quebrada</span>`;
+    });
+
     // Anomalías espectrales minerales de Copernicus sobre el polígono REAL
     // de la concesión (julio 2026, pedido explícito de Esthiven tras el
     // experimento aislado con Sentinel-2) — 4 índices + 1 combinado. A
@@ -549,6 +597,7 @@ export function MapaGeocatmin({
                   ["qicimi", "Índices minerales QICIMI"],
                   ["anomalia_espectral", "Anomalías espectrales"],
                   ["libre_denuncio", "Libre denuncio / aviso de retiro (~20km)"],
+                  ["sedimentos_quebrada", "Sedimentos de quebrada (geoquímica)"],
                 ],
               },
             ],
@@ -796,6 +845,7 @@ export function MapaGeocatmin({
       qicimi,
       anomalia_espectral: anomalias,
       libre_denuncio: libreDenuncio,
+      sedimentos_quebrada: sedimentosQuebrada,
       ...overlaysAnomalias,
     };
 
