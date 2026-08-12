@@ -167,7 +167,12 @@ function catalogoCapas(opts: {
     // y libre denuncio quedan solo en el mapa 2D — en 3D lo importante son
     // las capas geológicas y las anomalías de Copernicus.
     push("geologia", "Geología y fallas", "Geología (100K)", conVersion(`${base}/capa-3d/geologia.png`), opts.bbox, 0.6, true);
-    push("fallas", "Geología y fallas", "Fallas geológicas cercanas", conVersion(`${base}/capa-3d/fallas.png`), opts.bbox, 0.9, true);
+    // Las fallas solo se ofrecen si el backend confirmó que hay cerca a
+    // alguna escala (mismo criterio que el panel 2D, MapaGeocatmin) — si
+    // no, el endpoint devuelve 404 y el panel 3D mostraría la capa rota.
+    if (opts.escalaFallas) {
+      push("fallas", "Geología y fallas", "Fallas geológicas cercanas", conVersion(`${base}/capa-3d/fallas.png`), opts.bbox, 0.9, true);
+    }
   }
   if (opts.anomaliasSatelitales) {
     const [xmin, ymin, xmax, ymax] = opts.anomaliasSatelitales.bbox;
@@ -301,6 +306,12 @@ export function Mapa3D({
 
   // Agrega la capa al mapa, SIEMPRE después de precargar la imagen (ver
   // arriba). El `beforeId: "pin"` la deja por debajo del polígono y el pin.
+  // Se usa `type: "image"` con las 4 esquinas del bbox (no un raster con
+  // `tiles: [url]`): con MapLibre ≥5 el source de imagen se drapea sobre
+  // la malla de terreno y queda confinado a su bbox. El patrón raster con
+  // URL única (sin {z}/{x}/{y}) estiraba la imagen por TODO el terreno
+  // visible en 3D y por toda la pantalla en 2D (bug real agosto 2026,
+  // verificado por píxeles) — no hay forma de colocarla bien así.
   async function cargarCapa(id: string): Promise<boolean> {
     const mapa = mapaRef.current;
     if (!mapa) return false;
@@ -313,12 +324,18 @@ export function Mapa3D({
       return false;
     }
     try {
+      // bbox es [oeste, sur, este, norte] — las 4 esquinas en el orden que
+      // MapLibre espera (top-left, top-right, bottom-right, bottom-left).
+      const [oeste, sur, este, norte] = capa.bbox;
       mapa.addSource(id, {
-        type: "raster",
-        tiles: [capa.url],
-        tileSize: 1000,
-        bounds: capa.bbox,
-        maxzoom: 24,
+        type: "image",
+        url: capa.url,
+        coordinates: [
+          [oeste, norte],
+          [este, norte],
+          [este, sur],
+          [oeste, sur],
+        ],
       });
       try {
         mapa.addLayer(

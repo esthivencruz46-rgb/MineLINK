@@ -263,3 +263,12 @@ NO-CORS necesita un parámetro de versión para invalidar la variante
 cacheada de los clientes ya existentes — el fix del código no alcanza si
 la caché del navegador ya guardó la variante vieja.
 **Estado:** RESUELTO
+
+---
+
+## 2026-08-11 - Capas geologicas del 3D se estiraban por todo el terreno (raster con tiles: [url] unica) y fix con MapLibre 5 + type:image
+**Sintoma:** estando ya resueltos los 404/CORS, Esthiven reporto "las capas geologicas no se estan colocando bien en el 3D Map": la geologia pintaba TODO el terreno visible en 3D (y toda la pantalla en 2D) en vez de quedarse dentro del bbox de la concesion.
+**Causa raiz:** cargarCapa de Mapa3D.tsx agregaba el overlay con 	ype:"raster", tiles:[urlUnica], tileSize:1000, bounds. Sin placeholders {z}/{x}/{y}, MapLibre repite/estira esa imagen unica por toda la extension visible (verificado por pixeles: diff cubria 888k de 1.15M pixeles, incluido 546k fuera del bbox). Ademas, en v4.7.1 el patron canonico 	ype:"image" con 4 esquinas tenia bugs de drapeo sobre terreno (#1559/#4088/#5149, arreglados recien en v5, PR #5598): en 3D la capa image-source quedaba desplazada/fragmentada (64% de cobertura del poligono). Ninguna de las dos opciones funcionaba bien en 4.7.1.
+**Solucion aplicada:** (1) maplibre-gl 4.7.1 -> ^5.7.1 (instalo 5.24.0; v5 usa el pipeline de terreno de 4.x, que funciona en GPUs reales � el pipeline roto que motivo el revert de v6 en commit dff53ed es solo de v6); (2) cargarCapa ahora usa 	ype:"image" con coordinates = 4 esquinas del bbox [oeste,sur,este,norte] en orden TL,TR,BR,BL. Verificado por pixeles en repro headless: cobertura del poligono 97.8%, capa confinada al bbox. De paso se gateo la capa "fallas" con escalaFallas (como en el 2D): antes se ofrecia SIEMPRE y cuando el backend no confirma fallas la capa quedaba rota (404).
+**Como evitarlo:** para superponer una imagen unica georreferenciada en MapLibre con terreno usar SIEMPRE 	ype:"image" + coordinates (nunca raster con URL de tile unica), y mantener MapLibre >= 5 (drapeo de image-sources roto en 4.x).
+**Estado:** RESUELTO � build pasa; falta push a main (0ec4c65 y de3a1d5 del fix de cache siguen sin pushear).
