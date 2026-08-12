@@ -1097,14 +1097,15 @@ def catastro_analisis_proyecto(operacion_id: str, db: Session = Depends(get_db))
 
 @router.get("/{operacion_id}/capa-3d/{capa}.png")
 def capa_3d_proyecto(operacion_id: str, capa: str, db: Session = Depends(get_db)):
-    """UNA capa de GEOCATMIN (catastro, geología, fallas, ASTER 9-3-1,
-    QICIMI, anomalía espectral o libre denuncio) en PNG TRANSPARENTE sobre
-    el mismo bbox ajustado al polígono que la galería de análisis — para
-    que el panel de capas de la vista 3D (Mapa3D.tsx) replique el catálogo
-    del mapa 2D, con cada capa superpuesta por separado sobre el terreno.
-    Se genera al vuelo en cada pedido (llamadas gratis a ArcGIS, igual que
-    mapa-cotejo.jpg) y el navegador lo cachea 24h. Best-effort: 404 si la
-    capa no existe o falló (la vista 3D sigue con satélite + polígono)."""
+    """UNA capa de GEOCATMIN (catastro, geología, geología 1:50,000, fallas,
+    ASTER 9-3-1, QICIMI, anomalía espectral o libre denuncio) en PNG
+    TRANSPARENTE sobre el mismo bbox ajustado al polígono que la galería de
+    análisis — para que el panel de capas de la vista 3D (Mapa3D.tsx)
+    replique el catálogo del mapa 2D, con cada capa superpuesta por
+    separado sobre el terreno. Se genera al vuelo en cada pedido (llamadas
+    gratis a ArcGIS, igual que mapa-cotejo.jpg) y el navegador lo cachea
+    24h. Best-effort: 404 si la capa no existe o falló (la vista 3D sigue
+    con satélite + polígono)."""
     lead, operacion = _lead_y_operacion_visibles(db, operacion_id)
     cache_geocatmin = (operacion.datos_formalizacion_json or {}).get("_geocatmin") or {}
     poligono = (cache_geocatmin.get("concesion") or {}).get("poligono")

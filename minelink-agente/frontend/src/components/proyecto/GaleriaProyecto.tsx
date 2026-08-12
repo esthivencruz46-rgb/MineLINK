@@ -73,6 +73,16 @@ export function GaleriaProyecto({
   const concesion = geocatmin?.concesion;
   const fallas = geocatmin?.fallas;
 
+  // Escala a la que INGEMMET tiene carta de geología en el punto (agosto
+  // 2026): la 50K solo existe donde hay carta a esa escala (el backend solo
+  // la guarda si la consulta encontró cobertura). Si no, la 3D se queda con
+  // la 100K única, igual que el mapa 2D cuando se aleja.
+  const geologiaEscala: "50k" | "100k" =
+    geocatmin?.geologia_50k &&
+    (geocatmin.geologia_50k.litologia || geocatmin.geologia_50k.descripcion)
+      ? "50k"
+      : "100k";
+
   // Bloque de UBICACIÓN: el mapa a todo lo ancho, con altura propia fija
   // (no depende de cuántas fotos haya).
   const bloqueUbicacion = ubicacionCoords ? (
@@ -84,6 +94,7 @@ export function GaleriaProyecto({
         // confirmada — con items=[] (verificado, sin fallas cerca) no se
         // manda nada al mapa, para no insinuar un riesgo que no existe.
         escalaFallas={fallas && fallas.items.length > 0 ? fallas.escala : null}
+        geologiaEscala={geologiaEscala}
         anomaliasSatelitales={anomaliasSatelitales}
         proyectoId={proyectoId}
       />

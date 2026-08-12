@@ -100,6 +100,48 @@ function bboxOverlay(
   return [lng - medio, lat - medio, lng + medio, lat + medio];
 }
 
+// Zona acotada donde se muestra la geología 50K, espejo del mapa 2D
+// (MapaGeocatmin: `poligono.getBounds().pad(1.1)`, ≈ ×10 el área de la
+// concesión): con la cámara DENTRO de esa zona se usa la 50K; fuera, la
+// 100K. Sin polígono cae a un umbral de zoom (igual que el 2D sin
+// concesión usa `mapa.getZoom() >= 12`). MapLibre no trae `pad()` de
+// LngLatBounds (ese es Leaflet), así que el margen se calcula a mano.
+function zona50DePoligono(
+  poligono?: number[][][] | null
+): maplibregl.LngLatBounds | null {
+  if (!poligono || poligono.length === 0) return null;
+  const bounds = new maplibregl.LngLatBounds();
+  for (const anillo of poligono) {
+    for (const punto of anillo) {
+      if (Array.isArray(punto) && punto.length >= 2) {
+        bounds.extend([punto[0], punto[1]]);
+      }
+    }
+  }
+  if (bounds.isEmpty()) return null;
+  const lngSpan = bounds.getEast() - bounds.getWest();
+  const latSpan = bounds.getNorth() - bounds.getSouth();
+  return new maplibregl.LngLatBounds(
+    [bounds.getWest() - lngSpan * 1.1, bounds.getSouth() - latSpan * 1.1],
+    [bounds.getEast() + lngSpan * 1.1, bounds.getNorth() + latSpan * 1.1]
+  );
+}
+
+// ¿La vista del mapa cabe COMPLETA dentro de la zona 50K? (misma semántica
+// que `zona50.contains(mapa.getBounds())` de Leaflet en el 2D — MapLibre
+// no acepta un LngLatBounds en `contains`).
+function vistaDentroDe(
+  zona50: maplibregl.LngLatBounds,
+  vista: maplibregl.LngLatBounds
+): boolean {
+  return (
+    vista.getNorth() <= zona50.getNorth() &&
+    vista.getSouth() >= zona50.getSouth() &&
+    vista.getEast() <= zona50.getEast() &&
+    vista.getWest() >= zona50.getWest()
+  );
+}
+
 // Nombre tecnico -> etiqueta legible para el panel de capas (mismo
 // orden/nombres que backend/copernicus.py NOMBRES_CAPAS y que el panel del
 // mapa 2D — duplicado acá a propósito, ver MapaGeocatmin.tsx).
@@ -125,6 +167,10 @@ interface CapaDef {
   bbox: [number, number, number, number];
   opacidad: number;
   porDefecto: boolean;
+  /** Variante 50K (solo geología): la capa alterna entre `url` (100K) y
+   * esta según la cámara — dentro de la zona de la concesión → 50K;
+   * alejada → 100K. Espejo del apilado 100K+50K del mapa 2D. */
+  url50k?: string;
 }
 
 // Versión de las URLs de capas 3D: subirla cada vez que cambie la forma de
@@ -145,6 +191,7 @@ function catalogoCapas(opts: {
   proyectoId?: string;
   bbox?: [number, number, number, number] | null;
   escalaFallas?: "50k" | "100k" | null;
+  geologiaEscala?: "50k" | "100k";
   anomaliasSatelitales?: AnomaliasSatelitales | null;
 }): CapaDef[] {
   const capas: CapaDef[] = [];
@@ -166,7 +213,14 @@ function catalogoCapas(opts: {
     // agosto 2026): catastro minero, ASTER, QICIMI, anomalías espectrales
     // y libre denuncio quedan solo en el mapa 2D — en 3D lo importante son
     // las capas geológicas y las anomalías de Copernicus.
-    push("geologia", "Geología y fallas", "Geología (100K)", conVersion(`${base}/capa-3d/geologia.png`), opts.bbox, 0.6, true);
+    push("geologia", "Geología y fallas", "Geología", conVersion(`${base}/capa-3d/geologia.png`), opts.bbox, 0.6, true);
+    // Si INGEMMET tiene carta 50K en el punto, la geología alterna con la
+    // 100K según la cámara (mismo comportamiento que el 2D apilado). La
+    // etiqueta es "Geología" a secas porque la escala cambia sola.
+    const ultima = capas[capas.length - 1];
+    if (ultima && ultima.id === "geologia" && opts.geologiaEscala === "50k") {
+      ultima.url50k = conVersion(`${base}/capa-3d/geologia_50k.png`);
+    }
     // Las fallas solo se ofrecen si el backend confirmó que hay cerca a
     // alguna escala (mismo criterio que el panel 2D, MapaGeocatmin) — si
     // no, el endpoint devuelve 404 y el panel 3D mostraría la capa rota.
@@ -211,11 +265,52 @@ function precargarImagen(url: string): Promise<void> {
   });
 }
 
+// Precarga la imagen y responde si trae algo PINTADO (algún píxel no
+// transparente). Para el swap 100K→50K de la geología: si INGEMMET no
+// tiene carta 50K en esa zona el export sale transparente (vacío), y
+// cambiarla dejaría la geología en blanco — mejor quedarse con la 100K.
+// Best-effort: si no se puede inspeccionar (CORS/canvas tainted), asume
+// que sí hay contenido.
+function imagenTieneContenido(url: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth || 1;
+        canvas.height = img.naturalHeight || 1;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        if (!ctx) {
+          resolve(true);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const datos = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        // Se muestrea el canal alfa cada ~64 píxeles: suficiente para saber
+        // si hay contenido y barato para una imagen de ~1 MP.
+        for (let i = 3; i < datos.length; i += 256) {
+          if (datos[i] > 0) {
+            resolve(true);
+            return;
+          }
+        }
+        resolve(false);
+      } catch {
+        resolve(true);
+      }
+    };
+    img.onerror = () => reject(new Error(`no se pudo cargar ${url}`));
+    img.src = url;
+  });
+}
+
 export function Mapa3D({
   coords,
   poligonoConcesion,
   proyectoId,
   escalaFallas,
+  geologiaEscala,
   anomaliasSatelitales,
   capasActivas,
   onCambiarCapa,
@@ -231,6 +326,11 @@ export function Mapa3D({
   /** Escala a la que el backend confirmó fallas cercanas — solo entonces se
    * ofrece la capa "Fallas", mismo criterio que el panel 2D. */
   escalaFallas?: "50k" | "100k" | null;
+  /** Escala a la que INGEMMET tiene carta de GEOLOGÍA en el punto (agosto
+   * 2026): con "50k" la capa de geología alterna 100K↔50K según la cámara
+   * (dentro de la zona de la concesión → 50K; alejada → 100K) — espejo
+   * del apilado 100K+50K del mapa 2D. Con "100k" queda la 100K única. */
+  geologiaEscala?: "50k" | "100k";
   /** Anomalías espectrales de Copernicus sobre el polígono real — mismas
    * URLs/bbox que el mapa 2D (ver MapaGeocatmin). */
   anomaliasSatelitales?: AnomaliasSatelitales | null;
@@ -245,6 +345,17 @@ export function Mapa3D({
   const contenedorRef = useRef<HTMLDivElement>(null);
   const mapaRef = useRef<maplibregl.Map | null>(null);
   const capasRef = useRef<CapaDef[]>([]);
+  // Zona de la concesión donde vale la 50K (polígono pad 1.1) — se llena en
+  // el effect del mapa, se lee desde `cargarCapa` (carga inicial de la capa)
+  // y desde el listener de `moveend` (swap 100K↔50K al mover la cámara).
+  const zona50Ref = useRef<maplibregl.LngLatBounds | null>(null);
+  // URL de geología activa en el source (100K o 50K) — se actualiza en cada
+  // swap para no volver a cambiar la misma imagen.
+  const urlGeologiaRef = useRef<string>("");
+  // Espejo de `geologiaEscala` para leerlo en callbacks que no son effects
+  // (no debe recrear el mapa).
+  const geologiaEscalaRef = useRef(geologiaEscala);
+  geologiaEscalaRef.current = geologiaEscala;
   // Espejo de `capasActivas` para leerlo dentro del effect del mapa sin
   // meterlo en sus deps (cambiar capas no debe recrear el mapa).
   const capasActivasRef = useRef(capasActivas);
@@ -268,9 +379,10 @@ export function Mapa3D({
         proyectoId,
         bbox,
         escalaFallas,
+        geologiaEscala,
         anomaliasSatelitales,
       }),
-    [proyectoId, bbox, escalaFallas, anomaliasSatelitales]
+    [proyectoId, bbox, escalaFallas, geologiaEscala, anomaliasSatelitales]
   );
   capasRef.current = capas;
 
@@ -304,6 +416,48 @@ export function Mapa3D({
     }
   }
 
+  // URL de geología según la cámara: con carta 50K disponible y la vista
+  // DENTRO de la zona de la concesión → 50K; fuera (o sin carta 50K) →
+  // 100K. Espejo del `actualizarGeologia50` del mapa 2D (zona pad 1.1 o
+  // zoom ≥ 12 sin concesión).
+  function urlGeologiaActiva(): string {
+    const capa = capasRef.current.find((c) => c.id === "geologia");
+    if (!capa) return "";
+    const mapa = mapaRef.current;
+    if (capa.url50k && geologiaEscalaRef.current === "50k" && mapa) {
+      const zona50 = zona50Ref.current;
+      const dentro = zona50 ? vistaDentroDe(zona50, mapa.getBounds()) : mapa.getZoom() >= 12;
+      if (dentro) return capa.url50k;
+    }
+    return capa.url;
+  }
+
+  // Cambia la imagen del source de geología (100K↔50K) sin recrear la capa.
+  // Devuelve true si quedó en la URL pedida.
+  function cambiarImagenGeologia(url: string, bbox: [number, number, number, number]): boolean {
+    const mapa = mapaRef.current;
+    if (!mapa) return false;
+    if (url === urlGeologiaRef.current) return true;
+    try {
+      const source = mapa.getSource<maplibregl.ImageSource>("geologia");
+      if (!source) return false;
+      const [oeste, sur, este, norte] = bbox;
+      source.updateImage({
+        url,
+        coordinates: [
+          [oeste, norte],
+          [este, norte],
+          [este, sur],
+          [oeste, sur],
+        ],
+      });
+      urlGeologiaRef.current = url;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   // Agrega la capa al mapa, SIEMPRE después de precargar la imagen (ver
   // arriba). El `beforeId: "pin"` la deja por debajo del polígono y el pin.
   // Se usa `type: "image"` con las 4 esquinas del bbox (no un raster con
@@ -318,8 +472,31 @@ export function Mapa3D({
     const capa = capasRef.current.find((c) => c.id === id);
     if (!capa) return false;
     if (mapa.getSource(id)) return true;
+    // La geología arranca con la escala que le corresponda a la cámara
+    // actual (100K o 50K) — el swap posterior lo hace `moveend`. La 50K
+    // inicial se verifica igual que el swap: si el export salió
+    // transparente (sin carta ahí) se cae a la 100K en vez de arrancar
+    // con una geología en blanco.
+    let urlInicial = id === "geologia" ? urlGeologiaActiva() : capa.url;
+    if (!urlInicial) return false;
     try {
-      await precargarImagen(capa.url);
+      if (id === "geologia" && capa.url50k && urlInicial === capa.url50k) {
+        // La 50K falla (404) o sale transparente (sin carta ahí) → respaldo
+        // a la 100K; nunca dejar la geología sin cargar por culpa de la 50K.
+        let tiene = false;
+        try {
+          tiene = await imagenTieneContenido(urlInicial);
+        } catch {
+          tiene = false;
+        }
+        if (!tiene) {
+          urlInicial = capa.url;
+          await precargarImagen(urlInicial);
+        }
+      } else {
+        await precargarImagen(urlInicial);
+      }
+      urlGeologiaRef.current = urlInicial;
     } catch {
       return false;
     }
@@ -329,7 +506,7 @@ export function Mapa3D({
       const [oeste, sur, este, norte] = capa.bbox;
       mapa.addSource(id, {
         type: "image",
-        url: capa.url,
+        url: urlInicial,
         coordinates: [
           [oeste, norte],
           [este, norte],
@@ -488,6 +665,11 @@ export function Mapa3D({
     }
     mapaRef.current = mapa;
     let desmontado = false;
+
+    // Zona donde se muestra la geología 50K (polígono pad 1.1, espejo del
+    // 2D) — la leen `urlGeologiaActiva` (carga de la capa) y el listener de
+    // `moveend` (swap 100K↔50K al mover la cámara).
+    zona50Ref.current = zona50DePoligono(poligonoConcesion);
 
     // Relieve + inclinación de cámara. Se activan en el primer `load` o
     // por el temporizador de respaldo (2.5s), lo que llegue primero —
@@ -738,18 +920,58 @@ export function Mapa3D({
       "bottom-right"
     );
 
+    // Swap 100K↔50K de la geología con la cámara (agosto 2026, espejo del
+    // `actualizarGeologia50` del mapa 2D): con la vista DENTRO de la zona
+    // de la concesión se usa la carta 50K (más detalle); fuera, la 100K.
+    // Se evalúa en `moveend` (fin del pan/zoom), no en cada frame. La 50K
+    // se precarga y se verifica que traiga algo pintado antes de cambiar:
+    // si INGEMMET no tiene carta ahí el export sale transparente y conviene
+    // quedarse con la 100K (que sí cubre todo el país).
+    const actualizarGeologia50 = () => {
+      if (desmontado) return;
+      const capa = capasRef.current.find((c) => c.id === "geologia");
+      if (!capa?.url50k || !mapaRef.current) return;
+      let tieneSource = false;
+      try {
+        tieneSource = !!mapaRef.current.getSource("geologia");
+      } catch {
+        tieneSource = false;
+      }
+      if (!tieneSource) return;
+      const nueva = urlGeologiaActiva();
+      if (!nueva || nueva === urlGeologiaRef.current) return;
+      // Volver a 100K: se cambia apenas precargue. Ir a 50K: se cambia
+      // solo si de verdad tiene contenido (la 100K queda de respaldo).
+      const aplicar = () => {
+        const m = mapaRef.current;
+        const c = capasRef.current.find((x) => x.id === "geologia");
+        if (desmontado || !m || !c) return;
+        if (urlGeologiaRef.current === nueva) return;
+        cambiarImagenGeologia(nueva, c.bbox);
+      };
+      if (nueva === capa.url) {
+        precargarImagen(nueva).then(aplicar).catch(() => {});
+      } else {
+        imagenTieneContenido(nueva).then((tiene) => {
+          if (tiene) aplicar();
+        }).catch(() => {});
+      }
+    };
+    mapa.on("moveend", actualizarGeologia50);
+
     return () => {
       desmontado = true;
       clearTimeout(timerRelieve);
       if (timerEstilo) clearTimeout(timerEstilo);
       if (timerRespaldo) clearTimeout(timerRespaldo);
+      mapa.off("moveend", actualizarGeologia50);
       mapa.remove();
       mapaRef.current = null;
       setCapasListas(false);
       setCapasError({});
       setCapasCargando({});
     };
-  }, [coords, poligonoConcesion, proyectoId, escalaFallas, anomaliasSatelitales]);
+  }, [coords, poligonoConcesion, proyectoId, escalaFallas, geologiaEscala, anomaliasSatelitales]);
 
   return (
     <div className="mapa-geocatmin relative h-full w-full" style={{ minHeight: "16rem" }}>

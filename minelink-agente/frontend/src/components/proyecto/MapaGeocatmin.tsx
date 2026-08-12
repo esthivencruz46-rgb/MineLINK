@@ -60,6 +60,7 @@ export function MapaGeocatmin({
   coords,
   poligonoConcesion,
   escalaFallas,
+  geologiaEscala,
   anomaliasSatelitales,
   proyectoId,
 }: {
@@ -72,6 +73,11 @@ export function MapaGeocatmin({
    * "50k" | "100k" | null/undefined si no hay ninguna que dibujar. Nunca
    * ambas juntas — mismo criterio que backend/geocatmin.py. */
   escalaFallas?: "50k" | "100k" | null;
+  /** Escala a la que INGEMMET tiene carta de GEOLOGÍA en el punto (agosto
+   * 2026): "50k" solo si el backend confirmó cobertura a esa escala. La
+   * vista 3D la usa para alternar 100K ↔ 50K con el zoom (mismo
+   * comportamiento que las dos capas apiladas del 2D). */
+  geologiaEscala?: "50k" | "100k";
   /** Anomalías espectrales minerales de Copernicus sobre el polígono real
    * de la concesión (julio 2026, ver backend/copernicus.py) — bbox +
    * URLs de las 5 capas (4 índices + combinado). null/undefined = sin
@@ -729,6 +735,7 @@ export function MapaGeocatmin({
             poligonoConcesion={poligonoConcesion}
             proyectoId={proyectoId}
             escalaFallas={escalaFallas}
+            geologiaEscala={geologiaEscala}
             anomaliasSatelitales={anomaliasSatelitales}
             capasActivas={capasActivas}
             onCambiarCapa={cambiarCapa}

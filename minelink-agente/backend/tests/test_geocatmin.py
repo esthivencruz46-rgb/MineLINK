@@ -454,6 +454,28 @@ def test_capa_overlay_3d_usa_el_mismo_bbox_que_el_analisis(monkeypatch):
     assert tamano_capa == tamano
 
 
+def test_capa_overlay_3d_geologia_50k_usa_capa_y_timeout_propio(monkeypatch):
+    from PIL import Image as _Image
+
+    monkeypatch.setattr(geocatmin, "_DESACTIVADO", False)
+    llamadas = []
+
+    def _espia(url, bbox, layers=None, tamano=None, timeout=None):
+        llamadas.append((url, layers, timeout))
+        return _Image.new("RGBA", tamano or (1000, 1000), (0, 0, 0, 0))
+
+    monkeypatch.setattr(geocatmin, "_exportar_capa", _espia)
+
+    poligono = [[[-77.50, -8.01], [-77.49, -8.01], [-77.49, -8.00], [-77.50, -8.00]]]
+    png = geocatmin.capa_overlay_3d("-8.01,-77.50", poligono, "geologia_50k")
+    assert png is not None
+    assert len(llamadas) == 1
+    url, layers, timeout = llamadas[0]
+    assert "SERV_GEOLOGIA_50K" in url
+    assert layers == "show:7"
+    assert timeout == geocatmin._TIMEOUT_50K, "la 50K debe usar su timeout propio"
+
+
 def test_capa_overlay_3d_fallas_requiere_escala_y_usa_la_capa_correcta(monkeypatch):
     from PIL import Image as _Image
 

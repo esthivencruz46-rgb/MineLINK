@@ -410,7 +410,11 @@ def _bbox_de(coords: str, poligono: Optional[list]) -> tuple[float, float, float
 
 
 def _exportar_capa(
-    url: str, bbox: tuple, layers: Optional[str] = None, tamano: Optional[tuple[int, int]] = None
+    url: str,
+    bbox: tuple,
+    layers: Optional[str] = None,
+    tamano: Optional[tuple[int, int]] = None,
+    timeout: int = _TIMEOUT,
 ) -> Optional["Image.Image"]:
     """Pide una imagen estática a un MapServer de ArcGIS (export) para el
     bbox dado — mismo mecanismo que usan los tiles del mapa interactivo,
@@ -418,7 +422,9 @@ def _exportar_capa(
     HTTP normal, no un <img> de navegador). `tamano`: (ancho,alto) en
     píxeles -- por defecto el lienzo panorámico fijo de la portada; la
     galería de análisis pasa el suyo propio, ajustado al aspecto real del
-    polígono (ver `_bbox_y_tamano_ajustado_poligono`)."""
+    polígono (ver `_bbox_y_tamano_ajustado_poligono`). `timeout`: por
+    defecto `_TIMEOUT`; las capas 50K pasan `_TIMEOUT_50K` porque el
+    servicio es notablemente más lento."""
     from PIL import Image
     from io import BytesIO
 
@@ -434,7 +440,7 @@ def _exportar_capa(
     }
     if layers:
         params["layers"] = layers
-    r = requests.get(f"{url}/export", params=params, timeout=_TIMEOUT)
+    r = requests.get(f"{url}/export", params=params, timeout=timeout)
     r.raise_for_status()
     return Image.open(BytesIO(r.content)).convert("RGBA")
 
@@ -774,6 +780,12 @@ def imagen_mapa_cotejo(
 _CAPAS_OVERLAY_3D = {
     "catastro": ("SERV_CATASTRO_MINERO_WGS84/MapServer", "show:0"),
     "geologia": ("SERV_GEOLOGIA_100K_INTEGRADA/MapServer", "show:6"),
+    # Geología 1:50,000 (Litología) — espejo de la capa geologia50 del mapa
+    # 2D (agosto 2026): SOLO donde INGEMMET tiene carta a esa escala, y la
+    # vista 3D solo la pide dentro de la zona acotada (el frontend decide
+    # por zoom/cámara cuál de las dos usa). Se exporta sobre el MISMO bbox
+    # que geologia; donde no hay cobertura 50K el PNG sale transparente.
+    "geologia_50k": ("SERV_GEOLOGIA_50K_INTEGRADA/MapServer", "show:7"),
     "aster_931": ("PRODUCTO_SATELITAL/MD_ASTER_931/ImageServer", None),
     "qicimi": ("PRODUCTO_SATELITAL/MD_QICIMI/ImageServer", None),
     "anomalia_espectral": ("SERV_ANOMALIA_ESPECTRAL/MapServer", "show:0"),
@@ -793,10 +805,12 @@ def capa_overlay_3d(
     (Mapa3D.tsx) replique el catálogo de capas del mapa 2D, superponiendo
     cada capa por separado sobre el terreno (MapLibre aplica la opacidad de
     cada capa por su cuenta vía `raster-opacity`, así que acá se exporta
-    opacidad plena). `capa` ∈ catastro | geologia | fallas | aster_931 |
-    qicimi | anomalia_espectral | libre_denuncio; "fallas" necesita
-    `escala_fallas` (mismo criterio que el mapa 2D: solo se ofrece si de
-    verdad hay una falla confirmada). Se genera al vuelo en cada pedido
+    opacidad plena). `capa` ∈ catastro | geologia | geologia_50k | fallas |
+    aster_931 | qicimi | anomalia_espectral | libre_denuncio; "fallas"
+    necesita `escala_fallas` (mismo criterio que el mapa 2D: solo se ofrece
+    si de verdad hay una falla confirmada); "geologia_50k" se genera con
+    el timeout propio de la 50K (`_TIMEOUT_50K`, servicio lento) y el
+    frontend decide por cámara si usarla. Se genera al vuelo en cada pedido
     (llamadas gratis a ArcGIS) y el navegador lo cachea 24h. Best-effort:
     None si la capa no existe o falló (la vista 3D sigue con satélite +
     polígono)."""
@@ -819,7 +833,10 @@ def capa_overlay_3d(
     try:
         from io import BytesIO
 
-        imagen = _exportar_capa(url, bbox, layers, tamano=tamano)
+        # La 50K es lenta (hasta ~25s verificado) — solo para ella se pasa
+        # el timeout propio; el resto usa el default de `_exportar_capa`.
+        kwargs = {"timeout": _TIMEOUT_50K} if capa == "geologia_50k" else {}
+        imagen = _exportar_capa(url, bbox, layers, tamano=tamano, **kwargs)
         if imagen is None:
             return None
         salida = BytesIO()
