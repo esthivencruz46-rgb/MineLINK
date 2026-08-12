@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { dynamicMapLayer, imageMapLayer } from "esri-leaflet";
+import { dynamicMapLayer, identifyFeatures, imageMapLayer } from "esri-leaflet";
 import "leaflet/dist/leaflet.css";
 import { BASE_URL } from "../../services/api";
 import { precargarRelieve } from "./terreno3D";
@@ -252,16 +252,74 @@ export function MapaGeocatmin({
     });
 
     // Clic en el mapa → nombre de la unidad geológica en un popup (los
-    // polígonos solo traen su código impreso, ej. "N-mz"). Se consulta la
-    // 100K porque responde rápido; el identify viaja por JSONP gracias a
-    // useCors:false (el servidor no da CORS).
-    geologia100.bindPopup((_error: unknown, featureCollection: any) => {
-      const props = featureCollection?.features?.[0]?.properties;
-      if (!props?.UNIDAD && !props?.DESCRIP) return false;
-      const titulo = props.UNIDAD || props.NAME;
-      const detalle =
-        props.DESCRIP && props.DESCRIP !== titulo ? `<br/>${props.DESCRIP}` : "";
-      return `<strong>${titulo}</strong>${detalle}<br/><span style="font-size:11px;color:#64748b">Geología INGEMMET · carta 1:100,000</span>`;
+    // polígonos solo traen su código impreso, ej. "N-mz"). El identify
+    // viaja por JSONP gracias a useCors:false (el servidor no da CORS).
+    // Se consulta la escala VISIBLE — 50K si está encima (modo manual
+    // "50k" o modo auto con la vista dentro de la zona), si no la 100K —
+    // y si la 50K no tiene carta en el punto, se cae a la 100K (cubre todo
+    // el país). Antes el popup SIEMPRE consultaba la 100K y en una zona
+    // con carta 50K seguía mostrando el nombre de la 100K (bug real agosto
+    // 2026, reportado por Esthiven: en 50K se veía roca plutónica pero el
+    // popup decía "Fm Jumasha"). La 50K trae `LITOLOGIA` (p.ej. "Roca
+    // plutónica") además de `UNIDAD`; la 100K solo `UNIDAD`/`DESCRIP`.
+    // Un contador por click descarta respuestas de clicks viejos (la 50K
+    // es lenta, >25s verificado en el backend) para que no se abra el
+    // popup de un click anterior sobre otro punto.
+    let ultimoClickId = 0;
+    mapa.on("click", (e: L.LeafletMouseEvent) => {
+      const clickId = ++ultimoClickId;
+      const abrirPopup = (props: any, escala: "50k" | "100k") => {
+        if (clickId !== ultimoClickId) return;
+        const titulo =
+          escala === "50k"
+            ? props?.LITOLOGIA || props?.UNIDAD || props?.DESCRIP
+            : props?.UNIDAD || props?.NAME || props?.DESCRIP;
+        if (!titulo) {
+          mapa.closePopup();
+          return;
+        }
+        const detalle =
+          props?.DESCRIP && props?.DESCRIP !== titulo ? `<br/>${props.DESCRIP}` : "";
+        L.popup()
+          .setLatLng(e.latlng)
+          .setContent(
+            `<strong>${titulo}</strong>${detalle}<br/><span style="font-size:11px;color:#64748b">Geología INGEMMET · carta 1:${escala === "50k" ? "50,000" : "100,000"}</span>`
+          )
+          .openOn(mapa);
+      };
+      const consultar = (escala: "50k" | "100k") => {
+        const servicio =
+          escala === "50k"
+            ? "SERV_GEOLOGIA_50K_INTEGRADA"
+            : "SERV_GEOLOGIA_100K_INTEGRADA";
+        identifyFeatures({
+          url: `${GEOCATMIN}/${servicio}/MapServer`,
+          useCors: false,
+        })
+          .on(mapa)
+          .at(e.latlng)
+          .layers([escala === "50k" ? "7" : "6"])
+          .tolerance(5)
+          .run((error: unknown, geo: any) => {
+            if (clickId !== ultimoClickId) return;
+            const props = geo?.features?.[0]?.properties;
+            if (error || !props) {
+              // Sin cobertura en la 50K → se cae a la 100K, que cubre todo
+              // el país. Si la propia 100K no responde, se cierra el popup.
+              if (escala === "50k") {
+                consultar("100k");
+              } else {
+                mapa.closePopup();
+              }
+              return;
+            }
+            abrirPopup(props, escala);
+          });
+      };
+      const manual = escalaGeologiaRef.current;
+      const usar50 =
+        manual === "50k" || (manual === "auto" && geologia.hasLayer(geologia50));
+      consultar(usar50 ? "50k" : "100k");
     });
 
     // La 50K arranca FUERA del grupo: es pesada, así que solo se pide en
