@@ -1,6 +1,7 @@
 """Tests de geocatmin.py — específicamente la consulta de fallas geológicas
 cercanas (julio 2026). Todo mockeado con requests.get; nunca hace una
 llamada de red real (mismo patrón que test_asesor.py con requests.post)."""
+import json
 import os
 
 # geocatmin.py lee esta variable UNA sola vez al importarse (_DESACTIVADO
@@ -24,6 +25,11 @@ import geocatmin
 class _RespuestaFalsa:
     def __init__(self, data: dict):
         self._data = data
+        # _query_geometria_poligono / _query_cercania(latin1=True) parsean
+        # desde r.content decodificado latin-1 (no desde r.json()) — los
+        # datos de test son ASCII, así que el mismo JSON re-encodificado
+        # sirve para ambos caminos.
+        self.content = json.dumps(data).encode("latin-1")
 
     def raise_for_status(self):
         pass
@@ -172,7 +178,7 @@ def test_consultar_incluye_fallas_en_el_resultado(monkeypatch):
         resultado = geocatmin.consultar("-12.5,-76.7")
 
     assert resultado is not None
-    assert resultado["v"] == 6
+    assert resultado["v"] == 7
     assert resultado["fallas"] == {
         "escala": "50k",
         "items": [{"nombre": "Falla X", "tipo": "Normal"}],
@@ -181,6 +187,151 @@ def test_consultar_incluye_fallas_en_el_resultado(monkeypatch):
     # reventar ni contaminarse con la respuesta de fallas.
     assert resultado["concesion"] is None
     assert resultado["geologia_50k"] is None
+    # Sin polígono (concesion None), los sedimentos se buscan por radio
+    # alrededor del pin y el fake no tiene muestras: se verificó y no hay.
+    assert resultado["sedimentos"] == {"total_dentro": 0, "dentro": [], "cercanas": []}
+
+
+# ---------- _sedimentos_en_zona (agosto 2026) ----------
+
+
+def _poligono_ejemplo():
+    # Cuadrado de ~1.1 km de lado centrado cerca del pin (-76.7, -12.5).
+    return [[[-76.70, -12.50], [-76.69, -12.50], [-76.69, -12.49], [-76.70, -12.49], [-76.70, -12.50]]]
+
+
+def test_sedimentos_en_zona_lista_muestras_dentro_del_poligono():
+    features = [
+        {
+            "attributes": {
+                "CODIGO": "SGQ-1",
+                "NOMBRE_PROYECTO": "Proyecto de prueba",
+                "CU_PPM": "513",
+                "AU_PPB": "N.R.",
+            },
+            "geometry": {"x": -76.695, "y": -12.495},
+        },
+        {"attributes": {"CODIGO": "SGQ-2", "NOMBRE_PROYECTO": None}, "geometry": {"x": -76.69, "y": -12.5}},
+    ]
+    with patch("geocatmin.requests.get") as mock_get:
+        mock_get.return_value = _RespuestaFalsa({"features": features})
+        resultado = geocatmin._sedimentos_en_zona(-76.7, -12.5, _poligono_ejemplo())
+    assert mock_get.call_count == 1  # con muestras dentro no se consulta el buffer
+    assert resultado == {
+        "total_dentro": 2,
+        "dentro": [
+            {"codigo": "SGQ-1", "proyecto": "Proyecto de prueba", "leyes": {"CU_PPM": "513"}},
+            {"codigo": "SGQ-2", "proyecto": None, "leyes": {}},
+        ],
+        "cercanas": [],
+    }
+
+
+def test_sedimentos_en_zona_sin_dentro_busca_cercanas_con_buffer():
+    # La consulta exacta responde vacía (verificado: no hay dentro) y la
+    # del buffer ampliado trae la muestra.
+    respuestas = [
+        _RespuestaFalsa({"features": []}),
+        _RespuestaFalsa(
+            {
+                "features": [
+                    {
+                        "attributes": {"CODIGO": "SGQ-3", "NOMBRE_PROYECTO": None},
+                        "geometry": {"x": -76.68, "y": -12.5},
+                    }
+                ]
+            }
+        ),
+    ]
+    with patch("geocatmin.requests.get", side_effect=respuestas) as mock_get:
+        resultado = geocatmin._sedimentos_en_zona(-76.7, -12.5, _poligono_ejemplo())
+    assert mock_get.call_count == 2  # exacta (vacía) + buffer ampliado
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["distance"] == geocatmin._DISTANCIA_SEDIMENTOS_M
+    assert resultado["total_dentro"] == 0
+    assert resultado["dentro"] == []
+    assert len(resultado["cercanas"]) == 1
+    cercana = resultado["cercanas"][0]
+    assert cercana["codigo"] == "SGQ-3"
+    # ~2 km al este del pin (0.02° de longitud a -12.5 de latitud).
+    assert 1.5 < cercana["distancia_km"] < 2.5
+
+
+def test_sedimentos_en_zona_sin_dentro_y_buffer_caido_cae_al_radio_del_pin():
+    cola = [
+        _RespuestaFalsa({"features": []}),  # exacta: sin muestras dentro
+        requests_mod.RequestException("timeout"),  # buffer ampliado falla
+        _RespuestaFalsa(
+            {
+                "features": [
+                    {
+                        "attributes": {"CODIGO": "SGQ-4", "NOMBRE_PROYECTO": None},
+                        "geometry": {"x": -76.69, "y": -12.51},
+                    }
+                ]
+            }
+        ),  # radio alrededor del pin
+    ]
+
+    def _side_effect(*args, **kwargs):
+        item = cola.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    with patch("geocatmin.requests.get", side_effect=_side_effect):
+        resultado = geocatmin._sedimentos_en_zona(-76.7, -12.5, _poligono_ejemplo())
+    assert resultado["total_dentro"] == 0
+    assert [c["codigo"] for c in resultado["cercanas"]] == ["SGQ-4"]
+
+
+def test_sedimentos_en_zona_none_si_consulta_del_poligono_falla():
+    with patch("geocatmin.requests.get", side_effect=requests_mod.RequestException("timeout")):
+        assert geocatmin._sedimentos_en_zona(-76.7, -12.5, _poligono_ejemplo()) is None
+
+
+def test_sedimentos_en_zona_sin_poligono_busca_por_radio_alrededor_del_pin():
+    with patch("geocatmin.requests.get") as mock_get:
+        mock_get.return_value = _RespuestaFalsa(
+            {
+                "features": [
+                    {
+                        "attributes": {"CODIGO": "SGQ-5", "NOMBRE_PROYECTO": None},
+                        "geometry": {"x": -76.69, "y": -12.5},
+                    }
+                ]
+            }
+        )
+        resultado = geocatmin._sedimentos_en_zona(-76.7, -12.5, None)
+    assert mock_get.call_count == 1
+    assert resultado == {
+        "total_dentro": 0,
+        "dentro": [],
+        "cercanas": [
+            {
+                "codigo": "SGQ-5",
+                "proyecto": None,
+                "leyes": {},
+                # 0.01° de longitud a -12.5° de latitud ≈ 1.1 km.
+                "distancia_km": pytest.approx(1.1, abs=0.3),
+            }
+        ],
+    }
+
+
+def test_muestra_sedimento_filtra_leyes_sin_valor():
+    feature = {
+        "attributes": {
+            "CODIGO": "SGQ-6",
+            "AU_PPB": "N.R.",
+            "AU_PPM": "",
+            "CU_PPM": "<10",
+            "ZN_PPM": 31.7,
+            "SB_PPM": None,
+        }
+    }
+    muestra = geocatmin._muestra_sedimento(feature)
+    assert muestra["leyes"] == {"CU_PPM": "<10", "ZN_PPM": "31.7"}
 
 
 # ---------- resumen_para_ia (agosto 2026) ----------

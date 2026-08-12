@@ -97,6 +97,21 @@ export interface GeocatminInfo {
     escala: "50k" | "100k";
     items: { nombre: string; tipo?: string | null }[];
   } | null;
+  // Sedimentos de quebrada (geoquímica de INGEMMET) dentro del polígono
+  // de la concesión y, si no hay ninguna dentro, las más cercanas con su
+  // distancia al pin (agosto 2026). total_dentro=0 = se verificó y no hay
+  // muestras dentro; null = no se pudo verificar. `leyes` solo trae los
+  // elementos con valor ("N.R." y vacíos se omiten).
+  sedimentos?: {
+    total_dentro: number;
+    dentro: { codigo?: string | null; proyecto?: string | null; leyes: Record<string, string> }[];
+    cercanas: {
+      codigo?: string | null;
+      proyecto?: string | null;
+      leyes: Record<string, string>;
+      distancia_km?: number | null;
+    }[];
+  } | null;
   // Alertas de zona: áreas restringidas (GEOCATMIN) y ANP (SERNANP).
   restricciones?: { tipo: string; nombre?: string | null }[];
   // "fuera" = se consultó y el punto NO cae en ninguna ANP ni su

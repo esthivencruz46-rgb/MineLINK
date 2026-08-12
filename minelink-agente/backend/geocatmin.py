@@ -21,6 +21,16 @@ que el minero declaró, trae datos OFICIALES de registros públicos:
   vez de una intersección exacta; si ninguna escala encuentra nada ahí,
   se reintenta una vez con un radio ampliado (`_DISTANCIA_FALLA_AMPLIADA_M`,
   ~10x10 km) antes de confirmar que no hay fallas cerca.
+- Sedimentos de quebrada (SERV_GEOQUIMICA_2022, capa 0, puntos de
+  geoquímica de INGEMMET — agosto 2026, pedido explícito de Esthiven):
+  muestras que caen DENTRO del polígono de la concesión y, si no hay
+  ninguna dentro, las más cercanas (buffer ampliado alrededor del
+  polígono) con su distancia al pin. Es una capa de PUNTOS y los campos
+  de elementos van como texto ("N.R." = no reportado, "<10" = límite de
+  detección). El query usa la geometría poligonal de la concesión (no por
+  punto) y los nombres de proyecto del servicio vienen en latin-1 pese a
+  declarar UTF-8 — se decodifican a mano para no mostrar "Per�" en la
+  ficha (ver `_query_geometria_poligono`).
 
 Es "best effort", igual que geoubicacion.py: si INGEMMET no responde se
 devuelve None y el caller conserva lo último cacheado — la ficha pública
@@ -34,6 +44,8 @@ otro titular vía contrato es perfectamente legal). Todo se presenta como
 dato referencial, nunca como sentencia.
 """
 
+import json
+import math
 import os
 from datetime import date
 from typing import Optional
@@ -77,6 +89,37 @@ _DISTANCIA_FALLA_AMPLIADA_M = 5000
 # Fallas distintas que se devuelven como máximo (varias son segmentos de
 # la misma falla — se deduplica por nombre antes de aplicar este tope).
 _MAX_FALLAS = 5
+
+# Sedimentos de quebrada (geoquímica de INGEMMET, SERV_GEOQUIMICA_2022,
+# capa 0) — capa de PUNTOS, los elementos van como texto ("N.R." = no
+# reportado, "<10" = límite de detección). El query se hace con la
+# geometría POLIGONAL de la concesión (no por punto como las demás): lo
+# primero que interesa es qué muestras caen DENTRO del polígono. Los
+# nombres de proyecto del servicio vienen en latin-1 pese a declarar
+# UTF-8 — ver `_query_geometria_poligono`.
+_CAMPOS_LEY_SEDIMENTO = (
+    "AU_PPB",
+    "AU_PPM",
+    "AG_PPM",
+    "CU_PPM",
+    "PB_PPM",
+    "ZN_PPM",
+    "AS_PPM",
+    "SB_PPM",
+    "SN_PPM",
+    "MO_PPM",
+)
+_SEDIMENTOS_OUT_FIELDS = "CODIGO,NOMBRE_PROYECTO," + ",".join(_CAMPOS_LEY_SEDIMENTO)
+# Buffer ampliado (metros) para "¿hay cercanas?" cuando no hay ninguna
+# muestra dentro del polígono — mismo espíritu que
+# _DISTANCIA_FALLA_AMPLIADA_M: prefiere mostrar una muestra algo más
+# lejana a decir "no hay" cuando en realidad sí hay, solo que fuera de la
+# concesión.
+_DISTANCIA_SEDIMENTOS_M = 5000
+# Muestras que se devuelven en la ficha como máximo (dentro del polígono
+# y cercanas, por separado) — no hace falta el catálogo completo.
+_MAX_SEDIMENTOS_DENTRO = 10
+_MAX_SEDIMENTOS_CERCANOS = 5
 
 # Capas de SERV_AREA_RESERVADA que generan alerta si el pin cae dentro
 # (id de capa → etiqueta legible). La 2 ("Área de No Admisión de
@@ -138,13 +181,19 @@ def _query_cercania(
     out_fields: str,
     distancia_m: int = _DISTANCIA_FALLA_M,
     timeout: int = _TIMEOUT_FALLAS,
+    con_geometria: bool = False,
+    latin1: bool = False,
 ) -> list[dict]:
     """Como `_query_punto` pero para capas de LÍNEA (fallas): busca todo lo
     que esté dentro de un radio, no una intersección exacta — una falla
     tiene ancho cero, así que un punto casi nunca cae justo encima.
     Verificado en vivo (julio 2026) que este servicio de INGEMMET sí
     respeta `distance`/`units` (no todos los ArcGIS Server antiguos lo
-    hacen)."""
+    hacen). `con_geometria`: devolver la posición de cada feature (lo
+    necesitan las muestras de sedimentos para calcular su distancia al
+    pin). `latin1`: parsear el JSON desde `r.content` decodificado en
+    latin-1 (mismo problema de encoding que `_query_geometria_poligono`)
+    en vez de `r.json()`."""
     r = requests.get(
         f"{_BASE}/{servicio}/MapServer/{capa}/query",
         params={
@@ -155,12 +204,15 @@ def _query_cercania(
             "units": "esriSRUnit_Meter",
             "inSR": 4326,
             "outFields": out_fields,
-            "returnGeometry": "false",
+            "returnGeometry": "true" if con_geometria else "false",
+            "outSR": 4326,
             "f": "json",
         },
         timeout=timeout,
     )
     r.raise_for_status()
+    if latin1:
+        return json.loads(r.content.decode("latin-1")).get("features") or []
     return r.json().get("features") or []
 
 
@@ -225,6 +277,177 @@ def _fallas_cercanas(lng: float, lat: float) -> Optional[dict]:
     return {"escala": escala, "items": items}
 
 
+def _query_geometria_poligono(
+    servicio: str,
+    capa: int,
+    poligono: list,
+    out_fields: str,
+    distancia_m: Optional[int] = None,
+    timeout: int = _TIMEOUT,
+) -> list[dict]:
+    """Query con geometría de POLÍGONO (los anillos del catastro) en vez de
+    punto — para las muestras de sedimentos que caen DENTRO de la
+    concesión. `distancia_m`: buffer en metros alrededor del polígono
+    (verificado en vivo, agosto 2026, que los servicios de INGEMMET sí
+    respetan `distance`/`units` con geometría poligonal, igual que con
+    punto). Parsea el JSON desde `r.content` decodificado en latin-1: el
+    header del servidor declara UTF-8 pero el body va en latin-1, y
+    `requests` lo deja con U+FFFD (mojibake real en los nombres de
+    proyecto de geoquímica, ej. "Per�" en vez de "Perú")."""
+    params: dict = {
+        "geometry": json.dumps({"rings": poligono, "spatialReference": {"wkid": 4326}}),
+        "geometryType": "esriGeometryPolygon",
+        "spatialRel": "esriSpatialRelIntersects",
+        "inSR": 4326,
+        "outFields": out_fields,
+        "returnGeometry": "true",
+        "outSR": 4326,
+        "f": "json",
+    }
+    if distancia_m:
+        params.update({"distance": distancia_m, "units": "esriSRUnit_Meter"})
+    r = requests.get(
+        f"{_BASE}/{servicio}/MapServer/{capa}/query", params=params, timeout=timeout
+    )
+    r.raise_for_status()
+    data = json.loads(r.content.decode("latin-1"))
+    return data.get("features") or []
+
+
+def _muestra_sedimento(feature: dict, con_posicion: bool = False) -> dict:
+    """De un feature de SERV_GEOQUIMICA_2022, arma la muestra legible:
+    {codigo, proyecto, leyes} — las leyes solo con los elementos que de
+    verdad tienen valor ("N.R." y vacíos se omiten). `con_posicion` añade
+    la lng/lat del punto (necesaria para ordenar las cercanas por
+    distancia)."""
+    attrs = feature.get("attributes") or {}
+    leyes = {
+        campo: str(attrs[campo])
+        for campo in _CAMPOS_LEY_SEDIMENTO
+        if attrs.get(campo) not in (None, "", "N.R.")
+    }
+    muestra: dict = {
+        "codigo": attrs.get("CODIGO"),
+        "proyecto": attrs.get("NOMBRE_PROYECTO"),
+        "leyes": leyes,
+    }
+    if con_posicion:
+        geom = feature.get("geometry") or {}
+        muestra["lng"] = geom.get("x")
+        muestra["lat"] = geom.get("y")
+    return muestra
+
+
+def _distancia_km(lng1: float, lat1: float, lng2: float, lat2: float) -> float:
+    """Distancia haversine en km — para ordenar las muestras cercanas por
+    su distancia al pin (el pin es la referencia que conoce el minero)."""
+    radio = 6371.0088
+    fi1, fi2 = math.radians(lat1), math.radians(lat2)
+    dfi, dlng = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
+    a = math.sin(dfi / 2) ** 2 + math.cos(fi1) * math.cos(fi2) * math.sin(dlng / 2) ** 2
+    return 2 * radio * math.asin(math.sqrt(a))
+
+
+def _cercanas_sedimentos(features: list[dict], lng: float, lat: float) -> list[dict]:
+    """Las `_MAX_SEDIMENTOS_CERCANOS` muestras más próximas al pin, de más
+    cercana a más lejana, cada una con su `distancia_km` (redondeada a 1
+    decimal)."""
+    con_posicion = []
+    for f in features:
+        muestra = _muestra_sedimento(f, con_posicion=True)
+        if muestra["lng"] is None or muestra["lat"] is None:
+            continue
+        muestra["distancia_km"] = round(
+            _distancia_km(lng, lat, muestra["lng"], muestra["lat"]), 1
+        )
+        muestra.pop("lng", None)
+        muestra.pop("lat", None)
+        con_posicion.append(muestra)
+    con_posicion.sort(key=lambda m: m["distancia_km"])
+    return con_posicion[:_MAX_SEDIMENTOS_CERCANOS]
+
+
+def _sedimentos_en_zona(lng: float, lat: float, poligono: Optional[list]) -> Optional[dict]:
+    """¿Hay muestras de sedimentos de quebrada (geoquímica de INGEMMET,
+    SERV_GEOQUIMICA_2022, capa 0) DENTRO del polígono de la concesión? Y
+    si no hay ninguna dentro, ¿hay cercanas (buffer ampliado alrededor del
+    polígono, con su distancia al pin)? Devuelve
+    {"total_dentro", "dentro": [...], "cercanas": [...]}; None = la
+    consulta falló (no se pudo verificar — distinto de "se verificó y no
+    hay"). `total_dentro` es el conteo real; la lista `dentro` se recorta a
+    `_MAX_SEDIMENTOS_DENTRO` para no inflar el caché. Sin polígono (el pin
+    no cae en ninguna concesión) se busca por radio alrededor del pin."""
+    if poligono:
+        try:
+            features = _query_geometria_poligono(
+                "SERV_GEOQUIMICA_2022", 0, poligono, _SEDIMENTOS_OUT_FIELDS
+            )
+        except requests.RequestException:
+            return None
+        dentro = [_muestra_sedimento(f) for f in features]
+        if dentro:
+            return {
+                "total_dentro": len(dentro),
+                "dentro": dentro[:_MAX_SEDIMENTOS_DENTRO],
+                "cercanas": [],
+            }
+        # Verificado que no hay dentro: se busca en un buffer ampliado
+        # alrededor del polígono; si ese intento falla, se cae al radio
+        # alrededor del pin como última instancia.
+        cercanas: list[dict] = []
+        try:
+            cercanas = _cercanas_sedimentos(
+                _query_geometria_poligono(
+                    "SERV_GEOQUIMICA_2022",
+                    0,
+                    poligono,
+                    _SEDIMENTOS_OUT_FIELDS,
+                    distancia_m=_DISTANCIA_SEDIMENTOS_M,
+                ),
+                lng,
+                lat,
+            )
+        except requests.RequestException:
+            pass
+        if not cercanas:
+            try:
+                cercanas = _cercanas_sedimentos(
+                    _query_cercania(
+                        "SERV_GEOQUIMICA_2022",
+                        0,
+                        lng,
+                        lat,
+                        _SEDIMENTOS_OUT_FIELDS,
+                        distancia_m=_DISTANCIA_SEDIMENTOS_M,
+                        con_geometria=True,
+                        latin1=True,
+                    ),
+                    lng,
+                    lat,
+                )
+            except requests.RequestException:
+                pass
+        return {"total_dentro": 0, "dentro": [], "cercanas": cercanas}
+    try:
+        features = _query_cercania(
+            "SERV_GEOQUIMICA_2022",
+            0,
+            lng,
+            lat,
+            _SEDIMENTOS_OUT_FIELDS,
+            distancia_m=_DISTANCIA_SEDIMENTOS_M,
+            con_geometria=True,
+            latin1=True,
+        )
+    except requests.RequestException:
+        return None
+    return {
+        "total_dentro": 0,
+        "dentro": [],
+        "cercanas": _cercanas_sedimentos(features, lng, lat),
+    }
+
+
 def consultar(coords: Optional[str]) -> Optional[dict]:
     """Consulta ambas capas para un "lat,lng". Devuelve el dict cacheable
     (concesion/geologia pueden ser None = el punto no cae en ninguna), o
@@ -241,8 +464,9 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
         # Versión del formato del caché: subir cuando cambie el shape para
         # que los cachés viejos se reconsulten solos (v4: + geología 50K;
         # v5: anp explícito {zona:"fuera"} en vez de quedar en null;
-        # v6: + fallas geológicas cercanas, 50K con reserva a 100K).
-        "v": 6,
+        # v6: + fallas geológicas cercanas, 50K con reserva a 100K;
+        # v7: + sedimentos de quebrada dentro del polígono o cercanas).
+        "v": 7,
         "coords": coords,
         "consultado_en": date.today().isoformat(),
         "concesion": None,
@@ -252,6 +476,10 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
         # verificar (distinto de items=[] = se verificó y no hay fallas
         # cerca). Ver _fallas_cercanas.
         "fallas": None,
+        # {"total_dentro": N, "dentro": [...], "cercanas": [...]}, o None =
+        # no se pudo verificar (distinto de total_dentro=0 = se verificó
+        # y no hay muestras dentro). Ver _sedimentos_en_zona.
+        "sedimentos": None,
         # Alertas de zona: [{tipo, nombre}] — áreas restringidas de
         # GEOCATMIN + ANP/amortiguamiento de SERNANP. Lista vacía = punto
         # limpio; solo-informativas (el pin es aproximado).
@@ -326,6 +554,13 @@ def consultar(coords: Optional[str]) -> Optional[dict]:
     # Fallas geológicas cercanas al pin (julio 2026, pedido explícito de
     # Esthiven) — best-effort propio, no tumba el resto si falla.
     resultado["fallas"] = _fallas_cercanas(lng, lat)
+
+    # Sedimentos de quebrada dentro del polígono (o cercanas si no hay
+    # dentro) — agosto 2026, pedido explícito de Esthiven. Best-effort
+    # propio, no tumba el resto si falla.
+    resultado["sedimentos"] = _sedimentos_en_zona(
+        lng, lat, (resultado.get("concesion") or {}).get("poligono")
+    )
 
     # Alertas de zona (best-effort por capa: una capa caída no tumba a las
     # demás). Áreas restringidas del propio GEOCATMIN...

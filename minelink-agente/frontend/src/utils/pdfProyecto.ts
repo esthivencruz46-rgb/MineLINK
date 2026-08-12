@@ -600,6 +600,7 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
     geocatmin?.concesion ||
     geocatmin?.geologia ||
     geocatmin?.fallas ||
+    geocatmin?.sedimentos ||
     proyecto.reinfo_verificado_manual;
   if (tieneCotejo) {
     y = asegurarEspacio(doc, y, 26);
@@ -629,6 +630,21 @@ export async function generarPdfProyecto(proyecto: ProyectoDetalle): Promise<voi
               .join(", ")}`
           : `Fallas geológicas (${escalaTxt}): ninguna registrada cerca (referencial)`;
       const l = doc.splitTextToSize(lineaFallas, ANCHO_UTIL);
+      doc.text(l, MARGEN, y);
+      y += l.length * 4.4 + 1;
+    }
+    if (geocatmin?.sedimentos) {
+      const s = geocatmin.sedimentos;
+      const distMin = s.cercanas.length
+        ? Math.min(...s.cercanas.map((c) => c.distancia_km ?? 0))
+        : null;
+      const lineaS =
+        s.total_dentro > 0
+          ? `Sedimentos de quebrada (geoquímica): ${s.total_dentro} muestra(s) dentro del polígono de la concesión`
+          : s.cercanas.length > 0
+          ? `Sedimentos de quebrada (geoquímica): ninguna dentro del polígono; ${s.cercanas.length} cercana(s), la más próxima a ~${distMin} km del pin`
+          : `Sedimentos de quebrada (geoquímica): ninguna registrada dentro ni cerca (referencial)`;
+      const l = doc.splitTextToSize(lineaS, ANCHO_UTIL);
       doc.text(l, MARGEN, y);
       y += l.length * 4.4 + 1;
     }

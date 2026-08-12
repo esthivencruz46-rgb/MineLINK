@@ -928,6 +928,77 @@ export function ProyectoDetalle() {
                 </div>
               )}
 
+              {/* Sedimentos de quebrada (geoquímica de INGEMMET) dentro del
+                  polígono de la concesión, o los más cercanos si no hay
+                  dentro (agosto 2026, pedido de Esthiven): la presencia de
+                  muestras de sedimentos es señal de que la zona fue
+                  muestreada por INGEMMET, no una ley mineral. null = no se
+                  pudo verificar; total_dentro=0 = se verificó y no hay
+                  dentro. */}
+              {proyecto.geocatmin?.sedimentos && (
+                <div className="mt-3">
+                  <p className="text-xs text-texto-suave dark:text-texto-suave-dark">
+                    Sedimentos de quebrada (geoquímica)
+                  </p>
+                  {proyecto.geocatmin.sedimentos.total_dentro > 0 ? (
+                    <>
+                      <p className="mt-0.5 text-sm font-medium">
+                        {proyecto.geocatmin.sedimentos.total_dentro === 1
+                          ? "Hay 1 muestra de sedimentos dentro del polígono de la concesión."
+                          : `Hay ${proyecto.geocatmin.sedimentos.total_dentro} muestras de sedimentos dentro del polígono de la concesión.`}
+                      </p>
+                      {proyecto.geocatmin.sedimentos.dentro.length > 0 && (
+                        <ul className="mt-0.5 space-y-0.5 text-sm font-medium">
+                          {proyecto.geocatmin.sedimentos.dentro
+                            .slice(0, 3)
+                            .map((m, i) => (
+                              <li key={i}>
+                                {[m.codigo, m.proyecto].filter(Boolean).join(" — ")}
+                              </li>
+                            ))}
+                          {proyecto.geocatmin.sedimentos.total_dentro > 3 && (
+                            <li className="text-texto-suave dark:text-texto-suave-dark">
+                              …y {proyecto.geocatmin.sedimentos.total_dentro - 3} más.
+                            </li>
+                          )}
+                        </ul>
+                      )}
+                    </>
+                  ) : proyecto.geocatmin.sedimentos.cercanas.length > 0 ? (
+                    <>
+                      <p className="mt-0.5 text-sm font-medium">
+                        No hay muestras dentro del polígono, pero hay{" "}
+                        {proyecto.geocatmin.sedimentos.cercanas.length}{" "}
+                        {proyecto.geocatmin.sedimentos.cercanas.length === 1
+                          ? "cercana"
+                          : "cercanas"}{" "}
+                        (la más próxima a ~
+                        {Math.min(
+                          ...proyecto.geocatmin.sedimentos.cercanas.map((c) => c.distancia_km ?? 0)
+                        )}{" "}
+                        km del pin):
+                      </p>
+                      <ul className="mt-0.5 space-y-0.5 text-sm font-medium">
+                        {proyecto.geocatmin.sedimentos.cercanas.slice(0, 3).map((m, i) => (
+                          <li key={i}>
+                            {[m.codigo, m.proyecto].filter(Boolean).join(" — ")}
+                            {m.distancia_km != null ? ` (~${m.distancia_km} km)` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : (
+                    <p className="mt-0.5 text-sm font-medium">
+                      No se registran muestras de sedimentos dentro del polígono ni cercanas.
+                    </p>
+                  )}
+                  <p className="mt-1 text-[11px] text-texto-suave dark:text-texto-suave-dark">
+                    Puntos de muestreo geoquímico de INGEMMET; la presencia de muestras no implica
+                    ley minera en la concesión.
+                  </p>
+                </div>
+              )}
+
               {/* Solo se nombran las fuentes que de verdad aportaron un dato
                   esta vez — antes decía siempre "GEOCATMIN, MINEM, SERNANP"
                   aunque, por ejemplo, REINFO todavía no tuviera resultado
