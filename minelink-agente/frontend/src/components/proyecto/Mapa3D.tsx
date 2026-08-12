@@ -127,6 +127,19 @@ interface CapaDef {
   porDefecto: boolean;
 }
 
+// Versión de las URLs de capas 3D: subirla cada vez que cambie la forma de
+// servirlas (CORS/caché). Necesario porque el backend manda
+// `Cache-Control: max-age=86400` y una visita previa con el flujo viejo
+// (precarga sin crossOrigin, agosto 2026) dejaba cacheada la variante SIN
+// `Access-Control-Allow-Origin`; con la misma URL el navegador la reusa y el
+// preload con crossOrigin choca contra ella — "No se pudo cargar esta capa" —
+// aunque el servidor ya responda con ACAO. El parámetro cambia la cache key y
+// fuerza una descarga fresca para TODOS los usuarios, sin depender de que
+// limpien su caché.
+const VER_CAPAS_3D = "2";
+const conVersion = (url: string): string =>
+  `${url}${url.includes("?") ? "&" : "?"}v=${VER_CAPAS_3D}`;
+
 // Catálogo completo de capas 3D — espejo del panel "Capas" del mapa 2D.
 function catalogoCapas(opts: {
   proyectoId?: string;
@@ -153,8 +166,8 @@ function catalogoCapas(opts: {
     // agosto 2026): catastro minero, ASTER, QICIMI, anomalías espectrales
     // y libre denuncio quedan solo en el mapa 2D — en 3D lo importante son
     // las capas geológicas y las anomalías de Copernicus.
-    push("geologia", "Geología y fallas", "Geología (100K)", `${base}/capa-3d/geologia.png`, opts.bbox, 0.6, true);
-    push("fallas", "Geología y fallas", "Fallas geológicas cercanas", `${base}/capa-3d/fallas.png`, opts.bbox, 0.9, true);
+    push("geologia", "Geología y fallas", "Geología (100K)", conVersion(`${base}/capa-3d/geologia.png`), opts.bbox, 0.6, true);
+    push("fallas", "Geología y fallas", "Fallas geológicas cercanas", conVersion(`${base}/capa-3d/fallas.png`), opts.bbox, 0.9, true);
   }
   if (opts.anomaliasSatelitales) {
     const [xmin, ymin, xmax, ymax] = opts.anomaliasSatelitales.bbox;
@@ -164,7 +177,7 @@ function catalogoCapas(opts: {
         nombre,
         "Sentinel-2 · Copernicus",
         TITULOS_ANOMALIAS[nombre] ?? nombre,
-        `${BASE_URL}${url}`,
+        conVersion(`${BASE_URL}${url}`),
         bboxAnomalias,
         1,
         false
