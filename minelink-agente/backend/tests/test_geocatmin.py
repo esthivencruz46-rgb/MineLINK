@@ -717,10 +717,11 @@ def test_capa_overlay_3d_sedimentos_quebrada_usa_el_servicio_de_geoquimica(monke
     url, layers, bbox, tamano, dynamic_layers = llamadas[0]
     assert "SERV_GEOQUIMICA_2022" in url
     assert layers == "show:0"
-    # Los puntitos van agrandados vía renderer propio (2.5x, pedido agosto
-    # 2026) — el dynamicLayers de ArcGIS debe viajar en el export.
+    # Los puntitos van agrandados vía renderer propio (agosto 2026, pedido
+    # explícito) — el dynamicLayers de ArcGIS debe viajar en el export.
+    # Se probó a 20px y Esthiven pidió la mitad: quedó en 10px.
     assert dynamic_layers == geocatmin._DYNAMIC_LAYERS_SEDIMENTOS
-    assert dynamic_layers[0]["drawingInfo"]["renderer"]["symbol"]["size"] == 20
+    assert dynamic_layers[0]["drawingInfo"]["renderer"]["symbol"]["size"] == 10
     bbox_esperado, tamano_esperado = geocatmin._bbox_y_tamano_ajustado_poligono(
         poligono, "-8.01,-77.50"
     )

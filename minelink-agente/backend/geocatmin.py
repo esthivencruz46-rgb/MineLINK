@@ -1064,8 +1064,9 @@ _CAPAS_OVERLAY_3D = {
 # de sedimentos de quebrada (agosto 2026, pedido explícito de Esthiven: "que
 # sea el 2.5x del tamaño actual"). Medido en vivo contra el export del
 # servicio: el símbolo por defecto es un círculo magenta (#E600A4) de ~8px
-# de diámetro — se sube a 20px (2.5x) con un contorno blanco fino para que
-# se lea sobre el satélite. `source.mapLayer` referencia la capa 0 del
+# de diámetro. Se probó a 20px (2.5x) y Esthiven la bajó a la mitad ("está
+# muy grande") — quedó en 10px con un contorno blanco fino para que se lea
+# sobre el satélite. `source.mapLayer` referencia la capa 0 del
 # MapServer tal cual (verificado en vivo que INGEMMET acepta este forma y
 # aplica el renderer; la variante `dataLayer` con workspaceId da error).
 _DYNAMIC_LAYERS_SEDIMENTOS = [
@@ -1078,7 +1079,7 @@ _DYNAMIC_LAYERS_SEDIMENTOS = [
                     "type": "esriSMS",
                     "style": "esriSMSCircle",
                     "color": [230, 0, 164, 255],
-                    "size": 20,
+                    "size": 10,
                     "outline": {
                         "type": "esriSLS",
                         "style": "esriSLSSolid",

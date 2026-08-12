@@ -37,8 +37,9 @@ const GEOCATMIN = "https://geocatmin.ingemmet.gob.pe/arcgis/rest/services";
 // "2.5x del tamaño actual, no se ve bien") — espejo de
 // `geocatmin._DYNAMIC_LAYERS_SEDIMENTOS` del backend (el catálogo 3D usa el
 // mismo renderer). El símbolo por defecto de INGEMMET es un círculo magenta
-// (#E600A4) de ~8px, se sube a 20px (2.5x) con un contorno blanco fino para
-// que se lea sobre el satélite.
+// (#E600A4) de ~8px; se probó a 20px y Esthiven la bajó a la mitad ("está
+// muy grande") — quedó en 10px con un contorno blanco fino para que se lea
+// sobre el satélite.
 const DYNAMIC_LAYERS_SEDIMENTOS = JSON.stringify([
   {
     source: { type: "mapLayer", mapLayerId: 0 },
@@ -49,7 +50,7 @@ const DYNAMIC_LAYERS_SEDIMENTOS = JSON.stringify([
           type: "esriSMS",
           style: "esriSMSCircle",
           color: [230, 0, 164, 255],
-          size: 20,
+          size: 10,
           outline: {
             type: "esriSLS",
             style: "esriSLSSolid",
