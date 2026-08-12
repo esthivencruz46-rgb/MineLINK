@@ -517,11 +517,10 @@ export function MapaGeocatmin({
         // El grupo Copernicus se subdivide (agosto 2026, pedido explícito
         // de Esthiven): los índices van bajo "Alteración férrica" (óxidos
         // de hierro + hierro ferroso) y "Alteración argílica" (arcillas +
-        // arcilla/sulfatos/mica + combinado + coincidencias — aclarado en
-        // vivo por Esthiven agosto 2026: la argílica no solo abarca
-        // arcillas y arcilla/sulfatos/mica, también el mapa combinado de
-        // las 4 y las coincidencias de 2+ índices, así que esas dos ya no
-        // quedan sueltas al final sin sub-título).
+        // arcilla/sulfatos/mica). "Combinado" y "coincidencias" van
+        // APARTE, sin sub-título (aclarado en vivo por Esthiven agosto
+        // 2026: al plegar "Alteración argílica" con "−" no deben arrastrar
+        // esas dos capas — son su propia cosa, no parte de la argílica).
         const grupos: {
           titulo: string;
           expandido: boolean;
@@ -572,8 +571,10 @@ export function MapaGeocatmin({
               },
               {
                 titulo: "Alteración argílica",
-                capas: en(["arcillas", "arcilla_sulfatos_mica", "combinado", "coincidencias"]),
+                capas: en(["arcillas", "arcilla_sulfatos_mica"]),
               },
+              // combinado / coincidencias van aparte, sin sub-título
+              { capas: en(["combinado", "coincidencias"]) },
             ],
           });
         }
@@ -847,10 +848,11 @@ export function MapaGeocatmin({
             <p class="leyenda-subgrupo">Alteración argílica</p>
             ${muestra("rgb(0,102,204)", "Arcillas")}
             ${muestra("rgb(204,204,0)", "Arcilla / sulfatos / mica")}
-            ${muestra(
-              "linear-gradient(90deg, rgb(220,20,20), rgb(0,102,204), rgb(255,140,0), rgb(204,204,0))",
-              "Anomalías combinadas (las 4 superpuestas)"
-            )}
+
+            <div class="leyenda-fila" style="margin-top:6px">
+              <span class="leyenda-punto" style="background:linear-gradient(90deg, rgb(220,20,20), rgb(0,102,204), rgb(255,140,0), rgb(204,204,0))"></span>
+              Anomalías combinadas (las 4 superpuestas)
+            </div>
             ${muestra("rgb(155,0,200)", "Coincidencia de 2+ índices")}
 
             <p class="leyenda-nota">Cada índice de Sentinel-2 solo pinta el 10% más alto de

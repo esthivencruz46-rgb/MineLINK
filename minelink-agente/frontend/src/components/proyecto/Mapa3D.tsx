@@ -159,18 +159,15 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
 
 // Sub-grupo de alteración de cada índice de Copernicus (agosto 2026, pedido
 // explícito de Esthiven: agrupar en "Alteración férrica" y "Alteración
-// argílica"). La argílica además del clásico arcillas/arcilla-sulfatos-mica
-// abarca "combinado" y "coincidencias" (aclarado en vivo agosto 2026: la
-// alteración argílica no solo cubre arcillas y arcilla/sulfatos/mica, también
-// el mapa combinado de las 4 y las coincidencias de 2+ índices). Espejo de la
-// sección Copernicus del panel 2D.
+// argílica"). "Combinado" y "coincidencias" NO están acá a propósito —
+// quedan en la sección suelta, aparte de la argílica (aclarado en vivo
+// agosto 2026: al plegar "Alteración argílica" con "−" no deben arrastrar
+// esas dos capas). Espejo de la sección Copernicus del panel 2D.
 const SUBGRUPOS_ANOMALIAS: Record<string, string> = {
   oxidos_de_hierro: "Alteración férrica",
   hierro_ferroso: "Alteración férrica",
   arcillas: "Alteración argílica",
   arcilla_sulfatos_mica: "Alteración argílica",
-  combinado: "Alteración argílica",
-  coincidencias: "Alteración argílica",
 };
 
 interface AnomaliasSatelitales {
@@ -437,14 +434,13 @@ export function Mapa3D({
 
   // Corta las capas de un grupo en secciones por `subgrupo` (agosto 2026):
   // los índices de Copernicus van bajo "Alteración férrica" / "Alteración
-  // argílica" (la argílica ahora también agrupa combinado y coincidencias).
-  // Se agrupa por subgrupo sobre TODO el grupo, no solo capas consecutivas:
-  // el catálogo 3D sale en el orden de `capas` del backend
-  // (oxidos, arcillas, hierro_ferroso, arcilla_sulfatos_mica, combinado,
-  // coincidencias), y agrupar solo lo consecutivo intercalaría las dos
-  // secciones de alteración. La sección sin título agrupa lo que no tiene
-  // subgrupo. El encabezado de sub-grupo solo se pinta si la sección tiene
-  // capas.
+  // argílica"; combinado y coincidencias caen en la sección sin título
+  // (aparte, por decisión de Esthiven). Se agrupa por subgrupo sobre TODO
+  // el grupo, no solo capas consecutivas: el catálogo 3D sale en el orden
+  // de `capas` del backend (oxidos, arcillas, hierro_ferroso,
+  // arcilla_sulfatos_mica, combinado, coincidencias), y agrupar solo lo
+  // consecutivo intercalaría las dos secciones de alteración. El
+  // encabezado de sub-grupo solo se pinta si la sección tiene capas.
   const seccionesDeGrupo = useCallback(
     (grupo: { titulo: string; capas: CapaDef[] }): { titulo?: string; capas: CapaDef[] }[] => {
       const secciones: { titulo?: string; capas: CapaDef[] }[] = [];
