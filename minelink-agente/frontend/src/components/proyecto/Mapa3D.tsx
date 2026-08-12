@@ -179,6 +179,13 @@ function catalogoCapas(opts: {
 function precargarImagen(url: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    // crossOrigin obligatorio: sin él el preload se hace como petición NO-CORS
+    // (sin header Origin) y el backend no emite Access-Control-Allow-Origin, así
+    // que el navegador cachea la respuesta SIN headers CORS y el fetch posterior
+    // de MapLibre choca contra esa variante cacheada: "No ACAO header present"
+    // aunque el servidor sí la enviaría a una petición con Origin (bug real de
+    // producción, agosto 2026 — las capas 3D no cargaban en la web pública).
+    img.crossOrigin = "anonymous";
     img.onload = () => resolve();
     img.onerror = () => reject(new Error(`no se pudo cargar ${url}`));
     img.src = url;

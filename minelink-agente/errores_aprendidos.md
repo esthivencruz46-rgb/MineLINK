@@ -205,3 +205,32 @@ generar una capa a mano usar `geocatmin.capa_overlay_3d(coords, poligono,
 capa, escala_fallas)` local. Probar también con peticiones espaciadas,
 no en ráfaga.
 **Estado:** RESUELTO
+
+---
+
+## 2026-08-11 - Capas 3D bloqueadas por CORS pese a que curl recibía ACAO (cache poisoning del preload)
+**Síntoma:** en la app desplegada (vercel → render), los fetch de MapLibre
+a `/proyectos/{id}/capa-3d/{capa}.png` fallaban con
+"No 'Access-Control-Allow-Origin' header is present", así que las capas
+geología/catastro/fallas NO aparecían en la vista 3D (el satélite y el
+relieve sí). El mismo curl con `Origin: <frontend>` recibía 200 con
+`Access-Control-Allow-Origin` correcto. Asimetría navegador vs curl.
+**Causa raíz:** `precargarImagen` en `Mapa3D.tsx` precargaba la capa con
+`new Image()` SIN `crossOrigin` → petición NO-CORS (sin header Origin) →
+el backend no emite ACAO (solo lo manda si la petición trae Origin) → el
+navegador cachea esa respuesta SIN headers CORS → el `fetch` posterior de
+MapLibre pega en esa variante cacheada y Chrome la bloquea, aunque la red
+sí respondería con ACAO. Confirmado con página de prueba en navegador
+fresco: caso A (Image normal → fetch) bloqueado; caso B (Image con
+`crossOrigin="anonymous"` → fetch) status 200 ok=true. Los tiles de DEM
+no se veían afectados porque `precargarRelieve` ya usa `fetch(cors)`.
+**Solución aplicada:** `img.crossOrigin = "anonymous"` en `precargarImagen`
+(`Mapa3D.tsx`). Verificado e2e contra el backend desplegado real: las 3
+capas responden 200 con `ACAO=[origin]` y cargan.
+**Cómo evitarlo:** cualquier precarga de imagen que luego vaya a leerse
+por `fetch` CORS (MapLibre, Leaflet con CORS, canvas) debe ir con
+`crossOrigin="anonymous"` — un `<img>` sin crossOrigin envenena la caché
+HTTP con una variante sin headers CORS. Cuidado con tests con `curl`:
+simular solo el request con Origin no reproduce el bug (es la CACHE del
+navegador la que decide).
+**Estado:** RESUELTO
