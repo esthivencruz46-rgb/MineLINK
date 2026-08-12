@@ -39,17 +39,19 @@ import { BASE_URL } from "../../services/api";
 // y así un overlay roto no puede colgar tampoco la carga del mapa.
 //
 // Panel de capas (agosto 2026, pedido explícito: "las capas de 2D y todo su
-// catálogo también en 3D"): replica el catálogo del mapa 2D — Catastro y
-// geología (catastro, geología 100K, fallas si el backend confirmó alguna),
-// Sensores satelitales · INGEMMET (ASTER 9-3-1, QICIMI, anomalías
-// espectrales, libre denuncio) y Sentinel-2 · Copernicus (si ya se generó,
-// mismas URLs que el 2D). Cada capa es un PNG transparente servido por
+// catálogo también en 3D"): replica el catálogo del mapa 2D, pero SOLO las
+// que importan en 3D (agosto 2026, pedido de Esthiven: "solo las capas de
+// Geología, fallas y las de copernicus puedan verse en el 3D Map") —
+// Geología y fallas (geología 100K, fallas si el backend confirmó alguna)
+// y Sentinel-2 · Copernicus (si ya se generó, mismas URLs que el 2D).
+// Catastro minero, ASTER, QICIMI, anomalías espectrales y libre denuncio
+// quedan solo en el mapa 2D. Cada capa es un PNG transparente servido por
 // `GET /proyectos/{id}/capa-3d/{capa}.png` sobre el MISMO bbox que la
 // galería de análisis del PDF, superpuesto como source raster de MapLibre
 // con su propio `raster-opacity` (el backend exporta opacidad plena).
-// Capas y geometría: satélite (base) → capas del panel → borde verde de la
-// concesión → pin. El catálogo/UI replica el panel 2D reusando sus mismas
-// clases CSS (`.capas-*`, `.mapa-geocatmin`).
+// Capas y geometría: satélite (base) → capas del panel → borde de la
+// concesión (sin relleno) → pin. El catálogo/UI replica el panel 2D
+// reusando sus mismas clases CSS (`.capas-*`, `.mapa-geocatmin`).
 //
 // Estado de capas COMPARTIDO con el 2D (agosto 2026, pedido explícito de
 // Esthiven: "lo que está en 2D que aparezca en 3D y viceversa"): este
@@ -147,13 +149,12 @@ function catalogoCapas(opts: {
     capas.push({ id, grupo, etiqueta, url, bbox, opacidad, porDefecto });
   };
   if (opts.bbox) {
-    push("catastro", "Catastro y geología", "Catastro minero", `${base}/capa-3d/catastro.png`, opts.bbox, 0.9, true);
-    push("geologia", "Catastro y geología", "Geología (100K)", `${base}/capa-3d/geologia.png`, opts.bbox, 0.6, true);
-    push("fallas", "Catastro y geología", "Fallas geológicas cercanas", `${base}/capa-3d/fallas.png`, opts.bbox, 0.9, true);
-    push("aster_931", "Sensores satelitales · INGEMMET", "ASTER 9-3-1 (falso color, roca/vegetación)", `${base}/capa-3d/aster_931.png`, opts.bbox, 0.7, false);
-    push("qicimi", "Sensores satelitales · INGEMMET", "Índices minerales QICIMI", `${base}/capa-3d/qicimi.png`, opts.bbox, 0.7, false);
-    push("anomalia_espectral", "Sensores satelitales · INGEMMET", "Anomalías espectrales", `${base}/capa-3d/anomalia_espectral.png`, opts.bbox, 0.9, false);
-    push("libre_denuncio", "Sensores satelitales · INGEMMET", "Libre denuncio / aviso de retiro", `${base}/capa-3d/libre_denuncio.png`, opts.bbox, 0.85, false);
+    // SOLO geología, fallas y Copernicus en el 3D (pedido de Esthiven,
+    // agosto 2026): catastro minero, ASTER, QICIMI, anomalías espectrales
+    // y libre denuncio quedan solo en el mapa 2D — en 3D lo importante son
+    // las capas geológicas y las anomalías de Copernicus.
+    push("geologia", "Geología y fallas", "Geología (100K)", `${base}/capa-3d/geologia.png`, opts.bbox, 0.6, true);
+    push("fallas", "Geología y fallas", "Fallas geológicas cercanas", `${base}/capa-3d/fallas.png`, opts.bbox, 0.9, true);
   }
   if (opts.anomaliasSatelitales) {
     const [xmin, ymin, xmax, ymax] = opts.anomaliasSatelitales.bbox;
@@ -236,7 +237,7 @@ export function Mapa3D({
   const [relieveError, setRelieveError] = useState(false);
   const [panelAbierto, setPanelAbierto] = useState(false);
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({
-    "Catastro y geología": true,
+    "Geología y fallas": true,
   });
   const [capasCargando, setCapasCargando] = useState<Record<string, boolean>>({});
   const [capasError, setCapasError] = useState<Record<string, string>>({});
@@ -570,9 +571,10 @@ export function Mapa3D({
       if (timerEstilo) clearTimeout(timerEstilo);
       if (timerRespaldo) clearTimeout(timerRespaldo);
 
-      // Polígono de la concesión: borde verde de marca + relleno
-      // semitransparente muy tenue (el satélite de abajo sigue leyéndose).
-      // Mismo verde (#10b981) que el borde 2D de Leaflet.
+      // Polígono de la concesión: SOLO borde, sin relleno (pedido de
+      // Esthiven, agosto 2026) — el terreno de abajo se ve completo dentro
+      // de la concesión. Borde blanco de contraste debajo del verde de
+      // marca, mismo #10b981 que el borde 2D de Leaflet.
       if (poligonoConcesion && poligonoConcesion.length > 0) {
         try {
           mapa.addSource("concesion", {
@@ -607,17 +609,6 @@ export function Mapa3D({
             paint: {
               "line-color": "#10b981",
               "line-width": 3,
-            },
-          });
-          mapa.addLayer({
-            id: "concesion-relleno",
-            type: "fill",
-            source: "concesion",
-            paint: {
-              // Subido de 0.15 a 0.25: el área de la concesión se distingue
-              // del terreno que la rodea sin tapar el satélite.
-              "fill-color": "#10b981",
-              "fill-opacity": 0.25,
             },
           });
 
