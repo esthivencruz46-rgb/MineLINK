@@ -371,6 +371,13 @@ export function Mapa3D({
   const [capasCargando, setCapasCargando] = useState<Record<string, boolean>>({});
   const [capasError, setCapasError] = useState<Record<string, string>>({});
   const [capasListas, setCapasListas] = useState(false);
+  // Escala de geología elegida a mano en el panel 3D (agosto 2026): "auto"
+  // = la cámara decide (100K alejada, 50K dentro de la zona, lo de
+  // siempre); "100k"/"50k" la fija sin depender de la cámara. Solo tiene
+  // sentido cuando hay carta 50K (el selector ni se muestra si no).
+  const [escalaGeologia, setEscalaGeologia] = useState<"auto" | "100k" | "50k">("auto");
+  const escalaGeologiaRef = useRef(escalaGeologia);
+  escalaGeologiaRef.current = escalaGeologia;
 
   const bbox = useMemo(() => bboxOverlay(poligonoConcesion, coords), [poligonoConcesion, coords]);
   const capas = useMemo(
@@ -416,18 +423,24 @@ export function Mapa3D({
     }
   }
 
-  // URL de geología según la cámara: con carta 50K disponible y la vista
-  // DENTRO de la zona de la concesión → 50K; fuera (o sin carta 50K) →
-  // 100K. Espejo del `actualizarGeologia50` del mapa 2D (zona pad 1.1 o
-  // zoom ≥ 12 sin concesión).
+  // URL de geología según la selección del panel y la cámara: en modo
+  // manual ("100k"/"50k") la fija el botón; en "auto" la decide la vista —
+  // con carta 50K disponible y la cámara DENTRO de la zona de la concesión
+  // → 50K; fuera → 100K. Espejo del `actualizarGeologia50` del mapa 2D
+  // (zona pad 1.1 o zoom ≥ 12 sin concesión).
   function urlGeologiaActiva(): string {
     const capa = capasRef.current.find((c) => c.id === "geologia");
     if (!capa) return "";
-    const mapa = mapaRef.current;
-    if (capa.url50k && geologiaEscalaRef.current === "50k" && mapa) {
-      const zona50 = zona50Ref.current;
-      const dentro = zona50 ? vistaDentroDe(zona50, mapa.getBounds()) : mapa.getZoom() >= 12;
-      if (dentro) return capa.url50k;
+    const manual = escalaGeologiaRef.current;
+    if (capa.url50k && geologiaEscalaRef.current === "50k") {
+      if (manual === "50k") return capa.url50k;
+      if (manual === "100k") return capa.url;
+      const mapa = mapaRef.current;
+      if (mapa) {
+        const zona50 = zona50Ref.current;
+        const dentro = zona50 ? vistaDentroDe(zona50, mapa.getBounds()) : mapa.getZoom() >= 12;
+        if (dentro) return capa.url50k;
+      }
     }
     return capa.url;
   }
@@ -456,6 +469,47 @@ export function Mapa3D({
     } catch {
       return false;
     }
+  }
+
+  // Aplica la escala que corresponda según el botón del panel ("100k"/"50k")
+  // o la cámara en modo "auto", cambiando la imagen del source de geología
+  // sin recrear la capa. La 50K se precarga y se verifica que traiga algo
+  // pintado (si el export salió transparente —sin carta ahí— o falló, se
+  // queda con la 100K). No-op si ya está en esa URL.
+  function aplicarEscalaGeologia(): void {
+    const capa = capasRef.current.find((c) => c.id === "geologia");
+    const mapa = mapaRef.current;
+    if (!capa?.url50k || !mapa) return;
+    let tieneSource = false;
+    try {
+      tieneSource = !!mapa.getSource("geologia");
+    } catch {
+      tieneSource = false;
+    }
+    if (!tieneSource) return;
+    const nueva = urlGeologiaActiva();
+    if (!nueva || nueva === urlGeologiaRef.current) return;
+    const aplicar = () => {
+      const m = mapaRef.current;
+      const c = capasRef.current.find((x) => x.id === "geologia");
+      if (!m || !c) return;
+      if (urlGeologiaRef.current === nueva) return;
+      cambiarImagenGeologia(nueva, c.bbox);
+    };
+    if (nueva === capa.url) {
+      precargarImagen(nueva).then(aplicar).catch(() => {});
+    } else {
+      imagenTieneContenido(nueva).then((tiene) => { if (tiene) aplicar(); }).catch(() => {});
+    }
+  }
+
+  // Botones del panel 3D: "Auto" vuelve al comportamiento de cámara;
+  // "100k"/"50k" fijan la escala de una. Aplica de inmediato, no espera
+  // a que el usuario mueva la cámara.
+  function seleccionarEscalaGeologia(escala: "auto" | "100k" | "50k") {
+    setEscalaGeologia(escala);
+    escalaGeologiaRef.current = escala;
+    aplicarEscalaGeologia();
   }
 
   // Agrega la capa al mapa, SIEMPRE después de precargar la imagen (ver
@@ -923,39 +977,12 @@ export function Mapa3D({
     // Swap 100K↔50K de la geología con la cámara (agosto 2026, espejo del
     // `actualizarGeologia50` del mapa 2D): con la vista DENTRO de la zona
     // de la concesión se usa la carta 50K (más detalle); fuera, la 100K.
-    // Se evalúa en `moveend` (fin del pan/zoom), no en cada frame. La 50K
-    // se precarga y se verifica que traiga algo pintado antes de cambiar:
-    // si INGEMMET no tiene carta ahí el export sale transparente y conviene
-    // quedarse con la 100K (que sí cubre todo el país).
+    // Solo actúa en modo "auto" del panel (en manual la URL ya está fija y
+    // `urlGeologiaActiva` devuelve lo mismo, así que es un no-op). Se
+    // evalúa en `moveend` (fin del pan/zoom), no en cada frame.
     const actualizarGeologia50 = () => {
       if (desmontado) return;
-      const capa = capasRef.current.find((c) => c.id === "geologia");
-      if (!capa?.url50k || !mapaRef.current) return;
-      let tieneSource = false;
-      try {
-        tieneSource = !!mapaRef.current.getSource("geologia");
-      } catch {
-        tieneSource = false;
-      }
-      if (!tieneSource) return;
-      const nueva = urlGeologiaActiva();
-      if (!nueva || nueva === urlGeologiaRef.current) return;
-      // Volver a 100K: se cambia apenas precargue. Ir a 50K: se cambia
-      // solo si de verdad tiene contenido (la 100K queda de respaldo).
-      const aplicar = () => {
-        const m = mapaRef.current;
-        const c = capasRef.current.find((x) => x.id === "geologia");
-        if (desmontado || !m || !c) return;
-        if (urlGeologiaRef.current === nueva) return;
-        cambiarImagenGeologia(nueva, c.bbox);
-      };
-      if (nueva === capa.url) {
-        precargarImagen(nueva).then(aplicar).catch(() => {});
-      } else {
-        imagenTieneContenido(nueva).then((tiene) => {
-          if (tiene) aplicar();
-        }).catch(() => {});
-      }
+      aplicarEscalaGeologia();
     };
     mapa.on("moveend", actualizarGeologia50);
 
@@ -1065,6 +1092,57 @@ export function Mapa3D({
                               }}
                             >
                               {capasError[capa.id]}
+                            </div>
+                          )}
+                          {/* Selector de escala de la geología (agosto 2026):
+                              solo cuando INGEMMET tiene carta 50K además de la
+                              100K. "Auto" = la cámara decide (100K alejada,
+                              50K dentro de la zona); "100K"/"50K" fijan la
+                              escala de una, sin depender del zoom. */}
+                          {capa.id === "geologia" && geologiaEscala === "50k" && (
+                            <div
+                              className="capas-escala"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                margin: "2px 0 6px 30px",
+                                fontSize: "11px",
+                                color: "#64748b",
+                              }}
+                            >
+                              <span style={{ marginRight: "2px" }}>Escala:</span>
+                              {(["auto", "100k", "50k"] as const).map((opcion) => (
+                                <button
+                                  key={opcion}
+                                  type="button"
+                                  title={
+                                    opcion === "auto"
+                                      ? "Automático: cambia con el zoom"
+                                      : opcion === "100k"
+                                        ? "Carta 1:100,000"
+                                        : "Carta 1:50,000"
+                                  }
+                                  onClick={() => seleccionarEscalaGeologia(opcion)}
+                                  style={{
+                                    border:
+                                      "1px solid " +
+                                      (escalaGeologia === opcion
+                                        ? "#10b981"
+                                        : "rgba(0,0,0,0.15)"),
+                                    color: escalaGeologia === opcion ? "#10b981" : "#334155",
+                                    fontWeight: escalaGeologia === opcion ? "600" : "400",
+                                    background: "transparent",
+                                    borderRadius: "4px",
+                                    padding: "1px 8px",
+                                    cursor: "pointer",
+                                    fontSize: "11px",
+                                    lineHeight: "1.4",
+                                  }}
+                                >
+                                  {opcion === "auto" ? "Auto" : opcion}
+                                </button>
+                              ))}
                             </div>
                           )}
                         </div>
