@@ -195,7 +195,11 @@ interface CapaDef {
 }
 
 // Versión de las URLs de capas 3D: subirla cada vez que cambie la forma de
-// servirlas (CORS/caché). Necesario porque el backend manda
+// servirlas (CORS/caché) o el CONTENIDO de una capa que se cachea 24h
+// (agosto 2026: los puntitos de sedimentos de quebrada pasaron de la
+// simbología por defecto de INGEMMET a un renderer propio — primero 20px y
+// luego 10px, y el 3D seguía mostrando el PNG viejo cacheado con URL fija).
+// Necesario porque el backend manda
 // `Cache-Control: max-age=86400` y una visita previa con el flujo viejo
 // (precarga sin crossOrigin, agosto 2026) dejaba cacheada la variante SIN
 // `Access-Control-Allow-Origin`; con la misma URL el navegador la reusa y el
@@ -203,7 +207,7 @@ interface CapaDef {
 // aunque el servidor ya responda con ACAO. El parámetro cambia la cache key y
 // fuerza una descarga fresca para TODOS los usuarios, sin depender de que
 // limpien su caché.
-const VER_CAPAS_3D = "2";
+const VER_CAPAS_3D = "3";
 const conVersion = (url: string): string =>
   `${url}${url.includes("?") ? "&" : "?"}v=${VER_CAPAS_3D}`;
 
