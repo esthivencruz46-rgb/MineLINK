@@ -159,13 +159,18 @@ const TITULOS_ANOMALIAS: Record<string, string> = {
 
 // Sub-grupo de alteración de cada índice de Copernicus (agosto 2026, pedido
 // explícito de Esthiven: agrupar en "Alteración férrica" y "Alteración
-// argílica"). El que no esté acá (combinado/coincidencias) queda suelto al
-// final del grupo. Espejo de la sección Copernicus del panel 2D.
+// argílica"). La argílica además del clásico arcillas/arcilla-sulfatos-mica
+// abarca "combinado" y "coincidencias" (aclarado en vivo agosto 2026: la
+// alteración argílica no solo cubre arcillas y arcilla/sulfatos/mica, también
+// el mapa combinado de las 4 y las coincidencias de 2+ índices). Espejo de la
+// sección Copernicus del panel 2D.
 const SUBGRUPOS_ANOMALIAS: Record<string, string> = {
   oxidos_de_hierro: "Alteración férrica",
   hierro_ferroso: "Alteración férrica",
   arcillas: "Alteración argílica",
   arcilla_sulfatos_mica: "Alteración argílica",
+  combinado: "Alteración argílica",
+  coincidencias: "Alteración argílica",
 };
 
 interface AnomaliasSatelitales {
@@ -388,6 +393,10 @@ export function Mapa3D({
   const [gruposAbiertos, setGruposAbiertos] = useState<Record<string, boolean>>({
     "Geología y fallas": true,
   });
+  // Sub-grupos plegados (agosto 2026): el encabezado "+"/"−" de
+  // "Alteración férrica"/"Alteración argílica" oculta la lista de sus
+  // capas. Ausente del objeto = expandido.
+  const [subgruposCerrados, setSubgruposCerrados] = useState<Record<string, boolean>>({});
   const [capasCargando, setCapasCargando] = useState<Record<string, boolean>>({});
   const [capasError, setCapasError] = useState<Record<string, string>>({});
   const [capasListas, setCapasListas] = useState(false);
@@ -426,19 +435,27 @@ export function Mapa3D({
     return resultado;
   }, [capas]);
 
-  // Corta las capas de un grupo en secciones por `subgrupo` consecutivo
-  // (agosto 2026): los índices de Copernicus van bajo "Alteración férrica"
-  // / "Alteración argílica"; el resto (combinado/coincidencias) queda en
-  // una sección sin título al final. El encabezado de sub-grupo solo se
-  // pinta si la sección tiene capas.
+  // Corta las capas de un grupo en secciones por `subgrupo` (agosto 2026):
+  // los índices de Copernicus van bajo "Alteración férrica" / "Alteración
+  // argílica" (la argílica ahora también agrupa combinado y coincidencias).
+  // Se agrupa por subgrupo sobre TODO el grupo, no solo capas consecutivas:
+  // el catálogo 3D sale en el orden de `capas` del backend
+  // (oxidos, arcillas, hierro_ferroso, arcilla_sulfatos_mica, combinado,
+  // coincidencias), y agrupar solo lo consecutivo intercalaría las dos
+  // secciones de alteración. La sección sin título agrupa lo que no tiene
+  // subgrupo. El encabezado de sub-grupo solo se pinta si la sección tiene
+  // capas.
   const seccionesDeGrupo = useCallback(
     (grupo: { titulo: string; capas: CapaDef[] }): { titulo?: string; capas: CapaDef[] }[] => {
       const secciones: { titulo?: string; capas: CapaDef[] }[] = [];
+      const indice = new Map<string, number>();
       for (const c of grupo.capas) {
-        const ultima = secciones[secciones.length - 1];
-        if (ultima && ultima.titulo === c.subgrupo) {
-          ultima.capas.push(c);
+        const clave = c.subgrupo ?? "";
+        const pos = indice.get(clave);
+        if (pos !== undefined) {
+          secciones[pos].capas.push(c);
         } else {
+          indice.set(clave, secciones.length);
           secciones.push({ titulo: c.subgrupo, capas: [c] });
         }
       }
@@ -649,6 +666,20 @@ export function Mapa3D({
       setCapasCargando((p) => ({ ...p, [id]: false }));
       if (ok) onCambiarCapa(id, true);
       else setCapasError((p) => ({ ...p, [id]: "No se pudo cargar esta capa" }));
+    });
+  }
+
+  // Interruptor maestro de un sub-grupo (agosto 2026, pedido de Esthiven):
+  // clic en "Alteración argílica" enciende o apaga TODAS sus capas de una
+  // ("si le quitas, igual" — un clic apaga las 4). Enciende solo las que
+  // están apagadas (alternarCapa carga la imagen 3D antes de reportar el
+  // cambio) y apaga solo las activas.
+  function alternarSubgrupo(seccion: { titulo?: string; capas: CapaDef[] }) {
+    const ids = seccion.capas.map((c) => c.id);
+    const algunaActiva = ids.some((id) => capasActivas[id] === true);
+    const objetivo = !algunaActiva;
+    ids.forEach((id) => {
+      if (!!capasActivas[id] !== objetivo) alternarCapa(id);
     });
   }
 
@@ -1112,12 +1143,24 @@ export function Mapa3D({
                       {grupo.titulo}
                     </div>
                     {abierto &&
-                      seccionesDeGrupo(grupo).map((seccion, si) => (
+                      seccionesDeGrupo(grupo).map((seccion, si) => {
+                        const subCerrado = seccion.titulo
+                          ? subgruposCerrados[seccion.titulo] === true
+                          : false;
+                        const todasActivas =
+                          seccion.capas.length > 0 &&
+                          seccion.capas.every((c) => capasActivas[c.id]);
+                        return (
                         <div key={seccion.titulo ?? `seccion-${si}`}>
                           {seccion.titulo && (
                             <div
                               className="capas-subgrupo"
                               style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                cursor: "default",
+                                userSelect: "none",
                                 margin: "6px 0 2px 12px",
                                 fontSize: "11px",
                                 fontWeight: "600",
@@ -1126,10 +1169,70 @@ export function Mapa3D({
                                 color: "#64748b",
                               }}
                             >
-                              {seccion.titulo}
+                              {/* "+"/"−": colapsa o expande la lista de capas
+                                  del sub-grupo. */}
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                title="Mostrar / ocultar las capas de este grupo"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSubgruposCerrados((p) => ({
+                                    ...p,
+                                    [seccion.titulo as string]: !subCerrado,
+                                  }));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    setSubgruposCerrados((p) => ({
+                                      ...p,
+                                      [seccion.titulo as string]: !subCerrado,
+                                    }));
+                                  }
+                                }}
+                                style={{
+                                  fontSize: "11px",
+                                  lineHeight: "1",
+                                  width: "13px",
+                                  textAlign: "center",
+                                  color: "#64748b",
+                                  cursor: "pointer",
+                                  border: "1px solid rgba(0,0,0,0.15)",
+                                  borderRadius: "3px",
+                                  background: "transparent",
+                                }}
+                              >
+                                {subCerrado ? "+" : "−"}
+                              </span>
+                              {/* El título es un interruptor maestro: clic
+                                  enciende/apaga todas las capas del grupo. */}
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                title="Clic: activa o desactiva todas las capas de este grupo"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  alternarSubgrupo(seccion);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.stopPropagation();
+                                    alternarSubgrupo(seccion);
+                                  }
+                                }}
+                                style={{
+                                  cursor: "pointer",
+                                  color: todasActivas ? "#10b981" : "#64748b",
+                                  fontWeight: todasActivas ? "700" : "600",
+                                }}
+                              >
+                                {seccion.titulo}
+                              </span>
                             </div>
                           )}
-                          {seccion.capas.map((capa) => (
+                          {!subCerrado &&
+                            seccion.capas.map((capa) => (
                             <div key={capa.id}>
                           <label className="capas-fila" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", marginLeft: "12px" }}>
                             <input
@@ -1206,7 +1309,8 @@ export function Mapa3D({
                             </div>
                           ))}
                         </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 );
               })}

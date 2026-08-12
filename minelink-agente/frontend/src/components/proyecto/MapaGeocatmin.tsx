@@ -119,6 +119,12 @@ export function MapaGeocatmin({
   // sincronización las lee para aplicar el estado compartido.
   const capasLeafletRef = useRef<Record<string, L.Layer>>({});
   const capasCheckboxRef = useRef<Record<string, HTMLInputElement>>({});
+  // Encabezados de sub-grupo ("Alteración férrica"/"Alteración argílica",
+  // agosto 2026) y sus ids por título — el effect de sincronización los
+  // repinta (verde si todas sus capas están activas) cuando el cambio de
+  // capa viene de la vista 3D, igual que repinta los checkboxes.
+  const subgrupoTituloRef = useRef<Record<string, HTMLElement>>({});
+  const subgrupoIdsRef = useRef<Record<string, string[]>>({});
 
   function cambiarCapa(id: string, activa: boolean) {
     setCapasActivas((p) => ({ ...p, [id]: activa }));
@@ -511,8 +517,11 @@ export function MapaGeocatmin({
         // El grupo Copernicus se subdivide (agosto 2026, pedido explícito
         // de Esthiven): los índices van bajo "Alteración férrica" (óxidos
         // de hierro + hierro ferroso) y "Alteración argílica" (arcillas +
-        // arcilla/sulfatos/mica); combinado/coincidencias quedan sueltos
-        // al final, sin sub-título.
+        // arcilla/sulfatos/mica + combinado + coincidencias — aclarado en
+        // vivo por Esthiven agosto 2026: la argílica no solo abarca
+        // arcillas y arcilla/sulfatos/mica, también el mapa combinado de
+        // las 4 y las coincidencias de 2+ índices, así que esas dos ya no
+        // quedan sueltas al final sin sub-título).
         const grupos: {
           titulo: string;
           expandido: boolean;
@@ -563,10 +572,8 @@ export function MapaGeocatmin({
               },
               {
                 titulo: "Alteración argílica",
-                capas: en(["arcillas", "arcilla_sulfatos_mica"]),
+                capas: en(["arcillas", "arcilla_sulfatos_mica", "combinado", "coincidencias"]),
               },
-              // combinado / coincidencias van sueltos, sin sub-título
-              { capas: en(["combinado", "coincidencias"]) },
             ],
           });
         }
@@ -577,6 +584,20 @@ export function MapaGeocatmin({
         // capas pesadas de uso puntual, no hace falta mostrarlas todas
         // de entrada (antes SÍ arrancaban expandidas, 9 checkboxes de
         // golpe encima del mapa).
+        // `pintarSubgrupos` pinta los títulos de sub-grupo (verde si todas
+        // sus capas están activas, gris si no) y se reusa tanto al
+        // construir el panel como en el effect de sincronización 2D↔3D
+        // (no es JSX, no hay re-render automático).
+        const pintarSubgrupos = () => {
+          for (const [titulo, el] of Object.entries(subgrupoTituloRef.current)) {
+            const ids = subgrupoIdsRef.current[titulo] ?? [];
+            if (ids.length === 0) continue;
+            const activas = ids.filter((id) => capasActivasRef.current[id] === true).length;
+            const todas = activas === ids.length;
+            el.style.color = todas ? "#10b981" : "#64748b";
+            el.style.fontWeight = todas ? "700" : "600";
+          }
+        };
         grupos.forEach((grupo, i) => {
           if (i > 0) {
             L.DomUtil.create("div", "leaflet-control-layers-separator", contenido);
@@ -611,25 +632,79 @@ export function MapaGeocatmin({
           });
 
           // Las secciones con sub-título (hoy solo las de Copernicus:
-          // "Alteración férrica"/"Alteración argílica") pintan su propio
-          // encabezado chico; las que no tienen título van sueltas. Se
-          // salta una sección vacía (el backend no siempre incluye todos
-          // los índices).
+          // "Alteración férrica"/"Alteración argílica") pintan un
+          // encabezado PROPIO con dos zonas de clic (agosto 2026, pedido
+          // de Esthiven): el "+"/"−" colapsa o expande la lista de capas
+          // del sub-grupo, y el TÍTULO es un interruptor maestro que
+          // activa o desactiva TODAS sus capas de una ("clic en Alteración
+          // argílica → se encienden las 4; otro clic las apaga"). Las
+          // capas sin sub-título van sueltas, sin encabezado. Se salta una
+          // sección vacía (el backend no siempre incluye todos los índices).
           grupo.secciones.forEach((seccion) => {
             if (seccion.capas.length === 0) return;
+            const contenedorSub = seccion.titulo
+              ? L.DomUtil.create("div", "", listaCapas)
+              : listaCapas;
+            let listaSub = listaCapas;
             if (seccion.titulo) {
-              const sub = L.DomUtil.create("div", "capas-subgrupo", listaCapas);
-              sub.textContent = seccion.titulo;
-              sub.style.fontSize = "11px";
-              sub.style.fontWeight = "600";
-              sub.style.textTransform = "uppercase";
-              sub.style.letterSpacing = "0.02em";
-              sub.style.color = "#64748b";
+              const sub = L.DomUtil.create("div", "capas-subgrupo", contenedorSub);
+              sub.style.display = "flex";
+              sub.style.alignItems = "center";
+              sub.style.gap = "4px";
+              sub.style.cursor = "default";
               sub.style.margin = "6px 0 2px 12px";
+              sub.style.userSelect = "none";
+
+              const indicador = L.DomUtil.create("span", "", sub);
+              indicador.textContent = "−";
+              indicador.title = "Mostrar / ocultar las capas de este grupo";
+              indicador.style.fontSize = "11px";
+              indicador.style.lineHeight = "1";
+              indicador.style.width = "13px";
+              indicador.style.textAlign = "center";
+              indicador.style.color = "#64748b";
+              indicador.style.cursor = "pointer";
+              indicador.style.border = "1px solid rgba(0,0,0,0.15)";
+              indicador.style.borderRadius = "3px";
+              indicador.style.background = "transparent";
+              indicador.addEventListener("click", (ev) => {
+                ev.stopPropagation();
+                const expandido = listaSub.style.display !== "none";
+                listaSub.style.display = expandido ? "none" : "block";
+                indicador.textContent = expandido ? "+" : "−";
+              });
+
+              const titulo = L.DomUtil.create("span", "", sub);
+              titulo.textContent = seccion.titulo;
+              titulo.title = "Clic: activa o desactiva todas las capas de este grupo";
+              titulo.style.fontSize = "11px";
+              titulo.style.fontWeight = "600";
+              titulo.style.textTransform = "uppercase";
+              titulo.style.letterSpacing = "0.02em";
+              titulo.style.color = "#64748b";
+              titulo.style.cursor = "pointer";
+              titulo.addEventListener("click", (ev) => {
+                ev.stopPropagation();
+                const ids = seccion.capas.map(([id]) => id);
+                const algunaActiva = ids.some(
+                  (id) => capasActivasRef.current[id] === true
+                );
+                const nuevo = !algunaActiva;
+                ids.forEach((id) => {
+                  const cb = capasCheckboxRef.current[id];
+                  if (cb) cb.checked = nuevo;
+                  cambiarCapa(id, nuevo);
+                });
+                pintarSubgrupos();
+              });
+
+              subgrupoTituloRef.current[seccion.titulo] = titulo;
+              subgrupoIdsRef.current[seccion.titulo] = seccion.capas.map(([id]) => id);
+              listaSub = L.DomUtil.create("div", "", contenedorSub);
             }
 
             seccion.capas.forEach(([id, label]) => {
-              const fila = L.DomUtil.create("label", "capas-fila", listaCapas);
+              const fila = L.DomUtil.create("label", "capas-fila", listaSub);
               fila.style.display = "flex";
               fila.style.alignItems = "center";
               fila.style.gap = "6px";
@@ -701,6 +776,7 @@ export function MapaGeocatmin({
             });
           });
         });
+        pintarSubgrupos();
 
         L.DomEvent.disableClickPropagation(div);
         return div;
@@ -771,6 +847,10 @@ export function MapaGeocatmin({
             <p class="leyenda-subgrupo">Alteración argílica</p>
             ${muestra("rgb(0,102,204)", "Arcillas")}
             ${muestra("rgb(204,204,0)", "Arcilla / sulfatos / mica")}
+            ${muestra(
+              "linear-gradient(90deg, rgb(220,20,20), rgb(0,102,204), rgb(255,140,0), rgb(204,204,0))",
+              "Anomalías combinadas (las 4 superpuestas)"
+            )}
             ${muestra("rgb(155,0,200)", "Coincidencia de 2+ índices")}
 
             <p class="leyenda-nota">Cada índice de Sentinel-2 solo pinta el 10% más alto de
@@ -877,6 +957,8 @@ export function MapaGeocatmin({
       mapaRef.current = null;
       capasLeafletRef.current = {};
       capasCheckboxRef.current = {};
+      subgrupoTituloRef.current = {};
+      subgrupoIdsRef.current = {};
       mapa.remove();
     };
     // `en3D` en las deps a propósito: al alternar 2D↔3D el contenedor de
@@ -907,6 +989,16 @@ export function MapaGeocatmin({
     }
     for (const [id, checkbox] of Object.entries(capasCheckboxRef.current)) {
       if (checkbox) checkbox.checked = capasActivas[id] === true;
+    }
+    // Repinta los encabezados de sub-grupo (interruptor maestro): verde y
+    // en negrita cuando TODAS sus capas están activas, gris si no.
+    for (const [titulo, el] of Object.entries(subgrupoTituloRef.current)) {
+      const ids = subgrupoIdsRef.current[titulo] ?? [];
+      if (ids.length === 0) continue;
+      const activas = ids.filter((id) => capasActivas[id] === true).length;
+      const todas = activas === ids.length;
+      el.style.color = todas ? "#10b981" : "#64748b";
+      el.style.fontWeight = todas ? "700" : "600";
     }
   }, [capasActivas, en3D]);
 
