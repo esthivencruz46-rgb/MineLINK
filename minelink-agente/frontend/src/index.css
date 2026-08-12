@@ -204,6 +204,18 @@ html.dark .mapa-geocatmin .leyenda-grupo-titulo {
 .mapa-geocatmin .leyenda-grupo-titulo:first-child {
   margin-top: 0;
 }
+/* Sub-grupo dentro de la leyenda (agosto 2026): los índices de Copernicus
+   se agrupan bajo "Alteración férrica"/"Alteración argílica" — más chico
+   y en gris que el título de grupo, igual que el sub-título del panel de
+   capas. */
+.mapa-geocatmin .leyenda-subgrupo {
+  margin: 6px 0 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #64748b;
+}
 .mapa-geocatmin .leyenda-fila {
   display: flex;
   align-items: center;

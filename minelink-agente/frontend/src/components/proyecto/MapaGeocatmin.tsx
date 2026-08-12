@@ -15,12 +15,15 @@ const cargarMapa3D = () => import("./Mapa3D");
 const Mapa3DLazy = lazy(cargarMapa3D);
 
 // Nombre tecnico -> etiqueta legible para el control de capas (mismo
-// orden/nombres que backend/copernicus.py NOMBRES_CAPAS).
+// orden/nombres que backend/copernicus.py NOMBRES_CAPAS). Sin el prefijo
+// "Anomalía:" en los 4 índices porque ya van dentro de su sub-grupo de
+// alteración ("Alteración férrica"/"Alteración argílica", agosto 2026 —
+// pedido explícito de Esthiven).
 const TITULOS_ANOMALIAS: Record<string, string> = {
-  oxidos_de_hierro: "Anomalía: óxidos de hierro",
-  arcillas: "Anomalía: arcillas",
-  hierro_ferroso: "Anomalía: hierro ferroso",
-  arcilla_sulfatos_mica: "Anomalía: arcilla/sulfatos/mica",
+  oxidos_de_hierro: "Óxidos de hierro",
+  arcillas: "Arcillas",
+  hierro_ferroso: "Hierro ferroso",
+  arcilla_sulfatos_mica: "Arcilla / sulfatos / mica",
   combinado: "Anomalías combinadas (todas)",
   // Píxeles donde 2 o más de los 4 índices coinciden a la vez (julio
   // 2026, pedido explícito de Esthiven) — ver backend/copernicus.py.
@@ -447,35 +450,66 @@ export function MapaGeocatmin({
         // `capasActivas` (ver effect de sincronización abajo) — la
         // membresía de Leaflet la aplica ese effect, que es el que
         // mantiene el control en sync cuando el cambio viene de la 3D.
-        const grupos: { titulo: string; expandido: boolean; capas: [string, string][] }[] = [
+        // El grupo Copernicus se subdivide (agosto 2026, pedido explícito
+        // de Esthiven): los índices van bajo "Alteración férrica" (óxidos
+        // de hierro + hierro ferroso) y "Alteración argílica" (arcillas +
+        // arcilla/sulfatos/mica); combinado/coincidencias quedan sueltos
+        // al final, sin sub-título.
+        const grupos: {
+          titulo: string;
+          expandido: boolean;
+          secciones: { titulo?: string; capas: [string, string][] }[];
+        }[] = [
           {
             titulo: "Catastro y geología",
             expandido: true,
-            capas: [
-              ["catastro", "Catastro minero"],
-              ["geologia", "Geología (50K si existe / 100K)"],
-              ...(fallas ? ([["fallas", "Fallas geológicas cercanas"]] as [string, string][]) : []),
+            secciones: [
+              {
+                capas: [
+                  ["catastro", "Catastro minero"],
+                  ["geologia", "Geología (50K si existe / 100K)"],
+                  ...(fallas ? ([["fallas", "Fallas geológicas cercanas"]] as [string, string][]) : []),
+                ],
+              },
             ],
           },
           {
             titulo: "Sensores satelitales · INGEMMET",
             expandido: false,
-            capas: [
-              ["aster_931", "ASTER 9-3-1 (falso color, roca/vegetación)"],
-              ["qicimi", "Índices minerales QICIMI"],
-              ["anomalia_espectral", "Anomalías espectrales"],
-              ["libre_denuncio", "Libre denuncio / aviso de retiro (~20km)"],
+            secciones: [
+              {
+                capas: [
+                  ["aster_931", "ASTER 9-3-1 (falso color, roca/vegetación)"],
+                  ["qicimi", "Índices minerales QICIMI"],
+                  ["anomalia_espectral", "Anomalías espectrales"],
+                  ["libre_denuncio", "Libre denuncio / aviso de retiro (~20km)"],
+                ],
+              },
             ],
           },
         ];
         if (Object.keys(overlaysAnomalias).length > 0) {
+          const ids = Object.keys(overlaysAnomalias);
+          const titulo = (id: string) => TITULOS_ANOMALIAS[id] ?? id;
+          const en = (lista: string[]) =>
+            ids
+              .filter((id) => lista.includes(id))
+              .map((id) => [id, titulo(id)] as [string, string]);
           grupos.push({
             titulo: "Sentinel-2 · Copernicus",
             expandido: false,
-            capas: Object.keys(overlaysAnomalias).map((id) => [
-              id,
-              TITULOS_ANOMALIAS[id] ?? id,
-            ]),
+            secciones: [
+              {
+                titulo: "Alteración férrica",
+                capas: en(["oxidos_de_hierro", "hierro_ferroso"]),
+              },
+              {
+                titulo: "Alteración argílica",
+                capas: en(["arcillas", "arcilla_sulfatos_mica"]),
+              },
+              // combinado / coincidencias van sueltos, sin sub-título
+              { capas: en(["combinado", "coincidencias"]) },
+            ],
           });
         }
 
@@ -518,76 +552,95 @@ export function MapaGeocatmin({
             flecha.style.transform = expandido ? "rotate(-90deg)" : "rotate(0deg)";
           });
 
-          grupo.capas.forEach(([id, label]) => {
-            const fila = L.DomUtil.create("label", "capas-fila", listaCapas);
-            fila.style.display = "flex";
-            fila.style.alignItems = "center";
-            fila.style.gap = "6px";
-            fila.style.cursor = "pointer";
-            fila.style.marginLeft = "12px"; // indentado bajo el grupo
-            const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
-            checkbox.type = "checkbox";
-            checkbox.checked = capasActivasRef.current[id] === true;
-            capasCheckboxRef.current[id] = checkbox;
-            checkbox.addEventListener("change", () => {
-              cambiarCapa(id, checkbox.checked);
-            });
-            const texto = L.DomUtil.create("span", "", fila);
-            texto.textContent = label;
-            texto.style.fontSize = "13px";
-
-            // Selector de escala de la geología (agosto 2026, mismo que el
-            // panel 3D): solo cuando INGEMMET tiene carta 50K además de la
-            // 100K. "Auto" = la cámara decide (100K alejado, 50K dentro de
-            // la zona de la concesión); "100K"/"50K" fijan la escala de una.
-            if (id === "geologia" && geologiaEscala === "50k") {
-              const caja = L.DomUtil.create("div", "capas-escala", listaCapas);
-              caja.style.display = "flex";
-              caja.style.alignItems = "center";
-              caja.style.gap = "4px";
-              caja.style.margin = "2px 0 6px 30px";
-              caja.style.fontSize = "11px";
-              caja.style.color = "#64748b";
-              L.DomUtil.create("span", "", caja).textContent = "Escala:";
-              const pintarBotones = () => {
-                const actual = escalaGeologiaRef.current;
-                for (const b of Array.from(
-                  caja.querySelectorAll<HTMLButtonElement>("button")
-                )) {
-                  const activo = b.dataset.escala === actual;
-                  b.style.border =
-                    "1px solid " + (activo ? "#10b981" : "rgba(0,0,0,0.15)");
-                  b.style.color = activo ? "#10b981" : "#334155";
-                  b.style.fontWeight = activo ? "600" : "400";
-                }
-              };
-              const botonEscala = (
-                escala: "auto" | "100k" | "50k",
-                etiqueta: string,
-                titulo: string
-              ) => {
-                const b = L.DomUtil.create("button", "", caja) as HTMLButtonElement;
-                b.type = "button";
-                b.dataset.escala = escala;
-                b.title = titulo;
-                b.textContent = etiqueta;
-                b.style.background = "transparent";
-                b.style.borderRadius = "4px";
-                b.style.padding = "1px 8px";
-                b.style.cursor = "pointer";
-                b.style.fontSize = "11px";
-                b.style.lineHeight = "1.4";
-                b.addEventListener("click", () => {
-                  seleccionarEscalaGeologia(escala);
-                  pintarBotones();
-                });
-                return b;
-              };
-              botonEscala("auto", "Auto", "Automático: cambia con el zoom");
-              botonEscala("100k", "100K", "Carta 1:100,000");
-              botonEscala("50k", "50K", "Carta 1:50,000");
-              pintarBotones();
+          // Las secciones con sub-título (hoy solo las de Copernicus:
+          // "Alteración férrica"/"Alteración argílica") pintan su propio
+          // encabezado chico; las que no tienen título van sueltas. Se
+          // salta una sección vacía (el backend no siempre incluye todos
+          // los índices).
+          grupo.secciones.forEach((seccion) => {
+            if (seccion.capas.length === 0) return;
+            if (seccion.titulo) {
+              const sub = L.DomUtil.create("div", "capas-subgrupo", listaCapas);
+              sub.textContent = seccion.titulo;
+              sub.style.fontSize = "11px";
+              sub.style.fontWeight = "600";
+              sub.style.textTransform = "uppercase";
+              sub.style.letterSpacing = "0.02em";
+              sub.style.color = "#64748b";
+              sub.style.margin = "6px 0 2px 12px";
             }
+
+            seccion.capas.forEach(([id, label]) => {
+              const fila = L.DomUtil.create("label", "capas-fila", listaCapas);
+              fila.style.display = "flex";
+              fila.style.alignItems = "center";
+              fila.style.gap = "6px";
+              fila.style.cursor = "pointer";
+              fila.style.marginLeft = "12px"; // indentado bajo el grupo
+              const checkbox = L.DomUtil.create("input", "", fila) as HTMLInputElement;
+              checkbox.type = "checkbox";
+              checkbox.checked = capasActivasRef.current[id] === true;
+              capasCheckboxRef.current[id] = checkbox;
+              checkbox.addEventListener("change", () => {
+                cambiarCapa(id, checkbox.checked);
+              });
+              const texto = L.DomUtil.create("span", "", fila);
+              texto.textContent = label;
+              texto.style.fontSize = "13px";
+
+              // Selector de escala de la geología (agosto 2026, mismo que el
+              // panel 3D): solo cuando INGEMMET tiene carta 50K además de la
+              // 100K. "Auto" = la cámara decide (100K alejado, 50K dentro de
+              // la zona de la concesión); "100K"/"50K" fijan la escala de una.
+              if (id === "geologia" && geologiaEscala === "50k") {
+                const caja = L.DomUtil.create("div", "capas-escala", listaCapas);
+                caja.style.display = "flex";
+                caja.style.alignItems = "center";
+                caja.style.gap = "4px";
+                caja.style.margin = "2px 0 6px 30px";
+                caja.style.fontSize = "11px";
+                caja.style.color = "#64748b";
+                L.DomUtil.create("span", "", caja).textContent = "Escala:";
+                const pintarBotones = () => {
+                  const actual = escalaGeologiaRef.current;
+                  for (const b of Array.from(
+                    caja.querySelectorAll<HTMLButtonElement>("button")
+                  )) {
+                    const activo = b.dataset.escala === actual;
+                    b.style.border =
+                      "1px solid " + (activo ? "#10b981" : "rgba(0,0,0,0.15)");
+                    b.style.color = activo ? "#10b981" : "#334155";
+                    b.style.fontWeight = activo ? "600" : "400";
+                  }
+                };
+                const botonEscala = (
+                  escala: "auto" | "100k" | "50k",
+                  etiqueta: string,
+                  titulo: string
+                ) => {
+                  const b = L.DomUtil.create("button", "", caja) as HTMLButtonElement;
+                  b.type = "button";
+                  b.dataset.escala = escala;
+                  b.title = titulo;
+                  b.textContent = etiqueta;
+                  b.style.background = "transparent";
+                  b.style.borderRadius = "4px";
+                  b.style.padding = "1px 8px";
+                  b.style.cursor = "pointer";
+                  b.style.fontSize = "11px";
+                  b.style.lineHeight = "1.4";
+                  b.addEventListener("click", () => {
+                    seleccionarEscalaGeologia(escala);
+                    pintarBotones();
+                  });
+                  return b;
+                };
+                botonEscala("auto", "Auto", "Automático: cambia con el zoom");
+                botonEscala("100k", "100K", "Carta 1:100,000");
+                botonEscala("50k", "50K", "Carta 1:50,000");
+                pintarBotones();
+              }
+            });
           });
         });
 
@@ -654,9 +707,11 @@ export function MapaGeocatmin({
             ${muestra("#df73ff", "Aviso de retiro (Ley 30428)")}
 
             <p class="leyenda-grupo-titulo">Sentinel-2 · Copernicus</p>
+            <p class="leyenda-subgrupo">Alteración férrica</p>
             ${muestra("rgb(220,20,20)", "Óxidos de hierro")}
-            ${muestra("rgb(0,102,204)", "Arcillas")}
             ${muestra("rgb(255,140,0)", "Hierro ferroso")}
+            <p class="leyenda-subgrupo">Alteración argílica</p>
+            ${muestra("rgb(0,102,204)", "Arcillas")}
             ${muestra("rgb(204,204,0)", "Arcilla / sulfatos / mica")}
             ${muestra("rgb(155,0,200)", "Coincidencia de 2+ índices")}
 

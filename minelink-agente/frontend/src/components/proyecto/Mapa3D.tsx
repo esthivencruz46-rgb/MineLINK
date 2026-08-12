@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { TERRENO_TILES } from "./terreno3D";
@@ -144,14 +144,28 @@ function vistaDentroDe(
 
 // Nombre tecnico -> etiqueta legible para el panel de capas (mismo
 // orden/nombres que backend/copernicus.py NOMBRES_CAPAS y que el panel del
-// mapa 2D — duplicado acá a propósito, ver MapaGeocatmin.tsx).
+// mapa 2D — duplicado acá a propósito, ver MapaGeocatmin.tsx). Sin el
+// prefijo "Anomalía:" en los 4 índices porque ya van dentro de su
+// sub-grupo de alteración ("Alteración férrica"/"Alteración argílica",
+// agosto 2026 — pedido explícito de Esthiven).
 const TITULOS_ANOMALIAS: Record<string, string> = {
-  oxidos_de_hierro: "Anomalía: óxidos de hierro",
-  arcillas: "Anomalía: arcillas",
-  hierro_ferroso: "Anomalía: hierro ferroso",
-  arcilla_sulfatos_mica: "Anomalía: arcilla/sulfatos/mica",
+  oxidos_de_hierro: "Óxidos de hierro",
+  arcillas: "Arcillas",
+  hierro_ferroso: "Hierro ferroso",
+  arcilla_sulfatos_mica: "Arcilla / sulfatos / mica",
   combinado: "Anomalías combinadas (todas)",
   coincidencias: "Coincidencia de 2+ anomalías (más confiable)",
+};
+
+// Sub-grupo de alteración de cada índice de Copernicus (agosto 2026, pedido
+// explícito de Esthiven: agrupar en "Alteración férrica" y "Alteración
+// argílica"). El que no esté acá (combinado/coincidencias) queda suelto al
+// final del grupo. Espejo de la sección Copernicus del panel 2D.
+const SUBGRUPOS_ANOMALIAS: Record<string, string> = {
+  oxidos_de_hierro: "Alteración férrica",
+  hierro_ferroso: "Alteración férrica",
+  arcillas: "Alteración argílica",
+  arcilla_sulfatos_mica: "Alteración argílica",
 };
 
 interface AnomaliasSatelitales {
@@ -171,6 +185,10 @@ interface CapaDef {
    * esta según la cámara — dentro de la zona de la concesión → 50K;
    * alejada → 100K. Espejo del apilado 100K+50K del mapa 2D. */
   url50k?: string;
+  /** Sub-grupo dentro del grupo (agosto 2026): los índices de Copernicus
+   * se agrupan en "Alteración férrica"/"Alteración argílica". Sin valor =
+   * la capa va suelta en el grupo. */
+  subgrupo?: string;
 }
 
 // Versión de las URLs de capas 3D: subirla cada vez que cambie la forma de
@@ -203,10 +221,11 @@ function catalogoCapas(opts: {
     url: string | undefined,
     bbox: [number, number, number, number] | undefined,
     opacidad: number,
-    porDefecto: boolean
+    porDefecto: boolean,
+    subgrupo?: string
   ) => {
     if (!url || !bbox) return;
-    capas.push({ id, grupo, etiqueta, url, bbox, opacidad, porDefecto });
+    capas.push({ id, grupo, etiqueta, url, bbox, opacidad, porDefecto, subgrupo });
   };
   if (opts.bbox) {
     // SOLO geología, fallas y Copernicus en el 3D (pedido de Esthiven,
@@ -239,7 +258,8 @@ function catalogoCapas(opts: {
         conVersion(`${BASE_URL}${url}`),
         bboxAnomalias,
         1,
-        false
+        false,
+        SUBGRUPOS_ANOMALIAS[nombre]
       );
     }
   }
@@ -405,6 +425,27 @@ export function Mapa3D({
     }
     return resultado;
   }, [capas]);
+
+  // Corta las capas de un grupo en secciones por `subgrupo` consecutivo
+  // (agosto 2026): los índices de Copernicus van bajo "Alteración férrica"
+  // / "Alteración argílica"; el resto (combinado/coincidencias) queda en
+  // una sección sin título al final. El encabezado de sub-grupo solo se
+  // pinta si la sección tiene capas.
+  const seccionesDeGrupo = useCallback(
+    (grupo: { titulo: string; capas: CapaDef[] }): { titulo?: string; capas: CapaDef[] }[] => {
+      const secciones: { titulo?: string; capas: CapaDef[] }[] = [];
+      for (const c of grupo.capas) {
+        const ultima = secciones[secciones.length - 1];
+        if (ultima && ultima.titulo === c.subgrupo) {
+          ultima.capas.push(c);
+        } else {
+          secciones.push({ titulo: c.subgrupo, capas: [c] });
+        }
+      }
+      return secciones;
+    },
+    []
+  );
 
   // Quita la capa del mapa (layer y source). Inofensivo si no está.
   function quitarCapa(id: string) {
@@ -1071,8 +1112,25 @@ export function Mapa3D({
                       {grupo.titulo}
                     </div>
                     {abierto &&
-                      grupo.capas.map((capa) => (
-                        <div key={capa.id}>
+                      seccionesDeGrupo(grupo).map((seccion, si) => (
+                        <div key={seccion.titulo ?? `seccion-${si}`}>
+                          {seccion.titulo && (
+                            <div
+                              className="capas-subgrupo"
+                              style={{
+                                margin: "6px 0 2px 12px",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.02em",
+                                color: "#64748b",
+                              }}
+                            >
+                              {seccion.titulo}
+                            </div>
+                          )}
+                          {seccion.capas.map((capa) => (
+                            <div key={capa.id}>
                           <label className="capas-fila" style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", marginLeft: "12px" }}>
                             <input
                               type="checkbox"
@@ -1145,6 +1203,8 @@ export function Mapa3D({
                               ))}
                             </div>
                           )}
+                            </div>
+                          ))}
                         </div>
                       ))}
                   </div>
