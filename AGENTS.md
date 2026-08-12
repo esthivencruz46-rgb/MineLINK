@@ -9,10 +9,12 @@
 ## Critical warnings
 
 - **Diagnostic follows the A/B/C/D profile model** (`context/diagnostico_formalizacion.md` is the business source of truth; catalog in `backend/catalogo_diagnostico.py`, mirrored in `frontend/src/data/preguntas.ts` — any drift between them makes `POST /diagnostico` 422). Output is TWO independent semáforos + Índice de Madurez 0-5 + two 0-100 track scores (`score_formalizacion` stage-anchored, `score_inversion`) shown in the cartera. `Operacion.estado_formalizacion` stores the PERFIL (A/A_avanzado/B/C/D); `seeds/migrar_estado_formalizacion.py` already ran against prod. The OLD MineScore model is dead but preserved — `backend/scoring_legacy.py` and paused `data/preguntasPerfil.ts`/`perfilInformativo.ts`/`PerfilInformativoAgrupado.tsx` (do not delete).
-- **`backend/.env` points at production Supabase.** Any seed or migration script run locally executes against production. Tests are safe (in-memory SQLite override via `app.dependency_overrides[get_db]`, external calls disabled via `MINELINK_RESOLVER_MAPS=0`/`MINELINK_GEOCATMIN=0`), but manual seed scripts are not.
+- **`backend/.env` points at production Supabase.** Any seed or migration script run locally executes against production. Tests are safe, but manual seed scripts are not.
+- **Test isolation is complete even with a real `backend/.env`:** in-memory SQLite via `app.dependency_overrides[get_db]` **plus** replacing `database.SessionLocal` (background tasks bypass the override). All env is set at the top of `tests/test_smoke.py` BEFORE importing `main`/`auth` — `SUPABASE_URL`/`SUPABASE_SERVICE_KEY` blanked (files → local disk), `MINELINK_ASESOR_PROVEEDORES`/`MINELINK_ASESOR_PROVEEDOR` emptied (asesor forced to "simulado", never a paid LLM call), plus `MINELINK_RESOLVER_MAPS=0`/`MINELINK_GEOCATMIN=0`/`MINELINK_REINFO=0`. Keep that order if you add env there.
 - **Never run broad `rm` on `backend/uploads/`** — has caused real data loss twice. See `errores_aprendidos.md`.
 - **Any new Supabase table needs its own RLS:** run `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` (pattern in `seeds/habilitar_rls_*.py`), or it's exposed through the public PostgREST anon key. The backend connects as owner, so RLS doesn't affect it.
 - **Never call `asesor.actualizar_documentos_admin()` inline in a live request** — it eagerly rebuilds the BM25 index (~50s on a cold corpus; caused a real 90s hang). Only schedule it via `BackgroundTasks`, gated by the cheap `documentos_admin_cambiaron()`.
+- **Feeding the asesor corpus:** run `backend/convertir_pdfs_asesor.py` before dropping PDFs into `context/asesor_conocimiento/` — it converts them to `.md` and deletes the source PDF (real corpus: 92 MB → 8.4 MB, cold start 10s → <1s).
 - **Any new per-IP limiter must use `security._ip_real(request)`** (`CF-Connecting-IP` first, then `X-Forwarded-For`), never `request.client.host` — behind Render + Cloudflare that's the same internal proxy IP for every visitor (shared rate limit across all traffic, real July 2026 bug).
 
 ## Commands
@@ -25,7 +27,7 @@ pytest -q                                                  # full suite
 pytest tests/test_scoring.py -q                            # scoring only
 pytest tests/test_smoke.py::test_post_diagnostico -q       # single test
 ```
-Module-specific test files exist: `test_asesor.py`, `test_geocatmin.py`, `test_copernicus.py`, `test_interpretacion_ubicacion.py`. All tests use an in-memory SQLite engine and disable outbound calls — they never touch the real DB regardless of `DATABASE_URL`.
+Module-specific test files exist: `test_asesor.py`, `test_geocatmin.py`, `test_copernicus.py`, `test_interpretacion_ubicacion.py`. All tests use an in-memory SQLite engine and disable outbound calls — they never touch the real DB regardless of `DATABASE_URL`. `pytest` is NOT in `requirements.txt` (already installed in this env). The app fails fast at import without `ADMIN_USERNAME`/`ADMIN_PASSWORD`/`SECRET_KEY` (`auth.py`) — a fresh `.env` needs all three.
 
 Seeds/migrations run as `python -m seeds.<nombre>` from `backend/`. They use the same engine as `database.py`, so **`backend/.env` points them at production** — never run one without explicit confirmation. `main.py` runs `Base.metadata.create_all` at startup (creates missing tables on both engines), but it never alters existing tables — new columns still need a seed migration.
 
@@ -53,6 +55,7 @@ No frontend linter or test runner is configured. `npm run build` is the only ver
 - **Brand name is a single source of truth:** `frontend/src/config/marca.ts`. Every visible text imports it — never hardcode the brand. Technical identifiers (Android appId `com.minelink.app`, localStorage keys, DB/bucket names, `MINELINK_*` env vars, published `MineLink.apk`) never change with the brand.
 - **Backend and frontend question ID sets must stay in sync** or `POST /diagnostico` returns 422. The frontend mirrors the catalog in `frontend/src/data/preguntas.ts`.
 - **Dual-mode infra:** SQLite locally, Postgres (Supabase) when `DATABASE_URL` is set. File storage is local disk or Supabase Storage. PDFs are always converted to JPEG on upload.
+- **Repo-root `experimentos_gee/` and `experimentos_copernicus/` are gitignored prototypes** (own venvs, own `.env`, GEE/Sentinel design work) — intentionally never imported by the backend; the real code is `backend/copernicus.py`. Don't confuse them with production code.
 
 ## Deploy
 
