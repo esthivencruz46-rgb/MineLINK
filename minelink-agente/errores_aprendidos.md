@@ -234,3 +234,32 @@ HTTP con una variante sin headers CORS. Cuidado con tests con `curl`:
 simular solo el request con Origin no reproduce el bug (es la CACHE del
 navegador la que decide).
 **Estado:** RESUELTO
+
+---
+
+## 2026-08-11 — El fix de CORS no le servía a nadie que ya tuviera la variante envenenada cacheada (cache-busting obligatorio)
+**Síntoma:** con el fix de arriba ya desplegado (precarga con
+`crossOrigin="anonymous"`) y el backend respondiendo 200 con ACAO,
+Esthiven seguía viendo "No se pudo cargar esta capa" para geología y
+fallas del 3D. Un navegador limpio con el flujo fijado cargaba bien.
+**Causa raíz:** el backend sirve las capas con
+`Cache-Control: public, max-age=86400` (24h). Quien visitó el sitio
+ANTES del fix tiene cacheada la variante SIN ACAO de cada URL (la que
+produjo el `<img>` sin crossOrigin). Con la MISMA URL, el preload fijado
+(`crossOrigin="anonymous"`) hace el CORS check contra esa variante
+cacheada → falla → `onerror` → "No se pudo cargar esta capa", aunque el
+servidor ya responda con ACAO a peticiones frescas. Reproducido e2e con
+navegador headless en 3 pasos: (1) flujo viejo envenena la caché,
+(2) flujo fijado + misma caché → capas AUSENTES con "Access to image ...
+blocked by CORS", (3) flujo fijado + `?v=2` en la URL → cargan.
+**Solución aplicada:** cache-busting en `Mapa3D.tsx`: `VER_CAPAS_3D=2` +
+`conVersion()` agrega `?v=2` a las URLs de geología, fallas y las capas
+de Copernicus. Cambia la cache key → descarga fresca con ACAO para TODOS
+los usuarios, sin que tengan que limpiar su caché. Subir `VER_CAPAS_3D`
+cada vez que cambie la forma de servir estas capas.
+**Cómo evitarlo:** cualquier URL servida con `max-age` largo que dependa
+de headers CORS (ACAO) y que alguna vez se haya pedido por un canal
+NO-CORS necesita un parámetro de versión para invalidar la variante
+cacheada de los clientes ya existentes — el fix del código no alcanza si
+la caché del navegador ya guardó la variante vieja.
+**Estado:** RESUELTO
